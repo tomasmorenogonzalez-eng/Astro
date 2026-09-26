@@ -1,0 +1,4 @@
+# Correo al que llegan los informes de problemas de ASTRO (botón «Informar de un problema»).
+# Escribe la dirección en la línea de abajo, sin «#». Si la dejas vacía, los probadores podrán copiar el informe igualmente.
+# Recomendado: una dirección solo para ASTRO (por ejemplo astro.astrocitas@gmail.com), porque la verán los probadores.
+

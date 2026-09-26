@@ -1,0 +1,108 @@
+# Fabrica ASTRO para Mac (Apple Silicon e Intel) y Windows y lo publica.
+# Se ejecuta al crear una versión (etiqueta v0.9, v1.0, v1.1…) o a mano desde la pestaña «Actions».
+# Las versiones 0.x son la beta: muestran la etiqueta «BETA». No marques las releases como «pre-release»:
+# la actualización automática solo ve las versiones normales.
+# Las aplicaciones publicadas se actualizan solas cuando aparece una versión nueva.
+name: Fabricar ASTRO
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fabricar:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - so: macos-14
+            nombre: ASTRO-Mac-AppleSilicon.zip
+          - so: macos-15-intel
+            nombre: ASTRO-Mac-Intel.zip
+          - so: windows-latest
+            nombre: ASTRO-Windows.exe
+    runs-on: ${{ matrix.so }}
+    continue-on-error: ${{ matrix.so == 'macos-15-intel' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Versión y repositorio (para la actualización automática)
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF_TYPE" == "tag" ]] || VERSION="0.0"
+          echo "$VERSION" > version.txt
+          echo "$GITHUB_REPOSITORY" > repo.txt
+      - name: Instalar el empaquetador
+        run: pip install pyinstaller pillow
+      - name: Fabricar la aplicación
+        run: pyinstaller ASTRO.spec --noconfirm
+
+      # ── Mac: firma y certificación de Apple (solo si hay credenciales en los «secrets») ──
+      - name: Firmar y certificar (Mac, opcional)
+        if: runner.os == 'macOS'
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$MAC_CERT_P12" ]; then
+            echo "Sin certificado de Apple: firma local (la primera vez el Mac mostrará un aviso)."
+            codesign --force --deep -s - dist/ASTRO.app
+            exit 0
+          fi
+          echo "$MAC_CERT_P12" | base64 --decode > cert.p12
+          security create-keychain -p clave fab.keychain
+          security default-keychain -s fab.keychain
+          security unlock-keychain -p clave fab.keychain
+          security import cert.p12 -k fab.keychain -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k clave fab.keychain
+          ID=$(security find-identity -v -p codesigning fab.keychain | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          codesign --force --deep --options runtime --timestamp --entitlements entitlements.plist -s "$ID" dist/ASTRO.app
+          ditto -c -k --keepParent dist/ASTRO.app certificar.zip
+          xcrun notarytool submit certificar.zip --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple dist/ASTRO.app
+
+      - name: Empaquetar (Mac)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent dist/ASTRO.app "${{ matrix.nombre }}"
+      - name: Empaquetar (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: cp dist/ASTRO.exe "${{ matrix.nombre }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.nombre }}
+          path: ${{ matrix.nombre }}
+
+  publicar:
+    needs: fabricar
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: paquetes
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: paquetes/*
+          prerelease: false
+          body: |
+            **Descarga la de tu ordenador y haz doble clic. ASTRO se instala solo y se actualiza solo.**
+            - Mac con chip Apple (M1, M2, M3, M4…): `ASTRO-Mac-AppleSilicon.zip`
+            - Mac con procesador Intel: `ASTRO-Mac-Intel.zip`
+            - Windows 10 u 11: `ASTRO-Windows.exe`
+
+            📖 [Guía para probadores de la beta](../../blob/main/GUIA-BETA.md) · Para informar de un problema: menú **Más → Informar de un problema o sugerencia**.
+
+            **Download the one for your computer and double-click it. ASTRO installs and updates itself.**
+            📖 [Beta tester guide](../../blob/main/GUIA-BETA.md) · To report a problem: **More → Report a problem or suggestion**.
