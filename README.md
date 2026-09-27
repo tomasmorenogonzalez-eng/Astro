@@ -18,7 +18,7 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 **Te ayuda a llegar a tu objetivo.** Para cada objeto ves cuántas horas útiles llevas por filtro, cuántas te faltan y cuántas noches más necesitarás, más o menos.
 
-**Y te dice cuándo.** Con tu lugar de observación, la Luna y la altura de cada objeto, ASTRO te enseña qué noches del próximo mes sirven para lo que te falta: la banda ancha cuando no hay Luna y el Hα, el OIII o el SII cuando sí la hay. En «Próximas noches» ves de un vistazo qué hacer esta noche y las siguientes, con la previsión de los próximos siete días hora a hora (nubes, humedad, rocío y viento). Guarda varios lugares, cada uno con su horizonte (los árboles, la casa o la cúpula), y te dibuja la altura de cada objeto esta noche.
+**Y te dice cuándo.** Con tu lugar de observación, la Luna y la altura de cada objeto, ASTRO te enseña qué noches del próximo mes sirven para lo que te falta: la banda ancha cuando no hay Luna y el Hα, el OIII o el SII cuando sí la hay. En «Próximas noches» ves de un vistazo qué hacer esta noche y las siguientes, con la previsión de los próximos siete días hora a hora (nubes, humedad, rocío y viento). Guarda varios lugares, cada uno con su horizonte (los árboles, la casa o la cúpula), y te dibuja la altura de cada objeto esta noche. Y si buscas algo nuevo, **«¿Qué fotografío?»** te propone objetos que encajan en el campo de tu equipo y te prepara el plan para N.I.N.A. o la ASIAIR.
 
 **Apila por ti.** Si tienes instalado Siril (también gratuito), ASTRO apila cada objeto por filtros usando las calibraciones que le correspondan.
 
@@ -46,7 +46,7 @@ No vuelve a salir.
 
 ## Tus fotos son tuyas
 
-ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en cuando si hay una versión nueva y, si usas «Próximas noches», pide la previsión del tiempo de tu zona a Open-Meteo.com enviando únicamente tu posición aproximada (se puede desactivar). Copia tus tomas a su carpeta sin tocar los originales.
+ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en cuando si hay una versión nueva y, si usas «Próximas noches», pide la previsión del tiempo de tu zona a Open-Meteo.com enviando únicamente tu posición aproximada (se puede desactivar), y en «¿Qué fotografío?» muestra imágenes del cielo del servicio CDS de Estrasburgo. Copia tus tomas a su carpeta sin tocar los originales.
 
 ---
 
@@ -70,7 +70,7 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 ## In English
 
-**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus), and it can watch your ASIAIR or N.I.N.A. live during the night, checking each frame as it arrives and warning you with a sound and a notification if clouds come in, focus drifts or the sequence stops. It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, plus the cloud forecast for the next week), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
+**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus), and it can watch your ASIAIR or N.I.N.A. live during the night, checking each frame as it arrives and warning you with a sound and a notification if clouds come in, focus drifts or the sequence stops. It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, plus the cloud forecast for the next week), suggests new targets that fit your field of view (with a ready-made plan for N.I.N.A. or the ASIAIR), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
 
 It has three looks (Day, Night and Red, the last one for use at the telescope). Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
 
