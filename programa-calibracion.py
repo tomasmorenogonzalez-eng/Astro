@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.26.9"
+VERSION_PROG = "2026.09.26.10"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1810,7 +1810,7 @@ setTimeout(estadoGeneral, 800);
   b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return; try { await fetch("/api/salir",{method:"POST",body:"{}"}); } catch(_){}
     document.body.innerHTML = '<div style="padding:60px;text-align:center;font:18px system-ui">ASTRO se ha cerrado. Ya puedes cerrar esta pestaña.</div>'; };
   $("menuLista").append(hr, b);
-  const v = document.createElement("div"); v.className = "sub"; v.textContent = "versión " + e.version; document.querySelector(".marca > div").append(v);
+  const v = document.createElement("div"); v.className = "sub"; v.textContent = tr("versión") + " " + e.version; document.querySelector(".marca > div").append(v);
 } catch(_){} })();
 
 $("btnIdioma").textContent = IDIOMA === "en" ? "🌐 Español" : "🌐 English";
@@ -2222,6 +2222,32 @@ def _siril(siril, lineas, nombre):
         raise RuntimeError("Siril ha fallado (mira el registro).")
 
 
+def q(ruta):
+    """Ruta para un script de Siril: entre comillas si lleva espacios."""
+    ruta = str(ruta)
+    return '"%s"' % ruta if " " in ruta else ruta
+
+
+def qo(opcion, ruta):
+    ruta = str(ruta)
+    return '"%s%s"' % (opcion, ruta) if " " in ruta else opcion + ruta
+
+
+def enlace(src, dst):
+    """Enlace simbólico; si el sistema no lo permite (Windows sin permisos), enlace duro o copia."""
+    try:
+        os.symlink(src, dst)
+        return
+    except (OSError, NotImplementedError, AttributeError):
+        pass
+    try:
+        os.link(src, dst)
+        return
+    except OSError:
+        pass
+    shutil.copy2(src, dst)
+
+
 def _integrar(siril, s, dest_sin_ext, calibrador=None):
     """Integra un conjunto de tomas sueltas en un master con Siril."""
     w = os.path.join(TMP_SIRIL, s["id"])
@@ -2232,16 +2258,16 @@ def _integrar(siril, s, dest_sin_ext, calibrador=None):
         p = os.path.join(ROOT, r.get("path") or "")
         if r.get("path") and os.path.isfile(p) and p.lower().endswith((".fits", ".fit", ".fts")):
             n += 1
-            os.symlink(p, os.path.join(src, f"c{n:05d}{os.path.splitext(p)[1].lower()}"))
+            enlace(p, os.path.join(src, f"c{n:05d}{os.path.splitext(p)[1].lower()}"))
     if n < 3:
         raise RuntimeError(f"Solo hay {n} tomas FITS en el disco (hacen falta 3 o más).")
     seq = os.path.join(w, "seq")
-    L = ["requires 1.2.0", "set32bits", f"cd {src}", f"link c -out={seq}", f"cd {seq}"]
+    L = ["requires 1.2.0", "set32bits", f"cd {q(src)}", f"link c {qo('-out=', seq)}", f"cd {q(seq)}"]
     if s["tipo"] == "flat":
-        L += [f"calibrate c -bias={calibrador}" if calibrador else "calibrate c",
-              f"stack pp_c rej 3 3 -norm=mul -out={dest_sin_ext}"]
+        L += [f"calibrate c {qo('-bias=', calibrador)}" if calibrador else "calibrate c",
+              f"stack pp_c rej 3 3 -norm=mul {qo('-out=', dest_sin_ext)}"]
     else:
-        L += [f"stack c rej 3 3 -nonorm -out={dest_sin_ext}"]
+        L += [f"stack c rej 3 3 -nonorm {qo('-out=', dest_sin_ext)}"]
     _siril(siril, L, "m_" + s["id"])
     shutil.rmtree(w, ignore_errors=True)
     return n
@@ -2289,7 +2315,7 @@ def trabajo_masters(ids):
                             cal_ruta = os.path.join(TMP_SIRIL, "cal_" + c["id"] + os.path.splitext(src)[1].lower())
                             os.makedirs(TMP_SIRIL, exist_ok=True)
                             if not os.path.exists(cal_ruta):
-                                os.symlink(src, cal_ruta)
+                                enlace(src, cal_ruta)
                         else:
                             cal_ruta = os.path.join(TMP_SIRIL, "cal_" + c["id"])
                             if not os.path.isfile(cal_ruta + ".fit"):

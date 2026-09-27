@@ -6,7 +6,7 @@
 Un programa gratuito para astrofotografía que:
 - **revisa tus lights**: mide las estrellas (FWHM y alargamiento) y detecta trazas de satélites, nubes y desenfoque;
 - **organiza tu biblioteca de calibración** (bias, darks, flats) y te dice **qué te falta**, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**;
-- **apila con Siril** (gratuito) cada objeto por filtros.
+- **apila con Siril** (gratuito) cada objeto por filtros y te deja una **vista previa ya revelada** (y las combinaciones RGB, LRGB, SHO o HOO), lista para abrir en GIMP, Photoshop o PixInsight.
 
 Funciona en **Mac** y **Windows**, en español e inglés.
 
@@ -25,7 +25,7 @@ Usa ASTRO con **tus datos reales**, como lo harías normalmente. Si te sobra tie
 2. **Tu equipo:** ¿reconoce bien tu cámara, telescopio, filtros, exposición y temperatura?
 3. **Biblioteca de calibración:** añade darks, flats y bias, o impórtalos de la **ASIAIR** o de **N.I.N.A.**
 4. **«¿Qué me falta?»**: ¿acierta con lo que te falta? Si usas N.I.N.A., prueba a cargar la secuencia que genera.
-5. **Apilar** un objeto con Siril.
+5. **Apilar** un objeto con Siril. ¿La **vista previa** se ve razonable? ¿«Abrir en…» encuentra tus programas de edición?
 6. **Resumen y objetivo** de un objeto.
 7. En general: ¿qué te resulta confuso, lento o echas en falta?
 
@@ -49,11 +49,11 @@ La beta durará unos **3 meses**. Todas las mejoras te llegarán solas al abrir 
 
 Thank you for testing ASTRO! This is a **test version**: it may have bugs, and that's exactly why I need you.
 
-**What it is:** free astrophotography software that checks your light frames (stars, satellite trails, clouds, defocus), organises your calibration library (bias, darks, flats), tells you **what you're missing** (with a ready-made **N.I.N.A. sequence**) and **stacks with Siril**. Mac and Windows, Spanish and English.
+**What it is:** free astrophotography software that checks your light frames (stars, satellite trails, clouds, defocus), organises your calibration library (bias, darks, flats), tells you **what you're missing** (with a ready-made **N.I.N.A. sequence**) and **stacks with Siril**, leaving a **ready-developed preview** (plus RGB, LRGB, SHO or HOO combinations) you can open in GIMP, Photoshop or PixInsight. Mac and Windows, Spanish and English.
 
 **Install:** download the file for your computer from **Releases** and **double-click it**. ASTRO installs and updates itself. Only the first time, allow it: **Mac** → *System Settings → Privacy & Security → Open Anyway*; **Windows** → *More info → Run anyway*. Install **Siril** (siril.org) to stack.
 
-**Please test** with your real data: adding a session (do the ratings match what you see?), camera/telescope/filter detection, the calibration library (including ASIAIR / N.I.N.A. import), «What am I missing?» and the N.I.N.A. sequence, stacking, and target summaries. Tell me what is confusing, slow or missing.
+**Please test** with your real data: adding a session (do the ratings match what you see?), camera/telescope/filter detection, the calibration library (including ASIAIR / N.I.N.A. import), «What am I missing?» and the N.I.N.A. sequence, stacking (does the preview look sensible? does «Open in…» find your editing apps?), and target summaries. Tell me what is confusing, slow or missing.
 
 **Report** from ASTRO: **«More» menu → «Report a problem or suggestion»**. Technical data is added automatically; your images and personal data are never sent. Screenshots help.
 

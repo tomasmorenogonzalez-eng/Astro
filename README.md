@@ -18,6 +18,8 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 **Apila por ti.** Si tienes instalado Siril (también gratuito), ASTRO apila cada objeto por filtros usando las calibraciones que le correspondan.
 
+**Y te enseña el resultado.** Al terminar, ASTRO revela la imagen por ti: quita el gradiente del fondo, equilibra el color y la estira, y si tienes los filtros monta también las versiones RGB, LRGB, SHO (la paleta Hubble) o HOO. Nada de abrir un archivo negro sin saber si ha salido bien: lo ves en el momento. Y cuando quieras rematarla, un botón la abre directamente en GIMP, Photoshop, PixInsight o el programa que uses.
+
 ---
 
 ## Cómo empezar
@@ -64,7 +66,7 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 ## In English
 
-**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus). It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target, and stacks with Siril.
+**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus). It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target, and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
 
 Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
 

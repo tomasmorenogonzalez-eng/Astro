@@ -44,7 +44,7 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 3. En **Control de lights**, pulsa **«＋ Añadir sesión»** o arrastra la carpeta de una noche de fotos. ASTRO analiza cada toma y la guarda ordenada.
 4. En **Biblioteca de calibración**, añade tus darks, flats y bias (o impórtalos directamente de la ASIAIR o de N.I.N.A.).
 5. **«¿Qué me falta?»** te dice qué calibraciones necesitan tus lights, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**
-6. **«Apilar…»** apila cada objeto con Siril.
+6. **«Apilar…»** apila cada objeto con Siril y, al terminar, crea una **vista previa ya revelada**: recorta los bordes, quita el gradiente del fondo, equilibra el color y estira la imagen. Si tienes los filtros, también combina **RGB, LRGB, SHO y HOO**. Guarda un JPG para ver y compartir y un TIFF de 16 bits para seguir editando; con **«Abrir en…»** lo abres directamente en GIMP, Photoshop, PixInsight, Affinity Photo o Siril. La vista previa de un apilado antiguo se crea desde **«Resumen y objetivo»** del objeto.
 
 ## 3. Requisitos
 
@@ -57,7 +57,7 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 Todo queda en la carpeta que elegiste:
 - `Lights/` — tus lights ordenados, miniaturas y la base de datos `lights.json`.
 - `Biblioteca de calibracion/` — bias, darks, flats, masters y `biblioteca.json`.
-- `Apilados/` — los resultados de Siril.
+- `Apilados/` — los resultados de Siril: los masters lineales (`.fit`), los filtros alineados y la carpeta `Vista previa` con los JPG y TIFF revelados.
 
 Para cambiar de carpeta: botón **«Cambiar carpeta de datos…»** en la ventana de ASTRO.
 Si algo falla, el registro está en:
@@ -123,6 +123,6 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 1. Download the file for your computer from **Releases** (Apple Silicon Mac, Intel Mac or Windows) and **double-click it**. ASTRO installs itself (Applications on Mac; Desktop and Start menu shortcuts on Windows) and **updates itself** whenever a new version is published.
 2. Only the first time, the system may warn that the app is unsigned. **Mac:** *System Settings → Privacy & Security → Open Anyway* (or right-click → Open on macOS 14 and earlier). **Windows:** *More info → Run anyway*.
 3. On first launch, choose your **language** and the **folder** where ASTRO will keep your data. ASTRO opens in your browser; keep its small window open while you use it.
-4. Install **Siril** (free, https://siril.org) to stack and create masters.
+4. Install **Siril** (free, https://siril.org) to stack and create masters. After stacking, ASTRO creates a **ready-developed preview** (edges cropped, gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations when you have the filters) as JPG and 16-bit TIFF, and **«Open in…»** sends it to GIMP, Photoshop, PixInsight, Affinity Photo or Siril.
 
 The language can be changed at any time with the 🌐 button at the top of the screen.
