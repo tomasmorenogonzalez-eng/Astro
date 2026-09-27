@@ -15,6 +15,7 @@ apilar y biblioteca de calibración); cada uno abre su parte en el navegador.
 import os, sys, json, socket, threading, time, runpy, webbrowser, urllib.request, subprocess, re, shutil, platform, tempfile
 # Módulos que usan los programas (se cargan como datos; así el empaquetador los incluye)
 import http.server, socketserver, urllib.parse, re, shutil, hashlib, datetime, glob, string, ctypes, zipfile, math, random  # noqa: F401
+import secrets, hmac, locale, unicodedata, base64  # noqa: F401
 
 APP = "ASTRO"
 AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra."
@@ -747,7 +748,36 @@ def ventana_control(datos, puertos):
     os._exit(0)
 
 
+def prueba_de_arranque(salida):
+    """Solo para la fábrica de GitHub: arranca los dos programas con una carpeta de datos vacía, comprueba que
+    responden y sale (0 si los dos arrancan). Así una versión que no arranca no llega a publicarse."""
+    try:
+        f = open(salida, "w", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = f
+    except Exception:
+        pass
+    print("Prueba de arranque de ASTRO %s en %s" % (VERSION_APP, sys.platform))
+    datos = tempfile.mkdtemp(prefix="astro-prueba-")
+    try:
+        puertos, faltan = arrancar(datos)
+        print("Puertos:", puertos)
+        print("No arrancan:", faltan or "ninguno")
+        codigo = 1 if faltan else 0
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print("Error en la prueba:", e)
+        codigo = 1
+    try:
+        sys.stdout.flush()
+    except Exception:
+        pass
+    os._exit(codigo)
+
+
 def main():
+    if os.environ.get("ASTRO_PRUEBA_ARRANQUE"):
+        prueba_de_arranque(os.environ["ASTRO_PRUEBA_ARRANQUE"])
     # en la aplicación no hay consola: lo que se escribiría se guarda en un registro
     if getattr(sys, "frozen", False) or sys.stdout is None:
         try:

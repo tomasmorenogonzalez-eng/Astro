@@ -135,6 +135,20 @@ jobs:
           & $st.FullName verify /pa /v $exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      # ── Antes de publicar: la aplicación ya hecha tiene que arrancar sus dos programas ──
+      - name: Probar que arranca
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then APP=dist/ASTRO.app/Contents/MacOS/ASTRO; else APP=dist/ASTRO.exe; fi
+          export ASTRO_PRUEBA_ARRANQUE="$PWD/prueba-arranque.txt"
+          set +e
+          "$APP"
+          r=$?
+          set -e
+          cat prueba-arranque.txt || true
+          if [ $r -ne 0 ]; then echo "::error::La aplicación no arranca (mira el registro de arriba). No se publica."; exit 1; fi
+
       - name: Empaquetar (Mac)
         if: runner.os == 'macOS'
         run: ditto -c -k --sequesterRsrc --keepParent dist/ASTRO.app "${{ matrix.nombre }}"

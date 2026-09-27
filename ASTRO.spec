@@ -9,11 +9,26 @@ VERSION = open("version.txt").read().strip() if os.path.exists("version.txt") el
 VERSION_MAC = ".".join(re.findall(r"\d+", VERSION)[:3]) or "1.0"     # el Mac solo admite números
 extras = [(f, ".") for f in ("version.txt", "repo.txt", "contacto.txt") if os.path.exists(f)]
 
+# Los programas van como datos (se ejecutan dentro de la aplicación), así que el empaquetador no ve lo que importan:
+# se leen sus «import» y se añaden todos, para que ninguno falte en la aplicación.
+import ast
+EXCLUIDOS = ["numpy", "matplotlib", "PIL", "pandas", "scipy"]
+def _importados(archivo):
+    mods = set()
+    for n in ast.walk(ast.parse(open(archivo, encoding="utf-8").read())):
+        if isinstance(n, ast.Import):
+            mods.update(x.name for x in n.names)
+        elif isinstance(n, ast.ImportFrom) and n.module and not n.level:
+            mods.add(n.module)
+    return mods
+DE_LOS_PROGRAMAS = sorted(m for m in _importados("programa-lights.py") | _importados("programa-calibracion.py")
+                          if m.split(".")[0] not in EXCLUIDOS)
+
 a = Analysis(
     ["lanzador.py"],
     datas=[("programa-lights.py", "."), ("programa-calibracion.py", "."), ("icono.png", "."), ("imagenes", "imagenes")] + extras,
-    hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"],
-    excludes=["numpy", "matplotlib", "PIL", "pandas", "scipy"],
+    hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"] + DE_LOS_PROGRAMAS,
+    excludes=EXCLUIDOS,
 )
 pyz = PYZ(a.pure)
 

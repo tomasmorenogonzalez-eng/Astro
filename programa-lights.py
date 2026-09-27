@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.27.21"
+VERSION_PROG = "2026.09.27.22"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8798,7 +8798,6 @@ def qr_svg(texto, borde=4):
 # Una página ligera y solo de lectura en otro puerto, abierto a la red de casa (el programa principal solo
 # escucha en el propio ordenador). La dirección lleva una clave: sin ella no se ve nada. Los datos los manda la
 # pestaña de ASTRO del ordenador, que es la que analiza cada toma.
-import secrets as _secrets, hmac as _hmac
 _MOVIL = {"srv": None, "puerto": 0, "estado": None, "recibido": 0.0, "error": "", "clave": ""}
 _MOVIL_LOCK = threading.RLock()
 
@@ -8837,7 +8836,7 @@ def movil_clave(nueva=False):
         if not k and not nueva:
             k = _cfg_movil().get("movil_clave") or ""
         if nueva or not re.fullmatch(r"[A-Za-z0-9_-]{10,40}", k):
-            k = _secrets.token_urlsafe(9)
+            k = os.urandom(8).hex()          # 16 letras y números al azar (sin «secrets»: la aplicación no lo trae)
             _cfg_movil(movil_clave=k)
         _MOVIL["clave"] = k
         return k
@@ -8922,6 +8921,16 @@ def movil_idioma():
     return e.get("idioma") if e.get("idioma") in ("es", "en") else (idioma_actual() or "es")
 
 
+def _mismo_texto(a, b):
+    """Compara la clave sin que el tiempo que tarda diga cuántas letras coinciden."""
+    if len(a) != len(b):
+        return False
+    r = 0
+    for x, y in zip(a, b):
+        r |= ord(x) ^ ord(y)
+    return r == 0
+
+
 class HMovil(BaseHTTPRequestHandler):
     """Solo la página del móvil, sus datos y la miniatura de la última toma, y solo con la clave."""
     timeout = 10                     # una conexión parada no se queda con un hilo para siempre
@@ -8944,7 +8953,7 @@ class HMovil(BaseHTTPRequestHandler):
     def do_GET(self):
         partes = urllib.parse.urlparse(self.path).path.strip("/").split("/")
         clave = _MOVIL.get("clave") or ""
-        if len(partes) < 2 or partes[0] != "m" or not clave or not _hmac.compare_digest(partes[1].encode(), clave.encode()):
+        if len(partes) < 2 or partes[0] != "m" or not clave or not _mismo_texto(partes[1], clave):
             return self._send(404, "no encontrado")
         resto = partes[2:]
         if not resto:
