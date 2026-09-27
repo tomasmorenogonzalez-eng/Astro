@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.27.22"
+VERSION_PROG = "2026.09.27.23"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -4877,15 +4877,129 @@ def _buscar_siril():
               os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Siril", "bin", "siril-cli.exe")]
     for c in cands:
         if c and os.path.isfile(c) and os.access(c, os.X_OK):
-            ver = ""
-            try:
-                r = subprocess.run([c, "--version"], capture_output=True, text=True, timeout=30, **SIN_VENTANA)
-                m = re.search(r"(\d+\.\d+(?:\.\d+)?)", (r.stdout or "") + (r.stderr or ""))
-                ver = m.group(1) if m else ""
-            except Exception:
-                pass
-            return c, ver
+            return c, _version_siril(c)
     return "", ""
+
+
+# ── Siril en el Mac: que sea «responsable de sí mismo» ──
+# Siril 1.4 lleva dentro su propio Python, y macOS solo deja que lo arranque Siril. Si Siril lo lanza ASTRO,
+# macOS cuenta a ASTRO como responsable y mata ese Python («Launch Constraint Violation»: sale el aviso de que
+# Python se ha cerrado). Por eso en el Mac se lanza Siril como lo hace el Terminal: renunciando a ser su
+# responsable. Si algo de esto falla, se lanza de la forma normal.
+class _ProcesoMac:
+    def __init__(self, pid, salida):
+        self.pid, self.stdout, self.returncode = pid, salida, None
+
+    def poll(self):
+        if self.returncode is None:
+            try:
+                p, st = os.waitpid(self.pid, os.WNOHANG)
+            except ChildProcessError:
+                return self.returncode
+            if p:
+                self.returncode = os.waitstatus_to_exitcode(st)
+        return self.returncode
+
+    def wait(self, timeout=None):
+        if self.returncode is None:
+            fin = time.time() + timeout if timeout else None
+            while self.poll() is None:
+                if fin and time.time() > fin:
+                    raise TimeoutError("el programa no ha terminado")
+                time.sleep(0.05)
+        return self.returncode
+
+    def terminate(self):
+        try:
+            os.kill(self.pid, 15)
+        except OSError:
+            pass
+
+    kill = terminate
+
+
+def _lanzar_desvinculado(args, cwd=None):
+    import ctypes
+    libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+    renunciar = libc.responsibility_spawnattrs_setdisclaim          # si no existe, AttributeError → forma normal
+    vp = ctypes.c_void_p
+    for fn, tipos in ((libc.posix_spawnattr_init, [ctypes.POINTER(vp)]), (libc.posix_spawnattr_destroy, [ctypes.POINTER(vp)]),
+                      (renunciar, [ctypes.POINTER(vp), ctypes.c_int]),
+                      (libc.posix_spawn_file_actions_init, [ctypes.POINTER(vp)]), (libc.posix_spawn_file_actions_destroy, [ctypes.POINTER(vp)]),
+                      (libc.posix_spawn_file_actions_adddup2, [ctypes.POINTER(vp), ctypes.c_int, ctypes.c_int]),
+                      (libc.posix_spawn_file_actions_addopen, [ctypes.POINTER(vp), ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint16]),
+                      (libc.posix_spawn_file_actions_addchdir_np, [ctypes.POINTER(vp), ctypes.c_char_p]),
+                      (libc.posix_spawn, [ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.POINTER(vp), ctypes.POINTER(vp),
+                                          ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(ctypes.c_char_p)])):
+        fn.argtypes, fn.restype = tipos, ctypes.c_int
+    attr, acc = vp(), vp()
+    libc.posix_spawnattr_init(ctypes.byref(attr))
+    libc.posix_spawn_file_actions_init(ctypes.byref(acc))
+    r, w = os.pipe()                                               # los dos se cierran solos en el hijo (no heredables)
+    try:
+        if renunciar(ctypes.byref(attr), 1) != 0:
+            raise OSError("no se pudo renunciar a la responsabilidad")
+        libc.posix_spawn_file_actions_addopen(ctypes.byref(acc), 0, b"/dev/null", os.O_RDONLY, 0)
+        libc.posix_spawn_file_actions_adddup2(ctypes.byref(acc), w, 1)
+        libc.posix_spawn_file_actions_adddup2(ctypes.byref(acc), w, 2)
+        if cwd:
+            libc.posix_spawn_file_actions_addchdir_np(ctypes.byref(acc), os.fsencode(cwd))
+        argv = (ctypes.c_char_p * (len(args) + 1))(*[os.fsencode(a) for a in args], None)
+        entorno = [os.fsencode("%s=%s" % kv) for kv in os.environ.items()]
+        envp = (ctypes.c_char_p * (len(entorno) + 1))(*entorno, None)
+        pid = ctypes.c_int()
+        err = libc.posix_spawn(ctypes.byref(pid), os.fsencode(args[0]), ctypes.byref(acc), ctypes.byref(attr), argv, envp)
+        if err:
+            raise OSError(err, os.strerror(err))
+    except BaseException:
+        os.close(r)
+        raise
+    finally:
+        os.close(w)
+        libc.posix_spawn_file_actions_destroy(ctypes.byref(acc))
+        libc.posix_spawnattr_destroy(ctypes.byref(attr))
+    return _ProcesoMac(pid.value, os.fdopen(r, "r", encoding="utf-8", errors="replace"))
+
+
+def lanzar_siril(args, cwd=None):
+    """Como subprocess.Popen(args, stdout=PIPE, stderr=STDOUT, text=True), pero en el Mac con Siril responsable de sí mismo."""
+    if ES_MAC:
+        try:
+            return _lanzar_desvinculado(args, cwd)
+        except Exception as e:
+            print("Siril se lanza de la forma normal:", e)
+    return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **SIN_VENTANA,
+                            cwd=cwd, errors="replace")
+
+
+def version_siril_mac(ruta):
+    """En el Mac, la versión de Siril se lee de su Info.plist: así no hace falta arrancarlo."""
+    i = ruta.find(".app/")
+    if i < 0:
+        return ""
+    try:
+        import plistlib
+        with open(ruta[:i + 4] + "/Contents/Info.plist", "rb") as f:
+            d = plistlib.load(f)
+        m = re.search(r"(\d+\.\d+(?:\.\d+)?)", str(d.get("CFBundleShortVersionString") or d.get("CFBundleVersion") or ""))
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
+
+
+def _version_siril(c):
+    ver = version_siril_mac(c) if ES_MAC else ""
+    if ver:
+        return ver
+    try:
+        p = lanzar_siril([c, "--version"])
+        txt = p.stdout.read()
+        p.wait(30)
+        p.stdout.close()
+        m = re.search(r"(\d+\.\d+(?:\.\d+)?)", txt or "")
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
 
 
 def q(ruta):
@@ -5453,8 +5567,7 @@ def correr_siril(siril, script_txt, nombre):
     with open(ruta, "w", encoding="utf-8") as f:
         f.write(script_txt)
     _log(f"── {nombre} ──")
-    p = subprocess.Popen([siril, "-s", ruta], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **SIN_VENTANA,
-                         cwd=JOB["_w"], errors="replace")
+    p = lanzar_siril([siril, "-s", ruta], cwd=JOB["_w"])
     _PROC["p"] = p
     resumen = {"registradas": None, "fallidas": None, "fallo": False}
     for linea in p.stdout:
@@ -10284,6 +10397,16 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(leer_avisos(), ensure_ascii=False))
         if p.path == "/api/movil":
             return self._send(200, json.dumps(movil_info(), ensure_ascii=False))
+        if p.path == "/api/prueba/lanzar":
+            # para la prueba de la fábrica: lanzar un programa como se lanza Siril y leer lo que escribe
+            try:
+                pr = lanzar_siril(["cmd", "/c", "echo astro-ok"] if ES_WIN else ["/bin/echo", "astro-ok"])
+                txt = pr.stdout.read()
+                rc = pr.wait(20)
+                pr.stdout.close()
+                return self._send(200, json.dumps({"modo": type(pr).__name__, "salida": txt.strip(), "codigo": rc}))
+            except Exception as e:
+                return self._send(500, json.dumps({"error": str(e)}))
         if p.path == "/api/directo/estado":
             c = leer_directo()
             return self._send(200, json.dumps({"ip": c.get("ip", ""), "carpeta": c.get("carpeta", ""), "horas": c.get("horas", 0),

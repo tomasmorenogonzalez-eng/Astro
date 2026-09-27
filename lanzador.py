@@ -15,7 +15,7 @@ apilar y biblioteca de calibración); cada uno abre su parte en el navegador.
 import os, sys, json, socket, threading, time, runpy, webbrowser, urllib.request, subprocess, re, shutil, platform, tempfile
 # Módulos que usan los programas (se cargan como datos; así el empaquetador los incluye)
 import http.server, socketserver, urllib.parse, re, shutil, hashlib, datetime, glob, string, ctypes, zipfile, math, random  # noqa: F401
-import secrets, hmac, locale, unicodedata, base64  # noqa: F401
+import secrets, hmac, locale, unicodedata, base64, plistlib  # noqa: F401
 
 APP = "ASTRO"
 AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra."
@@ -763,6 +763,18 @@ def prueba_de_arranque(salida):
         print("Puertos:", puertos)
         print("No arrancan:", faltan or "ninguno")
         codigo = 1 if faltan else 0
+        if not faltan:
+            # lanzar un programa como se lanza Siril (en el Mac, responsable de sí mismo) y leer su salida
+            try:
+                with urllib.request.urlopen("http://127.0.0.1:%d/api/prueba/lanzar" % puertos["lights"], timeout=30) as r:
+                    d = json.loads(r.read().decode("utf-8"))
+            except Exception as e:
+                d = {"error": str(e)}
+            print("Lanzar como Siril:", d)
+            if d.get("salida") != "astro-ok" or d.get("codigo") != 0:
+                codigo = 1
+            elif sys.platform == "darwin" and d.get("modo") != "_ProcesoMac":
+                print("AVISO: en el Mac, Siril se lanzaría de la forma normal (no responsable de sí mismo).")
     except Exception as e:
         import traceback
         traceback.print_exc()
