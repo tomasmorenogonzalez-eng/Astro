@@ -5,11 +5,12 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.27.5"
+VERSION_PROG = "2026.09.27.6"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
 ROOT = os.path.join(DISCO, "Biblioteca de calibracion")
+DIBUJOS_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes", "web")
 DB = os.path.join(ROOT, "biblioteca.json")
 # calibración que llega en un proyecto importado desde el Control de lights: la página la incorpora al abrirse
 PENDIENTE = os.path.join(ROOT, ".importar-pendiente.json")
@@ -336,7 +337,7 @@ details{margin-top:12px} details summary{cursor:pointer; color:var(--muted); fon
 .tipo{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 16px;cursor:pointer;border-top:4px solid var(--c)}
 .tipo:hover{box-shadow:0 6px 18px rgba(40,20,70,.1)}.tipo b{font-size:24px;display:block}.tipo .t{font-weight:700}.tipo .d{color:var(--muted);font-size:12.5px;margin-top:4px}
 .bienvenida{display:none;text-align:center;padding:50px 20px;background:var(--surface);border:2px dashed var(--line);border-radius:18px;margin-top:10px}
-.bienvenida .ico,#addBox .ico{font-size:36px;color:var(--accent)}.bienvenida p{color:var(--muted);max-width:520px;margin:8px auto 16px}
+.bienvenida .ico,#addBox .ico{font-size:36px;color:var(--accent)}.bienDib{width:min(340px,80%);aspect-ratio:2/1;object-fit:cover;border-radius:14px;display:block;margin:0 auto 16px;background:#1A0F36}.bienvenida p{color:var(--muted);max-width:520px;margin:8px auto 16px}
 #addBox .drop{display:flex!important;flex-direction:column;align-items:center;gap:16px;text-align:center;padding:34px 20px;border-radius:16px}#addBox .actions{justify-content:center}
 .opciones summary{cursor:pointer;color:var(--muted);font-size:14px;margin:4px 0}
 body.arrastrando::after{content:"Suelta para añadir las tomas";position:fixed;inset:12px;border:3px dashed var(--accent);border-radius:20px;background:rgba(91,44,135,.12);display:grid;place-items:center;font-size:26px;font-weight:700;color:var(--accent);z-index:90;pointer-events:none}
@@ -374,6 +375,13 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .top h2{margin:0;font-size:26px;letter-spacing:-.01em;font-weight:800}
 .top .sub{color:var(--muted);font-size:13.5px;margin-top:2px}
 .top .spacer{flex:1}
+/* en el inicio, la cabecera lleva el dibujo de la calibración de la ventana de inicio */
+.top.ilus{position:relative;min-height:128px;padding:18px 26px;border-radius:16px;overflow:hidden;color:#F5F2FC;
+  background-image:url("/img/banda-calibracion.jpg"),linear-gradient(180deg,#191233,#2E1E56),linear-gradient(180deg,#120E28,#271A4A);
+  background-position:right 190px center,right top,0 0;background-size:auto 100%,190px 100%,100% 100%;background-repeat:no-repeat}
+.top.ilus h2{color:#F5F2FC;text-shadow:0 2px 10px rgba(0,0,0,.6)} .top.ilus .sub{color:rgba(245,242,252,.82)}
+.top.ilus .btn.primary{box-shadow:0 0 0 1px rgba(255,255,255,.25),0 8px 24px -8px rgba(0,0,0,.6)}
+@media (max-width:1180px){.top.ilus{background-image:linear-gradient(180deg,#120E28,#271A4A);background-size:100% 100%;background-position:0 0;min-height:0}}
 .btn{border-radius:10px;border-color:var(--line2);font-weight:650}
 .btn.primary{background:linear-gradient(135deg,var(--accent2),#5B2C87);border-color:transparent;color:var(--on-accent);box-shadow:0 8px 20px -10px rgba(91,44,135,.7)}
 .btn.primary:hover{filter:brightness(1.08)}
@@ -436,7 +444,7 @@ th{background:var(--surface2)}
     </div>
   </aside>
   <main class="contenido">
-  <div class="top"><div><h2 id="tituloVista">Biblioteca de calibración</h2><div class="sub" id="subVista">Tus bias, darks y flats, y lo que te falta para cada sesión</div></div><span class="spacer"></span>
+  <div class="top ilus"><div><h2 id="tituloVista">Biblioteca de calibración</h2><div class="sub" id="subVista">Tus bias, darks y flats, y lo que te falta para cada sesión</div></div><span class="spacer"></span>
     <button class="btn primary grande" id="btnAdd">＋ Añadir tomas</button></div>
   <div class="counts" id="counts"></div>
 
@@ -453,7 +461,7 @@ th{background:var(--surface2)}
     </div>
     <h2 class="seccion">Tu biblioteca</h2>
     <div class="tiposBib" id="tiposBib"></div>
-    <div class="bienvenida" id="bienvenida"><div class="ico">◐</div><b>La biblioteca está vacía</b><p>Pulsa «＋ Añadir tomas» o arrastra aquí una carpeta de darks, flats o bias. También puedes traerlas directamente de la ASIAIR o de N.I.N.A.</p><button class="btn primary grande" onclick="abrirAñadir()">＋ Añadir tomas</button></div>
+    <div class="bienvenida" id="bienvenida"><img class="bienDib" src="/img/dibujo-calibracion.jpg" alt=""><b>La biblioteca está vacía</b><p>Pulsa «＋ Añadir tomas» o arrastra aquí una carpeta de darks, flats o bias. También puedes traerlas directamente de la ASIAIR o de N.I.N.A.</p><button class="btn primary grande" onclick="abrirAñadir()">＋ Añadir tomas</button></div>
   </section>
 
   <section id="vistaTomas" style="display:none">
@@ -1906,6 +1914,7 @@ function mostrarVista(v){
   $("vistaInicio").style.display = v==="inicio" ? "" : "none";
   $("vistaTomas").style.display = v==="tomas" ? "" : "none";
   $("tituloVista").textContent = VISTAS[v][0]; $("subVista").textContent = VISTAS[v][1];
+  document.querySelector(".top").classList.toggle("ilus", v==="inicio");
   document.querySelectorAll(".pest").forEach(p=>p.classList.toggle("on", p.dataset.vista===v));
   window.scrollTo({top:0});
   if (v==="inicio") estadoGeneral();
@@ -2795,14 +2804,21 @@ def nombre_libre(dest):
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
-    def _send(self, code, body, ctype="application/json; charset=utf-8"):
+    def _send(self, code, body, ctype="application/json; charset=utf-8", cache=False):
         if isinstance(body, str): body = body.encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "max-age=86400" if cache else "no-store")
         self.end_headers()
         self.wfile.write(body)
+    def _dibujo(self, nombre):
+        # los dibujos de la ventana de inicio (imagenes/web, junto al programa)
+        ruta = os.path.join(DIBUJOS_WEB, nombre)
+        if re.fullmatch(r"[a-z0-9-]+\.jpg", nombre or "") and os.path.isfile(ruta):
+            with open(ruta, "rb") as f:
+                return self._send(200, f.read(), "image/jpeg", cache=True)
+        return self._send(404, "no encontrado", "text/plain; charset=utf-8")
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
         return self.rfile.read(n) if n else b""
@@ -2828,6 +2844,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG}))
         if p.path == "/":
             return self._send(200, HTML.replace("__IDIOMA__", idioma_actual() or "auto").replace("__TEMA__", tema_actual()), "text/html; charset=utf-8")
+        if p.path.startswith("/img/"):
+            return self._dibujo(p.path[5:])
         if p.path == "/api/volumenes_red":
             return self._send(200, json.dumps(raices_asiair(), ensure_ascii=False))
         if p.path == "/api/espacio":

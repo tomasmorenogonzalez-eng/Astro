@@ -132,7 +132,7 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 | Archivo | Qué es |
 |---|---|
 | `lanzador.py` | Arranque de la aplicación: bienvenida, carpeta de datos y ventana de inicio con los apartados |
-| `imagenes/` | Dibujos de la ventana de inicio (se fabrican con `herramientas/dibujos_lanzador.py`) |
+| `imagenes/` | Dibujos de la ventana de inicio, y en `imagenes/web/` sus versiones para las cabeceras y la bienvenida de los programas (todo se fabrica con `herramientas/dibujos_lanzador.py`) |
 | `programa-lights.py` | Control de calidad de lights, apilado con Siril |
 | `programa-calibracion.py` | Biblioteca de calibración |
 | `ASTRO.spec` | Receta de empaquetado (PyInstaller) |

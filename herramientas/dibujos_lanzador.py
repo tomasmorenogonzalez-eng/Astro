@@ -1,7 +1,8 @@
 """Dibujos de la ventana de inicio de ASTRO (lanzador).
 
 Genera en ../imagenes/ la cabecera y una ilustración por cada apartado. Se dibujan a 3× y se reducen,
-para que salgan suaves. Hace falta Pillow solo para fabricarlos (la aplicación usa los PNG ya hechos):
+para que salgan suaves. En ../imagenes/web/ deja las versiones para la aplicación web (a 2×, en JPG): la
+cabecera, cada dibujo suelto y una banda ancha por apartado para la cabecera de sus ventanas. Hace falta Pillow solo para fabricarlos (la aplicación usa los PNG ya hechos):
 
     python3 herramientas/dibujos_lanzador.py
 """
@@ -89,10 +90,85 @@ def redondear(im, radio):
     return out
 
 
+ORIGINALES = {}                         # dibujos a tamaño completo, para las versiones web
+
+
 def guardar(im, nombre, tam):
+    ORIGINALES[nombre] = im
     im = im.resize(tam, Image.LANCZOS)
     os.makedirs(SALIDA, exist_ok=True)
     im.save(os.path.join(SALIDA, nombre), optimize=True)
+
+
+# ───────────────────────── versiones para la aplicación web ─────────────────────────
+WEB = os.path.join(SALIDA, "web")
+BANDA = (900, 120)                      # banda de cabecera: cielo a la izquierda (para el título) y el dibujo a la derecha
+BANDA_DIBUJO = (240, 120)               # el dibujo dentro de la banda
+BANDA_MARGEN = 100                      # cielo a la derecha del dibujo (ahí va el botón «Cerrar»)
+
+
+def _jpg(im, nombre, tam):
+    os.makedirs(WEB, exist_ok=True)
+    im.convert("RGB").resize(tam, Image.LANCZOS).save(os.path.join(WEB, nombre), quality=86, optimize=True, progressive=True)
+
+
+def banda(nombre_dibujo, salida, semilla):
+    """Banda ancha con el mismo cielo que el dibujo: su degradado sigue a izquierda y derecha y las estrellas se aclaran
+    hacia la izquierda, donde va el título. El borde de la izquierda es liso para que la página lo continúe con CSS."""
+    W, H = BANDA
+    dw, dh = BANDA_DIBUJO
+    x0 = W - BANDA_MARGEN - dw
+    noches = nombre_dibujo == "apartado-noches.png"          # ese dibujo tiene su propio cielo y un horizonte
+    arriba, abajo = ((14, 12, 38), (58, 38, 104)) if noches else (NOCHE1, NOCHE2)
+    im = Image.new("RGBA", (W * S, H * S))
+    px = im.load()
+    for x in range(W * S):
+        # el mismo degradado que el dibujo, continuado a los lados (el de las tarjetas también avanza en horizontal)
+        k = 0.0 if noches else 0.25 * min(1.0, max(0.0, (x / S - x0) / dw))
+        for y in range(H * S):
+            t = (y / (H * S)) * (1.0 if noches else 0.75) + k
+            px[x, y] = tuple(int(arriba[i] + (abajo[i] - arriba[i]) * t) for i in range(3)) + (255,)
+    rnd = random.Random(semilla)
+    d = ImageDraw.Draw(im)
+    for _ in range(260):
+        u = rnd.random()
+        x = rnd.uniform(0, W * S)
+        if x < x0 * S and u > (x / (x0 * S)) ** 1.6 * 0.9 + 0.04:       # menos estrellas cuanto más a la izquierda
+            continue
+        y = rnd.uniform(0, (H - (22 if noches else 0)) * S)
+        r = rnd.choice([0.5, 0.6, 0.8, 0.8, 1.0, 1.4]) * S * 0.72
+        a = int(rnd.uniform(90, 255) * 0.7)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 255, 255, a))
+    if noches:
+        # el horizonte con árboles sigue por toda la banda, con la misma curva que en el dibujo
+        f = TARJ[0] / dw
+        def suelo_y(xl):
+            u = (xl - x0) * f
+            return (TARJ[1] - 14 - 5 * math.sin(u / 17) - 3 * math.sin(u / 7)) * H / TARJ[1] * S
+        pts = [(0, H * S)] + [(xl * S, suelo_y(xl)) for xl in range(0, W + 1, 3)] + [(W * S, H * S)]
+        d.polygon(pts, fill=(10, 8, 22, 255))
+        for tx in (70, 118, 300, 470, 874):
+            yb = suelo_y(tx)
+            d.polygon([(tx * S, yb - 24 * S), ((tx - 7) * S, yb + 2 * S), ((tx + 7) * S, yb + 2 * S)], fill=(10, 8, 22, 255))
+    dib = ORIGINALES[nombre_dibujo].resize((dw * S, dh * S), Image.LANCZOS)
+    # el dibujo se funde con la banda en sus bordes izquierdo y derecho (el fondo ya coincide: solo cambian las estrellas)
+    m = Image.new("L", dib.size, 255)
+    borde = 8 * S
+    pm = m.load()
+    for x in range(borde):
+        v = int(255 * (x / borde) ** 1.4)
+        for y in range(dib.size[1]):
+            pm[x, y] = v
+            pm[dib.size[0] - 1 - x, y] = min(pm[dib.size[0] - 1 - x, y], v)
+    im.paste(dib, (x0 * S, 0), m)
+    _jpg(im, salida, (W * 2, H * 2))
+
+
+def versiones_web():
+    _jpg(ORIGINALES["cabecera.png"], "cabecera.jpg", (CAB[0] * 2, CAB[1] * 2))
+    for i, n in enumerate(("anadir", "objetos", "noches", "directo", "apilar", "calibracion", "varios")):
+        _jpg(ORIGINALES["apartado-%s.png" % n], "dibujo-%s.jpg" % n, (TARJ[0] * 2, TARJ[1] * 2))
+        banda("apartado-%s.png" % n, "banda-%s.jpg" % n, 100 + i)
 
 
 def fondo_tarjeta(semilla):
@@ -432,4 +508,5 @@ def _rotulo(d, texto, cx, cy, alto):
 
 if __name__ == "__main__":
     cabecera(); d_anadir(); d_objetos(); d_noches(); d_directo(); d_apilar(); d_calibracion(); d_varios()
+    versiones_web()
     print("Dibujos guardados en", os.path.abspath(SALIDA))
