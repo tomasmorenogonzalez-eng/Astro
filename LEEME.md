@@ -41,7 +41,7 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 
 1. Abre ASTRO. Te preguntará **dónde guardar tus datos**. Puede ser una carpeta de tu ordenador o de un disco externo (recomendable: las fotos ocupan mucho).
 2. Se abre en tu **navegador** y queda una pequeña ventana de ASTRO: déjala abierta (puedes minimizarla) mientras lo uses. Para cerrar ASTRO, pulsa **Salir** en esa ventana o en el menú **Más**.
-3. En **Control de lights**, pulsa **«＋ Añadir sesión»** o arrastra la carpeta de una noche de fotos. ASTRO analiza cada toma y la guarda ordenada.
+3. En **Control de lights**, pulsa **«＋ Añadir sesión»** o arrastra la carpeta de una noche de fotos. Arriba eliges si **copiarlas a ASTRO** (se guardan ordenadas por objeto, noche y filtro, sin tocar los originales, y así las puedes apilar) o **solo analizarlas** (se quedan donde están y ASTRO solo guarda su valoración). ASTRO recuerda lo que elegiste.
 4. En **Biblioteca de calibración**, añade tus darks, flats y bias (o impórtalos directamente de la ASIAIR o de N.I.N.A.).
 5. **«¿Qué me falta?»** te dice qué calibraciones necesitan tus lights, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**
 6. **«Próximas noches»** te dice qué objeto y qué filtro te conviene cada noche según la Luna, la oscuridad, la altura del objeto y la nubosidad prevista para los próximos 7 días (previsión de Open-Meteo.com, gratuita para uso no comercial; la primera vez te pide tu lugar de observación, que puede sacar de tus propias tomas). En **«Resumen y objetivo»** de cada objeto verás además qué noches del próximo mes sirven para lo que te falta.
