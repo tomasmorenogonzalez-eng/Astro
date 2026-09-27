@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.2"
+VERSION_PROG = "2026.09.28.3"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2093,28 +2093,193 @@ def _resolver_con_siril(siril, ver, W, ruta, h, pista):
     return WCS(hs), L
 
 
+def _tomas_de_ids(ids):
+    """Las tomas pedidas, con su archivo, su calibración y su hora: [(fecha, datos, cabecera, exposición)], en orden."""
+    JOB["texto"], JOB["archivo"] = "Buscando la calibración de las tomas", ""
+    try:
+        datos = api_lights("/api/ciencia/tomas", {"ids": ids}).get("tomas", [])
+    except Exception as e:
+        raise RuntimeError("no he podido preguntar al Control de lights por las tomas (%s)" % e)
+    tomas = []
+    for d in datos:
+        if not d.get("ruta") or not os.path.isfile(d["ruta"]):
+            JOB["errores"].append({"nombre": os.path.basename(d.get("ruta") or d.get("id", "")), "error": "no encuentro el archivo de la toma (¿está conectado el disco?)"})
+            continue
+        h = cabecera_de(d["ruta"])
+        fecha, exp = instante_medio(h)
+        if not fecha:
+            JOB["errores"].append({"nombre": os.path.basename(d["ruta"]), "error": "la toma no dice a qué hora se hizo (DATE-OBS)"})
+            continue
+        tomas.append((fecha, d, h, exp))
+    tomas.sort(key=lambda t: t[0])
+    return tomas
+
+
+def medir_multi(img, x, y, radios, rin, rout):
+    """Fotometría con varias aperturas a la vez (mismo centro y mismo fondo): como medir_estrella, pero con una
+    lista de flujos y de píxeles, uno por radio."""
+    m = medir_estrella(img, x, y, radios[0], rin, rout, centrar=True)
+    if not m:
+        return None
+    if len(radios) == 1:
+        return m
+    x, y, fondo = m["x"], m["y"], m["fondo"]
+    rmax = max(radios)
+    x0, y0 = int(math.floor(x - rmax - 2)), int(math.floor(y - rmax - 2))
+    filas = img.recorte(x0, y0, int(math.ceil(x + rmax + 3)), int(math.ceil(y + rmax + 3)))
+    sumas, pixs = [0.0] * len(radios), [0.0] * len(radios)
+    lim = [(max(0.0, r - 0.71) ** 2, (r + 0.71) ** 2) for r in radios]
+    for j, fila in enumerate(filas):
+        dy = y0 + j - y
+        for i, v in enumerate(fila):
+            dx = x0 + i - x
+            d2 = dx * dx + dy * dy
+            for k, r in enumerate(radios):
+                a, b = lim[k]
+                if d2 > b:
+                    continue
+                w = 1.0 if d2 <= a else _fraccion(dx, dy, r)
+                if w:
+                    sumas[k] += w * v; pixs[k] += w
+    m["flujos"] = [su - px * fondo for su, px in zip(sumas, pixs)]
+    m["n_aps"] = pixs
+    return m
+
+
+def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver):
+    """Calibra las tomas por tandas con Siril, sigue el campo (resolviendo la primera) y mide todas las estrellas
+    con las aperturas dadas (en FWHM). Devuelve un registro por toma medida."""
+    alineacion = [(e["ra"], e["dec"]) for e in estrellas]
+    registros = []
+    ref = None
+    previo = (0.0, 0.0)
+    hechos = {}
+    tanda = 6
+    for k0 in range(0, len(tomas), tanda):
+        if JOB["cancelar"]:
+            raise Cancelado()
+        W = os.path.join(base, "%04d" % k0)
+        os.makedirs(W, exist_ok=True)
+        grupo = tomas[k0:k0 + tanda]
+        L = ["requires 1.2.0", "set32bits", "setext fit", "cd %s" % q(W)]
+        rutas = []
+        for j, (fecha, d, h, exp) in enumerate(grupo):
+            ext = os.path.splitext(d["ruta"])[1].lower()
+            enlace(d["ruta"], os.path.join(W, "t%03d%s" % (j, ext)))
+            cfa = (bool(h.get("BAYERPAT")) or d.get("bayer")) and int(num(h.get("NAXIS3")) or 1) < 3
+            ops = []
+            dark = master_de(siril, d.get("dark"), W, hechos) if siril else None
+            bias = None if dark else (master_de(siril, d.get("bias"), W, hechos) if siril else None)
+            flat_s = d.get("flat")
+            if flat_s and not flat_s.get("master"):
+                flat_s = dict(flat_s, _cflat=d.get("cflat"))
+            flat = master_de(siril, flat_s, W, hechos) if siril else None
+            for etq, rr in (("dark", dark), ("bias", bias), ("flat", flat)):
+                if rr:
+                    ops.append(qo("-%s=" % etq, rr))
+            if dark:
+                ops.append("-cc=dark")
+            if cfa:
+                ops += ["-cfa", "-equalize_cfa", "-debayer"]
+            if ops:
+                L.append("calibrate_single t%03d%s %s" % (j, ext, " ".join(ops)))
+                rutas.append(os.path.join(W, "pp_t%03d.fit" % j))
+            else:
+                rutas.append(d["ruta"] if ext in EXT_FITS else None)
+        if len(L) > 4:
+            if not siril:
+                raise RuntimeError("hace falta Siril para calibrar las tomas")
+            JOB["texto"], JOB["archivo"] = "Calibrando", "%d–%d / %d" % (k0 + 1, k0 + len(grupo), len(tomas))
+            correr_siril(siril, L, "calibrar", W)
+        for j, (fecha, d, h, exp) in enumerate(grupo):
+            if JOB["cancelar"]:
+                raise Cancelado()
+            JOB["hechos"] = k0 + j
+            ruta = rutas[j]
+            nombre = os.path.basename(d["ruta"])
+            if not ruta or not os.path.isfile(ruta):
+                JOB["errores"].append({"nombre": nombre, "error": "para medir tomas XISF sin calibrar hace falta pasarlas a FITS"})
+                continue
+            JOB["texto"], JOB["archivo"] = "Midiendo", nombre
+            try:
+                img = Imagen(ruta)
+            except Exception as e:
+                JOB["errores"].append({"nombre": nombre, "error": str(e)})
+                continue
+            try:
+                wcs = None
+                fw = registros[-1]["fwhm"] if registros else min(20.0, max(1.5, 3.0 / escala))
+                if ref is not None:
+                    dd = desplazamiento(img, ref, alineacion, fw, previo) or desplazamiento(img, ref, alineacion, fw, previo, radio=max(60.0, 12 * fw))
+                    if dd:
+                        wcs, previo = _wcs_desplazada(ref, *dd), dd
+                if wcs is None:
+                    hs = cabecera_de(ruta)
+                    if _ya_resuelta(hs):
+                        wcs = WCS(hs)
+                    elif _ya_resuelta(h) and str(h.get("ROWORDER", "")).strip().upper() != "TOP-DOWN":
+                        wcs = WCS(h)
+                    else:
+                        if not siril:
+                            raise RuntimeError("hace falta Siril para resolver la imagen")
+                        JOB["texto"] = "Resolviendo"
+                        wcs, _L = _resolver_con_siril(siril, ver, W, ruta, h, d)
+                        JOB["texto"] = "Midiendo"
+                    ref, previo = wcs, (0.0, 0.0)
+                # tamaño de las estrellas con las de comparación
+                fws = []
+                for e in estrellas[1:]:
+                    pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+                    if pp and 20 < pp[0] < img.w - 20 and 20 < pp[1] < img.h - 20:
+                        v = fwhm_hfr(img, pp[0], pp[1], 3.0 * fw)
+                        if v and 0.8 < v < 40:
+                            fws.append(v)
+                if len(fws) >= 3:
+                    fw = sigma_clip(fws, 2.5, 3)[0]
+                if len(factores) == 1:
+                    radios = [max(2.5, factores[0] * fw)]
+                else:
+                    radios = [max(1.5, f * fw) for f in factores]
+                rin = max(max(radios) + 3.0, 3.0 * fw)
+                rout = max(rin + 5.0, 5.0 * fw)
+                medidas = {}
+                for e in estrellas:
+                    pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+                    if not pp:
+                        continue
+                    m = medir_multi(img, pp[0], pp[1], radios, rin, rout)
+                    if not m:
+                        continue
+                    if len(radios) == 1:
+                        medidas[e["id"]] = [round(m["flujo"], 6), round(m["sd"], 8), round(m["n_ap"], 2), m["n_an"], round(m["pico"], 6),
+                                            round(m["x"], 2), round(m["y"], 2), round(m["fondo"], 6)]
+                    else:
+                        medidas[e["id"]] = [[round(f, 7) for f in m["flujos"]], round(m["sd"], 8), [round(n, 2) for n in m["n_aps"]], m["n_an"],
+                                            round(m["pico"], 6), round(m["x"], 2), round(m["y"], 2), round(m["fondo"], 6)]
+                t = tiempos(fecha, ra_c, dec_c)
+                alt = altura(ra_c, dec_c, t["jd_utc"], lg["lat"], lg["lon"]) if lg and lg.get("lat") is not None else None
+                registros.append({"archivo": nombre, "id_toma": d.get("id"), "fecha": fecha.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23],
+                                  "jd": round(t["jd_utc"], 7), "hjd": round(t.get("hjd_utc", t["jd_utc"]), 7), "bjd_tdb": round(t.get("bjd_tdb", 0), 7),
+                                  "exp": exp, "fwhm": round(fw, 2), "apertura": [round(r, 2) for r in radios] + [round(rin, 2), round(rout, 2)],
+                                  "masa_aire": round(masa_de_aire(alt), 4) if alt and alt > 0 else None, "altura": round(alt, 2) if alt is not None else None,
+                                  "gain": num(h.get("EGAIN")), "bits": int(num(h.get("BITPIX")) or 16), "flotante": img.bitpix < 0,
+                                  "calibrada": ruta != d["ruta"], "estrellas": medidas})
+            except Cancelado:
+                raise
+            except Exception as e:
+                JOB["errores"].append({"nombre": nombre, "error": str(e)})
+            finally:
+                img.cerrar()
+        shutil.rmtree(W, ignore_errors=True)
+    return registros
+
+
 def trabajo_variable(p):
     siril, ver = buscar_siril()
     base = os.path.join(TRABAJO_DIR, "var-" + time.strftime("%Y%m%d-%H%M%S"))
     try:
         ids = [i for i in (p.get("ids") or []) if i]
-        JOB["texto"], JOB["archivo"] = "Buscando la calibración de las tomas", ""
-        try:
-            datos = api_lights("/api/ciencia/tomas", {"ids": ids}).get("tomas", [])
-        except Exception as e:
-            raise RuntimeError("no he podido preguntar al Control de lights por las tomas (%s)" % e)
-        tomas = []
-        for d in datos:
-            if not d.get("ruta") or not os.path.isfile(d["ruta"]):
-                JOB["errores"].append({"nombre": os.path.basename(d.get("ruta") or d.get("id", "")), "error": "no encuentro el archivo de la toma (¿está conectado el disco?)"})
-                continue
-            h = cabecera_de(d["ruta"])
-            fecha, exp = instante_medio(h)
-            if not fecha:
-                JOB["errores"].append({"nombre": os.path.basename(d["ruta"]), "error": "la toma no dice a qué hora se hizo (DATE-OBS)"})
-                continue
-            tomas.append((fecha, d, h, exp))
-        tomas.sort(key=lambda t: t[0])
+        tomas = _tomas_de_ids(ids)
         if len(tomas) < 2:
             raise RuntimeError("hacen falta al menos dos tomas con fecha para una curva de luz")
         JOB["total"] = len(tomas)
@@ -2139,119 +2304,8 @@ def trabajo_variable(p):
                     [dict(c, id=c["auid"] or c["label"]) for c in carta["comps"] if bcat in c["mags"]]
         if len(estrellas) < 3:
             raise RuntimeError("la secuencia de la AAVSO no tiene magnitudes en %s para este campo" % bcat)
-        alineacion = [(e["ra"], e["dec"]) for e in estrellas]
         lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
-        registros = []
-        ref = None
-        previo = (0.0, 0.0)
-        hechos = {}
-        tanda = 6
-        for k0 in range(0, len(tomas), tanda):
-            if JOB["cancelar"]:
-                raise Cancelado()
-            W = os.path.join(base, "%04d" % k0)
-            os.makedirs(W, exist_ok=True)
-            grupo = tomas[k0:k0 + tanda]
-            L = ["requires 1.2.0", "set32bits", "setext fit", "cd %s" % q(W)]
-            rutas = []
-            for j, (fecha, d, h, exp) in enumerate(grupo):
-                ext = os.path.splitext(d["ruta"])[1].lower()
-                enlace(d["ruta"], os.path.join(W, "t%03d%s" % (j, ext)))
-                cfa = (bool(h.get("BAYERPAT")) or d.get("bayer")) and int(num(h.get("NAXIS3")) or 1) < 3
-                ops = []
-                dark = master_de(siril, d.get("dark"), W, hechos) if siril else None
-                bias = None if dark else (master_de(siril, d.get("bias"), W, hechos) if siril else None)
-                flat_s = d.get("flat")
-                if flat_s and not flat_s.get("master"):
-                    flat_s = dict(flat_s, _cflat=d.get("cflat"))
-                flat = master_de(siril, flat_s, W, hechos) if siril else None
-                for etq, rr in (("dark", dark), ("bias", bias), ("flat", flat)):
-                    if rr:
-                        ops.append(qo("-%s=" % etq, rr))
-                if dark:
-                    ops.append("-cc=dark")
-                if cfa:
-                    ops += ["-cfa", "-equalize_cfa", "-debayer"]
-                if ops:
-                    L.append("calibrate_single t%03d%s %s" % (j, ext, " ".join(ops)))
-                    rutas.append(os.path.join(W, "pp_t%03d.fit" % j))
-                else:
-                    rutas.append(d["ruta"] if ext in EXT_FITS else None)
-            if len(L) > 4:
-                if not siril:
-                    raise RuntimeError("hace falta Siril para calibrar las tomas")
-                JOB["texto"], JOB["archivo"] = "Calibrando", "%d–%d / %d" % (k0 + 1, k0 + len(grupo), len(tomas))
-                correr_siril(siril, L, "calibrar", W)
-            for j, (fecha, d, h, exp) in enumerate(grupo):
-                JOB["hechos"] = k0 + j
-                ruta = rutas[j]
-                nombre = os.path.basename(d["ruta"])
-                if not ruta or not os.path.isfile(ruta):
-                    JOB["errores"].append({"nombre": nombre, "error": "para medir tomas XISF sin calibrar hace falta pasarlas a FITS"})
-                    continue
-                JOB["texto"], JOB["archivo"] = "Midiendo", nombre
-                try:
-                    img = Imagen(ruta)
-                except Exception as e:
-                    JOB["errores"].append({"nombre": nombre, "error": str(e)})
-                    continue
-                try:
-                    wcs = None
-                    fw = registros[-1]["fwhm"] if registros else min(20.0, max(1.5, 3.0 / escala))
-                    if ref is not None:
-                        dd = desplazamiento(img, ref, alineacion, fw, previo) or desplazamiento(img, ref, alineacion, fw, previo, radio=max(60.0, 12 * fw))
-                        if dd:
-                            wcs, previo = _wcs_desplazada(ref, *dd), dd
-                    if wcs is None:
-                        hs = cabecera_de(ruta)
-                        if _ya_resuelta(hs):
-                            wcs = WCS(hs)
-                        elif _ya_resuelta(h) and str(h.get("ROWORDER", "")).strip().upper() != "TOP-DOWN":
-                            wcs = WCS(h)
-                        else:
-                            if not siril:
-                                raise RuntimeError("hace falta Siril para resolver la imagen")
-                            JOB["texto"] = "Resolviendo"
-                            wcs, _L = _resolver_con_siril(siril, ver, W, ruta, h, d)
-                            JOB["texto"] = "Midiendo"
-                        ref, previo = wcs, (0.0, 0.0)
-                    # tamaño de las estrellas con las de la secuencia
-                    fws = []
-                    for e in estrellas[1:]:
-                        pp = wcs.cielo_a_pix(e["ra"], e["dec"])
-                        if pp and 20 < pp[0] < img.w - 20 and 20 < pp[1] < img.h - 20:
-                            v = fwhm_hfr(img, pp[0], pp[1], 3.0 * fw)
-                            if v and 0.8 < v < 40:
-                                fws.append(v)
-                    if len(fws) >= 3:
-                        fw = sigma_clip(fws, 2.5, 3)[0]
-                    r_ap = max(2.5, 1.6 * fw)
-                    rin = max(r_ap + 3.0, 3.0 * fw)
-                    rout = max(rin + 5.0, 5.0 * fw)
-                    medidas = {}
-                    for e in estrellas:
-                        pp = wcs.cielo_a_pix(e["ra"], e["dec"])
-                        if not pp:
-                            continue
-                        m = medir_estrella(img, pp[0], pp[1], r_ap, rin, rout, centrar=True)
-                        if m:
-                            medidas[e["id"]] = [round(m["flujo"], 6), round(m["sd"], 8), round(m["n_ap"], 2), m["n_an"], round(m["pico"], 6),
-                                                round(m["x"], 2), round(m["y"], 2), round(m["fondo"], 6)]
-                    t = tiempos(fecha, ra_v, dec_v)
-                    alt = altura(ra_v, dec_v, t["jd_utc"], lg["lat"], lg["lon"]) if lg and lg.get("lat") is not None else None
-                    registros.append({"archivo": nombre, "id_toma": d.get("id"), "fecha": fecha.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23],
-                                      "jd": round(t["jd_utc"], 6), "hjd": round(t.get("hjd_utc", t["jd_utc"]), 6), "bjd_tdb": round(t.get("bjd_tdb", 0), 6),
-                                      "exp": exp, "fwhm": round(fw, 2), "apertura": [round(r_ap, 2), round(rin, 2), round(rout, 2)],
-                                      "masa_aire": round(masa_de_aire(alt), 3) if alt and alt > 0 else None, "altura": round(alt, 1) if alt is not None else None,
-                                      "gain": num(h.get("EGAIN")), "bits": int(num(h.get("BITPIX")) or 16), "flotante": img.bitpix < 0,
-                                      "calibrada": ruta != d["ruta"], "estrellas": medidas})
-                except Cancelado:
-                    raise
-                except Exception as e:
-                    JOB["errores"].append({"nombre": nombre, "error": str(e)})
-                finally:
-                    img.cerrar()
-            shutil.rmtree(W, ignore_errors=True)
+        registros = _medir_serie(tomas, estrellas, escala, lg, ra_v, dec_v, [1.6], base, siril, ver)
         if len(registros) < 2:
             raise RuntimeError("no he podido medir bastantes tomas")
         JOB["hechos"] = len(tomas)
@@ -2548,6 +2602,995 @@ def zip_serie(sid, en=False):
 
 
 
+# ═════════════════════════════ EXOPLANETAS: EL TRÁNSITO ═════════════════════════════
+EXO_DIR = os.path.join(ROOT, "Exoplanetas")
+EXOCLOCK_URL = "https://www.exoclock.space/database/planets_json"
+NASA_TAP = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
+FACTORES_EXO = [1.0, 1.3, 1.6, 2.0, 2.5, 3.0]          # aperturas, en FWHM de cada toma
+# Oscurecimiento del limbo cuadrático (u1, u2) por temperatura de la estrella, para log g ≈ 4,5 y metalicidad solar.
+# Valores aproximados a partir de las tablas de Claret (2011): afectan a la forma de los bordes del tránsito, muy poco
+# al instante central.
+LIMBO = {"B": {4000: (0.85, 0.02), 4500: (0.80, 0.05), 5000: (0.72, 0.10), 5500: (0.62, 0.17), 6000: (0.54, 0.22), 6500: (0.47, 0.26), 7000: (0.42, 0.28)},
+         "V": {4000: (0.72, 0.08), 4500: (0.64, 0.13), 5000: (0.56, 0.18), 5500: (0.47, 0.23), 6000: (0.41, 0.27), 6500: (0.36, 0.29), 7000: (0.32, 0.30)},
+         "R": {4000: (0.60, 0.14), 4500: (0.53, 0.18), 5000: (0.46, 0.23), 5500: (0.38, 0.27), 6000: (0.33, 0.29), 6500: (0.28, 0.31), 7000: (0.25, 0.31)},
+         "I": {4000: (0.46, 0.20), 4500: (0.41, 0.23), 5000: (0.35, 0.26), 5500: (0.29, 0.28), 6000: (0.25, 0.29), 6500: (0.21, 0.30), 7000: (0.19, 0.30)}}
+
+
+def limbo(teff, banda):
+    """(u1, u2) para la temperatura y la banda; sin filtro o luminancia, la media de V y R."""
+    t = max(4000.0, min(7000.0, float(teff or 5750.0)))
+    if banda not in LIMBO:
+        a, b = limbo(t, "V"), limbo(t, "R")
+        return round((a[0] + b[0]) / 2, 3), round((a[1] + b[1]) / 2, 3)
+    tabla = LIMBO[banda]
+    t0 = max(k for k in tabla if k <= t)
+    t1 = min(k for k in tabla if k >= t)
+    if t0 == t1:
+        return tabla[t0]
+    f = (t - t0) / (t1 - t0)
+    return tuple(round(tabla[t0][i] + f * (tabla[t1][i] - tabla[t0][i]), 3) for i in (0, 1))
+
+
+def banda_exo(filtro, color):
+    """Banda para el oscurecimiento del limbo y nombre del filtro para los informes."""
+    if color:
+        return "V", "V"
+    t = str(filtro or "").strip().lower()
+    if re.match(r"^(i|ic|cousins[ _-]?i|bessell?[ _-]?i|sloan[ _-]?i|i')$", t):
+        return "I", "I"
+    f = nfiltro(filtro)
+    return {"B": ("B", "B"), "G": ("V", "V"), "R": ("R", "R")}.get(f, ("CLEAR", "Clear"))
+
+
+# ── Los planetas: efemérides de ExoClock (las que usa la misión Ariel) y geometría del archivo de exoplanetas de la NASA ──
+_EXO_MEM = {}
+
+
+def _norm_planeta(n):
+    return re.sub(r"[^a-z0-9]", "", str(n or "").lower())
+
+
+def _exo_falso():
+    ruta = os.environ.get("ASTRO_EXO_FALSO")
+    return leer_json(ruta, {}) if ruta else None
+
+
+def exoclock_planetas():
+    """{nombre normalizado: planeta} con las efemérides de ExoClock (guardadas 3 días)."""
+    if "exoclock" in _EXO_MEM and time.time() - _EXO_MEM["exoclock"][0] < 3600:
+        return _EXO_MEM["exoclock"][1]
+    falso = _exo_falso()
+    if falso is not None:
+        d = falso.get("exoclock") or {}
+    else:
+        ruta = os.path.join(CATALOGOS, "exoclock.json")
+        d = leer_json(ruta, None)
+        if not d or time.time() - d.get("_guardado", 0) > 3 * 86400:
+            try:
+                d = _get_json(EXOCLOCK_URL, timeout=60)
+                if isinstance(d, list):
+                    d = {x.get("name"): x for x in d if isinstance(x, dict)}
+                d["_guardado"] = time.time()
+                escribir_json(ruta, d)
+            except Exception:
+                d = d or {}
+    out = {}
+    for k, x in d.items():
+        if not isinstance(x, dict):
+            continue
+        nombre = x.get("name") or k
+        t0, per = num(x.get("t0_bjd_tdb")), num(x.get("period_days"))
+        if not t0 or not per:
+            continue
+        out[_norm_planeta(nombre)] = {
+            "nombre": nombre, "prioridad": x.get("priority") or "", "ra": _coord(x.get("ra_j2000"), True), "dec": _coord(x.get("dec_j2000"), False),
+            "v": num(x.get("v_mag")), "r": num(x.get("r_mag")), "g": num(x.get("gaia_g_mag")), "prof_mmag": num(x.get("depth_mmag")),
+            "dur_h": num(x.get("duration_hours")), "t0": t0, "t0_err": num(x.get("t0_unc")) or 0.0, "periodo": per,
+            "periodo_err": num(x.get("period_unc")) or 0.0, "oc_min": num(x.get("current_oc_min")),
+            "telescopio_min": num(x.get("min_telescope_inches")), "observaciones": x.get("total_observations")}
+    _EXO_MEM["exoclock"] = (time.time(), out)
+    return out
+
+
+def nasa_transitos():
+    """{nombre normalizado: planeta} con todos los planetas en tránsito del archivo de la NASA (guardados 7 días)."""
+    if "nasa" in _EXO_MEM and time.time() - _EXO_MEM["nasa"][0] < 3600:
+        return _EXO_MEM["nasa"][1]
+    falso = _exo_falso()
+    if falso is not None:
+        filas = falso.get("nasa") or []
+    else:
+        ruta = os.path.join(CATALOGOS, "nasa_transitos.json")
+        d = leer_json(ruta, None)
+        if not d or time.time() - d.get("_guardado", 0) > 7 * 86400:
+            adql = ("select pl_name,hostname,ra,dec,pl_orbper,pl_orbpererr1,pl_tranmid,pl_tranmiderr1,pl_trandur,pl_ratror,pl_ratdor,"
+                    "pl_orbincl,pl_trandep,pl_imppar,pl_orbeccen,st_teff,st_logg,st_met,sy_vmag,sy_gaiamag from pscomppars where tran_flag=1")
+            try:
+                filas = _get_json(NASA_TAP + "?" + urllib.parse.urlencode({"query": adql, "format": "json"}), timeout=120)
+                d = {"_guardado": time.time(), "filas": filas}
+                escribir_json(ruta, d)
+            except Exception:
+                d = d or {"filas": []}
+        filas = d.get("filas") or []
+    out = {}
+    for x in filas:
+        n = x.get("pl_name")
+        if not n:
+            continue
+        out[_norm_planeta(n)] = {
+            "nombre": n, "estrella": x.get("hostname") or "", "ra": num(x.get("ra")), "dec": num(x.get("dec")),
+            "periodo": num(x.get("pl_orbper")), "periodo_err": num(x.get("pl_orbpererr1")) or 0.0, "t0": num(x.get("pl_tranmid")),
+            "t0_err": num(x.get("pl_tranmiderr1")) or 0.0, "dur_h": num(x.get("pl_trandur")), "p": num(x.get("pl_ratror")),
+            "a": num(x.get("pl_ratdor")), "inc": num(x.get("pl_orbincl")), "prof_pct": num(x.get("pl_trandep")), "b": num(x.get("pl_imppar")),
+            "ecc": num(x.get("pl_orbeccen")), "teff": num(x.get("st_teff")), "logg": num(x.get("st_logg")), "met": num(x.get("st_met")),
+            "v": num(x.get("sy_vmag")), "g": num(x.get("sy_gaiamag"))}
+    _EXO_MEM["nasa"] = (time.time(), out)
+    return out
+
+
+def buscar_planeta(nombre):
+    """Datos de un planeta para medir su tránsito: efemérides (ExoClock si lo tiene; si no, la NASA) y geometría."""
+    k = _norm_planeta(nombre)
+    if not k:
+        return None
+    ec, na = exoclock_planetas(), nasa_transitos()
+    cands = [k] if not re.search(r"[a-z]$", k) or k in ec or k in na else [k]
+    cands += [k + "b"]
+    e = next((ec[c] for c in cands if c in ec), None)
+    n = next((na[c] for c in cands if c in na), None)
+    if not e and not n:
+        return None
+    base = dict(n or {})
+    pl = {"nombre": (e or n)["nombre"], "estrella": base.get("estrella") or re.sub(r"\s*[a-z]$", "", (e or n)["nombre"]),
+          "ra": (e or {}).get("ra") if (e or {}).get("ra") is not None else base.get("ra"),
+          "dec": (e or {}).get("dec") if (e or {}).get("dec") is not None else base.get("dec"),
+          "v": (e or {}).get("v") or base.get("v"), "g": (e or {}).get("g") or base.get("g"),
+          "teff": base.get("teff"), "logg": base.get("logg"), "ecc": base.get("ecc"),
+          "prioridad": (e or {}).get("prioridad", ""), "en_exoclock": bool(e), "telescopio_min": (e or {}).get("telescopio_min")}
+    if e:
+        pl.update(t0=e["t0"], t0_err=e["t0_err"], periodo=e["periodo"], periodo_err=e["periodo_err"], efemerides="ExoClock",
+                  dur_h=e.get("dur_h") or base.get("dur_h"), oc_min=e.get("oc_min"))
+    else:
+        pl.update(t0=base.get("t0"), t0_err=base.get("t0_err") or 0.0, periodo=base.get("periodo"), periodo_err=base.get("periodo_err") or 0.0,
+                  efemerides="NASA Exoplanet Archive", dur_h=base.get("dur_h"))
+    if not pl["t0"] or not pl["periodo"] or pl["ra"] is None:
+        return None
+    # geometría: radio relativo, a/R* e inclinación (con lo que haya)
+    p = base.get("p")
+    if not p:
+        if base.get("prof_pct"):
+            p = math.sqrt(base["prof_pct"] / 100.0)
+        elif (e or {}).get("prof_mmag"):
+            p = math.sqrt(1 - 10 ** (-0.4 * e["prof_mmag"] / 1000.0))
+    p = p or 0.1
+    a, inc = base.get("a"), base.get("inc")
+    dur = pl.get("dur_h")
+    if not a and dur:
+        bb = base.get("b") if base.get("b") is not None else 0.3
+        a = math.sqrt(max(1.0, ((1 + p) ** 2 - bb * bb))) * pl["periodo"] / (math.pi * dur / 24.0)
+    a = a or 8.0
+    if not inc:
+        bb = base.get("b") if base.get("b") is not None else 0.3
+        inc = math.degrees(math.acos(max(-1.0, min(1.0, bb / a))))
+    pl.update(p=p, a=a, inc=inc, geometria="NASA Exoplanet Archive" if n else "estimada")
+    if not dur:
+        pl["dur_h"] = duracion_t14(pl["periodo"], p, a, inc) * 24.0
+    return pl
+
+
+def planetas_sugeridos(texto, n=8):
+    k = _norm_planeta(texto)
+    if len(k) < 2:
+        return []
+    nombres = {v["nombre"] for v in list(exoclock_planetas().values()) + list(nasa_transitos().values())}
+    return sorted((x for x in nombres if _norm_planeta(x).startswith(k)), key=lambda x: (len(x), x))[:n]
+
+
+def transito_previsto(pl, jd):
+    """(instante central previsto más cercano a jd, su incertidumbre en días, número de ciclo)."""
+    n = round((jd - pl["t0"]) / pl["periodo"])
+    return pl["t0"] + n * pl["periodo"], math.sqrt(pl["t0_err"] ** 2 + (n * pl["periodo_err"]) ** 2), n
+
+
+def transitos_proximos(lugar_id="", dias=7, vmax=13.0, alt_min=25.0, prof_min=5.0, todos=False):
+    """Tránsitos de los próximos días que se ven enteros (con media hora antes y después) desde un lugar."""
+    lg = lugar_por_id(lugar_id)
+    if not lg or lg.get("lat") is None:
+        raise RuntimeError("elige un lugar con coordenadas (en «Próximas noches» del Control de lights)")
+    lat, lon = lg["lat"], lg["lon"]
+    fuente = exoclock_planetas()
+    origen = "ExoClock"
+    if not fuente:
+        fuente = {k: v for k, v in nasa_transitos().items() if v.get("t0") and v.get("periodo")}
+        origen = "NASA Exoplanet Archive"
+    if not fuente:
+        raise RuntimeError("no he podido descargar la lista de planetas (¿hay conexión a Internet?)")
+    ahora = 2440587.5 + time.time() / 86400.0
+    fin = ahora + dias
+    margen = 0.5 / 24.0
+    out = []
+    for pl in fuente.values():
+        v = pl.get("v")
+        if v is None or v > vmax or pl.get("ra") is None or not pl.get("dur_h"):
+            continue
+        prof = pl.get("prof_mmag")
+        if prof is None and pl.get("prof_pct"):
+            prof = -2500 * math.log10(max(1e-6, 1 - pl["prof_pct"] / 100.0))
+        if prof is not None and prof < prof_min:
+            continue
+        P, T0 = pl["periodo"], pl["t0"]
+        d = pl["dur_h"] / 48.0
+        n = math.ceil((ahora - d - T0) / P)
+        while True:
+            tc = T0 + n * P
+            n += 1
+            if tc - d > fin + 0.02:
+                break
+            tc = bjd_a_jd_utc(tc, pl["ra"], pl["dec"])          # las efemérides van en BJD_TDB; las horas, en UTC
+            if tc - d > fin:
+                break
+            ti, tf = tc - d, tc + d
+            alts = [altura(pl["ra"], pl["dec"], t, lat, lon) for t in (ti - margen, ti, tc, tf, tf + margen)]
+            if max(alts[1:4]) < alt_min:
+                continue
+            sol = [luna_y_sol(t, lat, lon)["sol_alt"] for t in (ti - margen, tc, tf + margen)]
+            if min(sol) > -12:
+                continue
+            completo = min(alts) >= alt_min and max(sol) <= -12
+            if not completo and not todos:
+                continue
+            ls = luna_y_sol(tc, lat, lon, pl["ra"], pl["dec"])
+            err = math.sqrt(pl.get("t0_err", 0) ** 2 + (((tc - T0) / P) * pl.get("periodo_err", 0)) ** 2)
+            out.append({"planeta": pl["nombre"], "prioridad": pl.get("prioridad", ""), "v": v, "prof_mmag": round(prof, 1) if prof is not None else None,
+                        "dur_h": round(pl["dur_h"], 2), "inicio": _iso_jd(ti), "centro": _iso_jd(tc), "fin": _iso_jd(tf),
+                        "alt": [round(a) for a in alts[1:4]], "completo": completo, "incertidumbre_min": round(err * 1440, 1),
+                        "luna_ilum": ls["luna_ilum"], "luna_sep": ls["luna_sep"], "telescopio_min": pl.get("telescopio_min")})
+    orden = {"alert": 0, "high": 1, "medium": 2, "low": 3}
+    out.sort(key=lambda x: x["centro"])
+    return {"lugar": lg.get("nombre", ""), "origen": origen, "dias": dias, "transitos": out[:300],
+            "prioridades": sorted({x["prioridad"] for x in out if x["prioridad"]}, key=lambda p: orden.get(p, 9))}
+
+
+def bjd_a_jd_utc(bjd, ra, dec):
+    """El JD (UTC) en que llega a la Tierra la luz de un instante dado en BJD_TDB (para enseñar horas de reloj)."""
+    jd = bjd - 69.184 / 86400.0
+    for _ in range(3):
+        f = _dt.datetime(1970, 1, 1) + _dt.timedelta(days=jd - 2440587.5)
+        jd += bjd - tiempos(f, ra, dec)["bjd_tdb"]
+    return jd
+
+
+def _iso_jd(jd):
+    return (_dt.datetime(1970, 1, 1) + _dt.timedelta(days=jd - 2440587.5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ── El modelo del tránsito y el ajuste ──
+_N_TR = 64
+_NODOS_TR = [((1 - math.cos((k + 0.5) * math.pi / _N_TR)) / 2, math.sin((k + 0.5) * math.pi / _N_TR) * math.pi / (2 * _N_TR)) for k in range(_N_TR)]
+
+
+def flujo_transito(z, p, u1, u2):
+    """Flujo de la estrella (1 fuera del tránsito) con el planeta a z radios estelares del centro, de radio p (en
+    radios estelares), con oscurecimiento del limbo cuadrático. Suma por anillos la luz que tapa el disco del
+    planeta: de cada anillo de radio r se pierde el arco que cae dentro del planeta. Comprobado con la fórmula
+    exacta sin oscurecimiento y con una integración en una rejilla fina: error < 0,05 % de la profundidad."""
+    if z >= 1.0 + p or p <= 0:
+        return 1.0
+    total = math.pi * (1.0 - u1 / 3.0 - u2 / 6.0)
+    s0 = 0.0
+    if z < p:          # el planeta tapa el centro: el disco de radio p − z queda entero bajo él (se integra exacto)
+        R = min(1.0, p - z)
+        m0 = math.sqrt(max(0.0, 1.0 - R * R))
+        a0 = math.pi * R * R
+        f1 = a0 - 2.0 * math.pi * (1.0 - m0 ** 3) / 3.0
+        f2 = a0 - 4.0 * math.pi * (1.0 - m0 ** 3) / 3.0 + math.pi * (R * R - R ** 4 / 2.0)
+        s0 = a0 - u1 * f1 - u2 * f2
+        if R >= 1.0:
+            return 1.0 - s0 / total
+    r0, r1 = max(0.0, z - p, p - z), min(1.0, z + p)
+    ancho = r1 - r0
+    s = 0.0
+    for c, w in _NODOS_TR:
+        r = r0 + ancho * c
+        if r <= 1e-12:
+            continue
+        if z <= 1e-12:
+            k = math.pi if r < p else 0.0
+        else:
+            cc = (r * r + z * z - p * p) / (2.0 * r * z)
+            k = math.pi if cc <= -1.0 else (0.0 if cc >= 1.0 else math.acos(cc))
+        if k:
+            m = 1.0 - math.sqrt(max(0.0, 1.0 - r * r))
+            s += (1.0 - u1 * m - u2 * m * m) * 2.0 * r * k * w
+    return 1.0 - (s * ancho + s0) / total
+
+
+def curva_transito(ts, tc, periodo, p, a, inc, u1, u2):
+    """Flujo del modelo en cada instante (órbita circular)."""
+    ci = math.cos(math.radians(inc))
+    out = []
+    for t in ts:
+        f = 2.0 * math.pi * (t - tc) / periodo
+        if math.cos(f) <= 0:
+            out.append(1.0)
+            continue
+        z = a * math.sqrt(math.sin(f) ** 2 + (ci * math.cos(f)) ** 2)
+        out.append(flujo_transito(z, p, u1, u2))
+    return out
+
+
+def duracion_t14(periodo, p, a, inc):
+    """Duración total del tránsito (del primer al cuarto contacto), en las unidades del periodo."""
+    b = a * math.cos(math.radians(inc))
+    x = (1 + p) ** 2 - b * b
+    if x <= 0 or a <= 0:
+        return 0.0
+    return periodo / math.pi * math.asin(min(1.0, math.sqrt(x) / (a * math.sin(math.radians(inc)))))
+
+
+def _resolver(A, b):
+    n = len(b)
+    M = [list(A[i]) + [b[i]] for i in range(n)]
+    for c in range(n):
+        piv = max(range(c, n), key=lambda i: abs(M[i][c]))
+        if abs(M[piv][c]) < 1e-300:
+            return None
+        M[c], M[piv] = M[piv], M[c]
+        for i in range(n):
+            if i != c:
+                f = M[i][c] / M[c][c]
+                if f:
+                    for j in range(c, n + 1):
+                        M[i][j] -= f * M[c][j]
+    return [M[i][n] / M[i][i] for i in range(n)]
+
+
+def _inversa(A):
+    n = len(A)
+    cols = []
+    for k in range(n):
+        x = _resolver(A, [1.0 if i == k else 0.0 for i in range(n)])
+        if x is None:
+            return None
+        cols.append(x)
+    return [[cols[j][i] for j in range(n)] for i in range(n)]
+
+
+def ajuste_lm(modelo, p0, libres, pasos, y, sig, limites=None, iters=80):
+    """Mínimos cuadrados no lineales (Levenberg-Marquardt) con derivadas numéricas. modelo(params) da una lista
+    como y. Devuelve (parámetros, covarianza {(a, b): valor}, chi²)."""
+    limites = limites or {}
+    p = dict(p0)
+    w = [1.0 / (s * s) for s in sig]
+    n = len(libres)
+
+    def chi2_de(m):
+        return sum(wi * (yi - mi) ** 2 for wi, yi, mi in zip(w, y, m))
+
+    def dentro(qq):
+        return all(lo <= qq[k] <= hi for k, (lo, hi) in limites.items() if k in qq)
+
+    def jacobiano(pp, mm):
+        J = []
+        for k in libres:
+            qq = dict(pp); qq[k] += pasos[k]
+            mk = modelo(qq)
+            J.append([(a - b) / pasos[k] for a, b in zip(mk, mm)])
+        return J
+
+    m = modelo(p)
+    chi = chi2_de(m)
+    lam = 1e-3
+    for _it in range(iters):
+        J = jacobiano(p, m)
+        JTJ = [[sum(wi * J[i][t] * J[j][t] for t, wi in enumerate(w)) for j in range(n)] for i in range(n)]
+        JTr = [sum(wi * J[i][t] * (y[t] - m[t]) for t, wi in enumerate(w)) for i in range(n)]
+        mejoro, rel = False, 0.0
+        for _k in range(12):
+            A = [[JTJ[i][j] * (1 + lam if i == j else 1) for j in range(n)] for i in range(n)]
+            d = _resolver(A, JTr)
+            if d is None:
+                lam *= 10
+                continue
+            qq = dict(p)
+            for i, k in enumerate(libres):
+                qq[k] += d[i]
+            if not dentro(qq):
+                lam *= 10
+                continue
+            mq = modelo(qq)
+            cq = chi2_de(mq)
+            if cq < chi:
+                rel = (chi - cq) / max(chi, 1e-30)
+                p, m, chi = qq, mq, cq
+                lam = max(lam / 10, 1e-9)
+                mejoro = True
+                break
+            lam *= 10
+        if not mejoro or rel < 1e-8:
+            break
+    J = jacobiano(p, m)
+    JTJ = [[sum(wi * J[i][t] * J[j][t] for t, wi in enumerate(w)) for j in range(n)] for i in range(n)]
+    inv = _inversa(JTJ)
+    cov = {}
+    if inv:
+        for i, a in enumerate(libres):
+            for j, b in enumerate(libres):
+                cov[(a, b)] = inv[i][j]
+    return p, cov, chi
+
+
+def _p2p(vals):
+    """Dispersión de punto a punto (no le afecta una variación lenta, como el propio tránsito)."""
+    if len(vals) < 3:
+        return float("inf")
+    d = sorted(abs(vals[i + 1] - vals[i]) for i in range(len(vals) - 1))
+    return 1.4826 * d[len(d) // 2] / math.sqrt(2)
+
+
+def _mediana(v):
+    v = sorted(v)
+    return v[len(v) // 2] if v else None
+
+
+def ruido_rojo(t, res, minutos=(10, 30)):
+    """Factor β del ruido correlacionado (Pont y otros, 2006; Winn y otros, 2008): cuánto más dispersas son las medias
+    de grupos de puntos de lo que tocaría con ruido blanco. Se usa para no subestimar el error del instante central."""
+    n = len(res)
+    if n < 20:
+        return 1.0
+    s1 = (sum(r * r for r in res) / n) ** 0.5
+    paso = _mediana([t[i + 1] - t[i] for i in range(n - 1)]) * 1440.0 or 1.0
+    betas = []
+    for N in range(2, max(3, n // 5)):
+        dur = N * paso
+        if not (minutos[0] <= dur <= minutos[1]) and not (dur < minutos[0] and N >= n // 10):
+            continue
+        M = n // N
+        if M < 4:
+            break
+        medias = [sum(res[k * N:(k + 1) * N]) / N for k in range(M)]
+        sN = (sum(x * x for x in medias) / M) ** 0.5
+        esperado = s1 / math.sqrt(N) * math.sqrt(M / (M - 1.0))
+        if esperado > 0:
+            betas.append(sN / esperado)
+    return max(1.0, _mediana(betas)) if betas else 1.0
+
+
+TENDENCIAS = {"lineal": 2, "cuadratica": 3, "masa_aire": 2}
+
+
+def calcular_exo(serie, sel):
+    """Curva de luz relativa del planeta con las comparaciones elegidas (o automáticas) y la mejor apertura, y el
+    ajuste del tránsito con la tendencia de la noche. Devuelve un diccionario con todo lo que enseña la página."""
+    pl = serie["planeta"]
+    est = {e["id"]: e for e in serie["estrellas"]}
+    tomas = [t for t in serie["tomas"] if t.get("bjd_tdb")]
+    nap = len(serie["factores"])
+    sat = 1.0 if all(t.get("flotante") for t in tomas) else (65535.0 if all(t.get("bits") == 16 for t in tomas) else None)
+    no_lineal = 0.8 * sat if sat else None
+
+    def g_nat(t):
+        g = num(t.get("gain"))
+        if not g or not (0.01 < g < 50):
+            return None
+        return g * (65535.0 if t.get("flotante") and t.get("bits") == 16 else 1.0)
+
+    def med(t, sid, a):
+        m = t["estrellas"].get(sid)
+        if not m or m[0][a] <= 0:
+            return None
+        f, sd, n_ap, n_an, pico = m[0][a], m[1], m[2][a], m[3], m[4]
+        g = g_nat(t)
+        var = n_ap * sd * sd * (1 + n_ap / max(n_an, 1)) + (f / g if g else 0.0)
+        return f, var, bool(no_lineal and pico + 0 > no_lineal)
+
+    comps_todas = [e["id"] for e in serie["estrellas"][1:]]
+    # estrellas de comparación que valen: medidas y sin saturar en casi todas las tomas, y no marcadas como variables
+    utiles = []
+    for cid in comps_todas:
+        vals = [med(t, cid, nap // 2) for t in tomas]
+        ok = sum(1 for v in vals if v and not v[2])
+        if ok >= 0.9 * len(tomas) and not est[cid].get("var"):
+            utiles.append(cid)
+    avisos = []
+    tvals = [med(t, "T", nap // 2) for t in tomas]
+    n_sat = sum(1 for v in tvals if v and v[2])
+    if n_sat:
+        avisos.append("la estrella del planeta está saturada o casi en %d tomas: se quitan (baja la exposición o desenfoca un poco)" % n_sat)
+
+    def relativa(a, comps):
+        pts = []
+        for t in tomas:
+            vt = med(t, "T", a)
+            if not vt or vt[2]:
+                continue
+            vc = [med(t, c, a) for c in comps]
+            if any(v is None or v[2] for v in vc):
+                continue
+            sc = sum(v[0] for v in vc)
+            ec = sum(v[1] for v in vc)
+            f = vt[0] / sc
+            err = f * math.sqrt(vt[1] / vt[0] ** 2 + ec / sc ** 2)
+            pts.append((t, f, err))
+        return pts
+
+    def limpiar_comps(a, comps):
+        """Quita, una a una, las comparaciones que no son de fiar, mirando cada una frente a la suma de las demás:
+        las que bailan más de lo que su ruido explica (con una vecina, en un borde, con un píxel caliente) y las que
+        cambian despacio a lo largo de la noche (variables que Gaia no tiene marcadas)."""
+        comps = list(comps)
+        while len(comps) > 3:
+            blanco, lento = {}, {}
+            for c in comps:
+                otros = [x for x in comps if x != c]
+                ts_, vals, esp = [], [], []
+                for t in tomas:
+                    vc = med(t, c, a)
+                    vo = [med(t, x, a) for x in otros]
+                    if vc and not vc[2] and all(v and not v[2] for v in vo):
+                        so = sum(v[0] for v in vo)
+                        ts_.append(t["bjd_tdb"]); vals.append(vc[0] / so)
+                        esp.append(math.sqrt(vc[1] / vc[0] ** 2 + sum(v[1] for v in vo) / so ** 2))
+                if len(vals) < 10:
+                    blanco[c] = lento[c] = float("inf")
+                    continue
+                m = _mediana(vals)
+                rel = [x / m for x in vals]
+                pp = _p2p(rel)
+                a0, b0 = ajuste_lineal(ts_, rel)
+                rms = (sum((y - a0 - b0 * t) ** 2 for t, y in zip(ts_, rel)) / len(rel)) ** 0.5
+                blanco[c] = pp / max(1e-9, _mediana(esp))
+                lento[c] = rms / max(1e-9, pp)
+            mb = _mediana(list(blanco.values())) or 1.0
+            ml = max(1.0, _mediana(list(lento.values())) or 1.0)
+            nota = {c: max(blanco[c] / mb, lento[c] / ml) for c in comps}
+            peor = max(comps, key=lambda c: nota[c])
+            if nota[peor] > 1.6:
+                comps.remove(peor)
+            else:
+                break
+        return comps
+
+    elegidas = [c for c in (sel.get("comps") or []) if c in est and c != "T"]
+    ap_sel = sel.get("apertura")
+    candidatas = []
+    for a in ([int(ap_sel)] if ap_sel is not None and 0 <= int(ap_sel) < nap else range(nap)):
+        cs = elegidas or limpiar_comps(a, utiles)
+        if not cs:
+            continue
+        pts = relativa(a, cs)
+        if len(pts) < 10:
+            continue
+        m = _mediana([f for _t, f, _e in pts])
+        candidatas.append((_p2p([f / m for _t, f, _e in pts]), a, cs, pts))
+    if not candidatas:
+        raise RuntimeError("no hay bastantes tomas con el planeta y sus estrellas de comparación medidos")
+    disp, a_mejor, comps, pts = min(candidatas, key=lambda c: c[0])
+    ts = [t["bjd_tdb"] for t, _f, _e in pts]
+    mf = _mediana([f for _t, f, _e in pts])
+    flujo = [f / mf for _t, f, _e in pts]
+    err = [e / mf for _t, _f, e in pts]
+    X = [t.get("masa_aire") or 1.0 for t, _f, _e in pts]
+    # el tránsito previsto
+    tmed = (ts[0] + ts[-1]) / 2
+    tc_prev, tc_prev_err, ciclo = transito_previsto(pl, tmed)
+    u1, u2 = serie["limbo"]
+    P = pl["periodo"]
+    t14 = duracion_t14(P, pl["p"], pl["a"], pl["inc"])
+    antes = sum(1 for t in ts if t < tc_prev - t14 / 2)
+    despues = sum(1 for t in ts if t > tc_prev + t14 / 2)
+    dentro_ = len(ts) - antes - despues
+    if dentro_ < 5:
+        avisos.append("casi ninguna toma cae dentro del tránsito previsto: comprueba el planeta y la noche")
+    if antes < 8 or despues < 8:
+        avisos.append("hay poca línea de base %s del tránsito: el instante central y la profundidad salen peor" % ("antes" if antes < despues else "después"))
+    X0 = sum(X) / len(X)
+    libre_geo = bool(sel.get("geometria_libre"))
+
+    def modelo_de(tipo):
+        def f(q):
+            tr_ = curva_transito(ts, q["tc"], P, q["p"], q["a"], q["inc"], u1, u2)
+            out = []
+            for t, x, m in zip(ts, X, tr_):
+                d = t - tmed
+                if tipo == "masa_aire":
+                    b = q["c0"] * (1 + q["c1"] * (x - X0))
+                elif tipo == "cuadratica":
+                    b = q["c0"] * (1 + q["c1"] * d + q["c2"] * d * d)
+                else:
+                    b = q["c0"] * (1 + q["c1"] * d)
+                out.append(m * b)
+            return out
+        return f
+
+    def ajustar(tipo, y, sig, inicio=None):
+        q0 = inicio or {"tc": tc_prev, "p": pl["p"], "a": pl["a"], "inc": pl["inc"], "c0": 1.0, "c1": 0.0, "c2": 0.0}
+        libres = ["tc", "p", "c0", "c1"] + (["c2"] if tipo == "cuadratica" else []) + (["a", "inc"] if libre_geo else [])
+        pasos = {"tc": 2e-5, "p": 2e-4, "c0": 1e-5, "c1": 1e-4, "c2": 1e-3, "a": 1e-3, "inc": 1e-3}
+        lim = {"p": (0.005, 0.6), "a": (1.2, 80.0), "inc": (60.0, 90.0), "tc": (ts[0] - t14, ts[-1] + t14)}
+        return ajuste_lm(modelo_de(tipo), q0, libres, pasos, y, sig, lim) + (libres,)
+
+    tipos = [sel["tendencia"]] if sel.get("tendencia") in TENDENCIAS else list(TENDENCIAS)
+    if max(X) - min(X) < 0.01:
+        tipos = [t for t in tipos if t != "masa_aire"] or ["lineal"]
+    mejores = []
+    for tipo in tipos:
+        q, cov, chi, libres = ajustar(tipo, flujo, err)
+        bic = chi + len(libres) * math.log(len(ts))
+        mejores.append((bic, tipo, q, cov, chi, libres))
+    bic, tipo, q, cov, chi, libres = min(mejores, key=lambda x: x[0])
+    n = len(ts)
+    escala = math.sqrt(chi / max(1, n - len(libres)))
+    err = [e * escala for e in err]                     # errores que dan χ² reducido = 1
+    mod = modelo_de(tipo)(q)
+    res = [y - m for y, m in zip(flujo, mod)]
+    beta = ruido_rojo(ts, res)
+    e_tc = math.sqrt(max(0.0, cov.get(("tc", "tc"), 0.0))) * escala
+    e_p = math.sqrt(max(0.0, cov.get(("p", "p"), 0.0))) * escala
+    # «cuentas de rosario» (prayer bead): se desplazan los residuos en el tiempo y se vuelve a ajustar
+    tcs = []
+    pasos_pb = max(1, n // 30)
+    for k in range(pasos_pb, n, pasos_pb):
+        y2 = [m + res[(i + k) % n] for i, m in enumerate(mod)]
+        q2, _c2, _x2, _l2 = ajustar(tipo, y2, err, dict(q))
+        tcs.append(q2["tc"])
+    e_pb = (sum((x - q["tc"]) ** 2 for x in tcs) / len(tcs)) ** 0.5 if len(tcs) >= 5 else 0.0
+    e_tc_tot = max(e_tc * beta, e_pb)
+    base = [m / tr if tr > 0 else m for m, tr in zip(mod, curva_transito(ts, q["tc"], P, q["p"], q["a"], q["inc"], u1, u2))]
+    corr = [y / b for y, b in zip(flujo, base)]
+    modelo_tr = curva_transito(ts, q["tc"], P, q["p"], q["a"], q["inc"], u1, u2)
+    # modelo fino para dibujar
+    fino_t = [ts[0] + (ts[-1] - ts[0]) * i / 300 for i in range(301)]
+    fino = curva_transito(fino_t, q["tc"], P, q["p"], q["a"], q["inc"], u1, u2)
+    prof = 1 - min(fino) if fino else 0.0
+    rms = (sum(r * r for r in res) / n) ** 0.5
+    cadencia = _mediana([ts[i + 1] - ts[i] for i in range(n - 1)]) * 1440.0
+    oc = (q["tc"] - tc_prev) * 1440.0
+    oc_err = math.sqrt(e_tc_tot ** 2 + tc_prev_err ** 2) * 1440.0
+    if beta > 2:
+        avisos.append("hay mucho ruido correlacionado (β = %.1f): nubes, seguimiento o enfoque" % beta)
+    if e_tc_tot * 1440 > 5:
+        avisos.append("el instante central tiene un error grande (más de 5 minutos)")
+    # exposición para no saturar: con el pico de la estrella del planeta en estas tomas
+    exp_max = None
+    if sat:
+        picos = [(t["estrellas"]["T"][4] - t["estrellas"]["T"][7], t.get("exp") or 0) for t in tomas if "T" in t["estrellas"]]
+        picos = [(pk, ex) for pk, ex in picos if pk > 0 and ex > 0]
+        if picos:
+            pk, ex = sorted(picos)[len(picos) // 2]
+            exp_max = round(ex * 0.6 * sat / pk, 1)
+    # grupos de 5 minutos para ver mejor la curva
+    grupos = []
+    k = 0
+    while k < n:
+        j = k
+        while j < n and (ts[j] - ts[k]) * 1440 < 5:
+            j += 1
+        g = list(range(k, j))
+        grupos.append([round(sum(ts[i] for i in g) / len(g), 6), round(sum(corr[i] for i in g) / len(g), 6),
+                       round(((sum((corr[i] - sum(corr[x] for x in g) / len(g)) ** 2 for i in g) / max(1, len(g) - 1)) ** 0.5 / math.sqrt(len(g))) if len(g) > 1 else err[k], 6)])
+        k = j
+    tabla = []
+    for cid in comps_todas:
+        e = est[cid]
+        vals = [med(t, cid, a_mejor) for t in tomas]
+        ok = [v for v in vals if v and not v[2]]
+        tabla.append({"id": cid, "g": e.get("g"), "bp_rp": e.get("bp_rp"), "dist": e.get("dist"), "var": bool(e.get("var")),
+                      "presente": round(len(ok) / max(1, len(tomas)), 2), "saturada": round(sum(1 for v in vals if v and v[2]) / max(1, len(tomas)), 2),
+                      "snr": round(_mediana([v[0] / math.sqrt(v[1]) for v in ok if v[1] > 0]) or 0, 0)})
+    return {"comps": comps, "apertura": a_mejor, "factor_apertura": serie["factores"][a_mejor], "tendencia": tipo, "geometria_libre": libre_geo,
+            "tc": round(q["tc"], 6), "tc_err": round(e_tc_tot, 6), "tc_err_formal": round(e_tc, 6), "tc_err_pb": round(e_pb, 6), "beta": round(beta, 2),
+            "tc_previsto": round(tc_prev, 6), "tc_previsto_err": round(tc_prev_err, 6), "ciclo": ciclo, "oc_min": round(oc, 2), "oc_err_min": round(oc_err, 2),
+            "p": round(q["p"], 5), "p_err": round(e_p, 5), "a": round(q["a"], 3), "inc": round(q["inc"], 3),
+            "a_err": round(math.sqrt(max(0.0, cov.get(("a", "a"), 0.0))) * escala, 3) if libre_geo else None,
+            "inc_err": round(math.sqrt(max(0.0, cov.get(("inc", "inc"), 0.0))) * escala, 3) if libre_geo else None,
+            "profundidad_ppt": round(prof * 1000, 2), "t14_h": round(duracion_t14(P, q["p"], q["a"], q["inc"]) * 24, 3),
+            "rms_ppt": round(rms * 1000, 2), "cadencia_min": round(cadencia, 2), "n": n, "escala_err": round(escala, 3),
+            "antes": antes, "despues": despues, "exp_max": exp_max, "u1": u1, "u2": u2,
+            "coef": {k2: q.get(k2) for k2 in ("c0", "c1", "c2") if k2 in libres}, "x0": round(X0, 4), "tmed": round(tmed, 6),
+            "puntos": [{"bjd": round(t, 6), "flujo": round(f, 6), "err": round(e, 6), "corr": round(c, 6), "modelo": round(m, 6), "base": round(b, 6),
+                        "masa_aire": round(x, 4), "archivo": tt["archivo"]} for t, f, e, c, m, b, x, (tt, _f, _e) in zip(ts, flujo, err, corr, modelo_tr, base, X, pts)],
+            "modelo_fino": [[round(t, 6), round(f, 6)] for t, f in zip(fino_t, fino)], "grupos": grupos, "tabla": tabla, "avisos": avisos,
+            "bic": {t2: round(b2, 2) for b2, t2, *_r in mejores}}
+
+
+def trabajo_exo(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "exo-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        ids = [i for i in (p.get("ids") or []) if i]
+        JOB["texto"], JOB["archivo"] = "Buscando el planeta", p.get("planeta") or ""
+        pl = buscar_planeta(p.get("planeta") or "")
+        if not pl:
+            raise RuntimeError("no encuentro el planeta «%s» en ExoClock ni en el archivo de la NASA: escríbelo como allí (por ejemplo, HAT-P-32 b)" % (p.get("planeta") or ""))
+        tomas = _tomas_de_ids(ids)
+        if len(tomas) < 20:
+            raise RuntimeError("para un tránsito hacen falta muchas tomas seguidas (al menos 20; lo normal son cientos)")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[0]
+        escala = num(d0.get("escala")) or 1.0
+        w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
+        ra_p, dec_p = pl["ra"], pl["dec"]
+        # estrellas de comparación de Gaia: de brillo y color parecidos, aisladas y no variables
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        g_t = pl.get("g") or (pl.get("v") or 11.0) - 0.2
+        radio = math.hypot(w, h) / 2 * escala / 3600.0 * 1.05
+        cat = gaia_campo(ra_p, dec_p, radio, gmax=min(20.0, g_t + 4.0))
+        anio = f0.year + (f0.timetuple().tm_yday - 0.5) / 365.25
+        est_cat = []
+        for e in cat["estrellas"]:
+            ra, dec = posicion_en(e, anio)
+            est_cat.append(dict(e, ra_f=ra, dec_f=dec))
+        objetivo = min(est_cat, key=lambda e: separacion(ra_p, dec_p, e["ra_f"], e["dec_f"]), default=None)
+        if objetivo and separacion(ra_p, dec_p, objetivo["ra_f"], objetivo["dec_f"]) * 3600 < 4 and abs((objetivo["g"] or 99) - g_t) < 1.5:
+            ra_t, dec_t, g_t = objetivo["ra_f"], objetivo["dec_f"], objetivo["g"]
+            bprp_t = (objetivo["bp"] - objetivo["rp"]) if objetivo.get("bp") is not None and objetivo.get("rp") is not None else None
+        else:
+            objetivo, ra_t, dec_t, bprp_t = None, ra_p, dec_p, None
+        media = min(w, h) / 2 * escala / 3600.0 * 0.92          # dentro seguro del campo, aunque gire un poco
+        cands = []
+        for e in est_cat:
+            if objetivo and e["id"] == objetivo["id"]:
+                continue
+            if e["g"] is None or not (g_t - 1.5 <= e["g"] <= g_t + 2.5) or e.get("var"):
+                continue
+            dist = separacion(ra_t, dec_t, e["ra_f"], e["dec_f"])
+            if dist * 3600 < 20 or dist > media:
+                continue
+            vecina = any(x is not e and x["g"] is not None and x["g"] < e["g"] + 3.0 and separacion(e["ra_f"], e["dec_f"], x["ra_f"], x["dec_f"]) * 3600 < 12 * max(1.0, escala)
+                         for x in est_cat if abs(x["dec_f"] - e["dec_f"]) < 0.01)
+            if vecina:
+                continue
+            bprp = (e["bp"] - e["rp"]) if e.get("bp") is not None and e.get("rp") is not None else None
+            puntos = abs(e["g"] - g_t) + (abs(bprp - bprp_t) if bprp is not None and bprp_t is not None else 0.5) + dist / media
+            cands.append((puntos, e, bprp, dist))
+        cands.sort(key=lambda c: c[0])
+        if len(cands) < 2:
+            raise RuntimeError("no encuentro estrellas de comparación parecidas en el campo")
+        estrellas = [{"id": "T", "nombre": pl["estrella"], "ra": ra_t, "dec": dec_t, "g": g_t, "bp_rp": bprp_t, "gaia": (objetivo or {}).get("id", "")}] + \
+                    [{"id": e["id"], "ra": e["ra_f"], "dec": e["dec_f"], "g": round(e["g"], 3), "bp_rp": round(bprp, 3) if bprp is not None else None,
+                      "dist": round(dist * 60, 1), "var": bool(e.get("var"))} for _p, e, bprp, dist in cands[:18]]
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        banda, filtro_inf = banda_exo(h0.get("FILTER") or d0.get("filtro"), bool(h0.get("BAYERPAT")) or d0.get("bayer"))
+        registros = _medir_serie(tomas, estrellas, escala, lg, ra_t, dec_t, FACTORES_EXO, base, siril, ver)
+        if len(registros) < 20:
+            raise RuntimeError("no he podido medir bastantes tomas")
+        JOB["hechos"] = len(tomas)
+        JOB["texto"], JOB["archivo"] = "Ajustando el tránsito", ""
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "exoplaneta",
+                 "planeta": pl, "estrellas": estrellas, "tomas": registros, "factores": FACTORES_EXO, "banda": banda, "filtro": filtro_inf,
+                 "filtro_original": d0.get("filtro") or "", "limbo": list(limbo(pl.get("teff"), banda)), "objeto": d0.get("objeto") or "",
+                 "cam": d0.get("cam") or "", "tel": d0.get("tel") or "", "noche": d0.get("noche") or "",
+                 "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon")},
+                 "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
+                 "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
+        d = os.path.join(EXO_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        calc = calcular_exo(serie, {"tendencia": p.get("tendencia"), "geometria_libre": bool(p.get("geometria_libre"))})
+        guardar_exo(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_exo(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="exo", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    threading.Thread(target=trabajo_exo, args=(p,), daemon=True).start()
+
+
+def archivo_exoclock(serie, c):
+    """Curva para subir a ExoClock (o a otro programa): hora BJD_TDB a mitad de la exposición, flujo relativo sin
+    quitar la tendencia (ExoClock la ajusta a su manera) y su error, separados por espacios."""
+    pl = serie["planeta"]
+    cab = ["# ASTRO %s (Ciencia %s) · %s · %s" % (os.environ.get("ASTRO_VERSION_APP") or "", VERSION_PROG, pl["nombre"], serie.get("noche") or ""),
+           "# time: BJD_TDB (mid-exposure) · flux: relative, not detrended · filter: %s · exposure: %s s" % (serie["filtro"], _exp_serie(serie)),
+           "# BJD_TDB flux flux_err"]
+    return "\n".join([re.sub(r"  +", " ", x) for x in cab] + ["%.6f %.6f %.6f" % (x["bjd"], x["flujo"], x["err"]) for x in c["puntos"]]) + "\n"
+
+
+def archivo_etd(serie, c):
+    """Para VarAstro-ETD: BJD_TDB, magnitud relativa y error (sin quitar la tendencia)."""
+    lin = ["%.6f %.5f %.5f" % (x["bjd"], -2.5 * math.log10(x["flujo"]), 1.0857 * x["err"] / x["flujo"]) for x in c["puntos"] if x["flujo"] > 0]
+    return "\n".join(lin) + "\n"
+
+
+def _exp_serie(serie):
+    exps = sorted({t.get("exp") for t in serie["tomas"] if t.get("exp")})
+    return "/".join("%g" % e for e in exps) or "?"
+
+
+def svg_transito(serie, c, en=False):
+    """Figura de la curva de luz (SVG, para una memoria o un artículo): puntos sin tendencia, medias de 5 minutos,
+    modelo y residuos."""
+    W, H, L, R, T, B = 900, 560, 80, 20, 40, 60
+    h1 = 360
+    pts = c["puntos"]
+    t0 = c["tc"]
+    x_ = [(p["bjd"] - t0) * 24 for p in pts]
+    xa, xb = min(x_), max(x_)
+    ys = [p["corr"] for p in pts]
+    ya, yb = min(ys), max(ys)
+    pad = (yb - ya) * 0.08 or 0.002
+    ya, yb = ya - pad, yb + pad
+    X = lambda v: L + (v - xa) / (xb - xa or 1) * (W - L - R)
+    Y = lambda v: T + (yb - v) / (yb - ya) * (h1 - T)
+    rs = [p["corr"] - p["modelo"] for p in pts]
+    rr = max(0.002, max(abs(r) for r in rs) * 1.1)
+    Yr = lambda v: h1 + 50 + (rr - v) / (2 * rr) * (H - B - h1 - 50)
+    g = ['<rect width="100%" height="100%" fill="#ffffff"/>']
+    paso = 0.005 if yb - ya < 0.04 else 0.01
+    v = math.ceil(ya / paso) * paso
+    while v <= yb:
+        g.append('<line x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke="#e3e0ee"/><text x="%d" y="%.1f" font-size="12" text-anchor="end" fill="#555">%.3f</text>' % (L, W - R, Y(v), Y(v), L - 6, Y(v) + 4, v))
+        v += paso
+    hh = math.ceil(xa * 2) / 2
+    while hh <= xb:
+        g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#e3e0ee"/><text x="%.1f" y="%d" font-size="12" text-anchor="middle" fill="#555">%+.1f</text>' % (X(hh), X(hh), T, H - B, X(hh), H - B + 18, hh))
+        hh += 0.5
+    g += ['<circle cx="%.1f" cy="%.1f" r="1.8" fill="#9C8FC4"/>' % (X(xx), Y(p["corr"])) for xx, p in zip(x_, pts)]
+    g += ['<circle cx="%.1f" cy="%.1f" r="3.6" fill="#3B2A7A"/>' % (X((gg[0] - t0) * 24), Y(gg[1])) for gg in c["grupos"]]
+    g.append('<polyline fill="none" stroke="#D9822B" stroke-width="2.2" points="%s"/>' % " ".join("%.1f,%.1f" % (X((t - t0) * 24), Y(f)) for t, f in c["modelo_fino"]))
+    g.append('<line x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke="#999"/>' % (L, W - R, Yr(0), Yr(0)))
+    g += ['<circle cx="%.1f" cy="%.1f" r="1.6" fill="#9C8FC4"/>' % (X(xx), Yr(r)) for xx, r in zip(x_, rs)]
+    et = ("Hours from mid-transit" if en else "Horas desde el centro del tránsito")
+    titulo = "%s · %s · %s · Tc = %.5f ± %.5f BJD_TDB · O−C = %+.1f ± %.1f min" % (serie["planeta"]["nombre"], serie.get("noche") or "", serie["filtro"], c["tc"], c["tc_err"], c["oc_min"], c["oc_err_min"])
+    g.append('<text x="%d" y="24" font-size="15" font-weight="700" fill="#222">%s</text>' % (L, _xml(titulo)))
+    g.append('<text x="%d" y="%d" font-size="13" text-anchor="middle" fill="#333">%s</text>' % ((L + W - R) // 2, H - 14, _xml(et)))
+    g.append('<text x="18" y="%d" font-size="13" fill="#333" transform="rotate(-90 18 %d)" text-anchor="middle">%s</text>' % ((T + h1) // 2, (T + h1) // 2, "Relative flux" if en else "Flujo relativo"))
+    g.append('<text x="%d" y="%d" font-size="11" fill="#666">%s</text>' % (L, h1 + 40, _xml(("Residuals · RMS %.2f ppt" if en else "Residuos · RMS %.2f ppt") % c["rms_ppt"])))
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d" font-family="Helvetica, Arial, sans-serif">%s</svg>\n' % (W, H, W, H, "".join(g))
+
+
+def _xml(t):
+    return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def guardar_exo(serie, c):
+    d = os.path.join(EXO_DIR, serie["id"])
+    escribir_json(os.path.join(d, "ajuste.json"), c)
+    for nombre, texto in (("exoclock.txt", archivo_exoclock(serie, c)), ("etd.txt", archivo_etd(serie, c)), ("curva.svg", svg_transito(serie, c))):
+        with open(os.path.join(d, nombre), "w", encoding="utf-8", newline="\n") as f:
+            f.write(texto)
+    with open(os.path.join(d, "curva.csv"), "w", encoding="utf-8", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["bjd_tdb", "flujo_relativo", "error", "flujo_sin_tendencia", "modelo_transito", "tendencia", "masa_aire", "archivo"])
+        for x in c["puntos"]:
+            wr.writerow([x["bjd"], x["flujo"], x["err"], x["corr"], x["modelo"], x["base"], x["masa_aire"], x["archivo"]])
+
+
+def series_exo():
+    out = []
+    if not os.path.isdir(EXO_DIR):
+        return out
+    for n in sorted(os.listdir(EXO_DIR), reverse=True):
+        s = leer_json(os.path.join(EXO_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(EXO_DIR, n, "ajuste.json"), None) or {}
+        if not s:
+            continue
+        out.append({"id": s["id"], "planeta": s["planeta"]["nombre"], "noche": s.get("noche"), "filtro": s.get("filtro"), "tomas": len(s["tomas"]),
+                    "tc": c.get("tc"), "tc_err": c.get("tc_err"), "oc_min": c.get("oc_min"), "oc_err_min": c.get("oc_err_min"),
+                    "profundidad_ppt": c.get("profundidad_ppt"), "rms_ppt": c.get("rms_ppt"), "lugar": (s.get("lugar") or {}).get("nombre", "")})
+    return out
+
+
+def serie_exo(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return leer_json(os.path.join(EXO_DIR, sid, "serie.json"), None), leer_json(os.path.join(EXO_DIR, sid, "ajuste.json"), None)
+
+
+def recalcular_exo(sid, sel):
+    serie, _c = serie_exo(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la medida")
+    c = calcular_exo(serie, sel)
+    guardar_exo(serie, c)
+    return c
+
+
+def borrar_exo(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("medida no válida")
+    shutil.rmtree(os.path.join(EXO_DIR, sid), ignore_errors=True)
+
+
+LEEME_EXO_ES = """TRÁNSITO DE {planeta} · {noche} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  exoclock.txt  La curva para ExoClock (https://www.exoclock.space, «Upload Observation»): hora BJD_TDB a mitad de la
+                exposición, flujo relativo SIN quitar la tendencia y su error. Formato de tiempo: BJD_TDB; flujo: relativo.
+  etd.txt       La misma curva en magnitudes relativas, para VarAstro-ETD (http://var2.astro.cz/ETD).
+  curva.csv     Todos los puntos: flujo relativo, flujo sin tendencia, modelo, tendencia, masa de aire y archivo.
+  curva.svg     La figura: puntos, medias de 5 minutos, modelo del tránsito y residuos.
+  serie.json    Las medidas de cada toma: flujos del planeta y de cada estrella de comparación de Gaia DR3 con seis
+                aperturas (1 a 3 FWHM), fondo, FWHM y horas (JD, HJD y BJD_TDB).
+  ajuste.json   Las comparaciones y la apertura elegidas y el resultado del ajuste.
+
+Resultado
+  Instante central Tc = {tc:.6f} ± {tc_err:.6f} BJD_TDB
+  O−C = {oc:+.2f} ± {oc_err:.2f} min respecto a las efemérides de {efem} (ciclo {ciclo})
+  Rp/R* = {p:.4f} ± {p_err:.4f} · profundidad {prof:.2f} ppt · RMS {rms:.2f} ppt cada {cad:.2f} min
+
+Método
+  Tomas calibradas con los masters de la biblioteca de ASTRO y resueltas con Siril; fotometría de apertura del planeta y
+  de estrellas de Gaia DR3 de brillo y color parecidos; se elige la apertura con menos dispersión de punto a punto y se
+  descartan las comparaciones que bailan más de lo que explica su ruido o que cambian despacio a lo largo de la noche.
+  Modelo de tránsito con oscurecimiento del limbo
+  cuadrático (u1 = {u1}, u2 = {u2}, aproximados de Claret 2011), órbita circular, a/R* e inclinación {geo}, y una
+  tendencia {tend} elegida por el criterio BIC. El error de Tc es el mayor entre el formal (por el factor β del ruido
+  correlacionado, β = {beta}) y el de las «cuentas de rosario» (residuos desplazados).
+  Efemérides: {efem}. Geometría: {fgeo}.
+"""
+LEEME_EXO_EN = """TRANSIT OF {planeta} · {noche} · ASTRO (Science section)
+
+What this package contains
+  exoclock.txt  The light curve for ExoClock (https://www.exoclock.space, "Upload Observation"): BJD_TDB at
+                mid-exposure, relative flux NOT detrended, and its error. Time format: BJD_TDB; flux: relative.
+  etd.txt       The same curve in relative magnitudes, for VarAstro-ETD (http://var2.astro.cz/ETD).
+  curva.csv     Every point: relative flux, detrended flux, model, trend, airmass and file.
+  curva.svg     The figure: points, 5-minute means, transit model and residuals.
+  serie.json    The measurements of each frame: fluxes of the target and of every Gaia DR3 comparison star with six
+                apertures (1 to 3 FWHM), background, FWHM and times (JD, HJD and BJD_TDB).
+  ajuste.json   The comparison stars and aperture chosen and the fit result.
+
+Result
+  Mid-transit time Tc = {tc:.6f} ± {tc_err:.6f} BJD_TDB
+  O−C = {oc:+.2f} ± {oc_err:.2f} min against the {efem} ephemeris (epoch {ciclo})
+  Rp/R* = {p:.4f} ± {p_err:.4f} · depth {prof:.2f} ppt · RMS {rms:.2f} ppt every {cad:.2f} min
+
+Method
+  Frames calibrated with the masters of ASTRO's library and plate-solved with Siril; aperture photometry of the target
+  and of Gaia DR3 stars of similar brightness and colour; the aperture with the lowest point-to-point scatter is chosen
+  and comparison stars that scatter more than their noise explains, or drift slowly during the night, are dropped.
+  Transit model with quadratic limb
+  darkening (u1 = {u1}, u2 = {u2}, approximate from Claret 2011), circular orbit, a/R* and inclination {geo}, and a
+  {tend} trend chosen by the BIC. The Tc error is the larger of the formal one (times the red-noise factor β = {beta})
+  and the prayer-bead one (shifted residuals).
+  Ephemeris: {efem}. Geometry: {fgeo}.
+"""
+
+
+def zip_exo(sid, en=False):
+    serie, c = serie_exo(sid)
+    if not serie or not c:
+        raise RuntimeError("no encuentro la medida")
+    d = os.path.join(EXO_DIR, sid)
+    pl = serie["planeta"]
+    tend = {"lineal": ("lineal en el tiempo", "linear in time"), "cuadratica": ("cuadrática en el tiempo", "quadratic in time"),
+            "masa_aire": ("con la masa de aire", "airmass")}[c["tendencia"]][1 if en else 0]
+    geo = ("fitted" if en else "ajustadas") if c.get("geometria_libre") else ("fixed" if en else "fijas")
+    texto = (LEEME_EXO_EN if en else LEEME_EXO_ES).format(
+        planeta=pl["nombre"], noche=serie.get("noche") or "", tc=c["tc"], tc_err=c["tc_err"], oc=c["oc_min"], oc_err=c["oc_err_min"],
+        efem=pl.get("efemerides", ""), ciclo=c["ciclo"], p=c["p"], p_err=c["p_err"], prof=c["profundidad_ppt"], rms=c["rms_ppt"],
+        cad=c["cadencia_min"], u1=c["u1"], u2=c["u2"], geo=geo, tend=tend, beta=c["beta"], fgeo=pl.get("geometria", ""))
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt" if en else "LEEME.txt", texto)
+        for n in ("exoclock.txt", "etd.txt", "curva.csv", "serie.json", "ajuste.json"):
+            if os.path.isfile(os.path.join(d, n)):
+                with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                    z.writestr(n, sin_rutas(f.read()))
+        z.writestr("curva.svg", svg_transito(serie, c, en))
+    return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", pl["nombre"]), serie.get("noche") or serie["creada"][:10])
+
+
 # ═════════════════════════════ AUTOPRUEBA (para la fábrica) ═════════════════════════════
 def escribir_fits_flotante(ruta, w, h, datos, claves):
     """FITS de 32 bits en coma flotante, sin librerías (datos: lista de filas)."""
@@ -2597,12 +3640,15 @@ def autoprueba(carpeta):
                            "fecha": fecha_fits("2026-01-15T22:00:30"), "lat": 39.0, "lon": -3.9})
     t = tiempos(fecha_fits("2026-01-15T22:00:30"), ra0, dec0)
     ok = abs(r["zp"] - zp) < 0.05 and abs(r["brillo_cielo"] - sb) < 0.1 and 2.0 < r["fwhm_px"] < 4.0
+    # el modelo del tránsito: sin oscurecimiento del limbo, un planeta de radio 0,1 entero dentro tapa el 1 %
+    tr_ = flujo_transito(0.3, 0.1, 0.0, 0.0)
+    ok = ok and abs(tr_ - 0.99) < 1e-5
     try:
         os.remove(ruta)
     except OSError:
         pass
     return {"ok": ok, "zp": r["zp"], "zp_esperado": zp, "cielo": r["brillo_cielo"], "cielo_esperado": sb, "fwhm_px": r["fwhm_px"],
-            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "segundos": r["segundos"]}
+            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "segundos": r["segundos"]}
 
 
 # ═════════════════════════════ LO QUE PIDE LA PÁGINA ═════════════════════════════
@@ -2883,6 +3929,51 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/variables/zip":
                 datos, nombre = zip_serie((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
                 return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/exo/series":
+                return self._json(series_exo())
+            if p.path == "/api/exo/serie":
+                serie, calc = serie_exo((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                resumen = {k: v for k, v in serie.items() if k != "tomas"}
+                resumen["n_tomas"] = len(serie["tomas"])
+                resumen["exp"] = _exp_serie(serie)
+                return self._json({"serie": resumen, "calculo": calc})
+            if p.path == "/api/exo/archivo":
+                sid, tipo = (qs.get("id") or [""])[0], (qs.get("tipo") or [""])[0]
+                serie, calc = serie_exo(sid)
+                if not calc or tipo not in ("exoclock", "etd", "csv", "svg"):
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                base = "%s-%s" % (re.sub(r"[^\w.-]+", "_", serie["planeta"]["nombre"]), serie.get("noche") or serie["creada"][:10])
+                if tipo == "svg":
+                    return self._send(200, svg_transito(serie, calc, idioma_actual() == "en"), "image/svg+xml; charset=utf-8",
+                                      {"Content-Disposition": 'attachment; filename="ASTRO-%s.svg"' % base})
+                if tipo == "csv":
+                    with open(os.path.join(EXO_DIR, sid, "curva.csv"), "r", encoding="utf-8") as f:
+                        return self._send(200, "\ufeff" + f.read(), "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-%s.csv"' % base})
+                texto = archivo_exoclock(serie, calc) if tipo == "exoclock" else archivo_etd(serie, calc)
+                return self._send(200, texto, "text/plain; charset=utf-8", {"Content-Disposition": 'attachment; filename="%s-%s.txt"' % ("ExoClock" if tipo == "exoclock" else "ETD", base)})
+            if p.path == "/api/exo/zip":
+                datos, nombre = zip_exo((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/exo/planeta":
+                pl = buscar_planeta((qs.get("nombre") or [""])[0])
+                if not pl:
+                    return self._json({"encontrado": False, "sugerencias": planetas_sugeridos((qs.get("nombre") or [""])[0])})
+                jd = num((qs.get("jd") or [""])[0])
+                if jd:
+                    tc, err, ciclo = transito_previsto(pl, jd)
+                    t14 = pl["dur_h"] / 48.0
+                    utc = bjd_a_jd_utc(tc, pl["ra"], pl["dec"])
+                    pl = dict(pl, tc_previsto=_iso_jd(utc), inicio_previsto=_iso_jd(utc - t14), fin_previsto=_iso_jd(utc + t14),
+                              tc_previsto_bjd=round(tc, 6), tc_previsto_err_min=round(err * 1440, 1))
+                return self._json(dict(pl, encontrado=True))
+            if p.path == "/api/exo/proximos":
+                try:
+                    return self._json(transitos_proximos((qs.get("lugar") or [""])[0], int(num((qs.get("dias") or ["7"])[0]) or 7),
+                                                         float(num((qs.get("vmax") or ["13"])[0]) or 13), todos=(qs.get("todos") or ["0"])[0] == "1"))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/cielo/medidas":
                 return self._json(medidas())
             if p.path == "/api/cielo/medida":
@@ -2937,6 +4028,20 @@ class H(BaseHTTPRequestHandler):
                     return self._json(recalcular_variable(d.get("id"), d))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/exo/medir":
+                try:
+                    iniciar_exo(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/exo/recalcular":
+                try:
+                    return self._json(recalcular_exo(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/exo/borrar":
+                borrar_exo(d.get("id"))
+                return self._json({"ok": True})
             if p.path == "/api/variables/borrar":
                 borrar_serie(d.get("id"))
                 return self._json({"ok": True})
@@ -2953,7 +4058,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = VARIABLES_DIR if d.get("tipo") == "variable" else CIELO_DIR
+                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -3265,6 +4370,119 @@ DIC_EN = {
     "serie no válida": "invalid series",
     "Promediar varias tomas seguidas reduce el ruido; úsalo solo si la estrella cambia despacio (no en eclipses ni en variaciones rápidas).": "Averaging several consecutive frames reduces the noise; use it only if the star changes slowly (not for eclipses or fast variations).",
     "Buscar la estrella en el VSX: tipo, periodo y rango": "Look the star up in the VSX: type, period and range",
+    "Tránsitos de las próximas noches": "Transits in the coming nights",
+    "Los planetas de ExoClock que se ven enteros desde tu lugar: con media hora antes y después, la estrella a más de 25° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.": "ExoClock planets whose whole transit is visible from your site: with half an hour before and after, the star more than 25° high and the Sun more than 12° below the horizon. Times are your computer's.",
+    "Días": "Days",
+    "Estrellas hasta la magnitud": "Stars down to magnitude",
+    "También los que se ven a medias": "Also partly visible ones",
+    "Buscar tránsitos": "Find transits",
+    "Calculando…": "Calculating…",
+    "No hay tránsitos que se vean enteros": "No fully visible transits",
+    "Prueba con más días, estrellas más débiles o también los que se ven a medias.": "Try more days, fainter stars or partly visible transits too.",
+    "Planeta": "Planet",
+    "Cuándo": "When",
+    "Profundidad": "Depth",
+    "centro": "mid",
+    "a medias": "partial",
+    "prioridad": "priority",
+    "¡alerta!": "alert!",
+    "alta": "high",
+    "media": "medium",
+    "baja": "low",
+    "Efemérides de": "Ephemeris from",
+    "La altura es la de la estrella al empezar, en el centro y al terminar el tránsito; la profundidad, en milésimas de magnitud.": "Altitude is the star's at the start, middle and end of the transit; depth is in thousandths of a magnitude.",
+    "sin lugares": "no sites",
+    "Medir un tránsito": "Measure a transit",
+    "Elige la sesión con las tomas del tránsito (una noche seguida, con una hora antes y otra después). ASTRO busca las efemérides del planeta en ExoClock y en la NASA, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el tránsito y prepara la curva para ExoClock.": "Choose the session with the transit frames (one continuous night, with an hour before and another after). ASTRO looks up the planet's ephemeris in ExoClock and at NASA, picks Gaia comparison stars, calibrates and measures every frame, fits the transit and prepares the light curve for ExoClock.",
+    "p. ej. HAT-P-32 b": "e.g. HAT-P-32 b",
+    "Tendencia": "Trend",
+    "la que mejor encaje (BIC)": "the best fitting one (BIC)",
+    "lineal en el tiempo": "linear in time",
+    "cuadrática en el tiempo": "quadratic in time",
+    "con la masa de aire": "with airmass",
+    "Ajustar también a/R* y la inclinación": "Also fit a/R* and the inclination",
+    "Con una curva muy buena se pueden ajustar; si no, mejor dejar las del catálogo.": "With a very good light curve they can be fitted; otherwise it is better to keep the catalogue values.",
+    "Medir el tránsito": "Measure the transit",
+    "Hace falta conexión a Internet para las efemérides (ExoClock y NASA) y el catálogo Gaia, y Siril para calibrar y resolver.": "An Internet connection is needed for the ephemerides (ExoClock and NASA) and the Gaia catalogue, and Siril to calibrate and plate-solve.",
+    "Tus tránsitos": "Your transits",
+    "No hay sesiones con bastantes tomas": "No sessions with enough frames",
+    "Añade en Control de lights las tomas de la noche del tránsito (al menos 20, todas con el mismo filtro).": "Add in Light frames the frames of the transit night (at least 20, all with the same filter).",
+    "De … a (UTC)": "From … to (UTC)",
+    "No lo encuentro": "Not found",
+    "¿Quizá": "Maybe",
+    "las tomas no cubren el tránsito": "the frames don't cover the transit",
+    "poca línea de base": "little baseline",
+    "centro previsto": "predicted mid-transit",
+    "efemérides de": "ephemeris from",
+    "Elige primero la sesión con las tomas del tránsito": "First choose the session with the transit frames",
+    "Escribe el nombre del planeta (por ejemplo, HAT-P-32 b)": "Type the planet's name (for example, HAT-P-32 b)",
+    "Todavía no has medido ningún tránsito": "You haven't measured any transit yet",
+    "Elige arriba una sesión y el planeta, y pulsa «Medir el tránsito».": "Choose a session and the planet above, and press “Measure the transit”.",
+    "Centro (BJD_TDB)": "Mid-transit (BJD_TDB)",
+    "O−C (min)": "O−C (min)",
+    "Profundidad (ppt)": "Depth (ppt)",
+    "RMS (ppt)": "RMS (ppt)",
+    "Instante central": "Mid-transit time",
+    "O−C: adelanto (−) o retraso (+) respecto a las efemérides": "O−C: early (−) or late (+) against the ephemeris",
+    "Dispersión de cada punto (cada # min)": "Scatter of each point (every # min)",
+    "Curva de luz sin la tendencia": "Detrended light curve",
+    "Residuos": "Residuals",
+    "horas desde el centro del tránsito": "hours from mid-transit",
+    "Flujo relativo del planeta frente a la suma de las comparaciones, con la tendencia de la noche quitada. Puntos claros: cada toma; oscuros: medias de 5 minutos; en dorado, el modelo del tránsito ajustado.": "Relative flux of the target against the sum of the comparison stars, with the night's trend removed. Light points: each frame; dark: 5-minute means; in gold, the fitted transit model.",
+    "La noche, sin corregir": "The night, uncorrected",
+    "hora (aprox. UTC; el eje va en BJD_TDB)": "time (approx. UTC; the axis is in BJD_TDB)",
+    "Flujo relativo tal como sale, con el modelo por la tendencia elegida": "Relative flux as measured, with the model times the chosen trend",
+    "Masa de aire de": "Airmass from",
+    "a": "to",
+    "Estrellas de comparación (Gaia DR3)": "Comparison stars (Gaia DR3)",
+    "Usar": "Use",
+    "Distancia (′)": "Distance (′)",
+    "Apertura": "Aperture",
+    "la de menos dispersión": "the one with least scatter",
+    "a/R* e inclinación libres": "free a/R* and inclination",
+    "ASTRO elige la apertura con menos dispersión y quita las comparaciones que bailan más de lo que explica su ruido o cambian despacio (variables). Puedes marcar las tuyas y recalcular.": "ASTRO picks the aperture with the least scatter and drops comparison stars that scatter more than their noise explains or drift slowly (variables). You can tick your own and recalculate.",
+    "Para ExoClock": "For ExoClock",
+    "Curva para ExoClock": "Light curve for ExoClock",
+    "Curva para VarAstro-ETD": "Light curve for VarAstro-ETD",
+    "Figura (SVG)": "Figure (SVG)",
+    "Tabla (CSV)": "Table (CSV)",
+    "En ExoClock, entra con tu cuenta y usa «Upload Observation»: formato de tiempo BJD_TDB (a mitad de la exposición), flujo relativo sin quitar la tendencia, filtro": "In ExoClock, sign in and use “Upload Observation”: time format BJD_TDB (mid-exposure), relative flux not detrended, filter",
+    "y exposición de": "and exposure of",
+    "Abrir ExoClock": "Open ExoClock",
+    "Abrir VarAstro-ETD": "Open VarAstro-ETD",
+    "Efemérides": "Ephemeris",
+    "ciclo": "epoch",
+    "Geometría": "Geometry",
+    "ajustadas": "fitted",
+    "fijas, del catálogo": "fixed, from the catalogue",
+    "Oscurecimiento del limbo": "Limb darkening",
+    "aproximado (Claret 2011)": "approximate (Claret 2011)",
+    "tendencia": "trend",
+    "estrellas de Gaia DR3, sumadas": "Gaia DR3 stars, summed",
+    "Error del centro": "Mid-time error",
+    "el mayor entre el formal por β y el de las «cuentas de rosario»:": "the larger of the formal one times β and the prayer-bead one:",
+    "Línea de base": "Baseline",
+    "tomas antes y": "frames before and",
+    "después del tránsito": "after the transit",
+    "Con este enfoque, la estrella llegaría al 60 % de la saturación con": "With this focus, the star would reach 60% of saturation with",
+    "Buscando el planeta": "Looking up the planet",
+    "Consultando el catálogo Gaia": "Querying the Gaia catalogue",
+    "Ajustando el tránsito": "Fitting the transit",
+    "~no encuentro el planeta": "I can't find the planet",
+    "~en ExoClock ni en el archivo de la NASA: escríbelo como allí (por ejemplo, HAT-P-32 b)": "in ExoClock or in the NASA archive: type it as it appears there (for example, HAT-P-32 b)",
+    "para un tránsito hacen falta muchas tomas seguidas (al menos 20; lo normal son cientos)": "a transit needs many consecutive frames (at least 20; hundreds is normal)",
+    "no encuentro estrellas de comparación parecidas en el campo": "I can't find similar comparison stars in the field",
+    "no hay bastantes tomas con el planeta y sus estrellas de comparación medidos": "there aren't enough frames with the target and its comparison stars measured",
+    "casi ninguna toma cae dentro del tránsito previsto: comprueba el planeta y la noche": "almost no frame falls inside the predicted transit: check the planet and the night",
+    "hay poca línea de base antes del tránsito: el instante central y la profundidad salen peor": "there is little baseline before the transit: the mid-time and the depth come out worse",
+    "hay poca línea de base después del tránsito: el instante central y la profundidad salen peor": "there is little baseline after the transit: the mid-time and the depth come out worse",
+    "hay mucho ruido correlacionado (β = #): nubes, seguimiento o enfoque": "there is a lot of correlated noise (β = #): clouds, tracking or focus",
+    "el instante central tiene un error grande (más de 5 minutos)": "the mid-transit time has a large error (more than 5 minutes)",
+    "la estrella del planeta está saturada o casi en # tomas: se quitan (baja la exposición o desenfoca un poco)": "the target star is saturated or nearly so in # frames: they are left out (shorten the exposure or defocus a little)",
+    "elige un lugar con coordenadas (en «Próximas noches» del Control de lights)": "choose a site with coordinates (in “Upcoming nights” in Light frames)",
+    "no he podido descargar la lista de planetas (¿hay conexión a Internet?)": "I couldn't download the list of planets (is there an Internet connection?)",
+    "no encuentro la medida": "I can't find the measurement",
+    "medida no válida": "invalid measurement",
 }
 
 HTML = r'''<!DOCTYPE html>
@@ -3329,7 +4547,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .top.ilus > div:first-child{max-width:min(620px,52%)}
 @media (max-width:1180px){.top.ilus > div:first-child{max-width:none}}
 @media (max-width:1180px){.top.ilus{background-image:linear-gradient(180deg,#120E28,#271A4A);background-size:100% 100%;background-position:0 0;min-height:0}}
-.btn{border:1px solid var(--line2);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:650;font-size:14px}
+.btn{border:1px solid var(--line2);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:650;font-size:14px} a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit} a.btn.primary{color:var(--on-accent)}
 .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.5;cursor:default}
 .btn.primary{background:linear-gradient(135deg,var(--accent2),#5B2C87);border-color:transparent;color:var(--on-accent);box-shadow:0 8px 20px -10px rgba(91,44,135,.7)}
 .btn.small{padding:4px 10px;font-size:13px}
@@ -3480,6 +4698,39 @@ td.num{text-align:right}
         </div>
         <h3 class="seccion">Tus curvas de luz</h3>
         <div id="vSeries"></div>
+      </div>
+      <div id="herramientaExo" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Tránsitos de las próximas noches</h3>
+          <div class="note">Los planetas de ExoClock que se ven enteros desde tu lugar: con media hora antes y después, la estrella a más de 25° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.</div>
+          <div class="opciones">
+            <label>Lugar <select id="xLugar"></select></label>
+            <label>Días <select id="xDias"><option value="3">3</option><option value="7" selected>7</option><option value="14">14</option><option value="30">30</option></select></label>
+            <label>Estrellas hasta la magnitud <select id="xVmax"><option value="11">11</option><option value="12">12</option><option value="13" selected>13</option><option value="14">14</option></select></label>
+            <label><input type="checkbox" id="xTodos"> También los que se ven a medias</label>
+            <span style="flex:1"></span>
+            <button class="btn" id="btnProximos">Buscar tránsitos</button>
+          </div>
+          <div id="xProximos" style="margin-top:12px"></div>
+        </div>
+        <div class="caja" style="margin-top:16px">
+          <h3 style="font-size:17px">Medir un tránsito</h3>
+          <div class="note">Elige la sesión con las tomas del tránsito (una noche seguida, con una hora antes y otra después). ASTRO busca las efemérides del planeta en ExoClock y en la NASA, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el tránsito y prepara la curva para ExoClock.</div>
+          <div id="xSesiones" style="margin-top:12px"></div>
+          <div class="opciones">
+            <label>Planeta <input id="xPlaneta" list="xSugerencias" placeholder="p. ej. HAT-P-32 b" autocomplete="off" style="width:170px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"><datalist id="xSugerencias"></datalist></label>
+            <span class="note" id="xPlanetaInfo"></span>
+          </div>
+          <div class="opciones">
+            <label>Tendencia <select id="xTendencia"><option value="">la que mejor encaje (BIC)</option><option value="lineal">lineal en el tiempo</option><option value="cuadratica">cuadrática en el tiempo</option><option value="masa_aire">con la masa de aire</option></select></label>
+            <label title="Con una curva muy buena se pueden ajustar; si no, mejor dejar las del catálogo."><input type="checkbox" id="xGeo"> Ajustar también a/R* y la inclinación</label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnExo">Medir el tránsito</button>
+          </div>
+          <div class="note" style="margin-top:10px">Hace falta conexión a Internet para las efemérides (ExoClock y NASA) y el catálogo Gaia, y Siril para calibrar y resolver.</div>
+        </div>
+        <h3 class="seccion">Tus tránsitos</h3>
+        <div id="xSeries"></div>
       </div>
       <div id="herramientaCielo" style="display:none">
         <div class="caja">
@@ -3672,7 +4923,7 @@ const BLOQUES = [
    destino:["AAVSO: the Extended-format file is uploaded in WebObs and enters the international database.","VarAstro: eclipsing-binary minima and their O–C diagram.","Publishing: Journal of the AAVSO (peer reviewed), OEJV or Research Notes of the AAS."],
    hara:["Look the star up in the VSX: type, period and range","Download the official comparison sequence","Calibrate and plate-solve with Siril; aperture photometry","Choose the comparison and check stars","Light curve with errors, airmass and warnings","AAVSO Extended file ready for WebObs"]}},
 
- {id:"exoplanetas", n:"1b", estado:"pronto", icono:"exoplanetas",
+ {id:"exoplanetas", n:"1b", estado:"ya", icono:"exoplanetas",
   es:{titulo:"Exoplanetas: el tránsito", corto:"Mide el instante exacto en que un planeta pasa por delante de su estrella.",
    historia:[
     "En 1999, un telescopio de apenas 10 centímetros vio por primera vez cómo la luz de la estrella HD 209458 bajaba cerca de un 1,5 % durante unas tres horas: un planeta gigante estaba pasando por delante. Hoy se conocen miles de planetas descubiertos así. Pero descubrir un planeta es solo el principio: para estudiarlo hay que saber cuándo volverá a pasar, y ese «cuándo» se va desdibujando. Un pequeño error en el periodo, repetido en cientos de órbitas, se convierte en minutos y luego en horas.",
@@ -3682,7 +4933,7 @@ const BLOQUES = [
    necesitas:["Abertura: cuanta más, mejor (de 20 a 35 cm es ideal); cámara mono mejor que color.","Seguimiento estable y guiado, y el reloj del ordenador sincronizado al segundo.","Una cuenta gratuita en ExoClock."],
    programas:[["HOPS","El programa de ExoClock"],["EXOTIC","El de Exoplanet Watch (NASA/JPL)"],["AstroImageJ","El estándar del seguimiento de TESS"],["N.I.N.A.","Planificar y capturar el tránsito"]],
    destino:["ExoClock: las curvas aprobadas mantienen al día las efemérides de Ariel; los observadores figuran como coautores de sus artículos.","Exoplanet Watch (NASA), en la base de datos de exoplanetas de la AAVSO.","VarAstro-ETD y, más adelante, el programa de seguimiento de TESS (TFOP)."],
-   hara:["Tránsitos observables esta noche desde tu sitio","Exposición para no saturar con tu equipo","Curva en BJD_TDB y eliminación de tendencias","Ajuste del tránsito (T₀, profundidad, duración) con errores","Paquete para ExoClock, Exoplanet Watch y VarAstro"]},
+   hara:["Tránsitos que se ven enteros desde tu lugar en los próximos días","Comparaciones de Gaia elegidas y vigiladas","Curva en BJD_TDB y tendencia de la noche","Ajuste del tránsito (T₀, profundidad, duración) con errores honestos","O−C frente a las efemérides de ExoClock","Curvas para ExoClock y VarAstro-ETD, figura y paquete"]},
   en:{titulo:"Exoplanets: the transit", corto:"Measure the exact moment a planet crosses in front of its star.",
    historia:[
     "In 1999 a telescope just 10 centimetres across saw for the first time the light of the star HD 209458 drop by about 1.5% for some three hours: a giant planet was passing in front of it. Thousands of planets have been found that way since. But discovering a planet is only the beginning: to study it you need to know when it will pass again, and that 'when' keeps blurring. A small error in the period, repeated over hundreds of orbits, becomes minutes and then hours.",
@@ -3692,7 +4943,7 @@ const BLOQUES = [
    necesitas:["Aperture: the more the better (20 to 35 cm is ideal); a mono camera is better than colour.","Steady tracking and guiding, and the computer clock synchronised to the second.","A free ExoClock account."],
    programas:[["HOPS","ExoClock's software"],["EXOTIC","Exoplanet Watch's (NASA/JPL)"],["AstroImageJ","The standard of TESS follow-up"],["N.I.N.A.","Plan and capture the transit"]],
    destino:["ExoClock: approved light curves keep Ariel's ephemerides up to date; observers are co-authors of its papers.","Exoplanet Watch (NASA), in the AAVSO exoplanet database.","VarAstro-ETD and, later on, the TESS follow-up programme (TFOP)."],
-   hara:["Transits observable tonight from your site","Exposure that will not saturate with your setup","Light curve in BJD_TDB and detrending","Transit fit (T₀, depth, duration) with errors","Package for ExoClock, Exoplanet Watch and VarAstro"]}},
+   hara:["Transits fully visible from your site in the coming days","Gaia comparison stars, chosen and checked","Light curve in BJD_TDB and the night's trend","Transit fit (T₀, depth, duration) with honest errors","O−C against the ExoClock ephemeris","Light curves for ExoClock and VarAstro-ETD, figure and package"]}},
 
  {id:"astrometria", n:"2", estado:"pronto", icono:"astrometria",
   es:{titulo:"Asteroides y cometas", corto:"Mide dónde está un cuerpo que se mueve y ayuda a calcular su órbita.",
@@ -3801,10 +5052,12 @@ function pintarBloque(id){
   $("bHara").innerHTML = (t.hara || []).map(p => `<span>${esc(p)}</span>`).join("");
   $("herramientaCielo").style.display = id === "cielo" ? "" : "none";
   $("herramientaVariable").style.display = id === "variables" ? "" : "none";
+  $("herramientaExo").style.display = id === "exoplanetas" ? "" : "none";
   BLOQUE_ACTUAL = id;
   if (id === "cielo") abrirCielo();
   if (id === "variables") abrirVariables();
-  if (id !== "cielo" && id !== "variables") $("trabajo").classList.remove("show");
+  if (id === "exoplanetas") abrirExo();
+  if (!["cielo", "variables", "exoplanetas"].includes(id)) $("trabajo").classList.remove("show");
 }
 let BLOQUE_ACTUAL = "";
 
@@ -3899,7 +5152,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = (e.tipo === "variable" ? "variables" : "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", exo: "exoplanetas"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -3909,11 +5162,12 @@ async function sondear(){
     $("tLog").textContent = (e.log || []).join("\n");
     $("btnCancelar").style.display = e.activo ? "" : "none";
   } else caja.classList.remove("show");
-  $("btnMedir").disabled = $("btnVariable").disabled = !!e.activo;
+  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = !!e.activo;
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
     if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
+    else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
     else { cargarMedidas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "cielo") verMedida(e.resultados[0]); }
   }
   if (e.activo) CIELO._activo = true;
@@ -4173,6 +5427,203 @@ function graficaCurva(s, c){
   if (ckOff != null) g += P.filter(p => p.check != null).map(p => `<circle cx="${X(horas(p)).toFixed(1)}" cy="${Y(p.check - ckOff).toFixed(1)}" r="2.2" fill="var(--oro)" opacity=".75"/>`).join("");
   g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("hora UTC"))} · JD ${t0.toFixed(4)}</text>`;
   $("gCurva").innerHTML = `<h4>Curva de luz</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("En morado, la variable (con su error); en dorado, la estrella de control desplazada a la altura de la variable: si la dorada sale plana, la noche y las comparaciones son buenas. Arriba, más brillante."))}</div>`;
+}
+
+/* ============ Exoplanetas: el tránsito ============ */
+const EXO = {sesiones:null, sel:null, series:[], actual:null, busca:null};
+const PRIORIDAD = {alert:["¡alerta!","bad"], high:["alta","warn"], medium:["media",""], low:["baja",""]};
+function chipPrioridad(p){ const x = PRIORIDAD[p]; return x ? `<span class="chip ${x[1]}">${esc(tr("prioridad"))} ${esc(tr(x[0]))}</span>` : ""; }
+function horaLocal(iso, conFecha){ const d = new Date(iso); if (isNaN(d)) return "—";
+  const h = d.toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"});
+  return conFecha ? d.toLocaleDateString(LOCALE, {weekday:"short", day:"numeric", month:"short"}) + " · " + h : h; }
+function jdDe(iso){ return Date.parse(iso.length <= 19 ? iso + "Z" : iso) / 864e5 + 2440587.5; }
+async function abrirExo(){
+  if (!CIELO.estado){ try { CIELO.estado = await (await api("/api/estado")).json(); } catch(_){} }
+  const ls = (CIELO.estado && CIELO.estado.lugares) || [];
+  $("xLugar").innerHTML = ls.length ? ls.map(l => `<option value="${esc(l.id)}" ${l.id === CIELO.estado.lugar_activo ? "selected" : ""}>${esc(l.nombre || "?")}</option>`).join("") : `<option value="">${esc(tr("sin lugares"))}</option>`;
+  if (!EXO.sesiones){ try { EXO.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ EXO.sesiones = []; } }
+  pintarSesionesExo(); cargarSeriesExo(); sondear();
+}
+$("btnProximos").onclick = async () => {
+  const b = $("btnProximos"); b.disabled = true; $("xProximos").innerHTML = `<div class="note">${esc(tr("Calculando…"))}</div>`;
+  try {
+    const d = await (await api(`/api/exo/proximos?lugar=${encodeURIComponent($("xLugar").value)}&dias=${$("xDias").value}&vmax=${$("xVmax").value}&todos=${$("xTodos").checked ? 1 : 0}`)).json();
+    const T = d.transitos;
+    if (!T.length){ $("xProximos").innerHTML = `<div class="vacio"><b>${esc(tr("No hay tránsitos que se vean enteros"))}</b>${esc(tr("Prueba con más días, estrellas más débiles o también los que se ven a medias."))}</div>`; return; }
+    $("xProximos").innerHTML = `<div class="tabla" style="max-height:420px"><table><thead><tr><th>Planeta</th><th>Cuándo</th><th class="num">V</th><th class="num">Profundidad</th><th>Altura</th><th>Luna</th><th></th></tr></thead><tbody>${
+      T.map(x => `<tr data-p="${esc(x.planeta)}" style="cursor:pointer"><td><b class="notr">${esc(x.planeta)}</b><div>${chipPrioridad(x.prioridad)}</div></td>
+        <td><span class="notr">${esc(horaLocal(x.inicio, true))} – ${esc(horaLocal(x.fin))}</span><div class="note"><span>centro</span> <span class="notr">${esc(horaLocal(x.centro))} ± ${numEs(x.incertidumbre_min, 1)} min</span></div></td>
+        <td class="num">${numEs(x.v, 1)}</td><td class="num">${x.prof_mmag != null ? numEs(x.prof_mmag, 0) + " mmag" : "—"}</td>
+        <td class="notr">${x.alt.map(a => a + "°").join(" → ")}</td><td class="notr">${x.luna_ilum} % · ${x.luna_sep != null ? numEs(x.luna_sep, 0) + "°" : ""}</td>
+        <td>${x.completo ? "" : `<span class="chip warn">${esc(tr("a medias"))}</span>`}</td></tr>`).join("")}</tbody></table></div>
+      <div class="note" style="margin-top:6px"><span>Efemérides de</span> <span class="notr">${esc(d.origen)}</span>. <span>La altura es la de la estrella al empezar, en el centro y al terminar el tránsito; la profundidad, en milésimas de magnitud.</span></div>`;
+    $("xProximos").querySelectorAll("tr[data-p]").forEach(t => t.onclick = () => { $("xPlaneta").value = t.dataset.p; buscarPlaneta(); $("xPlaneta").scrollIntoView({behavior:"smooth", block:"center"}); });
+  } catch(e){ $("xProximos").innerHTML = `<div class="avisos"><div>${esc(tr(e.message || String(e)))}</div></div>`; }
+  finally { b.disabled = false; }
+};
+function pintarSesionesExo(){
+  const ss = (EXO.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.tomas.length >= 20);
+  if (!ss.length){ $("xSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con bastantes tomas</b>Añade en Control de lights las tomas de la noche del tránsito (al menos 20, todas con el mismo filtro).</div>`; return; }
+  $("xSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th>De … a (UTC)</th></tr></thead><tbody>${
+    ss.map(([s, i]) => { const f = s.tomas.map(t => t.fecha).filter(Boolean).sort();
+      return `<tr data-i="${i}" class="${EXO.sel === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="xSes" ${EXO.sel === i ? "checked" : ""}></td><td>${esc(fechaCorta(s.noche))}</td><td class="notr">${esc(s.objeto)}</td>
+      <td class="notr">${esc(s.filtro_original || s.filtro)}</td><td class="notr">${esc(s.cam)}</td><td class="notr">${esc(s.tel)}</td><td class="num">${s.tomas.length}</td>
+      <td class="notr">${f.length ? esc(f[0].slice(11, 16) + " – " + f[f.length - 1].slice(11, 16)) : ""}</td></tr>`; }).join("")}</tbody></table></div>`;
+  $("xSesiones").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
+    EXO.sel = +t.dataset.i; const s = EXO.sesiones[EXO.sel];
+    $("xSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
+    if (s.objeto && s.objeto !== "(sin objeto)" && !$("xPlaneta").value.trim()) $("xPlaneta").value = s.objeto;
+    buscarPlaneta();
+  });
+}
+let _tBusca = null;
+$("xPlaneta").addEventListener("input", () => { clearTimeout(_tBusca); _tBusca = setTimeout(buscarPlaneta, 450); });
+async function buscarPlaneta(){
+  const n = $("xPlaneta").value.trim(); const info = $("xPlanetaInfo");
+  if (!n){ info.innerHTML = ""; return; }
+  const s = EXO.sel !== null ? EXO.sesiones[EXO.sel] : null;
+  const f = s ? s.tomas.map(t => t.fecha).filter(Boolean).sort() : [];
+  const jd = f.length ? (jdDe(f[0]) + jdDe(f[f.length - 1])) / 2 : 2440587.5 + Date.now() / 864e5;
+  try {
+    const d = await (await api(`/api/exo/planeta?nombre=${encodeURIComponent(n)}&jd=${jd}`)).json();
+    if (n !== $("xPlaneta").value.trim()) return;
+    if (!d.encontrado){
+      $("xSugerencias").innerHTML = (d.sugerencias || []).map(x => `<option value="${esc(x)}">`).join("");
+      info.innerHTML = `<span class="chip warn">${esc(tr("No lo encuentro"))}</span> ${d.sugerencias && d.sugerencias.length ? `<span>${esc(tr("¿Quizá"))}</span> <span class="notr">${d.sugerencias.slice(0, 4).map(esc).join(", ")}</span>?` : ""}`;
+      EXO.busca = null; return;
+    }
+    EXO.busca = d;
+    let fuera = "";
+    if (f.length){ const a = jdDe(f[0]), b = jdDe(f[f.length - 1]), i = jdDe(d.inicio_previsto), e = jdDe(d.fin_previsto);
+      if (b < i || a > e) fuera = `<span class="chip bad">${esc(tr("las tomas no cubren el tránsito"))}</span>`;
+      else if (a > i - 0.5 / 24 || b < e + 0.5 / 24) fuera = `<span class="chip warn">${esc(tr("poca línea de base"))}</span>`; }
+    info.innerHTML = `<b class="notr">${esc(d.nombre)}</b> · <span>centro previsto</span> <span class="notr">${esc(d.tc_previsto.slice(11, 16))} UTC ± ${numEs(d.tc_previsto_err_min, 1)} min (${esc(d.inicio_previsto.slice(11, 16))}–${esc(d.fin_previsto.slice(11, 16))})</span> · <span>efemérides de</span> <span class="notr">${esc(d.efemerides)}</span> ${chipPrioridad(d.prioridad)} ${fuera}`;
+  } catch(e){ info.textContent = ""; }
+}
+$("btnExo").onclick = async () => {
+  if (EXO.sel === null){ toast("Elige primero la sesión con las tomas del tránsito"); return; }
+  if (!$("xPlaneta").value.trim()){ toast("Escribe el nombre del planeta (por ejemplo, HAT-P-32 b)"); $("xPlaneta").focus(); return; }
+  const s = EXO.sesiones[EXO.sel];
+  try {
+    await post("/api/exo/medir", {ids: s.tomas.map(t => t.id), planeta: $("xPlaneta").value.trim(), tendencia: $("xTendencia").value, geometria_libre: $("xGeo").checked});
+    sondear();
+  } catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesExo(){
+  try { EXO.series = await (await api("/api/exo/series")).json(); } catch(_){ EXO.series = []; }
+  const ss = EXO.series;
+  if (!ss.length){ $("xSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ningún tránsito</b>Elige arriba una sesión y el planeta, y pulsa «Medir el tránsito».</div>`; return; }
+  $("xSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Noche</th><th>Planeta</th><th>Filtro</th><th class="num">Tomas</th><th class="num">Centro (BJD_TDB)</th><th class="num">O−C (min)</th><th class="num">Profundidad (ppt)</th><th class="num">RMS (ppt)</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}</td><td class="notr"><b>${esc(x.planeta)}</b></td><td class="notr">${esc(x.filtro || "")}</td>
+      <td class="num">${x.tomas}</td><td class="num"><span class="notr">${x.tc != null ? x.tc.toFixed(5) : "—"}</span>${x.tc != null ? " ± " + numEs(x.tc_err * 1440, 1) + " min" : ""}</td>
+      <td class="num">${x.oc_min != null ? (x.oc_min > 0 ? "+" : "") + numEs(x.oc_min, 1) + " ± " + numEs(x.oc_err_min, 1) : "—"}</td>
+      <td class="num">${numEs(x.profundidad_ppt, 1)}</td><td class="num">${numEs(x.rms_ppt, 1)}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("xSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verExo(t.dataset.id));
+}
+function tiempoErr(d){ const s = d * 86400; return s < 120 ? numEs(s, 0) + " s" : numEs(s / 60, 1) + " min"; }
+async function verExo(id, calcNuevo){
+  let d; try { d = await (await api("/api/exo/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo, pl = s.planeta; EXO.actual = {s, c};
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const TEND = {lineal: "lineal en el tiempo", cuadratica: "cuadrática en el tiempo", masa_aire: "con la masa de aire"};
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(pl.nombre)}</h2><div class="note"><span>${esc(fechaCorta(s.noche))}</span> · <span class="notr">${esc(s.filtro)} · ${s.n_tomas}</span> <span>tomas</span> · <span>efemérides de</span> <span class="notr">${esc(pl.efemerides)}</span> ${chipPrioridad(pl.prioridad)}</div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(`<span class="notr" style="font-size:22px">${c.tc.toFixed(5)}</span>`, "", "BJD_TDB · " + tr("Instante central") + " · ± " + tiempoErr(c.tc_err), true)}
+      ${cifra((c.oc_min > 0 ? "+" : "") + numEs(c.oc_min, 1), "min", tr("O−C: adelanto (−) o retraso (+) respecto a las efemérides") + " · ± " + numEs(c.oc_err_min, 1) + " min")}
+      ${cifra(numEs(c.profundidad_ppt, 1), "ppt", tr("Profundidad") + " · Rp/R* " + numEs(c.p, 4) + " ± " + numEs(c.p_err, 4))}
+      ${cifra(numEs(c.rms_ppt, 1), "ppt", tr("Dispersión de cada punto (cada # min)").replace("#", numEs(c.cadencia_min, 1)) + " · β " + numEs(c.beta, 2))}</div>
+    ${c.avisos.length ? `<div class="avisos">${c.avisos.map(a => `<div>${esc(tr(a))}</div>`).join("")}</div>` : ""}
+    <div class="graf" id="gExo"></div>
+    <div class="graf" id="gNoche"></div>
+    <div class="dos">
+      <div class="graf"><h4>Estrellas de comparación (Gaia DR3)</h4><div class="tabla" style="max-height:300px"><table><thead><tr><th>Usar</th><th>Gaia DR3</th><th class="num">G</th><th class="num">BP−RP</th><th class="num">Distancia (′)</th><th class="num">SNR</th><th class="num">Medida</th></tr></thead><tbody>${
+        c.tabla.map(x => `<tr><td><input type="checkbox" class="xComp" value="${esc(x.id)}" ${c.comps.includes(x.id) ? "checked" : ""}></td><td class="notr">${esc(x.id)}</td>
+          <td class="num">${numEs(x.g, 2)}</td><td class="num">${x.bp_rp != null ? numEs(x.bp_rp, 2) : "—"}</td><td class="num">${x.dist != null ? numEs(x.dist, 1) : "—"}</td><td class="num">${numEs(x.snr, 0)}</td>
+          <td class="num">${x.saturada > 0.1 ? `<span class="chip warn">saturada</span>` : numEs(100 * x.presente, 0) + " %"}</td></tr>`).join("")}</tbody></table></div>
+        <div class="opciones">
+          <label>Apertura <select id="dApertura"><option value="">${esc(tr("la de menos dispersión"))}</option>${s.factores.map((f, i) => `<option value="${i}" ${c.apertura === i ? "selected" : ""}>${numEs(f, 1)} × FWHM</option>`).join("")}</select></label>
+          <label>Tendencia <select id="dTendencia"><option value="">${esc(tr("la que mejor encaje (BIC)"))}</option>${Object.keys(TEND).map(k => `<option value="${k}" ${c.tendencia === k ? "selected" : ""}>${esc(tr(TEND[k]))}</option>`).join("")}</select></label>
+          <label><input type="checkbox" id="dGeo" ${c.geometria_libre ? "checked" : ""}> <span>a/R* e inclinación libres</span></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="pie">ASTRO elige la apertura con menos dispersión y quita las comparaciones que bailan más de lo que explica su ruido o cambian despacio (variables). Puedes marcar las tuyas y recalcular.</div></div>
+      <div class="graf"><h4>Para ExoClock</h4>
+        <div class="acciones" style="flex-wrap:wrap"><a class="btn small primary" href="/api/exo/archivo?tipo=exoclock&id=${encodeURIComponent(s.id)}" download>Curva para ExoClock</a>
+          <a class="btn small" href="/api/exo/archivo?tipo=etd&id=${encodeURIComponent(s.id)}" download>Curva para VarAstro-ETD</a>
+          <a class="btn small" href="/api/exo/archivo?tipo=svg&id=${encodeURIComponent(s.id)}" download>Figura (SVG)</a>
+          <a class="btn small" href="/api/exo/archivo?tipo=csv&id=${encodeURIComponent(s.id)}" download>Tabla (CSV)</a></div>
+        <div class="pie">En ExoClock, entra con tu cuenta y usa «Upload Observation»: formato de tiempo BJD_TDB (a mitad de la exposición), flujo relativo sin quitar la tendencia, filtro <span class="notr">${esc(s.filtro)}</span> y exposición de <span class="notr">${esc(s.exp)}</span> s.</div>
+        <div class="acciones" style="margin-top:8px"><a class="btn small" href="https://www.exoclock.space/" target="_blank" rel="noopener">Abrir ExoClock</a><a class="btn small" href="http://var2.astro.cz/ETD/" target="_blank" rel="noopener">Abrir VarAstro-ETD</a></div></div>
+    </div>
+    <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
+      <dt>Efemérides</dt><dd><span class="notr">${esc(pl.efemerides)} · T₀ ${pl.t0.toFixed(5)} ± ${numEs(pl.t0_err * 1440, 1)} min · P ${pl.periodo.toFixed(6)} d</span> · <span>ciclo</span> <span class="notr">${c.ciclo}</span> · <span>centro previsto</span> <span class="notr">${c.tc_previsto.toFixed(5)} ± ${numEs(c.tc_previsto_err * 1440, 1)} min</span></dd>
+      <dt>Geometría</dt><dd><span class="notr">a/R* ${numEs(c.a, 2)}${c.a_err != null ? " ± " + numEs(c.a_err, 2) : ""} · i ${numEs(c.inc, 2)}°${c.inc_err != null ? " ± " + numEs(c.inc_err, 2) : ""} · T14 ${numEs(c.t14_h, 2)} h</span> · <span>${esc(tr(c.geometria_libre ? "ajustadas" : "fijas, del catálogo"))}</span> (<span class="notr">${esc(pl.geometria)}</span>)</dd>
+      <dt>Oscurecimiento del limbo</dt><dd><span class="notr">u1 ${c.u1} · u2 ${c.u2} · ${esc(s.banda)} · Teff ${pl.teff ? numEs(pl.teff, 0) + " K" : "?"}</span> · <span>aproximado (Claret 2011)</span></dd>
+      <dt>Apertura</dt><dd><span class="notr">${numEs(c.factor_apertura, 1)} × FWHM</span> · <span>tendencia</span> ${esc(tr(TEND[c.tendencia]))}</dd>
+      <dt>Comparación</dt><dd><span class="notr">${c.comps.length}</span> <span>estrellas de Gaia DR3, sumadas</span></dd>
+      <dt>Error del centro</dt><dd><span>el mayor entre el formal por β y el de las «cuentas de rosario»:</span> <span class="notr">${tiempoErr(c.tc_err_formal * c.beta)} · ${tiempoErr(c.tc_err_pb)}</span></dd>
+      <dt>Línea de base</dt><dd><span class="notr">${c.antes}</span> <span>tomas antes y</span> <span class="notr">${c.despues}</span> <span>después del tránsito</span></dd>
+      ${c.exp_max ? `<dt>Exposición</dt><dd><span>Con este enfoque, la estrella llegaría al 60 % de la saturación con</span> <span class="notr">${numEs(c.exp_max, 0)} s</span></dd>` : ""}
+      <dt>Calibración</dt><dd>${(s.calibracion || []).length ? s.calibracion.map(x => `<div class="notr">${esc(x)}</div>`).join("") : esc(tr("sin calibrar"))}</dd>
+      <dt>Lugar</dt><dd class="notr">${esc((s.lugar || {}).nombre || "")}</dd>
+      <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
+    </dl></div>
+    <div class="acciones"><a class="btn small" href="/api/exo/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar esta medida</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "exo"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar esta medida?")) return; await post("/api/exo/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesExo(); };
+  $("dRecalcular").onclick = async () => {
+    const comps = [...document.querySelectorAll(".xComp:checked")].map(x => x.value);
+    if (comps.length < 1){ toast("Marca al menos una estrella de comparación"); return; }
+    const b = $("dRecalcular"); b.disabled = true; b.textContent = tr("Calculando…");
+    try {
+      const auto = comps.length === c.comps.length && comps.every(x => c.comps.includes(x)) && $("dApertura").value === "";
+      const nuevo = await (await post("/api/exo/recalcular", {id: s.id, comps: auto ? [] : comps, apertura: $("dApertura").value === "" ? null : +$("dApertura").value,
+        tendencia: $("dTendencia").value, geometria_libre: $("dGeo").checked})).json();
+      verExo(s.id, nuevo); cargarSeriesExo(); toast("Recalculado");
+    } catch(e){ toast(e.message || e); b.disabled = false; b.textContent = tr("Recalcular"); }
+  };
+  graficaExo(s, c);
+}
+function graficaExo(s, c){
+  const P = c.puntos; if (!P.length) return;
+  const W = 1000, H = 440, L = 64, R = 16, Tp = 14, h1 = 290, B = 40;
+  const hr = t => (t - c.tc) * 24;
+  const xa = hr(P[0].bjd), xb = hr(P[P.length - 1].bjd), pad = (xb - xa) * 0.02;
+  const X = v => L + (v - xa + pad) / (xb - xa + 2 * pad) * (W - L - R);
+  const ys = P.map(p => p.corr); let y0 = Math.min(...ys), y1 = Math.max(...ys); const py = (y1 - y0) * 0.06; y0 -= py; y1 += py;
+  const Y = v => Tp + (y1 - v) / (y1 - y0) * (h1 - Tp);
+  const res = P.map(p => p.corr - p.modelo); const rr = Math.max(0.002, Math.max(...res.map(Math.abs)) * 1.05);
+  const Yr = v => h1 + 34 + (rr - v) / (2 * rr) * (H - B - h1 - 34);
+  let g = "";
+  const paso = (y1 - y0) > 0.06 ? 0.02 : (y1 - y0) > 0.025 ? 0.01 : 0.005;
+  for (let v = Math.ceil(y0 / paso) * paso; v <= y1; v += paso) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tx" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${numEs(v, 3)}</text>`;
+  for (let h = Math.ceil((xa - pad) * 2) / 2; h <= xb + pad; h += 0.5) g += `<line class="rej" x1="${X(h)}" x2="${X(h)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(h)}" y="${H-B+16}" text-anchor="middle">${(h > 0 ? "+" : "") + numEs(h, 1)}</text>`;
+  g += P.map(p => `<circle cx="${X(hr(p.bjd)).toFixed(1)}" cy="${Y(p.corr).toFixed(1)}" r="1.9" fill="var(--accent)" opacity=".35"><title>${esc(p.archivo)}</title></circle>`).join("");
+  g += c.grupos.map(q => `<circle cx="${X(hr(q[0])).toFixed(1)}" cy="${Y(q[1]).toFixed(1)}" r="3.4" fill="var(--accent)"/>`).join("");
+  g += `<polyline fill="none" stroke="var(--oro)" stroke-width="2.4" points="${c.modelo_fino.map(q => X(hr(q[0])).toFixed(1) + "," + Y(q[1]).toFixed(1)).join(" ")}"/>`;
+  g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Yr(0)}" y2="${Yr(0)}" style="stroke-dasharray:4 3"/>`;
+  g += `<text class="tx" x="${L}" y="${h1 + 26}">${esc(tr("Residuos"))} · RMS ${numEs(c.rms_ppt, 1)} ppt</text>`;
+  g += P.map((p, i) => `<circle cx="${X(hr(p.bjd)).toFixed(1)}" cy="${Yr(res[i]).toFixed(1)}" r="1.6" fill="var(--accent)" opacity=".45"/>`).join("");
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("horas desde el centro del tránsito"))}</text>`;
+  $("gExo").innerHTML = `<h4>Curva de luz sin la tendencia</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("Flujo relativo del planeta frente a la suma de las comparaciones, con la tendencia de la noche quitada. Puntos claros: cada toma; oscuros: medias de 5 minutos; en dorado, el modelo del tránsito ajustado."))}</div>`;
+  // la noche: sin quitar la tendencia
+  const H2 = 230, h2 = 180;
+  const f = P.map(p => p.flujo); let a0 = Math.min(...f), a1 = Math.max(...f); const pa = (a1 - a0) * 0.06; a0 -= pa; a1 += pa;
+  const Y2 = v => Tp + (a1 - v) / (a1 - a0) * (h2 - Tp);
+  let g2 = "";
+  const paso2 = (a1 - a0) > 0.06 ? 0.02 : (a1 - a0) > 0.025 ? 0.01 : 0.005;
+  for (let v = Math.ceil(a0 / paso2) * paso2; v <= a1; v += paso2) g2 += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y2(v)}" y2="${Y2(v)}"/><text class="tx" x="${L-6}" y="${Y2(v)+4}" text-anchor="end">${numEs(v, 3)}</text>`;
+  const hIni = new Date((P[0].bjd - 2440587.5) * 864e5), span = (P[P.length - 1].bjd - P[0].bjd) * 24;
+  const pasoX = span > 8 ? 2 : span > 3 ? 1 : 0.5;
+  const h0 = Math.ceil((hIni.getUTCHours() + hIni.getUTCMinutes() / 60) / pasoX) * pasoX - (hIni.getUTCHours() + hIni.getUTCMinutes() / 60 + hIni.getUTCSeconds() / 3600);
+  for (let h = h0; h <= span; h += pasoX){ const d = new Date(hIni.getTime() + h * 36e5 + 30e3); const x = X(hr(P[0].bjd) + h);
+    g2 += `<line class="rej" x1="${x}" x2="${x}" y1="${Tp}" y2="${h2}"/><text class="tx" x="${x}" y="${h2 + 16}" text-anchor="middle">${d.toISOString().slice(11, 16)}</text>`; }
+  g2 += P.map(p => `<circle cx="${X(hr(p.bjd)).toFixed(1)}" cy="${Y2(p.flujo).toFixed(1)}" r="1.8" fill="var(--accent)" opacity=".4"/>`).join("");
+  g2 += `<polyline fill="none" stroke="var(--oro)" stroke-width="2" points="${P.map(p => X(hr(p.bjd)).toFixed(1) + "," + Y2(p.modelo * p.base).toFixed(1)).join(" ")}"/>`;
+  g2 += `<text class="tx" x="${(L+W-R)/2}" y="${H2-6}" text-anchor="middle">${esc(tr("hora (aprox. UTC; el eje va en BJD_TDB)"))}</text>`;
+  $("gNoche").innerHTML = `<h4>La noche, sin corregir</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H2}" role="img">${g2}</svg></div><div class="pie"><span>Flujo relativo tal como sale, con el modelo por la tendencia elegida</span> (<span>${esc(tr(({lineal: "lineal en el tiempo", cuadratica: "cuadrática en el tiempo", masa_aire: "con la masa de aire"})[c.tendencia]))}</span>). <span>Masa de aire de</span> <span class="notr">${numEs(Math.min(...P.map(p => p.masa_aire)), 2)}</span> <span>a</span> <span class="notr">${numEs(Math.max(...P.map(p => p.masa_aire)), 2)}</span>.</div>`;
 }
 
 /* ============ Informe de problemas y «Acerca de» ============ */
