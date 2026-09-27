@@ -29,7 +29,8 @@ Usa ASTRO con **tus datos reales**, como lo harías normalmente. Si te sobra tie
 5. **Apilar** un objeto con Siril. ¿La **vista previa** se ve razonable? ¿«Abrir en…» encuentra tus programas de edición?
 6. **Resumen y objetivo** de un objeto, y **«Próximas noches»**: ¿las noches que propone para cada filtro tienen sentido con la Luna que tú ves?
 7. **«En directo»** durante una noche de captura, con la ASIAIR por la red o con N.I.N.A.: ¿encuentra la carpeta? ¿Llegan los avisos (sonido y notificación) cuando entra una nube o se para la secuencia? ¿Algún aviso que sobre o que eches en falta?
-8. En general: ¿qué te resulta confuso, lento o echas en falta?
+8. **El aspecto nuevo**: prueba los modos Día, Noche y Rojo (abajo a la izquierda). ¿Se lee bien todo? ¿Te molesta algo del modo Rojo de noche?
+9. En general: ¿qué te resulta confuso, lento o echas en falta?
 
 ## Cómo contarme lo que encuentres
 En ASTRO: **menú «Más» → «Informar de un problema o sugerencia»**. Escribe qué pasó con tus palabras; el programa añade solo los datos técnicos (versión, sistema y registro). **No envía tus fotos ni datos personales.** Si puedes, adjunta una captura de pantalla.

@@ -4,7 +4,7 @@
 
 Si haces fotografía de cielo profundo, seguro que conoces la escena: vuelves de una noche de captura con cientos de tomas y te toca revisarlas una a una. ¿Cuáles tienen las estrellas movidas? ¿En cuáles pasó un satélite o entró una nube? ¿Tengo los darks y los flats que necesito para esta sesión?
 
-ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**, y está en **español** e **inglés**.
+ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**, está en **español** e **inglés**, y tiene tres aspectos: **Día**, **Noche** y **Rojo**, este último para usarlo junto al telescopio sin perder la adaptación a la oscuridad.
 
 ---
 
@@ -72,7 +72,7 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 **ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus), and it can watch your ASIAIR or N.I.N.A. live during the night, checking each frame as it arrives and warning you with a sound and a notification if clouds come in, focus drifts or the sequence stops. It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, plus the cloud forecast for the next week), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
 
-Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
+It has three looks (Day, Night and Red, the last one for use at the telescope). Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
 
 It's a beta: if something doesn't work, use **More → Report a problem or suggestion** inside the app.
 

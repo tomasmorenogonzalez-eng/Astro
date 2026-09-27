@@ -6,7 +6,7 @@ Funciona en **Mac** y **Windows**, con tomas de la **ASIAIR**, de **N.I.N.A.** o
 
 **Autor:** Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra.
 
-Disponible en **español** e **inglés**: se elige en la bienvenida y se cambia en cualquier momento con el botón 🌐 de la parte de arriba.
+Disponible en **español** e **inglés**: se elige en la bienvenida y se cambia en cualquier momento con el botón 🌐 de la barra de la izquierda. En esa misma barra, abajo, eliges el aspecto: **Día** (claro), **Noche** (oscuro) o **Rojo** (todo en rojo, para usarlo junto al telescopio sin perder la adaptación a la oscuridad).
 
 ---
 
@@ -134,4 +134,4 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 5. Install **Siril** (free, https://siril.org) to stack and create masters. After stacking, ASTRO creates a **ready-developed preview** (edges cropped, gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations when you have the filters) as JPG and 16-bit TIFF, and **«Open in…»** sends it to GIMP, Photoshop, PixInsight, Affinity Photo or Siril.
 6. **«Live»** watches the folder where the ASIAIR (over the network) or N.I.N.A. (on the same PC or a shared folder) saves your frames, checks each one as soon as it has been written and warns you with a sound and a notification if a frame is bad, several in a row have problems, the FWHM keeps rising or frames stop arriving. The computer is kept awake while it watches.
 
-The language can be changed at any time with the 🌐 button at the top of the screen.
+The language can be changed at any time with the 🌐 button in the left-hand bar, where you also choose the look: **Day**, **Night** or **Red** (everything in red, to use it next to the telescope without losing your dark adaptation).
