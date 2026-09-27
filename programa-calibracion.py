@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.27.3"
+VERSION_PROG = "2026.09.27.4"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -668,7 +668,7 @@ const $ = id => document.getElementById(id);
 const ROOT_NAME = "__ROOT__";
 async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
 async function loadDb(){
-  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); }
+  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); arreglarCamaras(); }
   catch(e){ frames = []; toast("No se pudo leer biblioteca.json: "+(e.message||e)); }
   $("storeInfo").textContent = `Base de datos: ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas`;
 }
@@ -928,7 +928,24 @@ function extractMeta(h, history, fname){
   return m;
 }
 function numOrNull(v){ const n = Number(v); return (v===null||v===undefined||v===""||isNaN(n)) ? null : n; }
-function canonCam(s){ s = s.replace(/^ZWO\s*/i,"").trim(); for (const [re,name] of CAM_ALIASES) if (re.test(s)) return name; return s; }
+function canonCam(s){
+  // nombres cortos de siempre para las cámaras conocidas, sin cambiar una monocroma (MM) por una en color (MC) ni al revés
+  s = s.replace(/^ZWO\s*/i,"").trim(); const tipo = (s.match(/\d\s*(MM|MC)\b/i) || [])[1];
+  for (const [re,name] of CAM_ALIASES){ if (!re.test(s)) continue; const t2 = (name.match(/\d(MM|MC)\b/) || [])[1];
+    return !tipo || !t2 || tipo.toUpperCase() === t2 ? name : name.replace(/(\d)(MM|MC)\b/, "$1" + tipo.toUpperCase()); }
+  return s;
+}
+function arreglarCamaras(){
+  // antes, una ASI2600MM (monocroma) se guardaba como «ASI2600MC Pro» (en color), y lo mismo con otras: se corrige desde la cabecera
+  const tipo = c => (String(c||"").match(/\d\s*(MM|MC)\b/i) || [])[1];
+  let n = 0;
+  for (const f of frames){
+    const ins = f.header && (f.header.INSTRUME || f.header.CAMERA); if (!ins || !f.cam) continue;
+    const c = canonCam(String(ins)), a = tipo(f.cam), b = tipo(c);
+    if (c !== f.cam && a && b && a.toUpperCase() !== b.toUpperCase()){ f.cam = c; n++; }
+  }
+  if (n) scheduleSave();
+}
 function canonType(s, isMaster, isCal){
   const t = s.toLowerCase(); const master = isMaster || /master/.test(t);
   let base = "unknown";

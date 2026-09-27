@@ -11,8 +11,9 @@ from PIL import Image, ImageDraw, ImageFilter
 S = 3                                   # sobremuestreo
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA = os.path.join(AQUI, "..", "imagenes")
-TARJ = (264, 132)                       # tamaño final de cada dibujo de apartado
-CAB = (1000, 176)                       # tamaño final de la cabecera
+TARJ = (264, 132)                       # lienzo de cada dibujo de apartado (se dibuja a este tamaño)
+TARJ_FINAL = (216, 108)                 # tamaño con el que se guarda (siete apartados en dos filas)
+CAB = (1100, 176)                       # tamaño final de la cabecera (la ventana de inicio mide 1080)
 
 NOCHE1, NOCHE2 = (18, 14, 40), (46, 30, 86)
 VIOLETA, VIOLETA2, LILA = (91, 44, 135), (142, 91, 194), (201, 174, 240)
@@ -216,7 +217,7 @@ def d_anadir():
         tx, ty = (142 + i * 10) * S, (20 + i * 26) * S
         toma(im, tx, ty, 72 * S, 44 * S, 20 + i, obj, traza=not ok)
         (check if ok else cruz)(im, tx + 72 * S, ty + 6 * S, 8 * S, VERDE if ok else ROJO)
-    guardar(im, "apartado-anadir.png", TARJ)
+    guardar(im, "apartado-anadir.png", TARJ_FINAL)
 
 
 def d_objetos():
@@ -233,7 +234,7 @@ def d_objetos():
             d.rounded_rectangle([x + 8 * S, y + (78 + k * 0) * S, x + (8 + [40, 30, 46][i]) * S, y + 82 * S], radius=2 * S, fill=(255, 255, 255, 70))
         if pct >= 1:
             check(im, x + 64 * S, y + 6 * S, 7 * S, VERDE)
-    guardar(im, "apartado-objetos.png", TARJ)
+    guardar(im, "apartado-objetos.png", TARJ_FINAL)
 
 
 def d_noches():
@@ -264,7 +265,7 @@ def d_noches():
     # nube pequeña
     for dx, rr in ((0, 9), (10, 12), (22, 8)):
         mancha(im, [(96 + dx - rr) * S, (40 - rr * 0.7) * S, (96 + dx + rr) * S, (40 + rr * 0.7) * S], (200, 195, 225), 1.5 * S, 170)
-    guardar(im, "apartado-noches.png", TARJ)
+    guardar(im, "apartado-noches.png", TARJ_FINAL)
 
 
 def d_directo():
@@ -293,7 +294,7 @@ def d_directo():
     check(im, 238 * S, 22 * S, 7 * S, VERDE)
     cruz(im, 246 * S, 54 * S, 7 * S, ROJO)
     check(im, 254 * S, 86 * S, 7 * S, VERDE)
-    guardar(im, "apartado-directo.png", TARJ)
+    guardar(im, "apartado-directo.png", TARJ_FINAL)
 
 
 def d_apilar():
@@ -314,7 +315,7 @@ def d_apilar():
     im.paste(sub, (x, y), m)
     ImageDraw.Draw(im).rounded_rectangle([x, y, x + fw, y + fh], radius=6 * S, outline=ORO + (255,), width=2 * S)
     brillo_estrella(im, x + fw - 6 * S, y + 6 * S, 2.2 * S, ORO)
-    guardar(im, "apartado-apilar.png", TARJ)
+    guardar(im, "apartado-apilar.png", TARJ_FINAL)
 
 
 def d_calibracion():
@@ -354,7 +355,55 @@ def d_calibracion():
         d.rounded_rectangle([x + 10 * S, y + th + 8 * S, x + tw - 10 * S, y + th + 26 * S], radius=9 * S, fill=VIOLETA2 + (255,))
         # etiqueta: letras dibujadas a mano con líneas no dependen de ninguna fuente
         _rotulo(d, nombre, x + tw / 2, y + th + 17 * S, 5.5 * S)
-    guardar(im, "apartado-calibracion.png", TARJ)
+    guardar(im, "apartado-calibracion.png", TARJ_FINAL)
+
+
+def _telescopio(im, bx, by, largo, grueso, angulo, color, patas=26):
+    """Telescopio en silueta sobre un trípode, apuntando hacia arriba a la derecha."""
+    d = ImageDraw.Draw(im)
+    oscuro = color[:3] + (255,)
+    for dx in (-patas * 0.9, 0, patas * 0.85):
+        d.line([bx, by, bx + dx * S, by + 30 * S], fill=(200, 190, 235, 230), width=int(2.4 * S))
+    tubo = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    td = ImageDraw.Draw(tubo)
+    td.rounded_rectangle([bx - largo * 0.45, by - grueso / 2, bx + largo * 0.55, by + grueso / 2], radius=3 * S, fill=oscuro)
+    td.rectangle([bx + largo * 0.5, by - grueso / 2 - 2 * S, bx + largo * 0.6, by + grueso / 2 + 2 * S], fill=tuple(min(255, c + 40) for c in color[:3]) + (255,))
+    td.rectangle([bx - largo * 0.52, by - grueso * 0.3, bx - largo * 0.42, by + grueso * 0.3], fill=(90, 80, 130, 255))
+    im.alpha_composite(tubo.rotate(angulo, center=(bx, by), resample=Image.BICUBIC))
+
+
+def d_varios():
+    """Varios telescopios (de colores distintos) apuntan al mismo objeto; sus campos se juntan en uno."""
+    w, h = TARJ
+    im = fondo_tarjeta(8)
+    AZUL, MORADO, AMBAR = (59, 130, 196), VIOLETA2, (217, 154, 30)
+    # la nebulosa y los campos de cada equipo, el más pequeño en dorado
+    cx, cy = 186 * S, 58 * S
+    mancha(im, [cx - 46 * S, cy - 30 * S, cx + 46 * S, cy + 30 * S], (220, 70, 120), 10 * S, 150)
+    mancha(im, [cx - 28 * S, cy - 18 * S, cx + 26 * S, cy + 20 * S], (90, 170, 230), 8 * S, 120)
+    estrellas(im, 14, 81, zona=(cx - 60 * S, cy - 40 * S, cx + 60 * S, cy + 40 * S), brillo=1.0, tam=0.9)
+    d = ImageDraw.Draw(im)
+    def discontinuo(x0, y0, x1, y1, color, paso=6):
+        for (a, b) in (((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))):
+            L = math.hypot(b[0] - a[0], b[1] - a[1]); n = max(1, int(L / (paso * S)))
+            for k in range(0, n, 2):
+                t0, t1 = k / n, min(1, (k + 1) / n)
+                d.line([a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0, a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1], fill=color, width=int(1.6 * S))
+    discontinuo(cx - 58 * S, cy - 40 * S, cx + 58 * S, cy + 40 * S, MORADO + (255,))
+    discontinuo(cx - 44 * S, cy - 30 * S, cx + 40 * S, cy + 32 * S, AZUL + (255,))
+    d.rounded_rectangle([cx - 28 * S, cy - 18 * S, cx + 28 * S, cy + 18 * S], radius=2 * S, outline=ORO + (255,), width=int(2.4 * S))
+    brillo_estrella(im, cx + 28 * S, cy - 18 * S, 2.2 * S, ORO)
+    # tres telescopios distintos, con la línea de cada uno hacia el objeto
+    for (bx, by, largo, grueso, ang, col) in ((30, 84, 44, 12, 30, MORADO), (70, 92, 58, 15, 24, AZUL), (104, 100, 34, 10, 20, AMBAR)):
+        x, y = bx * S, by * S
+        pts = [(x + math.cos(math.radians(ang)) * largo * 0.6 * S, y - math.sin(math.radians(ang)) * largo * 0.6 * S), (cx - 20 * S, cy + 6 * S)]
+        L = math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]); n = int(L / (5 * S))
+        for k in range(0, n, 2):
+            t0, t1 = k / n, (k + 1) / n
+            d.line([pts[0][0] + (pts[1][0] - pts[0][0]) * t0, pts[0][1] + (pts[1][1] - pts[0][1]) * t0,
+                    pts[0][0] + (pts[1][0] - pts[0][0]) * t1, pts[0][1] + (pts[1][1] - pts[0][1]) * t1], fill=col + (170,), width=int(1.3 * S))
+        _telescopio(im, x, y, largo * S, grueso * S, ang, col, patas=largo * 0.45)
+    guardar(im, "apartado-varios.png", TARJ_FINAL)
 
 
 LETRAS = {  # trazos de una fuente de palo en una rejilla de 4×6
@@ -382,5 +431,5 @@ def _rotulo(d, texto, cx, cy, alto):
 
 
 if __name__ == "__main__":
-    cabecera(); d_anadir(); d_objetos(); d_noches(); d_directo(); d_apilar(); d_calibracion()
+    cabecera(); d_anadir(); d_objetos(); d_noches(); d_directo(); d_apilar(); d_calibracion(); d_varios()
     print("Dibujos guardados en", os.path.abspath(SALIDA))

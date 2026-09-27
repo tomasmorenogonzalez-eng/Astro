@@ -143,10 +143,11 @@ TXT = {
            "lema_largo": "Revisa, organiza y apila tus fotos del cielo",
            "t_anadir": "Añadir tomas", "d_anadir": "Desde la tarjeta o una carpeta; ASTRO revisa cada toma.",
            "t_objetos": "Mis objetos", "d_objetos": "Horas útiles, calidad de cada noche y lo que te falta.",
+           "t_varios": "Varios equipos", "d_varios": "Un objeto con varios telescopios o cámaras, tuyos o de compañeros.",
            "t_noches": "Próximas noches", "d_noches": "Luna, nubes y qué fotografiar con tu equipo.",
            "t_directo": "Sesión en directo", "d_directo": "Revisa cada toma mientras capturas y avisa si algo falla.",
            "t_apilar": "Apilar con Siril", "d_apilar": "De tus tomas buenas a la imagen final, ya calibrada.",
-           "t_calib": "Biblioteca de calibración", "d_calib": "Darks, flats y bias: qué tienes y qué te falta.",
+           "t_calib": "Calibración", "d_calib": "Darks, flats y bias: qué tienes y qué te falta.",
            "salir": "Salir", "cerrar_q": "¿Cerrar ASTRO?", "nueva_carpeta": "Nueva carpeta de datos de ASTRO",
            "reiniciar_q": "ASTRO se reiniciará usando:\n%s\n\n(Los datos de la carpeta anterior no se mueven.)",
            "no_arranca": "No se pudo arrancar: %s.\nMira el registro en:\n%s", "por": "Creado por",
@@ -161,6 +162,7 @@ TXT = {
            "lema_largo": "Check, organise and stack your astrophotos",
            "t_anadir": "Add frames", "d_anadir": "From your memory card or a folder; ASTRO checks every frame.",
            "t_objetos": "My targets", "d_objetos": "Usable hours, quality per night and what's still missing.",
+           "t_varios": "Multiple setups", "d_varios": "One target shot with several telescopes or cameras, yours or friends'.",
            "t_noches": "Upcoming nights", "d_noches": "Moon, clouds and what to shoot with your equipment.",
            "t_directo": "Live session", "d_directo": "Checks each frame as you capture and warns you of problems.",
            "t_apilar": "Stack with Siril", "d_apilar": "From your good frames to a calibrated final image.",
@@ -300,11 +302,13 @@ def _tarjeta(padre, dibujo, titulo, texto, orden, con_texto=True):
     if img:
         padre.winfo_toplevel()._imgs.append(img)
         l = tk.Label(t, image=img, bg=FONDO_T, bd=0, cursor="hand2"); l.pack(padx=10, pady=(10, 6)); partes.append(l)
-    l = tk.Label(t, text=titulo, bg=FONDO_T, fg=TEXTO, font=("Helvetica", 15, "bold"), anchor="w", cursor="hand2")
+    tk.Frame(t, bg=FONDO_T, width=236, height=0).pack()     # todas las tarjetas del mismo ancho
+    l = tk.Label(t, text=titulo, bg=FONDO_T, fg=TEXTO, font=("Helvetica", 14, "bold"), anchor="w", justify="left",
+                 wraplength=212, cursor="hand2")
     l.pack(fill="x", padx=12); partes.append(l)
     if con_texto:
         l = tk.Label(t, text=texto, bg=FONDO_T, fg=GRIS, font=("Helvetica", 11), anchor="nw", justify="left",
-                     wraplength=250, height=2, cursor="hand2")
+                     wraplength=206, height=3, cursor="hand2")
         l.pack(fill="x", padx=12, pady=(2, 10)); partes.append(l)
     else:
         tk.Frame(t, bg=FONDO_T, height=8).pack()
@@ -705,25 +709,29 @@ def ventana_control(datos, puertos):
                 time.sleep(3600)
         except KeyboardInterrupt:
             os._exit(0)
-    w, c = _ventana("ASTRO", 960, 700, grande=True)
+    w, c = _ventana("ASTRO", 1080, 700, grande=True)
     baja = _pantalla_baja(w)
     fila = tk.Frame(c, bg=FONDO); fila.pack(fill="x")
     punto = tk.Canvas(fila, width=14, height=14, bg=FONDO, highlightthickness=0); punto.pack(side="left", padx=(0, 8), pady=(4, 0))
     punto.create_oval(2, 2, 12, 12, fill="#3FA56B", outline="")
     tk.Label(fila, text=T("marcha"), bg=FONDO, fg=TEXTO, font=("Helvetica", 17, "bold"), anchor="w").pack(side="left")
     tk.Label(c, text=T("marcha_txt"), bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w", justify="left",
-             wraplength=880).pack(fill="x", pady=(2, 12))
+             wraplength=960).pack(fill="x", pady=(2, 12))
     L, C = url(puertos["lights"]), url(puertos["calibracion"])
     abrir = lambda u: (lambda: webbrowser.open(u))
     apartados = [("apartado-anadir.png", "t_anadir", "d_anadir", abrir(L + "#anadir")),
                  ("apartado-objetos.png", "t_objetos", "d_objetos", abrir(L + "#objetos")),
+                 ("apartado-varios.png", "t_varios", "d_varios", abrir(L + "#varios")),
                  ("apartado-noches.png", "t_noches", "d_noches", abrir(L + "#noches")),
                  ("apartado-directo.png", "t_directo", "d_directo", abrir(L + "#directo")),
                  ("apartado-apilar.png", "t_apilar", "d_apilar", abrir(L + "#apilar")),
                  ("apartado-calibracion.png", "t_calib", "d_calib", abrir(C))]
+    # siete apartados: cuatro arriba y tres abajo, centrados
     rejilla = tk.Frame(c, bg=FONDO); rejilla.pack()
-    for k, (dib, t, d, orden) in enumerate(apartados):
-        _tarjeta(rejilla, dib, T(t), T(d), orden, con_texto=not baja).grid(row=k // 3, column=k % 3, padx=8, pady=8, sticky="n")
+    for fila_ap in (apartados[:4], apartados[4:]):
+        fila_t = tk.Frame(rejilla, bg=FONDO); fila_t.pack()
+        for dib, t, d, orden in fila_ap:
+            _tarjeta(fila_t, dib, T(t), T(d), orden, con_texto=not baja).pack(side="left", padx=8, pady=8, anchor="n")
     def cambiar():
         r = filedialog.askdirectory(title=T("nueva_carpeta"), initialdir=datos)
         if r and messagebox.askyesno("ASTRO", T("reiniciar_q") % normalizar_datos(r)):
