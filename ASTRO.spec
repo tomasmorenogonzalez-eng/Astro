@@ -12,7 +12,7 @@ extras = [(f, ".") for f in ("version.txt", "repo.txt", "contacto.txt") if os.pa
 a = Analysis(
     ["lanzador.py"],
     datas=[("programa-lights.py", "."), ("programa-calibracion.py", "."), ("icono.png", ".")] + extras,
-    hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox"],
+    hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"],
     excludes=["numpy", "matplotlib", "PIL", "pandas", "scipy"],
 )
 pyz = PYZ(a.pure)

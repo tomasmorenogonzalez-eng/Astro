@@ -48,7 +48,7 @@ jobs:
           echo "$VERSION" > version.txt
           echo "$GITHUB_REPOSITORY" > repo.txt
       - name: Instalar el empaquetador
-        run: pip install pyinstaller pillow
+        run: pip install pyinstaller pillow certifi
       - name: Fabricar la aplicación
         run: pyinstaller ASTRO.spec --noconfirm
 

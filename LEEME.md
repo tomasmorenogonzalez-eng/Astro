@@ -44,7 +44,7 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 3. En **Control de lights**, pulsa **«＋ Añadir sesión»** o arrastra la carpeta de una noche de fotos. ASTRO analiza cada toma y la guarda ordenada.
 4. En **Biblioteca de calibración**, añade tus darks, flats y bias (o impórtalos directamente de la ASIAIR o de N.I.N.A.).
 5. **«¿Qué me falta?»** te dice qué calibraciones necesitan tus lights, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**
-6. **«Próximas noches»** te dice qué objeto y qué filtro te conviene cada noche según la Luna, la oscuridad y la altura del objeto (la primera vez te pide tu lugar de observación, que puede sacar de tus propias tomas). En **«Resumen y objetivo»** de cada objeto verás además qué noches del próximo mes sirven para lo que te falta.
+6. **«Próximas noches»** te dice qué objeto y qué filtro te conviene cada noche según la Luna, la oscuridad, la altura del objeto y la nubosidad prevista para los próximos 7 días (previsión de Open-Meteo.com, gratuita para uso no comercial; la primera vez te pide tu lugar de observación, que puede sacar de tus propias tomas). En **«Resumen y objetivo»** de cada objeto verás además qué noches del próximo mes sirven para lo que te falta.
 7. **«Apilar…»** apila cada objeto con Siril y, al terminar, crea una **vista previa ya revelada**: recorta los bordes, quita el gradiente del fondo, equilibra el color y estira la imagen. Si tienes los filtros, también combina **RGB, LRGB, SHO y HOO**. Guarda un JPG para ver y compartir y un TIFF de 16 bits para seguir editando; con **«Abrir en…»** lo abres directamente en GIMP, Photoshop, PixInsight, Affinity Photo o Siril. La vista previa de un apilado antiguo se crea desde **«Resumen y objetivo»** del objeto.
 
 ## 3. Requisitos
@@ -124,7 +124,7 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 1. Download the file for your computer from **Releases** (Apple Silicon Mac, Intel Mac or Windows) and **double-click it**. ASTRO installs itself (Applications on Mac; Desktop and Start menu shortcuts on Windows) and **updates itself** whenever a new version is published.
 2. Only the first time, the system may warn that the app is unsigned. **Mac:** *System Settings → Privacy & Security → Open Anyway* (or right-click → Open on macOS 14 and earlier). **Windows:** *More info → Run anyway*.
 3. On first launch, choose your **language** and the **folder** where ASTRO will keep your data. ASTRO opens in your browser; keep its small window open while you use it.
-4. **«Upcoming nights»** shows which target and filter suit each night (Moon, darkness and altitude; your observing location can be taken from your own frames).
+4. **«Upcoming nights»** shows which target and filter suit each night (Moon, darkness, altitude and the Open-Meteo cloud forecast for the next 7 days; your observing location can be taken from your own frames).
 5. Install **Siril** (free, https://siril.org) to stack and create masters. After stacking, ASTRO creates a **ready-developed preview** (edges cropped, gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations when you have the filters) as JPG and 16-bit TIFF, and **«Open in…»** sends it to GIMP, Photoshop, PixInsight, Affinity Photo or Siril.
 
 The language can be changed at any time with the 🌐 button at the top of the screen.

@@ -355,13 +355,56 @@ def nombre_paquete():
     return "ASTRO-Linux"
 
 
+def _contextos_ssl():
+    """Certificados para HTTPS: primero los de certifi (van dentro de la aplicación; en el Mac el Python
+    empaquetado no encuentra los del sistema) y después los del sistema (Windows, redes de empresa)."""
+    import ssl
+    try:
+        import certifi
+        yield ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        pass
+    yield ssl.create_default_context()
+
+
+def _es_error_ssl(e):
+    import ssl
+    return isinstance(e, ssl.SSLError) or isinstance(getattr(e, "reason", None), ssl.SSLError) or "CERTIFICATE" in str(e).upper()
+
+
+def _abrir(url, timeout, cabeceras):
+    """urlopen que prueba varios juegos de certificados antes de rendirse."""
+    ultimo = None
+    for ctx in _contextos_ssl():
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=cabeceras), timeout=timeout, context=ctx)
+        except Exception as e:
+            if not _es_error_ssl(e):
+                raise
+            ultimo = e
+    raise ultimo
+
+
+def _curl():
+    c = shutil.which("curl") or ("/usr/bin/curl" if os.path.exists("/usr/bin/curl") else "")
+    return c
+
+
 def buscar_version_nueva():
     if not (EMPAQUETADO and URL_ACTUALIZACION) or os.environ.get("ASTRO_NO_ACTUALIZAR") == "1":
         return None
     try:
-        req = urllib.request.Request(URL_ACTUALIZACION, headers={"User-Agent": "ASTRO", "Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req, timeout=4) as r:
-            d = json.loads(r.read().decode("utf-8"))
+        cab = {"User-Agent": "ASTRO", "Accept": "application/vnd.github+json"}
+        try:
+            with _abrir(URL_ACTUALIZACION, 6, cab) as r:
+                d = json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            if not (_es_error_ssl(e) and _curl()):
+                raise
+            # último recurso: curl usa los certificados del sistema (llavero del Mac, almacén de Windows)
+            out = subprocess.run([_curl(), "-sfL", "--max-time", "10", "-H", "Accept: application/vnd.github+json",
+                                  "-A", "ASTRO", URL_ACTUALIZACION], capture_output=True, **_sin_consola())
+            d = json.loads(out.stdout.decode("utf-8"))
         tag = str(d.get("tag_name") or "").lstrip("vV")
         if not tag or _v(tag) <= _v(VERSION_APP):
             return None
@@ -373,9 +416,21 @@ def buscar_version_nueva():
     return None
 
 
+def _sin_consola():
+    return {"creationflags": 0x08000000} if ES_WIN else {}
+
+
 def _descargar(url, destino, progreso=None):
-    req = urllib.request.Request(url, headers={"User-Agent": "ASTRO"})
-    with urllib.request.urlopen(req, timeout=60) as r, open(destino, "wb") as f:
+    try:
+        r = _abrir(url, 60, {"User-Agent": "ASTRO"})
+    except Exception as e:
+        if not (_es_error_ssl(e) and _curl()):
+            raise
+        subprocess.run([_curl(), "-sfL", "--max-time", "600", "-A", "ASTRO", "-o", destino, url], check=True, **_sin_consola())
+        if progreso:
+            progreso(1.0)
+        return
+    with r, open(destino, "wb") as f:
         total = int(r.headers.get("Content-Length") or 0); hecho = 0
         while True:
             b = r.read(1 << 16)

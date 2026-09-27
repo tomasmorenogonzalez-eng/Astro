@@ -35,7 +35,7 @@ En ASTRO: **menú «Más» → «Informar de un problema o sugerencia»**. Escri
 Todo sirve: fallos, frases poco claras, ideas, y también lo que te guste.
 
 ## Tus datos
-- Todo queda en la carpeta que elegiste al empezar; ASTRO **no sube nada a Internet**. Solo consulta si hay versiones nuevas.
+- Todo queda en la carpeta que elegiste al empezar; ASTRO **no sube nada a Internet**. Solo consulta si hay versiones nuevas y, en «Próximas noches», pide la previsión del tiempo a Open-Meteo.com con tu posición aproximada (se puede desactivar).
 - ASTRO copia tus tomas a su carpeta sin tocar los originales. Aun así, al ser una beta, **no borres tus originales** mientras pruebas.
 
 ## Duración
@@ -57,6 +57,6 @@ Thank you for testing ASTRO! This is a **test version**: it may have bugs, and t
 
 **Report** from ASTRO: **«More» menu → «Report a problem or suggestion»**. Technical data is added automatically; your images and personal data are never sent. Screenshots help.
 
-**Your data** stays in the folder you chose; nothing is uploaded. ASTRO copies your frames without touching the originals — but as this is a beta, **keep your originals**.
+**Your data** stays in the folder you chose; nothing is uploaded (only your approximate location is sent to Open-Meteo.com to get the weather forecast in «Upcoming nights», and you can turn that off). ASTRO copies your frames without touching the originals — but as this is a beta, **keep your originals**.
 
 *Tomás Moreno González · Member of Astrocitas, Asociación Astronómica Azarquiel and Asociación Astronómica de Miguelturra*
