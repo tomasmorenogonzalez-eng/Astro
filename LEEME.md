@@ -61,6 +61,11 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
    - **N.I.N.A. en el mismo PC:** ASTRO encuentra sola la carpeta de imágenes de tu perfil.
    - **N.I.N.A. en otro PC:** comparte su carpeta de imágenes en Windows y conéctate a su IP igual que con la ASIAIR.
    - Solo se revisan los lights: los darks, flats, bias, las vistas previas y los *snapshots* se saltan. Con la casilla «Guardar también las tomas en ASTRO», además quedan guardadas en tu biblioteca como con «Añadir sesión».
+10. **Exportar e importar un proyecto** (en **Más opciones** o al final del «Resumen y objetivo» de cada objeto): guarda en un ZIP todo lo que ASTRO sabe de un objeto, en formatos abiertos que no dependen de ASTRO:
+   - `proyecto.json` con todos los datos: cada toma con su valoración y sus medidas, las noches, el objetivo de horas, **la calibración que le toca a cada toma** (qué dark, flat y bias), los apilados y cómo ha ido noche a noche;
+   - `tomas.csv` y `calibracion.csv`, que se abren en Excel, Numbers o LibreOffice, y un `LEEME.txt` que explica cada campo;
+   - si quieres, también las propias tomas (todas o solo las útiles), los archivos de calibración que usan y los apilados. Antes de exportar ves cuánto ocupará cada parte.
+   Sirve para archivar un proyecto terminado, pasárselo a un compañero o seguir con él en otro ordenador: **«Importar un proyecto…»** añade sus tomas (sin duplicar las que ya tengas), su objetivo, su calibración (que la Biblioteca de calibración incorpora sola al abrirse) y sus apilados, y puedes guardarlo con otro nombre de objeto.
 
 ## 3. Requisitos
 
@@ -71,7 +76,7 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 ## 4. Tus datos
 
 Todo queda en la carpeta que elegiste:
-- `Lights/` — tus lights ordenados, miniaturas, la base de datos `lights.json`, los objetivos y proyectos (`objetivos.json`), las carpetas vigiladas (`vigiladas.json`), tus lugares de observación y horizontes (`planificador.json`), tu equipo (`equipo.json`), el aviso por WhatsApp (`avisos.json`) y la última carpeta usada en «En directo» (`directo.json`).
+- `Lights/` — tus lights ordenados, miniaturas, los proyectos exportados (`exportados/`), la base de datos `lights.json`, los objetivos y proyectos (`objetivos.json`), las carpetas vigiladas (`vigiladas.json`), tus lugares de observación y horizontes (`planificador.json`), tu equipo (`equipo.json`), el aviso por WhatsApp (`avisos.json`) y la última carpeta usada en «En directo» (`directo.json`).
 - `Biblioteca de calibracion/` — bias, darks, flats, masters y `biblioteca.json`.
 - `Apilados/` — los resultados de Siril: los masters lineales (`.fit`), los filtros alineados y la carpeta `Vista previa` con los JPG y TIFF revelados.
 
@@ -148,5 +153,6 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 8. **Watched folders** (in «Add session»): tell ASTRO once where your capture software saves the frames and it checks them when it opens and every 10 minutes, adding new frames by itself. Each target's summary now shows **how it's progressing** night by night (usable hours per filter, FWHM, background, weak nights and how much another night would improve the signal-to-noise).
 9. **My equipment** stores your individual pieces (telescopes, reducers, cameras by sensor, filters) and your sky quality (Bortle or SQM). Every night **Tonight's plan** tries every combination and tells you which target to shoot, which telescope to use with which camera, which of your filters to start with given the Moon, and how long each sub should be for your sky (Robin Glover's rule, at least one minute and no longer than your mount can hold). If one night isn't enough it suggests a **project** (e.g. 15 h) and tracks your progress. **Send via WhatsApp** opens WhatsApp with the plan written; **WhatsApp every evening** has ASTRO send it by itself at the time you choose (through CallMeBot, a free third-party service for personal use).
 10. **«Live»** watches the folder where the ASIAIR (over the network) or N.I.N.A. (on the same PC or a shared folder) saves your frames, checks each one as soon as it has been written and warns you with a sound and a notification if a frame is bad, several in a row have problems, the FWHM keeps rising or frames stop arriving. The computer is kept awake while it watches.
+11. **Export and import a project** (in **More options** or at the end of each target's summary): a ZIP with everything ASTRO knows about a target, in open formats that don't depend on ASTRO — `proyecto.json` with all the data (every frame with its rating and measurements, the nights, the goal, **the calibration assigned to each frame**, the stacks and the night-by-night progress), `tomas.csv` and `calibracion.csv` for Excel or LibreOffice, and a README explaining every field; optionally the frames themselves, their calibration files and the stacks. **Import a project** adds its frames (without duplicating the ones you already have), its goal, its calibration and its stacks, so you can archive a project, share it with a friend or carry on with it on another computer.
 
 The language can be changed at any time with the 🌐 button in the left-hand bar, where you also choose the look: **Day**, **Night** or **Red** (everything in red, to use it next to the telescope without losing your dark adaptation).
