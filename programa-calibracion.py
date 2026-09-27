@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.27.4"
+VERSION_PROG = "2026.09.27.5"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1398,7 +1398,8 @@ $("btnPurge").onclick = () => deleteFrames(frames.filter(f=>f.status==="bad"));
 $("btnFinder").onclick = () => api("/api/finder", {method:"POST"}).catch(()=>toast("No se pudo abrir el Finder"));
 
 (async function init(){ try { REGLAS = (await (await api("/api/config")).json()).reglas_tel || []; } catch(_){}
-  await loadDb(); if (revisarGrupos()) scheduleSave(); render(); recogerImportados(); })();
+  await loadDb(); if (revisarGrupos()) scheduleSave(); render(); recogerImportados();
+  if (location.hash === "#falta"){ try { history.replaceState(null, "", location.pathname); } catch(_){} $("btnFaltan").click(); } })();
 // calibración que ha llegado en un proyecto importado desde el Control de lights
 async function recogerImportados(){
   let d; try { d = await (await api("/api/importar/pendiente")).json(); } catch(_){ return; }
