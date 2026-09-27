@@ -10,7 +10,7 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 ## ¿Qué hace?
 
-**Revisa tus lights.** Mide las estrellas de cada toma y te dice cuáles están bien, cuáles tienen algún problema y cuáles conviene descartar: estrellas alargadas, desenfoque, trazas de satélites o aviones, nubes o un fondo demasiado brillante. Y te explica el motivo con palabras normales. Si tu equipo o tu cielo no dan para tanto, con el **criterio de calidad** ajustas con un control deslizante lo exigente que es la valoración, o te quedas con el mejor X % de cada filtro, viendo en el momento cuántas tomas pasan y cuál es la primera que se queda fuera.
+**Revisa tus lights.** Mide las estrellas de cada toma y te dice cuáles están bien, cuáles tienen algún problema y cuáles conviene descartar: estrellas alargadas, desenfoque, trazas de satélites o aviones, nubes o un fondo demasiado brillante. Y te explica el motivo con palabras normales. Si tu equipo o tu cielo no dan para tanto, con el **criterio de calidad** ajustas con un control deslizante lo exigente que es la valoración, o te quedas con el mejor X % de cada filtro, viendo en el momento cuántas tomas pasan y cuál es la primera que se queda fuera. Si la cabecera no trae el objeto, el filtro, el telescopio o la cámara (o los trae mal), los cambias a muchas tomas a la vez.
 
 **Vigila la noche por ti.** Con «En directo», ASTRO mira la carpeta donde la ASIAIR (por la red) o N.I.N.A. van guardando las fotos y revisa cada toma en cuanto termina. Si entran nubes, se alargan las estrellas, se va el enfoque o la secuencia se para, te avisa con un sonido y una notificación, y te enseña en gráficas cómo va la noche. Puedes estar en el sofá sin salir a mirar cada rato.
 
