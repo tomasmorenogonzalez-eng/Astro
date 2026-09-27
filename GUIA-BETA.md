@@ -32,8 +32,9 @@ Usa ASTRO con **tus datos reales**, como lo harías normalmente. Si te sobra tie
 8. **«¿Qué fotografío?»** y los **lugares con horizonte**: ¿te propone objetos que tengan sentido para tu equipo? Si usas N.I.N.A., prueba a cargar el plan que guarda.
 9. **Carpetas vigiladas**: en «Añadir sesión», vigila la carpeta donde guardas las tomas y comprueba que al abrir ASTRO aparecen solas las sesiones nuevas. Y en el «Resumen» de un objeto con varias noches, mira **«Cómo evoluciona»**: ¿cuadran las noches flojas con lo que recuerdas?
 10. **«Mi equipo» y el plan de la noche**: apunta tus telescopios, cámaras y filtros. ¿Tiene sentido lo que te propone montar, el filtro y la exposición por toma para tu cielo? Crea un proyecto y prueba el WhatsApp (el botón y, si te animas, el envío automático de cada tarde).
-11. **El aspecto nuevo**: prueba los modos Día, Noche y Rojo (abajo a la izquierda). ¿Se lee bien todo? ¿Te molesta algo del modo Rojo de noche?
-12. En general: ¿qué te resulta confuso, lento o echas en falta?
+11. **Ciencia → Magnitud límite y calidad del cielo**: mide unas tomas de una noche (mejor con darks y flats en la biblioteca). ¿El brillo del cielo se parece al de tu SQM o a lo que esperas de tu sitio? ¿La magnitud límite tiene sentido para tu equipo? Siril necesita Internet la primera vez para resolver cada campo (o su catálogo local de Gaia).
+12. **El aspecto nuevo**: prueba los modos Día, Noche y Rojo (abajo a la izquierda). ¿Se lee bien todo? ¿Te molesta algo del modo Rojo de noche?
+13. En general: ¿qué te resulta confuso, lento o echas en falta?
 
 ## Cómo contarme lo que encuentres
 En ASTRO: **menú «Más» → «Informar de un problema o sugerencia»**. Escribe qué pasó con tus palabras; el programa añade solo los datos técnicos (versión, sistema y registro). **No envía tus fotos ni datos personales.** Si puedes, adjunta una captura de pantalla.
@@ -41,7 +42,7 @@ En ASTRO: **menú «Más» → «Informar de un problema o sugerencia»**. Escri
 Todo sirve: fallos, frases poco claras, ideas, y también lo que te guste.
 
 ## Tus datos
-- Todo queda en la carpeta que elegiste al empezar; ASTRO **no sube nada a Internet**. Solo consulta si hay versiones nuevas y, en «Próximas noches», pide la previsión del tiempo a Open-Meteo.com con tu posición aproximada (se puede desactivar). Si activas el WhatsApp automático, el mensaje pasa por CallMeBot, un servicio gratuito de terceros.
+- Todo queda en la carpeta que elegiste al empezar; ASTRO **no sube nada a Internet**. Solo consulta si hay versiones nuevas; en «Próximas noches», pide la previsión del tiempo a Open-Meteo.com con tu posición aproximada (se puede desactivar), y en «Ciencia» consulta el catálogo Gaia con las coordenadas del campo que mides (nunca tus fotos). Si activas el WhatsApp automático, el mensaje pasa por CallMeBot, un servicio gratuito de terceros.
 - ASTRO copia tus tomas a su carpeta sin tocar los originales (o, con «Solo analizar», las deja donde están y solo las lee). Aun así, al ser una beta, **no borres tus originales** mientras pruebas.
 
 ## Duración
@@ -63,6 +64,6 @@ Thank you for testing ASTRO! This is a **test version**: it may have bugs, and t
 
 **Report** from ASTRO: **«More» menu → «Report a problem or suggestion»**. Technical data is added automatically; your images and personal data are never sent. Screenshots help.
 
-**Your data** stays in the folder you chose; nothing is uploaded (only your approximate location is sent to Open-Meteo.com to get the weather forecast in «Upcoming nights», and you can turn that off; if you turn on the automatic WhatsApp message, it goes through CallMeBot, a free third-party service). ASTRO copies your frames without touching the originals (or, with «Analyse only», just reads them where they are) — but as this is a beta, **keep your originals**.
+**Your data** stays in the folder you chose; nothing is uploaded (only your approximate location is sent to Open-Meteo.com to get the weather forecast in «Upcoming nights», and you can turn that off; «Science» queries the Gaia catalogue with the coordinates of the field you measure, never your images; if you turn on the automatic WhatsApp message, it goes through CallMeBot, a free third-party service). ASTRO copies your frames without touching the originals (or, with «Analyse only», just reads them where they are) — but as this is a beta, **keep your originals**.
 
 *Tomás Moreno González · Member of Astrocitas, Asociación Astronómica Azarquiel and Asociación Astronómica de Miguelturra*

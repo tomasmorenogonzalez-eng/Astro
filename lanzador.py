@@ -7,20 +7,22 @@ Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica 
 y Asociación Astronómica de Miguelturra.
 
 La primera vez pregunta dónde guardar los datos. Después arranca los dos
-programas (Control de lights y Biblioteca de calibración) dentro de la propia
+programas (Control de lights, Biblioteca de calibración y Ciencia) dentro de la propia
 aplicación y enseña la ventana de inicio: un apartado con su dibujo para cada cosa
 que se puede hacer (añadir tomas, mis objetos, próximas noches, sesión en directo,
-apilar y biblioteca de calibración); cada uno abre su parte en el navegador.
+apilar, biblioteca de calibración y ciencia); cada uno abre su parte en el navegador.
 """
 import os, sys, json, socket, threading, time, runpy, webbrowser, urllib.request, subprocess, re, shutil, platform, tempfile
 # Módulos que usan los programas (se cargan como datos; así el empaquetador los incluye)
 import http.server, socketserver, urllib.parse, re, shutil, hashlib, datetime, glob, string, ctypes, zipfile, math, random  # noqa: F401
 import secrets, hmac, locale, unicodedata, base64, plistlib  # noqa: F401
+import array, mmap, io, csv, ssl  # noqa: F401
 
 APP = "ASTRO"
 AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra."
 ES_MAC, ES_WIN = sys.platform == "darwin", sys.platform.startswith("win")
-PROGRAMAS = (("lights", "programa-lights.py", 8775), ("calibracion", "programa-calibracion.py", 8765))
+PROGRAMAS = (("lights", "programa-lights.py", 8775), ("calibracion", "programa-calibracion.py", 8765),
+             ("ciencia", "programa-ciencia.py", 8785))
 
 
 def recursos():
@@ -141,7 +143,7 @@ TXT = {
            "no_encuentro": "No encuentro tu carpeta de datos:\n%s", "no_usar": "No se puede usar esa carpeta:\n%s",
            "marcha": "ASTRO está en marcha", "marcha_txt": "Elige por dónde empezar; se abre en el navegador. Deja esta ventana abierta (o minimizada) mientras uses ASTRO.",
            "lights": "Control de lights", "biblio": "Biblioteca de calibración", "datos_en": "Carpeta de datos:  ", "cambiar": "Cambiar carpeta de datos…",
-           "lema_largo": "Revisa, organiza y apila tus fotos del cielo",
+           "lema_largo": "Revisa, organiza, apila y mide tus fotos del cielo",
            "t_anadir": "Añadir tomas", "d_anadir": "Desde la tarjeta o una carpeta; ASTRO revisa cada toma.",
            "t_objetos": "Mis objetos", "d_objetos": "Horas útiles, calidad de cada noche y lo que te falta.",
            "t_varios": "Varios equipos", "d_varios": "Un objeto con varios telescopios o cámaras, tuyos o de compañeros.",
@@ -149,6 +151,8 @@ TXT = {
            "t_directo": "Sesión en directo", "d_directo": "Revisa cada toma mientras capturas y avisa si algo falla.",
            "t_apilar": "Apilar con Siril", "d_apilar": "De tus tomas buenas a la imagen final, ya calibrada.",
            "t_calib": "Calibración", "d_calib": "Darks, flats y bias: qué tienes y qué te falta.",
+           "t_ciencia": "Ciencia", "d_ciencia": "Mide con tus fotos: cielo, variables, exoplanetas, asteroides…",
+           "ciencia": "Ciencia",
            "salir": "Salir", "cerrar_q": "¿Cerrar ASTRO?", "nueva_carpeta": "Nueva carpeta de datos de ASTRO",
            "reiniciar_q": "ASTRO se reiniciará usando:\n%s\n\n(Los datos de la carpeta anterior no se mueven.)",
            "no_arranca": "No se pudo arrancar: %s.\nMira el registro en:\n%s", "por": "Creado por",
@@ -160,7 +164,7 @@ TXT = {
            "no_encuentro": "I can't find your data folder:\n%s", "no_usar": "That folder can't be used:\n%s",
            "marcha": "ASTRO is running", "marcha_txt": "Choose where to start; it opens in your browser. Keep this window open (or minimised) while you use ASTRO.",
            "lights": "Light frames", "biblio": "Calibration library", "datos_en": "Data folder:  ", "cambiar": "Change data folder…",
-           "lema_largo": "Check, organise and stack your astrophotos",
+           "lema_largo": "Check, organise, stack and measure your astrophotos",
            "t_anadir": "Add frames", "d_anadir": "From your memory card or a folder; ASTRO checks every frame.",
            "t_objetos": "My targets", "d_objetos": "Usable hours, quality per night and what's still missing.",
            "t_varios": "Multiple setups", "d_varios": "One target shot with several telescopes or cameras, yours or friends'.",
@@ -168,6 +172,8 @@ TXT = {
            "t_directo": "Live session", "d_directo": "Checks each frame as you capture and warns you of problems.",
            "t_apilar": "Stack with Siril", "d_apilar": "From your good frames to a calibrated final image.",
            "t_calib": "Calibration library", "d_calib": "Darks, flats and bias: what you have and what's missing.",
+           "t_ciencia": "Science", "d_ciencia": "Measure with your images: sky, variables, exoplanets, asteroids…",
+           "ciencia": "Science",
            "salir": "Quit", "cerrar_q": "Quit ASTRO?", "nueva_carpeta": "New ASTRO data folder",
            "reiniciar_q": "ASTRO will restart using:\n%s\n\n(Data in the previous folder is not moved.)",
            "no_arranca": "Could not start: %s.\nSee the log in:\n%s", "por": "Created by",
@@ -703,7 +709,7 @@ def arrancar(datos):
 
 def ventana_control(datos, puertos):
     if not TK:
-        print("ASTRO en marcha:", url(puertos["lights"]), "· Biblioteca:", url(puertos["calibracion"]))
+        print("ASTRO en marcha:", url(puertos["lights"]), "· Biblioteca:", url(puertos["calibracion"]), "· Ciencia:", url(puertos["ciencia"]))
         print("Datos en:", datos, "· Para salir, pulsa Ctrl+C.")
         try:
             while True:
@@ -718,7 +724,7 @@ def ventana_control(datos, puertos):
     tk.Label(fila, text=T("marcha"), bg=FONDO, fg=TEXTO, font=("Helvetica", 17, "bold"), anchor="w").pack(side="left")
     tk.Label(c, text=T("marcha_txt"), bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w", justify="left",
              wraplength=960).pack(fill="x", pady=(2, 12))
-    L, C = url(puertos["lights"]), url(puertos["calibracion"])
+    L, C, S = url(puertos["lights"]), url(puertos["calibracion"]), url(puertos["ciencia"])
     abrir = lambda u: (lambda: webbrowser.open(u))
     apartados = [("apartado-anadir.png", "t_anadir", "d_anadir", abrir(L + "#anadir")),
                  ("apartado-objetos.png", "t_objetos", "d_objetos", abrir(L + "#objetos")),
@@ -726,8 +732,9 @@ def ventana_control(datos, puertos):
                  ("apartado-noches.png", "t_noches", "d_noches", abrir(L + "#noches")),
                  ("apartado-directo.png", "t_directo", "d_directo", abrir(L + "#directo")),
                  ("apartado-apilar.png", "t_apilar", "d_apilar", abrir(L + "#apilar")),
-                 ("apartado-calibracion.png", "t_calib", "d_calib", abrir(C))]
-    # siete apartados: cuatro arriba y tres abajo, centrados
+                 ("apartado-calibracion.png", "t_calib", "d_calib", abrir(C)),
+                 ("apartado-ciencia.png", "t_ciencia", "d_ciencia", abrir(S))]
+    # ocho apartados: cuatro arriba y cuatro abajo
     rejilla = tk.Frame(c, bg=FONDO); rejilla.pack()
     for fila_ap in (apartados[:4], apartados[4:]):
         fila_t = tk.Frame(rejilla, bg=FONDO); fila_t.pack()
@@ -749,8 +756,8 @@ def ventana_control(datos, puertos):
 
 
 def prueba_de_arranque(salida):
-    """Solo para la fábrica de GitHub: arranca los dos programas con una carpeta de datos vacía, comprueba que
-    responden y sale (0 si los dos arrancan). Así una versión que no arranca no llega a publicarse."""
+    """Solo para la fábrica de GitHub: arranca los programas con una carpeta de datos vacía, comprueba que
+    responden y sale (0 si arrancan todos). Así una versión que no arranca no llega a publicarse."""
     try:
         f = open(salida, "w", encoding="utf-8", buffering=1)
         sys.stdout = sys.stderr = f
@@ -775,6 +782,15 @@ def prueba_de_arranque(salida):
                 codigo = 1
             elif sys.platform == "darwin" and d.get("modo") != "_ProcesoMac":
                 print("AVISO: en el Mac, Siril se lanzaría de la forma normal (no responsable de sí mismo).")
+            # el motor de Ciencia, con una imagen inventada: tiene que recuperar el punto cero y el brillo del cielo
+            try:
+                with urllib.request.urlopen("http://127.0.0.1:%d/api/prueba/medir" % puertos["ciencia"], timeout=120) as r:
+                    m = json.loads(r.read().decode("utf-8"))
+            except Exception as e:
+                m = {"error": str(e)}
+            print("Medir en Ciencia:", m)
+            if not m.get("ok"):
+                codigo = 1
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -807,7 +823,7 @@ def main():
     compartir_idioma(datos)
     puertos, faltan = arrancar(datos)
     if faltan:
-        texto = T("no_arranca") % (", ".join(T("lights") if f == "lights" else T("biblio") for f in faltan), REGISTRO)
+        texto = T("no_arranca") % (", ".join({"lights": T("lights"), "calibracion": T("biblio")}.get(f, T("ciencia")) for f in faltan), REGISTRO)
         if TK:
             r = tk.Tk(); r.withdraw(); messagebox.showerror("ASTRO", texto)
         print(texto)

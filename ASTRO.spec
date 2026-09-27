@@ -21,12 +21,12 @@ def _importados(archivo):
         elif isinstance(n, ast.ImportFrom) and n.module and not n.level:
             mods.add(n.module)
     return mods
-DE_LOS_PROGRAMAS = sorted(m for m in _importados("programa-lights.py") | _importados("programa-calibracion.py")
-                          if m.split(".")[0] not in EXCLUIDOS)
+PROGRAMAS = ["programa-lights.py", "programa-calibracion.py", "programa-ciencia.py"]
+DE_LOS_PROGRAMAS = sorted(m for p in PROGRAMAS for m in _importados(p) if m.split(".")[0] not in EXCLUIDOS)
 
 a = Analysis(
     ["lanzador.py"],
-    datas=[("programa-lights.py", "."), ("programa-calibracion.py", "."), ("icono.png", "."), ("imagenes", "imagenes")] + extras,
+    datas=[(p, ".") for p in PROGRAMAS] + [("icono.png", "."), ("imagenes", "imagenes")] + extras,
     hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"] + DE_LOS_PROGRAMAS,
     excludes=EXCLUIDOS,
 )

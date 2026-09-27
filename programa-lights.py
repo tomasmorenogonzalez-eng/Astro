@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.27.23"
+VERSION_PROG = "2026.09.28.1"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -9738,6 +9738,28 @@ def calibracion_de_toma(r):
             "biblioteca": len(sets)}
 
 
+def tomas_para_ciencia(ids):
+    """Para el apartado Ciencia: el archivo de cada toma, su equipo y los archivos de calibración que le tocan
+    (los mismos que usa el apilado), para calibrarla con Siril antes de medir."""
+    siril, ver = buscar_siril()
+    sets = conjuntos_recientes(version_ge(ver, "1.4") if ver else False)
+    db = leer_json(DB, {})
+    frames = db.get("frames", []) if isinstance(db, dict) else (db if isinstance(db, list) else [])
+    por_id = {r.get("id"): r for r in frames if isinstance(r, dict)}
+    pub = lambda x: {k: x.get(k) for k in ("id", "tipo", "master", "files", "desc", "n")} if x else None
+    out = []
+    for i in ids or []:
+        r = por_id.get(i)
+        if not r:
+            continue
+        dark, bias, flat, cflat, av = calibracion_toma(sets, r)
+        out.append({"id": i, "ruta": _ruta_toma(r), "bayer": es_bayer(r), "dark": pub(dark), "bias": pub(bias), "flat": pub(flat),
+                    "cflat": pub(cflat), "avisos": av, "coords": coords_toma(r), "escala": escala_toma(r),
+                    "objeto": r.get("object") or "", "filtro": r.get("filter") or "", "cam": r.get("cam") or "",
+                    "tel": r.get("tel") or "", "noche": r.get("night") or ""})
+    return out
+
+
 def calibracion_toma(sets, r):
     """La calibración que ASTRO usaría para una toma: (dark, bias, flat, calibrador del flat, avisos)."""
     dark, a1 = elegir_dark(sets, r)
@@ -10694,6 +10716,9 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps({"texto": texto_aviso(json.loads(self._body() or b"{}").get("fecha"))[0]}, ensure_ascii=False))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/ciencia/tomas":
+                d = json.loads(self._body() or b"{}")
+                return self._send(200, json.dumps({"tomas": tomas_para_ciencia(d.get("ids") or [])}, ensure_ascii=False, default=str))
             if p.path == "/api/calibracion/toma":
                 d = json.loads(self._body() or b"{}")
                 return self._send(200, json.dumps(calibracion_de_toma(d.get("toma") or {}), ensure_ascii=False, default=str))

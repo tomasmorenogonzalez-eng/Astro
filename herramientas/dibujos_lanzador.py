@@ -13,7 +13,7 @@ S = 3                                   # sobremuestreo
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA = os.path.join(AQUI, "..", "imagenes")
 TARJ = (264, 132)                       # lienzo de cada dibujo de apartado (se dibuja a este tamaño)
-TARJ_FINAL = (216, 108)                 # tamaño con el que se guarda (siete apartados en dos filas)
+TARJ_FINAL = (216, 108)                 # tamaño con el que se guarda (ocho apartados en dos filas)
 CAB = (1100, 176)                       # tamaño final de la cabecera (la ventana de inicio mide 1080)
 
 NOCHE1, NOCHE2 = (18, 14, 40), (46, 30, 86)
@@ -166,7 +166,7 @@ def banda(nombre_dibujo, salida, semilla):
 
 def versiones_web():
     _jpg(ORIGINALES["cabecera.png"], "cabecera.jpg", (CAB[0] * 2, CAB[1] * 2))
-    for i, n in enumerate(("anadir", "objetos", "noches", "directo", "apilar", "calibracion", "varios")):
+    for i, n in enumerate(("anadir", "objetos", "noches", "directo", "apilar", "calibracion", "varios", "ciencia")):
         _jpg(ORIGINALES["apartado-%s.png" % n], "dibujo-%s.jpg" % n, (TARJ[0] * 2, TARJ[1] * 2))
         banda("apartado-%s.png" % n, "banda-%s.jpg" % n, 100 + i)
 
@@ -482,6 +482,72 @@ def d_varios():
     guardar(im, "apartado-varios.png", TARJ_FINAL)
 
 
+def d_ciencia():
+    """Ciencia: una estrella medida (apertura y anillo), una curva de luz con un tránsito y un espectro con sus líneas."""
+    w, h = TARJ
+    im = fondo_tarjeta(8)
+    d = ImageDraw.Draw(im)
+    # la toma con la estrella medida
+    x, y, fw, fh = 14 * S, 14 * S, 104 * S, 78 * S
+    toma(im, x, y, fw, fh, 81, "ninguno")
+    cx, cy = x + fw * 0.46, y + fh * 0.52
+    brillo_estrella(im, cx, cy, 2.4 * S, (255, 250, 235))
+    d = ImageDraw.Draw(im)
+    r = 7 * S
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=ORO + (255,), width=2 * S)
+    for k in range(24):                                  # anillo del fondo, a trazos
+        if k % 2:
+            continue
+        a0, a1 = k * 15, k * 15 + 11
+        for rr in (13 * S, 19 * S):
+            d.arc([cx - rr, cy - rr, cx + rr, cy + rr], a0, a1, fill=LILA + (230,), width=S)
+    # curva de luz con un tránsito
+    gx, gy, gw, gh = 132 * S, 16 * S, 118 * S, 58 * S
+    marco(im, gx, gy, gw, gh, relleno=(10, 9, 26))
+    d = ImageDraw.Draw(im)
+    pts = []
+    rnd = random.Random(12)
+    for i in range(40):
+        t = i / 39
+        prof = 0.0
+        if 0.35 < t < 0.65:
+            u = min(1.0, (t - 0.35) / 0.06, (0.65 - t) / 0.06)
+            prof = 0.42 * u
+        px = gx + 6 * S + t * (gw - 12 * S)
+        py = gy + gh * 0.28 + prof * gh * 0.6 + rnd.uniform(-1.2, 1.2) * S
+        pts.append((px, py))
+        d.ellipse([px - 1.3 * S, py - 1.3 * S, px + 1.3 * S, py + 1.3 * S], fill=LILA + (255,))
+    modelo = []
+    for i in range(80):
+        t = i / 79
+        u = min(1.0, max(0.0, min((t - 0.35) / 0.06, (0.65 - t) / 0.06)))
+        modelo.append((gx + 6 * S + t * (gw - 12 * S), gy + gh * 0.28 + (0.42 * u if 0.35 < t < 0.65 else 0) * gh * 0.6))
+    d.line(modelo, fill=ORO + (255,), width=2 * S, joint="curve")
+    # espectro con las líneas de Balmer
+    ex, ey, ew, eh = 132 * S, 86 * S, 118 * S, 24 * S
+    colores = [(90, 15, 140), (106, 27, 216), (42, 64, 255), (30, 140, 255), (28, 200, 232), (31, 208, 106), (126, 211, 33),
+               (233, 226, 27), (255, 178, 30), (255, 106, 30), (232, 38, 30), (142, 14, 18)]
+    esp = Image.new("RGBA", (ew, eh))
+    pe = esp.load()
+    for i in range(ew):
+        t = i / (ew - 1) * (len(colores) - 1)
+        k = min(int(t), len(colores) - 2)
+        f = t - k
+        c = tuple(int(colores[k][j] + (colores[k + 1][j] - colores[k][j]) * f) for j in range(3)) + (255,)
+        for jj in range(eh):
+            pe[i, jj] = c
+    de = ImageDraw.Draw(esp)
+    for lam in (410.2, 434.0, 486.1, 656.3):
+        xx = (lam - 380) / 320 * ew
+        de.rectangle([xx - 1.2 * S, 0, xx + 1.2 * S, eh], fill=(10, 7, 20, 235))
+    m = Image.new("L", esp.size, 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, ew - 1, eh - 1], radius=4 * S, fill=255)
+    im.paste(esp, (ex, ey), m)
+    # la estrella medida «sale» hacia la curva
+    flecha(im, [(cx + 22 * S, cy - 10 * S), (gx - 4 * S, gy + gh * 0.5)], ORO + (255,), 2 * S)
+    guardar(im, "apartado-ciencia.png", TARJ_FINAL)
+
+
 LETRAS = {  # trazos de una fuente de palo en una rejilla de 4×6
     "D": [[(0, 0), (0, 6), (2.5, 6), (4, 4.5), (4, 1.5), (2.5, 0), (0, 0)]],
     "A": [[(0, 6), (2, 0), (4, 6)], [(0.7, 4), (3.3, 4)]],
@@ -507,6 +573,6 @@ def _rotulo(d, texto, cx, cy, alto):
 
 
 if __name__ == "__main__":
-    cabecera(); d_anadir(); d_objetos(); d_noches(); d_directo(); d_apilar(); d_calibracion(); d_varios()
+    cabecera(); d_anadir(); d_objetos(); d_noches(); d_directo(); d_apilar(); d_calibracion(); d_varios(); d_ciencia()
     versiones_web()
     print("Dibujos guardados en", os.path.abspath(SALIDA))

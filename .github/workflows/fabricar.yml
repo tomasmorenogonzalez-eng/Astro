@@ -147,7 +147,7 @@ jobs:
           r=$?
           set -e
           cat prueba-arranque.txt || true
-          grep -E "^(No arrancan|Lanzar como Siril|AVISO)" prueba-arranque.txt | while read -r l; do echo "::notice title=Prueba de arranque ($RUNNER_OS)::$l"; done || true
+          grep -E "^(No arrancan|Lanzar como Siril|Medir en Ciencia|AVISO)" prueba-arranque.txt | while read -r l; do echo "::notice title=Prueba de arranque ($RUNNER_OS)::$l"; done || true
           if [ $r -ne 0 ]; then echo "::error::La aplicación no arranca (mira el registro de arriba). No se publica."; exit 1; fi
 
       - name: Empaquetar (Mac)
