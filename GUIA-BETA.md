@@ -5,6 +5,7 @@
 ## Qué es ASTRO
 Un programa gratuito para astrofotografía que:
 - **revisa tus lights**: mide las estrellas (FWHM y alargamiento) y detecta trazas de satélites, nubes y desenfoque;
+- **vigila la noche en directo**: revisa cada toma según la hace la ASIAIR o N.I.N.A. y te avisa si algo va mal;
 - **organiza tu biblioteca de calibración** (bias, darks, flats) y te dice **qué te falta**, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**;
 - **apila con Siril** (gratuito) cada objeto por filtros y te deja una **vista previa ya revelada** (y las combinaciones RGB, LRGB, SHO o HOO), lista para abrir en GIMP, Photoshop o PixInsight.
 
@@ -27,7 +28,8 @@ Usa ASTRO con **tus datos reales**, como lo harías normalmente. Si te sobra tie
 4. **«¿Qué me falta?»**: ¿acierta con lo que te falta? Si usas N.I.N.A., prueba a cargar la secuencia que genera.
 5. **Apilar** un objeto con Siril. ¿La **vista previa** se ve razonable? ¿«Abrir en…» encuentra tus programas de edición?
 6. **Resumen y objetivo** de un objeto, y **«Próximas noches»**: ¿las noches que propone para cada filtro tienen sentido con la Luna que tú ves?
-7. En general: ¿qué te resulta confuso, lento o echas en falta?
+7. **«En directo»** durante una noche de captura, con la ASIAIR por la red o con N.I.N.A.: ¿encuentra la carpeta? ¿Llegan los avisos (sonido y notificación) cuando entra una nube o se para la secuencia? ¿Algún aviso que sobre o que eches en falta?
+8. En general: ¿qué te resulta confuso, lento o echas en falta?
 
 ## Cómo contarme lo que encuentres
 En ASTRO: **menú «Más» → «Informar de un problema o sugerencia»**. Escribe qué pasó con tus palabras; el programa añade solo los datos técnicos (versión, sistema y registro). **No envía tus fotos ni datos personales.** Si puedes, adjunta una captura de pantalla.
@@ -53,7 +55,7 @@ Thank you for testing ASTRO! This is a **test version**: it may have bugs, and t
 
 **Install:** download the file for your computer from **Releases** and **double-click it**. ASTRO installs and updates itself. Only the first time, allow it: **Mac** → *System Settings → Privacy & Security → Open Anyway*; **Windows** → *More info → Run anyway*. Install **Siril** (siril.org) to stack.
 
-**Please test** with your real data: adding a session (do the ratings match what you see?), camera/telescope/filter detection, the calibration library (including ASIAIR / N.I.N.A. import), «What am I missing?» and the N.I.N.A. sequence, stacking (does the preview look sensible? does «Open in…» find your editing apps?), target summaries and «Upcoming nights» (do the suggested nights make sense?). Tell me what is confusing, slow or missing.
+**Please test** with your real data: adding a session (do the ratings match what you see?), camera/telescope/filter detection, the calibration library (including ASIAIR / N.I.N.A. import), «What am I missing?» and the N.I.N.A. sequence, stacking (does the preview look sensible? does «Open in…» find your editing apps?), target summaries and «Upcoming nights» (do the suggested nights make sense?). Also try **«Live»** during a capture night (ASIAIR over the network or N.I.N.A.): does it find the folder, and do the alerts arrive when clouds come in or the sequence stops? Tell me what is confusing, slow or missing.
 
 **Report** from ASTRO: **«More» menu → «Report a problem or suggestion»**. Technical data is added automatically; your images and personal data are never sent. Screenshots help.
 

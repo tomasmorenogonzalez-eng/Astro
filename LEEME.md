@@ -46,6 +46,11 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 5. **«¿Qué me falta?»** te dice qué calibraciones necesitan tus lights, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**
 6. **«Próximas noches»** te dice qué objeto y qué filtro te conviene cada noche según la Luna, la oscuridad, la altura del objeto y la nubosidad prevista para los próximos 7 días (previsión de Open-Meteo.com, gratuita para uso no comercial; la primera vez te pide tu lugar de observación, que puede sacar de tus propias tomas). En **«Resumen y objetivo»** de cada objeto verás además qué noches del próximo mes sirven para lo que te falta.
 7. **«Apilar…»** apila cada objeto con Siril y, al terminar, crea una **vista previa ya revelada**: recorta los bordes, quita el gradiente del fondo, equilibra el color y estira la imagen. Si tienes los filtros, también combina **RGB, LRGB, SHO y HOO**. Guarda un JPG para ver y compartir y un TIFF de 16 bits para seguir editando; con **«Abrir en…»** lo abres directamente en GIMP, Photoshop, PixInsight, Affinity Photo o Siril. La vista previa de un apilado antiguo se crea desde **«Resumen y objetivo»** del objeto.
+8. **«En directo»** revisa la noche mientras capturas. Elige la carpeta donde se guardan las tomas y pulsa «Empezar la revisión»: ASTRO analiza cada toma en cuanto termina de grabarse, dibuja cómo van el FWHM, el alargamiento, las estrellas y el fondo, y te avisa con un sonido y una notificación si una toma sale mal, si van varias seguidas con problemas, si el FWHM va subiendo (el enfoque se va con el frío) o si dejan de llegar tomas. Mientras revisa, el ordenador no se duerme.
+   - **ASIAIR:** el ordenador y la ASIAIR en la misma wifi (con la wifi de la propia ASIAIR, su IP suele ser 10.0.0.1). Escribe la IP y pulsa «Conectar»; en el Mac entra como «Invitado» y elige el almacenamiento. ASTRO lee las fotos por la red, sin tocar nada en la ASIAIR. Si la ASIAIR tiene cable de red o wifi de 5 GHz, mejor: cada toma se lee en pocos segundos.
+   - **N.I.N.A. en el mismo PC:** ASTRO encuentra sola la carpeta de imágenes de tu perfil.
+   - **N.I.N.A. en otro PC:** comparte su carpeta de imágenes en Windows y conéctate a su IP igual que con la ASIAIR.
+   - Solo se revisan los lights: los darks, flats, bias, las vistas previas y los *snapshots* se saltan. Con la casilla «Guardar también las tomas en ASTRO», además quedan guardadas en tu biblioteca como con «Añadir sesión».
 
 ## 3. Requisitos
 
@@ -56,7 +61,7 @@ No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 ## 4. Tus datos
 
 Todo queda en la carpeta que elegiste:
-- `Lights/` — tus lights ordenados, miniaturas, la base de datos `lights.json`, los objetivos (`objetivos.json`) y tu lugar de observación (`planificador.json`).
+- `Lights/` — tus lights ordenados, miniaturas, la base de datos `lights.json`, los objetivos (`objetivos.json`), tu lugar de observación (`planificador.json`) y la última carpeta usada en «En directo» (`directo.json`).
 - `Biblioteca de calibracion/` — bias, darks, flats, masters y `biblioteca.json`.
 - `Apilados/` — los resultados de Siril: los masters lineales (`.fit`), los filtros alineados y la carpeta `Vista previa` con los JPG y TIFF revelados.
 
@@ -69,6 +74,7 @@ Si algo falla, el registro está en:
 
 - Guarda en **FITS**, o en XISF sin compresión o con LZ4 (*Opciones → Imágenes → Tipo de archivo*). La compresión Zstandard no se puede leer.
 - Para importar sin copiar a mano, **comparte la carpeta de imágenes** del PC de N.I.N.A. en la red y usa «Importar de ASIAIR / N.I.N.A.».
+- Esa misma carpeta compartida sirve para la **revisión «En directo»** desde otro ordenador.
 
 ---
 
@@ -126,5 +132,6 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 3. On first launch, choose your **language** and the **folder** where ASTRO will keep your data. ASTRO opens in your browser; keep its small window open while you use it.
 4. **«Upcoming nights»** shows which target and filter suit each night (Moon, darkness, altitude and the Open-Meteo cloud forecast for the next 7 days; your observing location can be taken from your own frames).
 5. Install **Siril** (free, https://siril.org) to stack and create masters. After stacking, ASTRO creates a **ready-developed preview** (edges cropped, gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations when you have the filters) as JPG and 16-bit TIFF, and **«Open in…»** sends it to GIMP, Photoshop, PixInsight, Affinity Photo or Siril.
+6. **«Live»** watches the folder where the ASIAIR (over the network) or N.I.N.A. (on the same PC or a shared folder) saves your frames, checks each one as soon as it has been written and warns you with a sound and a notification if a frame is bad, several in a row have problems, the FWHM keeps rising or frames stop arriving. The computer is kept awake while it watches.
 
 The language can be changed at any time with the 🌐 button at the top of the screen.

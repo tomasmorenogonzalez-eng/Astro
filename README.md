@@ -12,6 +12,8 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 **Revisa tus lights.** Mide las estrellas de cada toma y te dice cuáles están bien, cuáles tienen algún problema y cuáles conviene descartar: estrellas alargadas, desenfoque, trazas de satélites o aviones, nubes o un fondo demasiado brillante. Y te explica el motivo con palabras normales.
 
+**Vigila la noche por ti.** Con «En directo», ASTRO mira la carpeta donde la ASIAIR (por la red) o N.I.N.A. van guardando las fotos y revisa cada toma en cuanto termina. Si entran nubes, se alargan las estrellas, se va el enfoque o la secuencia se para, te avisa con un sonido y una notificación, y te enseña en gráficas cómo va la noche. Puedes estar en el sofá sin salir a mirar cada rato.
+
 **Ordena tu biblioteca de calibración.** Guarda tus bias, darks y flats, los valora y te avisa de lo que falta. Con un botón te dice qué tomas de calibración tienes que hacer para cada objeto, y te prepara la lista para la ASIAIR o una secuencia lista para cargar en N.I.N.A.
 
 **Te ayuda a llegar a tu objetivo.** Para cada objeto ves cuántas horas útiles llevas por filtro, cuántas te faltan y cuántas noches más necesitarás, más o menos.
@@ -68,7 +70,7 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 ## In English
 
-**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus). It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, plus the cloud forecast for the next week), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
+**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus), and it can watch your ASIAIR or N.I.N.A. live during the night, checking each frame as it arrives and warning you with a sound and a notification if clouds come in, focus drifts or the sequence stops. It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, plus the cloud forecast for the next week), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
 
 Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
 
