@@ -20,6 +20,8 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 **Y te dice cuándo.** Con tu lugar de observación, la Luna y la altura de cada objeto, ASTRO te enseña qué noches del próximo mes sirven para lo que te falta: la banda ancha cuando no hay Luna y el Hα, el OIII o el SII cuando sí la hay. En «Próximas noches» ves de un vistazo qué hacer esta noche y las siguientes, con la previsión de los próximos siete días hora a hora (nubes, humedad, rocío y viento). Guarda varios lugares, cada uno con su horizonte (los árboles, la casa o la cúpula), y te dibuja la altura de cada objeto esta noche. Y si buscas algo nuevo, **«¿Qué fotografío?»** te propone objetos que encajan en el campo de tu equipo y te prepara el plan para N.I.N.A. o la ASIAIR.
 
+**Te dice qué montar esta noche.** En «Mi equipo» apuntas tus piezas sueltas: telescopios, reductores, cámaras y filtros. Cada noche ASTRO prueba todas las combinaciones y te propone un plan: qué objeto, **qué telescopio con qué cámara** (la que mejor lo encuadra y lo muestrea), **por qué filtro tuyo empezar** según la Luna y **cuánto exponer cada toma con tu cielo** (con el SQM o el Bortle de tu lugar). Si una noche no da para más, te propone un **proyecto** con las horas que conviene reunir y va sumando lo que capturas. Y te lo manda **por WhatsApp**: con un botón, o solo cada tarde a la hora que elijas.
+
 **Apila por ti.** Si tienes instalado Siril (también gratuito), ASTRO apila cada objeto por filtros usando las calibraciones que le correspondan.
 
 **Y te enseña el resultado.** Al terminar, ASTRO revela la imagen por ti: quita el gradiente del fondo, equilibra el color y la estira, y si tienes los filtros monta también las versiones RGB, LRGB, SHO (la paleta Hubble) o HOO. Nada de abrir un archivo negro sin saber si ha salido bien: lo ves en el momento. Y cuando quieras rematarla, un botón la abre directamente en GIMP, Photoshop, PixInsight o el programa que uses.
@@ -46,7 +48,7 @@ No vuelve a salir.
 
 ## Tus fotos son tuyas
 
-ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en cuando si hay una versión nueva y, si usas «Próximas noches», pide la previsión del tiempo de tu zona a Open-Meteo.com enviando únicamente tu posición aproximada (se puede desactivar), y en «¿Qué fotografío?» muestra imágenes del cielo del servicio CDS de Estrasburgo. Copia tus tomas a su carpeta sin tocar los originales, o, si lo prefieres, las analiza y las apila desde donde están, sin copiarlas.
+ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en cuando si hay una versión nueva y, si usas «Próximas noches», pide la previsión del tiempo de tu zona a Open-Meteo.com enviando únicamente tu posición aproximada (se puede desactivar), y en «¿Qué fotografío?» muestra imágenes del cielo del servicio CDS de Estrasburgo. Si activas el WhatsApp automático, el mensaje de cada tarde se envía a través de CallMeBot, un servicio gratuito de terceros. Copia tus tomas a su carpeta sin tocar los originales, o, si lo prefieres, las analiza y las apila desde donde están, sin copiarlas.
 
 ---
 
