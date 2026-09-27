@@ -175,7 +175,10 @@ jobs:
         with:
           files: paquetes/*
           prerelease: false
+          append_body: true
           body: |
+
+            ---
             **Descarga la de tu ordenador y haz doble clic. ASTRO se instala solo y se actualiza solo.**
             - Mac con chip Apple (M1, M2, M3, M4…): `ASTRO-Mac-AppleSilicon.zip`
             - Mac con procesador Intel: `ASTRO-Mac-Intel.zip`

@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.1"
+VERSION_PROG = "2026.09.28.2"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1384,7 +1384,7 @@ def sesiones_de_astro():
         clave = ((r.get("object") or "").strip() or "(sin objeto)", r.get("night") or (r.get("dateObs") or "")[:10],
                  nfiltro(r.get("filter")), r.get("cam") or "", r.get("tel") or "")
         g = grupos.setdefault(clave, {"objeto": clave[0], "noche": clave[1], "filtro": clave[2], "cam": clave[3], "tel": clave[4],
-                                      "tomas": [], "exp": set(), "color": False})
+                                      "tomas": [], "exp": set(), "color": False, "filtro_original": r.get("filter") or ""})
         g["tomas"].append({"id": r.get("id"), "fecha": r.get("dateObs") or "", "nombre": r.get("name") or "", "score": r.get("score"),
                            "fwhm": r.get("fwhm"), "formato": r.get("format") or "fits"})
         if num(r.get("exp")):
@@ -1396,6 +1396,7 @@ def sesiones_de_astro():
         g["tomas"].sort(key=lambda t: t["fecha"])
         g["exp"] = sorted(g["exp"])
         g["banda"], g["banda_nota"] = banda_de(g["filtro"], g["color"])
+        g["aavso"] = banda_aavso(g["filtro_original"], g["color"]) if g["banda"] else None
         out.append(g)
     out.sort(key=lambda g: (g["noche"], g["objeto"]), reverse=True)
     return out
@@ -1485,7 +1486,7 @@ def sha256(ruta):
 
 
 # ═════════════════════════════ EL TRABAJO: CALIBRAR, RESOLVER Y MEDIR ═════════════════════════════
-JOB = {"activo": False, "texto": "", "archivo": "", "sub": "", "hechos": 0, "total": 0, "log": [], "cancelar": False,
+JOB = {"activo": False, "tipo": "", "texto": "", "archivo": "", "sub": "", "hechos": 0, "total": 0, "log": [], "cancelar": False,
        "resultados": [], "errores": [], "inicio": 0.0, "fin": 0.0}
 _PROC = {"p": None}
 _LOCK = threading.Lock()
@@ -1855,7 +1856,7 @@ def iniciar_cielo(items, lugar_elegido=""):
         items = [it for it in items if isinstance(it, dict) and it.get("tipo") in ("toma", "apilado", "archivo")][:60]
         if not items:
             raise RuntimeError("no hay nada que medir")
-        JOB.update(activo=True, texto="Empezando", archivo="", sub="", hechos=0, total=len(items), log=[], cancelar=False,
+        JOB.update(activo=True, tipo="cielo", texto="Empezando", archivo="", sub="", hechos=0, total=len(items), log=[], cancelar=False,
                    resultados=[], errores=[], inicio=time.time(), fin=0.0)
     threading.Thread(target=trabajo_cielo, args=(items, lugar_elegido), daemon=True).start()
 
@@ -1871,7 +1872,680 @@ def cancelar():
 
 
 def estado_publico():
-    return {k: JOB[k] for k in ("activo", "texto", "archivo", "sub", "hechos", "total", "resultados", "errores", "inicio", "fin")} | {"log": JOB["log"][-60:]}
+    return {k: JOB[k] for k in ("activo", "tipo", "texto", "archivo", "sub", "hechos", "total", "resultados", "errores", "inicio", "fin")} | {"log": JOB["log"][-60:]}
+
+
+# ═════════════════════════════ ESTRELLAS VARIABLES (AAVSO) ═════════════════════════════
+# La secuencia oficial de estrellas de comparación sale del VSP de la AAVSO (con su número de carta) y los datos de la
+# estrella, del VSX. Cada toma se calibra con la biblioteca; la primera se resuelve con Siril y las demás se colocan
+# midiendo cuánto se han movido las estrellas (si no se puede, se vuelven a resolver). Se guardan los flujos de todas
+# las estrellas de la secuencia, así que se puede cambiar el conjunto de comparación o la de control sin volver a medir.
+VARIABLES_DIR = os.path.join(ROOT, "Estrellas variables")
+CONFIG_CIENCIA = os.path.join(ROOT, "config.json")
+VSP_URLS = ("https://app.aavso.org/vsp/api/chart/", "https://www.aavso.org/apps/vsp/api/chart/")
+VSX_URL = "https://www.aavso.org/vsx/index.php"
+# banda de las magnitudes de catálogo que corresponde a cada filtro de la AAVSO
+BANDA_CATALOGO = {"V": "V", "B": "B", "R": "R", "I": "I", "TG": "V", "TB": "B", "TR": "R", "CV": "V", "CR": "R"}
+
+
+def config_ciencia():
+    c = leer_json(CONFIG_CIENCIA, {})
+    return c if isinstance(c, dict) else {}
+
+
+def guardar_config_ciencia(**kw):
+    c = config_ciencia()
+    c.update({k: v for k, v in kw.items() if v is not None})
+    escribir_json(CONFIG_CIENCIA, c)
+    return c
+
+
+def _get_json(url, timeout=45):
+    req = urllib.request.Request(url, headers={"User-Agent": "ASTRO-Ciencia/%s" % VERSION_PROG, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout, context=_contexto_ssl()) as r:
+        return json.loads(r.read().decode("utf-8", errors="replace"))
+
+
+def _coord(v, horas):
+    """Grados desde un número o un texto: «21:42:42.8» / «+43 35 09» (sexagesimal) o «325.678» (grados)."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    t = str(v).strip()
+    if re.search(r"[:\s]", t):
+        return _ang(t, horas)
+    return num(t)
+
+
+def _slug(t):
+    return re.sub(r"[^a-z0-9]+", "_", str(t or "").lower()).strip("_")[:40] or "x"
+
+
+def vsx_objeto(nombre):
+    """Datos de la estrella en el VSX (nombre, AUID, coordenadas, tipo, periodo y rango), o None."""
+    falso = os.environ.get("ASTRO_AAVSO_FALSO")
+    if falso:
+        d = leer_json(falso, {}).get("vsx")
+    else:
+        ruta = os.path.join(CATALOGOS, "vsx_%s.json" % _slug(nombre))
+        d = leer_json(ruta, None)
+        if not d or time.time() - d.get("_guardado", 0) > 30 * 86400:
+            try:
+                d = _get_json(VSX_URL + "?" + urllib.parse.urlencode({"view": "api.object", "ident": nombre, "format": "json"}))
+                d["_guardado"] = time.time()
+                escribir_json(ruta, d)
+            except Exception:
+                return None
+    o = (d or {}).get("VSXObject") or {}
+    if not o or not o.get("Name"):
+        return None
+    return {"nombre": o.get("Name"), "auid": o.get("AUID") or "", "ra": _coord(o.get("RA2000"), False), "dec": _coord(o.get("Declination2000"), False),
+            "tipo": o.get("VariabilityType") or "", "periodo": num(o.get("Period")), "max": o.get("MaxMag") or "", "min": o.get("MinMag") or "",
+            "constelacion": o.get("Constellation") or ""}
+
+
+def vsp_carta(estrella, fov, maglimit=16.0, ra=None, dec=None):
+    """Secuencia de comparación de la AAVSO (VSP) para una estrella: número de carta y estrellas con sus magnitudes."""
+    falso = os.environ.get("ASTRO_AAVSO_FALSO")
+    fov = int(max(15, min(600, fov)))
+    if falso:
+        d = leer_json(falso, {}).get("vsp") or {}
+        fuente = "prueba"
+    else:
+        ruta = os.path.join(CATALOGOS, "vsp_%s_%d_%.1f.json" % (_slug(estrella), fov, maglimit))
+        d = leer_json(ruta, None)
+        fuente = (d or {}).get("_fuente", "")
+        if not d or time.time() - d.get("_guardado", 0) > 7 * 86400:
+            pars = {"format": "json", "fov": fov, "maglimit": maglimit}
+            if estrella:
+                pars["star"] = estrella
+            else:
+                pars.update(ra="%.5f" % ra, dec="%.5f" % dec)
+            errores = []
+            d = None
+            for url in VSP_URLS:
+                try:
+                    d = _get_json(url + "?" + urllib.parse.urlencode(pars))
+                    fuente = url
+                    break
+                except Exception as e:
+                    errores.append(str(e))
+            if d is None:
+                raise RuntimeError("No he podido consultar la secuencia de la AAVSO (¿hay conexión a Internet?). " + " · ".join(errores))
+            d["_guardado"], d["_fuente"] = time.time(), fuente
+            escribir_json(ruta, d)
+    comps = []
+    for p in d.get("photometry") or []:
+        mags = {}
+        for b in p.get("bands") or []:
+            m = num(b.get("mag"))
+            if m is not None and b.get("band"):
+                mags[str(b["band"]).strip()] = [m, num(b.get("error")) or 0.0]
+        ra_c, dec_c = _coord(p.get("ra"), True), _coord(p.get("dec"), False)
+        if ra_c is None or dec_c is None or not mags:
+            continue
+        comps.append({"auid": p.get("auid") or "", "label": str(p.get("label") or p.get("auid") or ""), "ra": ra_c, "dec": dec_c,
+                      "mags": mags, "comentario": p.get("comments") or ""})
+    return {"chartid": d.get("chartid") or "", "estrella": d.get("star") or estrella, "auid": d.get("auid") or "",
+            "ra": _coord(d.get("ra"), True), "dec": _coord(d.get("dec"), False), "fov": fov, "maglimit": maglimit,
+            "comps": comps, "fuente": fuente}
+
+
+def banda_aavso(filtro, color):
+    """Código de filtro de la AAVSO que corresponde al filtro de la toma (se puede cambiar en la página)."""
+    t = str(filtro or "").strip().lower()
+    if color:
+        return "TG"
+    if re.match(r"^(v|jv|johnson[ _-]?v|bessell?[ _-]?v|v[ _-]?(johnson|bessell?|photometric))$", t):
+        return "V"
+    if re.match(r"^(jb|johnson[ _-]?b|bessell?[ _-]?b|b[ _-]?(johnson|bessell?|photometric))$", t):
+        return "B"
+    if re.match(r"^(rc|jr|cousins[ _-]?r|bessell?[ _-]?r|r[ _-]?(cousins|bessell?|photometric))$", t):
+        return "R"
+    if re.match(r"^(i|ic|cousins[ _-]?i|bessell?[ _-]?i)$", t):
+        return "I"
+    f = nfiltro(filtro)
+    return {"G": "TG", "B": "TB", "R": "TR", "L": "CV", "SIN_FILTRO": "CV"}.get(f, "CV")
+
+
+def _picos(img, x0, y0, radio, n=4):
+    """Hasta n estrellas (máximos locales claros) a menos de «radio» píxeles de (x0, y0): [(x, y, altura)]."""
+    xa, ya = int(x0 - radio), int(y0 - radio)
+    filas = img.recorte(xa, ya, int(x0 + radio + 1), int(y0 + radio + 1))
+    if len(filas) < 5:
+        return []
+    xa, ya = max(0, xa), max(0, ya)
+    vals = [v for f in filas[::3] for v in f[::3]]
+    med, sd, _n = sigma_clip(vals, 3.0, 3)
+    if med is None or not sd:
+        return []
+    umbral = med + 8 * sd
+    out = []
+    h, w = len(filas), len(filas[0])
+    for j in range(1, h - 1):
+        f0, f1, f2 = filas[j - 1], filas[j], filas[j + 1]
+        for i in range(1, w - 1):
+            v = f1[i]
+            if v > umbral and v >= f1[i - 1] and v >= f1[i + 1] and v >= f0[i] and v >= f2[i] and v > f0[i - 1] and v > f2[i + 1]:
+                out.append((xa + i, ya + j, v - med))
+    out.sort(key=lambda t: -t[2])
+    return out[:n]
+
+
+def desplazamiento(img, wcs, estrellas, fw, previo=(0.0, 0.0), radio=None):
+    """Cuánto se ha movido el campo (dx, dy en píxeles) respecto a la toma de referencia, votando con las estrellas
+    conocidas: cada una propone los desplazamientos de las estrellas que ve cerca y gana el que más se repite."""
+    radio = radio or max(12.0, 4 * fw)
+    votos = []
+    for ra, dec in estrellas:
+        p = wcs.cielo_a_pix(ra, dec)
+        if not p:
+            continue
+        x, y = p[0] + previo[0], p[1] + previo[1]
+        if not (radio < x < img.w - radio and radio < y < img.h - radio):
+            continue
+        for xp, yp, _a in _picos(img, x, y, radio, 3):
+            votos.append((xp - p[0], yp - p[1]))
+    if len(votos) < 3:
+        return None
+    tol = max(2.0, 1.2 * fw)
+    mejor = max(votos, key=lambda v: sum(1 for u in votos if abs(u[0] - v[0]) <= tol and abs(u[1] - v[1]) <= tol))
+    grupo = [u for u in votos if abs(u[0] - mejor[0]) <= tol and abs(u[1] - mejor[1]) <= tol]
+    n_est = sum(1 for ra, dec in estrellas if wcs.cielo_a_pix(ra, dec))
+    if len(grupo) < max(3, 0.4 * min(n_est, 12)):
+        return None
+    xs, ys = sorted(u[0] for u in grupo), sorted(u[1] for u in grupo)
+    return xs[len(xs) // 2], ys[len(ys) // 2]
+
+
+def _wcs_desplazada(wcs, dx, dy):
+    import copy
+    w2 = copy.copy(wcs)
+    w2.crpix = (wcs.crpix[0] + dx, wcs.crpix[1] + dy)
+    return w2
+
+
+def _resolver_con_siril(siril, ver, W, ruta, h, pista):
+    """Resuelve una imagen con Siril y devuelve su WCS."""
+    enlace(ruta, os.path.join(W, "r" + os.path.splitext(ruta)[1].lower()))
+    ps = ["platesolve"]
+    c = coords_cabecera(h) or pista.get("coords")
+    if c:
+        ps.append("%.5f,%.5f" % tuple(c))
+    focal, pix = num(h.get("FOCALLEN")), num(h.get("XPIXSZ"))
+    esc = num(pista.get("escala"))
+    if (not focal or focal < 10) and esc:
+        pix = pix if pix and pix > 0.5 else 3.76
+        focal = 206.265 * pix / esc
+    if focal and focal > 10:
+        ps.append("-focal=%.1f" % focal)
+    if pix and pix > 0.5:
+        ps.append("-pixelsize=%.2f" % pix)
+    ps.append("-noflip")
+    if int(num(h.get("NAXIS1")) or 0) * int(num(h.get("NAXIS2")) or 0) > 30e6:
+        ps.append("-downscale")
+    L = ["requires 1.2.0", "set32bits", "setext fit", "cd %s" % q(W), "load r" + os.path.splitext(ruta)[1].lower(), " ".join(ps), "save rs"]
+    correr_siril(siril, L, "resolver", W)
+    hs = cabecera_de(os.path.join(W, "rs.fit"))
+    if not _ya_resuelta(hs):
+        raise RuntimeError("Siril no ha podido resolver la imagen (¿coordenadas, focal o tamaño de píxel de la cabecera?)")
+    return WCS(hs), L
+
+
+def trabajo_variable(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "var-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        ids = [i for i in (p.get("ids") or []) if i]
+        JOB["texto"], JOB["archivo"] = "Buscando la calibración de las tomas", ""
+        try:
+            datos = api_lights("/api/ciencia/tomas", {"ids": ids}).get("tomas", [])
+        except Exception as e:
+            raise RuntimeError("no he podido preguntar al Control de lights por las tomas (%s)" % e)
+        tomas = []
+        for d in datos:
+            if not d.get("ruta") or not os.path.isfile(d["ruta"]):
+                JOB["errores"].append({"nombre": os.path.basename(d.get("ruta") or d.get("id", "")), "error": "no encuentro el archivo de la toma (¿está conectado el disco?)"})
+                continue
+            h = cabecera_de(d["ruta"])
+            fecha, exp = instante_medio(h)
+            if not fecha:
+                JOB["errores"].append({"nombre": os.path.basename(d["ruta"]), "error": "la toma no dice a qué hora se hizo (DATE-OBS)"})
+                continue
+            tomas.append((fecha, d, h, exp))
+        tomas.sort(key=lambda t: t[0])
+        if len(tomas) < 2:
+            raise RuntimeError("hacen falta al menos dos tomas con fecha para una curva de luz")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[0]
+        # la secuencia de comparación, con un campo algo mayor que el de la toma
+        escala = num(d0.get("escala")) or 1.0
+        lado = max(int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)) * escala / 60.0
+        estrella = (p.get("estrella") or d0.get("objeto") or "").strip()
+        JOB["texto"], JOB["archivo"] = "Consultando la secuencia de la AAVSO", estrella
+        vsx = vsx_objeto(estrella) if estrella else None
+        carta = vsp_carta(vsx["nombre"] if vsx else estrella, min(lado * 1.1, 600), float(p.get("maglimit") or 16.0))
+        ra_v = carta["ra"] if carta["ra"] is not None else (vsx or {}).get("ra")
+        dec_v = carta["dec"] if carta["dec"] is not None else (vsx or {}).get("dec")
+        if ra_v is None:
+            raise RuntimeError("no encuentro la estrella «%s» en la AAVSO: escribe su nombre como en el VSX (por ejemplo, SS Cyg)" % estrella)
+        if not carta["comps"]:
+            raise RuntimeError("la AAVSO no tiene estrellas de comparación para «%s» en este campo" % estrella)
+        banda = p.get("banda") or banda_aavso(h0.get("FILTER") or d0.get("filtro"), bool(h0.get("BAYERPAT")) or d0.get("bayer"))
+        bcat = BANDA_CATALOGO.get(banda, "V")
+        estrellas = [{"id": "VAR", "label": carta["estrella"] or estrella, "auid": carta["auid"] or (vsx or {}).get("auid", ""),
+                      "ra": ra_v, "dec": dec_v, "mags": {}}] + \
+                    [dict(c, id=c["auid"] or c["label"]) for c in carta["comps"] if bcat in c["mags"]]
+        if len(estrellas) < 3:
+            raise RuntimeError("la secuencia de la AAVSO no tiene magnitudes en %s para este campo" % bcat)
+        alineacion = [(e["ra"], e["dec"]) for e in estrellas]
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        registros = []
+        ref = None
+        previo = (0.0, 0.0)
+        hechos = {}
+        tanda = 6
+        for k0 in range(0, len(tomas), tanda):
+            if JOB["cancelar"]:
+                raise Cancelado()
+            W = os.path.join(base, "%04d" % k0)
+            os.makedirs(W, exist_ok=True)
+            grupo = tomas[k0:k0 + tanda]
+            L = ["requires 1.2.0", "set32bits", "setext fit", "cd %s" % q(W)]
+            rutas = []
+            for j, (fecha, d, h, exp) in enumerate(grupo):
+                ext = os.path.splitext(d["ruta"])[1].lower()
+                enlace(d["ruta"], os.path.join(W, "t%03d%s" % (j, ext)))
+                cfa = (bool(h.get("BAYERPAT")) or d.get("bayer")) and int(num(h.get("NAXIS3")) or 1) < 3
+                ops = []
+                dark = master_de(siril, d.get("dark"), W, hechos) if siril else None
+                bias = None if dark else (master_de(siril, d.get("bias"), W, hechos) if siril else None)
+                flat_s = d.get("flat")
+                if flat_s and not flat_s.get("master"):
+                    flat_s = dict(flat_s, _cflat=d.get("cflat"))
+                flat = master_de(siril, flat_s, W, hechos) if siril else None
+                for etq, rr in (("dark", dark), ("bias", bias), ("flat", flat)):
+                    if rr:
+                        ops.append(qo("-%s=" % etq, rr))
+                if dark:
+                    ops.append("-cc=dark")
+                if cfa:
+                    ops += ["-cfa", "-equalize_cfa", "-debayer"]
+                if ops:
+                    L.append("calibrate_single t%03d%s %s" % (j, ext, " ".join(ops)))
+                    rutas.append(os.path.join(W, "pp_t%03d.fit" % j))
+                else:
+                    rutas.append(d["ruta"] if ext in EXT_FITS else None)
+            if len(L) > 4:
+                if not siril:
+                    raise RuntimeError("hace falta Siril para calibrar las tomas")
+                JOB["texto"], JOB["archivo"] = "Calibrando", "%d–%d / %d" % (k0 + 1, k0 + len(grupo), len(tomas))
+                correr_siril(siril, L, "calibrar", W)
+            for j, (fecha, d, h, exp) in enumerate(grupo):
+                JOB["hechos"] = k0 + j
+                ruta = rutas[j]
+                nombre = os.path.basename(d["ruta"])
+                if not ruta or not os.path.isfile(ruta):
+                    JOB["errores"].append({"nombre": nombre, "error": "para medir tomas XISF sin calibrar hace falta pasarlas a FITS"})
+                    continue
+                JOB["texto"], JOB["archivo"] = "Midiendo", nombre
+                try:
+                    img = Imagen(ruta)
+                except Exception as e:
+                    JOB["errores"].append({"nombre": nombre, "error": str(e)})
+                    continue
+                try:
+                    wcs = None
+                    fw = registros[-1]["fwhm"] if registros else min(20.0, max(1.5, 3.0 / escala))
+                    if ref is not None:
+                        dd = desplazamiento(img, ref, alineacion, fw, previo) or desplazamiento(img, ref, alineacion, fw, previo, radio=max(60.0, 12 * fw))
+                        if dd:
+                            wcs, previo = _wcs_desplazada(ref, *dd), dd
+                    if wcs is None:
+                        hs = cabecera_de(ruta)
+                        if _ya_resuelta(hs):
+                            wcs = WCS(hs)
+                        elif _ya_resuelta(h) and str(h.get("ROWORDER", "")).strip().upper() != "TOP-DOWN":
+                            wcs = WCS(h)
+                        else:
+                            if not siril:
+                                raise RuntimeError("hace falta Siril para resolver la imagen")
+                            JOB["texto"] = "Resolviendo"
+                            wcs, _L = _resolver_con_siril(siril, ver, W, ruta, h, d)
+                            JOB["texto"] = "Midiendo"
+                        ref, previo = wcs, (0.0, 0.0)
+                    # tamaño de las estrellas con las de la secuencia
+                    fws = []
+                    for e in estrellas[1:]:
+                        pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+                        if pp and 20 < pp[0] < img.w - 20 and 20 < pp[1] < img.h - 20:
+                            v = fwhm_hfr(img, pp[0], pp[1], 3.0 * fw)
+                            if v and 0.8 < v < 40:
+                                fws.append(v)
+                    if len(fws) >= 3:
+                        fw = sigma_clip(fws, 2.5, 3)[0]
+                    r_ap = max(2.5, 1.6 * fw)
+                    rin = max(r_ap + 3.0, 3.0 * fw)
+                    rout = max(rin + 5.0, 5.0 * fw)
+                    medidas = {}
+                    for e in estrellas:
+                        pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+                        if not pp:
+                            continue
+                        m = medir_estrella(img, pp[0], pp[1], r_ap, rin, rout, centrar=True)
+                        if m:
+                            medidas[e["id"]] = [round(m["flujo"], 6), round(m["sd"], 8), round(m["n_ap"], 2), m["n_an"], round(m["pico"], 6),
+                                                round(m["x"], 2), round(m["y"], 2), round(m["fondo"], 6)]
+                    t = tiempos(fecha, ra_v, dec_v)
+                    alt = altura(ra_v, dec_v, t["jd_utc"], lg["lat"], lg["lon"]) if lg and lg.get("lat") is not None else None
+                    registros.append({"archivo": nombre, "id_toma": d.get("id"), "fecha": fecha.strftime("%Y-%m-%dT%H:%M:%S.%f")[:23],
+                                      "jd": round(t["jd_utc"], 6), "hjd": round(t.get("hjd_utc", t["jd_utc"]), 6), "bjd_tdb": round(t.get("bjd_tdb", 0), 6),
+                                      "exp": exp, "fwhm": round(fw, 2), "apertura": [round(r_ap, 2), round(rin, 2), round(rout, 2)],
+                                      "masa_aire": round(masa_de_aire(alt), 3) if alt and alt > 0 else None, "altura": round(alt, 1) if alt is not None else None,
+                                      "gain": num(h.get("EGAIN")), "bits": int(num(h.get("BITPIX")) or 16), "flotante": img.bitpix < 0,
+                                      "calibrada": ruta != d["ruta"], "estrellas": medidas})
+                except Cancelado:
+                    raise
+                except Exception as e:
+                    JOB["errores"].append({"nombre": nombre, "error": str(e)})
+                finally:
+                    img.cerrar()
+            shutil.rmtree(W, ignore_errors=True)
+        if len(registros) < 2:
+            raise RuntimeError("no he podido medir bastantes tomas")
+        JOB["hechos"] = len(tomas)
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG,
+                 "estrella": carta["estrella"] or estrella, "vsx": vsx, "chartid": carta["chartid"], "auid": estrellas[0]["auid"],
+                 "ra": ra_v, "dec": dec_v, "banda": banda, "banda_catalogo": bcat, "carta": {k: carta[k] for k in ("fov", "maglimit", "fuente")},
+                 "estrellas": estrellas, "tomas": registros, "objeto": d0.get("objeto") or "", "filtro": d0.get("filtro") or "",
+                 "cam": d0.get("cam") or "", "tel": d0.get("tel") or "", "noche": d0.get("noche") or "",
+                 "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon")},
+                 "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
+                 "siril": ver}
+        d = os.path.join(VARIABLES_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        calc = calcular_variable(serie, {"agrupar": int(p.get("agrupar") or 1)})
+        guardar_calculo(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_variable(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="variable", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    guardar_config_ciencia(obscode=(p.get("obscode") or "").strip().upper() or None, obstype=p.get("obstype") or None)
+    threading.Thread(target=trabajo_variable, args=(p,), daemon=True).start()
+
+
+def _mag(f):
+    return -2.5 * math.log10(f) if f and f > 0 else None
+
+
+def calcular_variable(serie, sel):
+    """Magnitudes de la variable (y de la estrella de control) en cada toma, con el conjunto de comparación elegido
+    (o uno automático), y el archivo en formato AAVSO Extended."""
+    bcat = serie["banda_catalogo"]
+    est = {e["id"]: e for e in serie["estrellas"]}
+    comps_ids = [e["id"] for e in serie["estrellas"][1:]]
+    tomas = serie["tomas"]
+    sat = 1.0 if all(t.get("flotante") for t in tomas) else (65535.0 if all(t.get("bits") == 16 for t in tomas) else None)
+    no_lineal = 0.85 * sat if sat else None
+
+    def g_nat(t):
+        g = num(t.get("gain"))
+        if not g or not (0.01 < g < 50):
+            return None
+        return g * (65535.0 if t.get("flotante") and t.get("bits") == 16 else 1.0)
+
+    def inst(t, sid):
+        m = t["estrellas"].get(sid)
+        if not m or m[0] <= 0:
+            return None
+        f, sd, nap, nan_, pico = m[0], m[1], m[2], m[3], m[4]
+        g = g_nat(t)
+        var = nap * sd * sd * (1 + nap / max(nan_, 1)) + (f / g if g else 0.0)
+        return {"m": -2.5 * math.log10(f), "e": 1.0857 * math.sqrt(var) / f if var > 0 else 0.0, "sat": bool(no_lineal and pico > no_lineal), "snr": f / math.sqrt(var) if var > 0 else 0}
+
+    # estadística de cada estrella de comparación a lo largo de la serie
+    tabla = []
+    for cid in comps_ids:
+        vals = [inst(t, cid) for t in tomas]
+        ok = [v for v in vals if v and not v["sat"]]
+        e = est[cid]
+        tabla.append({"id": cid, "label": e["label"], "auid": e["auid"], "mag": e["mags"][bcat][0], "err_cat": e["mags"][bcat][1],
+                      "bv": (e["mags"]["B"][0] - e["mags"]["V"][0]) if "B" in e["mags"] and "V" in e["mags"] else None,
+                      "presente": len(ok) / max(1, len(tomas)), "saturada": sum(1 for v in vals if v and v["sat"]) / max(1, len(tomas)),
+                      "snr": sorted(v["snr"] for v in ok)[len(ok) // 2] if ok else 0.0})
+    # brillo aproximado de la variable, con todas las estrellas útiles
+    utiles = [c for c in tabla if c["presente"] >= 0.8 and c["saturada"] < 0.1 and c["snr"] >= 30]
+    aprox = []
+    for t in tomas:
+        mv = inst(t, "VAR")
+        if not mv:
+            continue
+        o = [c["mag"] - inst(t, c["id"])["m"] for c in utiles if inst(t, c["id"]) and not inst(t, c["id"])["sat"]]
+        if o:
+            aprox.append(mv["m"] + sorted(o)[len(o) // 2])
+    m_var = sorted(aprox)[len(aprox) // 2] if aprox else None
+    elegidas = [c for c in (sel.get("comps") or []) if c in est]
+    if not elegidas:
+        cand = sorted(utiles, key=lambda c: abs(c["mag"] - m_var) if m_var is not None else 0)
+        elegidas = [c["id"] for c in cand[:6]]
+    check = sel.get("check") if sel.get("check") in est else None
+    if not check:
+        resto = [c for c in sorted(utiles, key=lambda c: abs(c["mag"] - m_var) if m_var is not None else 0) if c["id"] not in elegidas]
+        check = resto[0]["id"] if resto else None
+        if not check and len(elegidas) > 2:
+            check = elegidas.pop()
+    if not elegidas:
+        raise RuntimeError("no hay estrellas de comparación útiles (no saturadas y medidas en casi todas las tomas)")
+    modo = "ensemble" if len(elegidas) > 1 else "single"
+    puntos = []
+    for t in tomas:
+        mv = inst(t, "VAR")
+        if not mv:
+            continue
+        offs = []
+        for cid in elegidas:
+            c = inst(t, cid)
+            if c and not c["sat"]:
+                ec = est[cid]["mags"][bcat][1] or 0.02
+                offs.append((est[cid]["mags"][bcat][0] - c["m"], 1.0 / (c["e"] ** 2 + ec ** 2 + 1e-6), c["m"]))
+        if not offs:
+            continue
+        sw = sum(w for _o, w, _m in offs)
+        zp = sum(o * w for o, w, _m in offs) / sw
+        s_ens = (sum((o - zp) ** 2 for o, _w, _m in offs) / (len(offs) - 1)) ** 0.5 if len(offs) > 1 else 0.0
+        err = math.sqrt(mv["e"] ** 2 + 1.0 / sw + (s_ens ** 2 / len(offs) if len(offs) > 1 else 0.0))
+        kk = inst(t, check) if check else None
+        avisos = []
+        if mv["sat"]:
+            avisos.append("variable saturada")
+        if mv["snr"] < 10:
+            avisos.append("señal baja")
+        puntos.append({"jd": t["jd"], "hjd": t["hjd"], "mag": round(mv["m"] + zp, 4), "err": round(err, 4), "n": len(offs),
+                       "check": round(kk["m"] + zp, 4) if kk else None, "check_inst": round(kk["m"], 4) if kk else None,
+                       "comp_inst": round(offs[0][2], 4) if modo == "single" else None, "var_inst": round(mv["m"], 4),
+                       "masa_aire": t.get("masa_aire"), "archivo": t["archivo"], "avisos": avisos})
+    if not puntos:
+        raise RuntimeError("no hay tomas con la variable y sus comparaciones medidas")
+    n = max(1, int(sel.get("agrupar") or 1))
+    if n > 1:
+        grupos = [puntos[i:i + n] for i in range(0, len(puntos), n)]
+        nuevos = []
+        for g in grupos:
+            w = [1.0 / max(p["err"], 0.001) ** 2 for p in g]
+            sw = sum(w)
+            mag = sum(p["mag"] * wi for p, wi in zip(g, w)) / sw
+            disp = (sum((p["mag"] - mag) ** 2 for p in g) / (len(g) - 1)) ** 0.5 if len(g) > 1 else 0.0
+            ck = [p["check"] for p in g if p["check"] is not None]
+            nuevos.append({"jd": sum(p["jd"] for p in g) / len(g), "hjd": sum(p["hjd"] for p in g) / len(g), "mag": round(mag, 4),
+                           "err": round(max(math.sqrt(1.0 / sw), disp / math.sqrt(len(g))), 4), "n": g[0]["n"],
+                           "check": round(sum(ck) / len(ck), 4) if ck else None,
+                           "check_inst": round(sum(p["check_inst"] for p in g if p["check_inst"] is not None) / max(1, len(ck)), 4) if ck else None,
+                           "comp_inst": round(sum(p["comp_inst"] for p in g) / len(g), 4) if modo == "single" else None,
+                           "var_inst": round(sum(p["var_inst"] for p in g) / len(g), 4),
+                           "masa_aire": round(sum(p["masa_aire"] for p in g if p["masa_aire"]) / max(1, sum(1 for p in g if p["masa_aire"])), 3) if any(p["masa_aire"] for p in g) else None,
+                           "archivo": "%s … (%d)" % (g[0]["archivo"], len(g)), "avisos": sorted({a for p in g for a in p["avisos"]})})
+        puntos = nuevos
+    ck = [p["check"] for p in puntos if p["check"] is not None]
+    k_cat = est[check]["mags"][bcat][0] if check else None
+    res = {"comps": elegidas, "check": check, "modo": modo, "agrupar": n, "puntos": puntos, "tabla": tabla,
+           "magnitud": round(sorted(p["mag"] for p in puntos)[len(puntos) // 2], 3),
+           "amplitud": round(max(p["mag"] for p in puntos) - min(p["mag"] for p in puntos), 3),
+           "error_medio": round(sum(p["err"] for p in puntos) / len(puntos), 4),
+           "check_catalogo": k_cat, "check_media": round(sum(ck) / len(ck), 4) if ck else None,
+           "check_disp": round((sum((c - sum(ck) / len(ck)) ** 2 for c in ck) / max(1, len(ck) - 1)) ** 0.5, 4) if len(ck) > 1 else None}
+    res["check_dif"] = round(res["check_media"] - k_cat, 4) if ck and k_cat is not None else None
+    res["aavso"] = archivo_aavso(serie, res)
+    return res
+
+
+def archivo_aavso(serie, res):
+    """Texto en formato AAVSO Extended, listo para WebObs."""
+    cfg = config_ciencia()
+    est = {e["id"]: e for e in serie["estrellas"]}
+    obs = (cfg.get("obscode") or "XXX").upper()
+    nombre = (serie.get("vsx") or {}).get("nombre") or serie["estrella"]
+    app = os.environ.get("ASTRO_VERSION_APP") or ""
+    lineas = ["#TYPE=EXTENDED", "#OBSCODE=%s" % obs, ("#SOFTWARE=ASTRO %s (Ciencia %s)" % (app, VERSION_PROG)).replace("  ", " "),
+              "#DELIM=,", "#DATE=JD", "#OBSTYPE=%s" % (cfg.get("obstype") or "CCD"),
+              "#NAME,DATE,MAG,MERR,FILT,TRANS,MTYPE,CNAME,CMAG,KNAME,KMAG,AMASS,GROUP,CHART,NOTES"]
+    k = est.get(res["check"]) if res.get("check") else None
+    if res["modo"] == "ensemble":
+        cname = "ENSEMBLE"
+        notas = ("ENSEMBLE " + " ".join(est[c]["auid"] or est[c]["label"] for c in res["comps"]))[:100]
+    else:
+        c = est[res["comps"][0]]
+        cname = c["auid"] or c["label"]
+        notas = "na"
+    limpio = lambda t: re.sub(r"[,\n\r]", " ", str(t)).strip() or "na"
+    for p in res["puntos"]:
+        if res["modo"] == "ensemble":
+            cmag, kmag = "na", ("%.3f" % p["check"]) if p["check"] is not None else "na"
+        else:
+            cmag = "%.3f" % p["comp_inst"] if p["comp_inst"] is not None else "na"
+            kmag = "%.3f" % p["check_inst"] if p["check_inst"] is not None else "na"
+        lineas.append(",".join([limpio(nombre), "%.5f" % p["jd"], "%.3f" % p["mag"], "%.3f" % p["err"], serie["banda"], "NO", "STD",
+                                limpio(cname), cmag, limpio((k["auid"] or k["label"]) if k else "na"), kmag,
+                                "%.3f" % p["masa_aire"] if p.get("masa_aire") else "na", "na", limpio(serie.get("chartid") or "na"), limpio(notas)]))
+    return "\n".join(lineas) + "\n"
+
+
+def series_variables():
+    out = []
+    if not os.path.isdir(VARIABLES_DIR):
+        return out
+    for n in sorted(os.listdir(VARIABLES_DIR), reverse=True):
+        s = leer_json(os.path.join(VARIABLES_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(VARIABLES_DIR, n, "calculo.json"), None)
+        if not s:
+            continue
+        out.append({"id": s["id"], "estrella": s["estrella"], "noche": s.get("noche"), "banda": s["banda"], "tomas": len(s["tomas"]),
+                    "inicio": s["tomas"][0]["fecha"], "fin": s["tomas"][-1]["fecha"], "chartid": s.get("chartid"),
+                    "magnitud": (c or {}).get("magnitud"), "amplitud": (c or {}).get("amplitud"), "error_medio": (c or {}).get("error_medio"),
+                    "check_dif": (c or {}).get("check_dif"), "check_disp": (c or {}).get("check_disp"), "lugar": (s.get("lugar") or {}).get("nombre", "")})
+    return out
+
+
+def serie_variable(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return (leer_json(os.path.join(VARIABLES_DIR, sid, "serie.json"), None), leer_json(os.path.join(VARIABLES_DIR, sid, "calculo.json"), None))
+
+
+def guardar_calculo(serie, calc):
+    d = os.path.join(VARIABLES_DIR, serie["id"])
+    escribir_json(os.path.join(d, "calculo.json"), calc)
+    with open(os.path.join(d, "aavso.txt"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(calc["aavso"])
+    with open(os.path.join(d, "curva.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["jd_utc", "hjd_utc", "mag", "err", "check", "masa_aire", "n_comp", "archivo", "avisos"])
+        for p in calc["puntos"]:
+            w.writerow([p["jd"], p["hjd"], p["mag"], p["err"], p["check"], p["masa_aire"], p["n"], p["archivo"], "; ".join(p["avisos"])])
+
+
+def recalcular_variable(sid, sel):
+    serie, _c = serie_variable(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la serie")
+    calc = calcular_variable(serie, sel)
+    guardar_calculo(serie, calc)
+    return calc
+
+
+def borrar_serie(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("serie no válida")
+    shutil.rmtree(os.path.join(VARIABLES_DIR, sid), ignore_errors=True)
+
+
+LEEME_VAR_ES = """CURVA DE LUZ DE {estrella} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  aavso.txt     El informe en formato AAVSO Extended, listo para subir en WebObs (https://www.aavso.org/webobs/file).
+  curva.csv     La curva de luz: fecha juliana, magnitud, error, estrella de control, masa de aire y archivo de cada punto.
+  serie.json    Todas las medidas: cada toma con los flujos de la variable y de cada estrella de la secuencia de la AAVSO,
+                su fondo, la apertura, la hora (JD, HJD y BJD_TDB) y la masa de aire.
+  calculo.json  Las estrellas de comparación y de control elegidas y los resultados.
+
+Método
+  Tomas calibradas con los masters de la biblioteca de ASTRO. La primera toma se resuelve con Siril; en las demás se
+  mide cuánto se ha movido el campo con las estrellas de la secuencia. Fotometría de apertura (radio 1,6 FWHM, fondo en
+  un anillo de 3 a 5 FWHM). La magnitud sale de la media ponderada de las estrellas de comparación (conjunto) o de una
+  sola; el error combina el ruido de la variable, el de las comparaciones y su dispersión. Carta VSP: {chart}.
+  Sin transformar al sistema estándar (TRANS=NO).
+"""
+LEEME_VAR_EN = """LIGHT CURVE OF {estrella} · ASTRO (Science section)
+
+What this package contains
+  aavso.txt     The report in AAVSO Extended format, ready to upload in WebObs (https://www.aavso.org/webobs/file).
+  curva.csv     The light curve: Julian date, magnitude, error, check star, airmass and file of each point.
+  serie.json    All measurements: each frame with the fluxes of the variable and of every star of the AAVSO sequence,
+                background, aperture, time (JD, HJD and BJD_TDB) and airmass.
+  calculo.json  The comparison and check stars chosen and the results.
+
+Method
+  Frames calibrated with the masters of ASTRO's library. The first frame is plate-solved with Siril; for the others the
+  field shift is measured with the sequence stars. Aperture photometry (radius 1.6 FWHM, background in a 3–5 FWHM
+  annulus). The magnitude comes from the weighted mean of the comparison stars (ensemble) or from a single one; the error
+  combines the noise of the variable, that of the comparisons and their scatter. VSP chart: {chart}.
+  Not transformed to the standard system (TRANS=NO).
+"""
+
+
+def zip_serie(sid, en=False):
+    serie, calc = serie_variable(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la serie")
+    d = os.path.join(VARIABLES_DIR, sid)
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt" if en else "LEEME.txt", (LEEME_VAR_EN if en else LEEME_VAR_ES).format(estrella=serie["estrella"], chart=serie.get("chartid") or "?"))
+        for n in ("aavso.txt", "curva.csv", "serie.json", "calculo.json"):
+            if os.path.isfile(os.path.join(d, n)):
+                with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                    z.writestr(n, sin_rutas(f.read()))
+    return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", serie["estrella"]), (serie.get("noche") or serie["creada"][:10]))
+
 
 
 # ═════════════════════════════ AUTOPRUEBA (para la fábrica) ═════════════════════════════
@@ -2185,8 +2859,30 @@ class H(BaseHTTPRequestHandler):
                 return self._json(sesiones_de_astro())
             if p.path == "/api/apilados":
                 return self._json(apilados())
-            if p.path == "/api/cielo/estado":
+            if p.path in ("/api/cielo/estado", "/api/trabajo/estado"):
                 return self._json(estado_publico())
+            if p.path == "/api/variables/series":
+                return self._json(series_variables())
+            if p.path == "/api/variables/config":
+                c = config_ciencia()
+                return self._json({"obscode": c.get("obscode") or "", "obstype": c.get("obstype") or "CCD"})
+            if p.path == "/api/variables/serie":
+                serie, calc = serie_variable((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                resumen = {k: v for k, v in serie.items() if k != "tomas"}
+                resumen["n_tomas"] = len(serie["tomas"])
+                resumen["tomas"] = [{k: t.get(k) for k in ("archivo", "fecha", "jd", "fwhm", "masa_aire", "altura")} for t in serie["tomas"]]
+                return self._json({"serie": resumen, "calculo": calc})
+            if p.path == "/api/variables/aavso":
+                serie, calc = serie_variable((qs.get("id") or [""])[0])
+                if not calc:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                nombre = "AAVSO-%s-%s.txt" % (re.sub(r"[^\w.-]+", "_", serie["estrella"]), serie.get("noche") or serie["creada"][:10])
+                return self._send(200, calc["aavso"], "text/plain; charset=utf-8", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/variables/zip":
+                datos, nombre = zip_serie((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
             if p.path == "/api/cielo/medidas":
                 return self._json(medidas())
             if p.path == "/api/cielo/medida":
@@ -2228,7 +2924,23 @@ class H(BaseHTTPRequestHandler):
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
                 return self._json({"ok": True})
-            if p.path == "/api/cielo/cancelar":
+            if p.path == "/api/variables/medir":
+                try:
+                    iniciar_variable(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/variables/recalcular":
+                try:
+                    if "obscode" in d or "obstype" in d:
+                        guardar_config_ciencia(obscode=(d.get("obscode") or "").strip().upper() or None, obstype=d.get("obstype") or None)
+                    return self._json(recalcular_variable(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/variables/borrar":
+                borrar_serie(d.get("id"))
+                return self._json({"ok": True})
+            if p.path in ("/api/cielo/cancelar", "/api/trabajo/cancelar"):
                 cancelar()
                 return self._json({"ok": True})
             if p.path == "/api/cielo/borrar":
@@ -2241,7 +2953,8 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                ruta = os.path.join(CIELO_DIR, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
+                base = VARIABLES_DIR if d.get("tipo") == "variable" else CIELO_DIR
+                ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
             self._send(404, "no encontrado", "text/plain; charset=utf-8")
@@ -2463,6 +3176,95 @@ DIC_EN = {
     "en un apilado normalizado no se puede medir el brillo del cielo: mídelo en las tomas sueltas": "the sky brightness can't be measured on a normalised stack: measure it on single frames",
     "~Siril no ha podido resolver la imagen: no ha podido descargar el catálogo de estrellas (¿hay conexión a Internet? También puedes instalar en Siril el catálogo local de Gaia)": "Siril could not plate-solve the image: it could not download the star catalogue (is there an Internet connection? You can also install Gaia's local catalogue in Siril)",
     "~Siril no ha podido resolver la imagen": "Siril could not plate-solve the image",
+    "Medir una estrella variable": "Measure a variable star",
+    "Elige la sesión con las tomas de la variable. ASTRO descarga de la AAVSO la secuencia oficial de estrellas de comparación, calibra y mide cada toma, dibuja la curva de luz y prepara el informe para WebObs.": "Choose the session with the frames of the variable. ASTRO downloads the official comparison-star sequence from the AAVSO, calibrates and measures each frame, draws the light curve and prepares the report for WebObs.",
+    "Estrella": "Star",
+    "p. ej. SS Cyg": "e.g. SS Cyg",
+    "Filtro AAVSO": "AAVSO filter",
+    "Agrupar": "Average",
+    "cada toma, un punto": "one point per frame",
+    "de # en #": "groups of #",
+    "cada toma": "each frame",
+    "Tu código de observador AAVSO": "Your AAVSO observer code",
+    "Tipo": "Type",
+    "CCD (cámaras CCD y CMOS)": "CCD (CCD and CMOS cameras)",
+    "DSLR (réflex y sin espejo)": "DSLR (DSLR and mirrorless)",
+    "Medir la serie": "Measure the series",
+    "El código de observador te lo da la AAVSO al registrarte (es gratis). Hace falta conexión a Internet para la secuencia de comparación, y Siril para calibrar y resolver.": "The AAVSO gives you an observer code when you sign up (it is free). An Internet connection is needed for the comparison sequence, and Siril to calibrate and plate-solve.",
+    "Tus curvas de luz": "Your light curves",
+    "V (Johnson, fotométrico)": "V (Johnson, photometric)",
+    "B (Johnson, fotométrico)": "B (Johnson, photometric)",
+    "R (Cousins, fotométrico)": "R (Cousins, photometric)",
+    "I (Cousins, fotométrico)": "I (Cousins, photometric)",
+    "TG: verde de imagen o canal verde de una cámara en color": "TG: imaging green, or the green channel of a colour camera",
+    "TB: azul de imagen": "TB: imaging blue",
+    "TR: rojo de imagen": "TR: imaging red",
+    "CV: sin filtro o luminancia, con el cero en V": "CV: unfiltered or luminance, zero point in V",
+    "CR: sin filtro, con el cero en R": "CR: unfiltered, zero point in R",
+    "No hay sesiones con varias tomas": "No sessions with several frames",
+    "Añade en Control de lights las tomas de una noche de tu estrella variable (todas con el mismo filtro).": "Add in Light frames the frames of one night of your variable star (all with the same filter).",
+    "Elige primero la sesión con las tomas de la variable": "First choose the session with the frames of the variable",
+    "Escribe el nombre de la estrella como en el VSX (por ejemplo, SS Cyg)": "Type the star's name as in the VSX (for example, SS Cyg)",
+    "Todavía no has medido ninguna variable": "You haven't measured any variable yet",
+    "Elige arriba una sesión y pulsa «Medir la serie».": "Choose a session above and press “Measure the series”.",
+    "Magnitud": "Magnitude",
+    "Amplitud": "Amplitude",
+    "Error medio": "Mean error",
+    "Control − catálogo": "Check − catalogue",
+    "carta": "chart",
+    "tomas": "frames",
+    "Magnitud mediana de la noche": "Median magnitude of the night",
+    "Amplitud (del más brillante al más débil)": "Amplitude (brightest to faintest)",
+    "Error medio de cada punto": "Mean error per point",
+    "Estrella de control: diferencia con el catálogo y dispersión": "Check star: difference from the catalogue and scatter",
+    "La estrella de control sale a más de # mag de su catálogo: revisa las comparaciones (¿alguna variable, saturada o con una vecina?) o el filtro elegido.": "The check star is more than # mag away from its catalogue value: review the comparison stars (is one variable, saturated or blended with a neighbour?) or the filter chosen.",
+    "Estrellas de la secuencia de la AAVSO": "Stars of the AAVSO sequence",
+    "Comp.": "Comp.",
+    "Control": "Check",
+    "Etiqueta": "Label",
+    "Medida": "Measured",
+    "saturada": "saturated",
+    "Recalcular": "Recalculate",
+    "Marca las estrellas de comparación (con varias se usa el conjunto, «ENSEMBLE») y elige la de control. Conviene que sean de brillo y color parecidos a la variable y que no estén saturadas.": "Tick the comparison stars (with several, the ensemble “ENSEMBLE” is used) and choose the check star. They should be similar to the variable in brightness and colour, and not saturated.",
+    "Informe para la AAVSO": "Report for the AAVSO",
+    "Código": "Code",
+    "Descargar para WebObs": "Download for WebObs",
+    "Abrir WebObs": "Open WebObs",
+    "En WebObs, entra con tu cuenta y sube el archivo descargado. Van sin transformar (TRANS=NO) y con la carta": "In WebObs, sign in and upload the downloaded file. The data are untransformed (TRANS=NO), with chart",
+    "magnitudes de catálogo en": "catalogue magnitudes in",
+    "Comparación": "Comparison",
+    "conjunto de": "ensemble of",
+    "una estrella": "a single star",
+    "secuencia VSP de la AAVSO": "AAVSO VSP sequence",
+    "Equipo": "Equipment",
+    "Borrar esta serie": "Delete this series",
+    "¿Borrar esta serie?": "Delete this series?",
+    "Marca al menos una estrella de comparación": "Tick at least one comparison star",
+    "La estrella de control no puede estar también entre las de comparación": "The check star can't also be a comparison star",
+    "Recalculado": "Recalculated",
+    "Curva de luz": "Light curve",
+    "hora UTC": "UTC time",
+    "En morado, la variable (con su error); en dorado, la estrella de control desplazada a la altura de la variable: si la dorada sale plana, la noche y las comparaciones son buenas. Arriba, más brillante.": "In purple, the variable (with its error bar); in gold, the check star shifted to the level of the variable: if the gold points come out flat, the night and the comparisons are good. Brighter is up.",
+    "Consultando la secuencia de la AAVSO": "Querying the AAVSO sequence",
+    "Calibrando": "Calibrating",
+    "la toma no dice a qué hora se hizo (DATE-OBS)": "the frame doesn't say when it was taken (DATE-OBS)",
+    "hacen falta al menos dos tomas con fecha para una curva de luz": "at least two dated frames are needed for a light curve",
+    "~No he podido consultar la secuencia de la AAVSO (¿hay conexión a Internet?).": "I couldn't query the AAVSO sequence (is there an Internet connection?).",
+    "~no encuentro la estrella": "I can't find the star",
+    "~en la AAVSO: escribe su nombre como en el VSX (por ejemplo, SS Cyg)": "in the AAVSO: type its name as in the VSX (for example, SS Cyg)",
+    "~la AAVSO no tiene estrellas de comparación para": "the AAVSO has no comparison stars for",
+    "~en este campo": "in this field",
+    "~la secuencia de la AAVSO no tiene magnitudes en": "the AAVSO sequence has no magnitudes in",
+    "~para este campo": "for this field",
+    "hace falta Siril para calibrar las tomas": "Siril is needed to calibrate the frames",
+    "para medir tomas XISF sin calibrar hace falta pasarlas a FITS": "to measure uncalibrated XISF frames they must be converted to FITS",
+    "no he podido medir bastantes tomas": "I couldn't measure enough frames",
+    "no hay estrellas de comparación útiles (no saturadas y medidas en casi todas las tomas)": "there are no usable comparison stars (unsaturated and measured in almost every frame)",
+    "no hay tomas con la variable y sus comparaciones medidas": "there are no frames with the variable and its comparisons measured",
+    "no encuentro la serie": "I can't find the series",
+    "serie no válida": "invalid series",
+    "Promediar varias tomas seguidas reduce el ruido; úsalo solo si la estrella cambia despacio (no en eclipses ni en variaciones rápidas).": "Averaging several consecutive frames reduces the noise; use it only if the star changes slowly (not for eclipses or fast variations).",
+    "Buscar la estrella en el VSX: tipo, periodo y rango": "Look the star up in the VSX: type, period and range",
 }
 
 HTML = r'''<!DOCTYPE html>
@@ -2550,7 +3352,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .bloque .d{color:var(--muted);font-size:13.5px}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--surface2);color:var(--muted);width:max-content}
 .chip.ya{background:var(--ok-bg);color:var(--ok)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
-.dos{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media (max-width:1000px){.dos{grid-template-columns:1fr}}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:16px} .dos > *{min-width:0} @media (max-width:1000px){.dos{grid-template-columns:1fr}}
 .lista{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .lista li::marker{color:var(--accent)}
 .progs{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px} .progs b{white-space:nowrap}
@@ -2567,12 +3369,12 @@ tbody tr:hover{background:var(--accent-soft)} tr.sel{background:var(--accent-sof
 td.num{text-align:right}
 .opciones{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:12px}
 .opciones label{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13.5px}
-.opciones select{padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)}
+.opciones select{padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);max-width:min(340px,58vw)}
 .estadoSiril{display:flex;align-items:center;gap:10px;font-size:13.5px;margin-top:12px;flex-wrap:wrap}
 .punto{width:9px;height:9px;border-radius:50%;background:var(--ok);flex:none} .punto.no{background:var(--bad)}
 .trabajo{display:none;margin-top:14px} .trabajo.show{display:block}
 .barra{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:10px 0 6px} .barra i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
-.klog{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--surface2);border-radius:8px;padding:8px 10px;max-height:180px;overflow:auto;white-space:pre-wrap;margin-top:8px}
+.klog{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--surface2);border-radius:8px;padding:8px 10px;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px}
 .errores{margin-top:8px;display:flex;flex-direction:column;gap:6px}
 .errores div{background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:8px 10px;font-size:13px}
 /* resultados */
@@ -2584,7 +3386,7 @@ td.num{text-align:right}
 .cifra.dest{background:linear-gradient(135deg,#1B1233,#3A1B63);border:0;color:#F5F2FC} .cifra.dest .e,.cifra.dest .u{color:rgba(245,242,252,.8)}
 .graf{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .graf h4{font-size:14px;margin-bottom:6px}
-.graf svg{width:100%;height:auto;display:block}
+.graf svg{width:100%;height:auto;display:block} .lienzo{overflow-x:auto} .lienzo svg{min-width:620px}
 .graf .pie{color:var(--muted);font-size:12.5px;margin-top:6px}
 .tx{fill:var(--muted);font-size:12px} .tx.f{fill:var(--text);font-weight:700}
 .rej{stroke:var(--line);stroke-width:1}
@@ -2652,6 +3454,33 @@ td.num{text-align:right}
 
     <section id="vistaBloque" style="display:none">
       <div class="top ilus"><div><h2 id="bTitulo"></h2><div class="sub" id="bCorto"></div></div><span class="spacer"></span><span id="bEstado"></span></div>
+      <div class="caja trabajo" id="trabajo" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b id="tTexto"></b><span class="note" id="tSub"></span><span style="flex:1"></span><button class="btn small" id="btnCancelar">Cancelar</button></div>
+        <div class="barra"><i id="tBarra"></i></div>
+        <div class="errores" id="tErrores"></div>
+        <details><summary class="note">Registro</summary><div class="klog notr" id="tLog"></div></details>
+      </div>
+      <div id="herramientaVariable" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Medir una estrella variable</h3>
+          <div class="note">Elige la sesión con las tomas de la variable. ASTRO descarga de la AAVSO la secuencia oficial de estrellas de comparación, calibra y mide cada toma, dibuja la curva de luz y prepara el informe para WebObs.</div>
+          <div id="vSesiones" style="margin-top:12px"></div>
+          <div class="opciones">
+            <label>Estrella <input id="vEstrella" placeholder="p. ej. SS Cyg" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <label>Filtro AAVSO <select id="vBanda"></select></label>
+            <label title="Promediar varias tomas seguidas reduce el ruido; úsalo solo si la estrella cambia despacio (no en eclipses ni en variaciones rápidas).">Agrupar <select id="vAgrupar"><option value="1">cada toma, un punto</option><option value="3">de 3 en 3</option><option value="5">de 5 en 5</option><option value="10">de 10 en 10</option></select></label>
+          </div>
+          <div class="opciones">
+            <label>Tu código de observador AAVSO <input id="vObscode" class="notr" placeholder="XXX" style="width:90px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);text-transform:uppercase"></label>
+            <label>Tipo <select id="vObstype"><option value="CCD">CCD (cámaras CCD y CMOS)</option><option value="DSLR">DSLR (réflex y sin espejo)</option></select></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnVariable">Medir la serie</button>
+          </div>
+          <div class="note" style="margin-top:10px">El código de observador te lo da la AAVSO al registrarte (es gratis). Hace falta conexión a Internet para la secuencia de comparación, y Siril para calibrar y resolver.</div>
+        </div>
+        <h3 class="seccion">Tus curvas de luz</h3>
+        <div id="vSeries"></div>
+      </div>
       <div id="herramientaCielo" style="display:none">
         <div class="caja">
           <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:260px"><h3 style="font-size:17px">Medir el cielo</h3>
@@ -2670,12 +3499,6 @@ td.num{text-align:right}
             <button class="btn primary grande" id="btnMedir">Medir</button>
           </div>
           <div class="estadoSiril" id="estadoSiril"></div>
-          <div class="trabajo" id="trabajo">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b id="tTexto"></b><span class="note" id="tSub"></span><span style="flex:1"></span><button class="btn small" id="btnCancelar">Cancelar</button></div>
-            <div class="barra"><i id="tBarra"></i></div>
-            <div class="errores" id="tErrores"></div>
-            <details><summary class="note">Registro</summary><div class="klog notr" id="tLog"></div></details>
-          </div>
         </div>
         <h3 class="seccion">Tus medidas</h3>
         <div id="historia"></div>
@@ -2827,7 +3650,7 @@ const BLOQUES = [
     "Citizen and professional networks: Globe at Night and the STARS4ALL TESS network, against which ASTRO's measurements can be checked.",
     "Publishing: a long, documented series can go out as a short note (Research Notes of the AAS) or to a light-pollution conference; the data, on Zenodo with a DOI."]}},
 
- {id:"variables", n:"1a", estado:"pronto", icono:"variables",
+ {id:"variables", n:"1a", estado:"ya", icono:"variables",
   es:{titulo:"Estrellas variables", corto:"Mide cómo cambia el brillo de una estrella y mándalo a la AAVSO.",
    historia:[
     "Casi todas las estrellas que ves en una noche clara parecen quietas y eternas. No lo son. Algunas laten como un corazón lento, hinchándose y encogiéndose durante días, como las cefeidas. Otras, como Mira, tardan casi un año en pasar de verse a simple vista a necesitar un telescopio. Hay parejas de estrellas que se tapan la una a la otra cada pocas horas o días, y en cada eclipse la luz baja como si alguien bajara una persiana: son las binarias eclipsantes. Y hay estrellas que un día, sin avisar, multiplican su brillo por miles: las novas.",
@@ -2837,7 +3660,7 @@ const BLOQUES = [
    necesitas:["Una cámara mono con un refractor (campo amplio para tener la variable y sus comparaciones); un telescopio mayor para las débiles.","Filtros Johnson V y B para medidas estándar; mientras tanto, el G de imagen o sin filtro.","Una cuenta gratuita en la AAVSO, con tu código de observador."],
    programas:[["Siril","Fotometría de series y exportación en formato AAVSO"],["AstroImageJ","El referente de la fotometría diferencial"],["VPhot (AAVSO)","Fotometría en el navegador con las secuencias oficiales"],["VStar (AAVSO)","Analizar curvas y buscar periodos"]],
    destino:["AAVSO: el archivo en formato Extended se sube en WebObs y entra en la base de datos internacional.","VarAstro: mínimos de binarias eclipsantes y su diagrama O–C.","Publicar: Journal of the AAVSO (con revisión por pares), OEJV o Research Notes of the AAS."],
-   hara:["Proponer qué observar esta noche entre los programas de la AAVSO","Descargar la secuencia oficial de comparación","Calibrar, resolver y medir con Siril","Curva con errores, masa de aire y avisos","Archivo AAVSO Extended listo para WebObs"]},
+   hara:["Buscar la estrella en el VSX: tipo, periodo y rango","Descargar la secuencia oficial de comparación","Calibrar y resolver con Siril; fotometría de apertura","Elegir las comparaciones y la estrella de control","Curva con errores, masa de aire y avisos","Archivo AAVSO Extended listo para WebObs"]},
   en:{titulo:"Variable stars", corto:"Measure how a star's brightness changes and send it to the AAVSO.",
    historia:[
     "Almost every star you see on a clear night seems still and eternal. They are not. Some beat like a slow heart, swelling and shrinking over days, like the Cepheids. Others, like Mira, take almost a year to go from naked-eye visibility to needing a telescope. There are pairs of stars that hide each other every few hours or days, and at each eclipse the light drops as if someone lowered a blind: the eclipsing binaries. And there are stars that one day, without warning, become thousands of times brighter: the novae.",
@@ -2847,7 +3670,7 @@ const BLOQUES = [
    necesitas:["A mono camera on a refractor (a wide field to hold the variable and its comparisons); a larger telescope for faint ones.","Johnson V and B filters for standard measurements; meanwhile, the imaging G filter or no filter.","A free AAVSO account, with your observer code."],
    programas:[["Siril","Time-series photometry and AAVSO-format export"],["AstroImageJ","The reference for differential photometry"],["VPhot (AAVSO)","Browser photometry with the official sequences"],["VStar (AAVSO)","Light-curve analysis and period search"]],
    destino:["AAVSO: the Extended-format file is uploaded in WebObs and enters the international database.","VarAstro: eclipsing-binary minima and their O–C diagram.","Publishing: Journal of the AAVSO (peer reviewed), OEJV or Research Notes of the AAS."],
-   hara:["Suggest what to observe tonight among the AAVSO programmes","Download the official comparison sequence","Calibrate, plate-solve and measure with Siril","Light curve with errors, airmass and warnings","AAVSO Extended file ready for WebObs"]}},
+   hara:["Look the star up in the VSX: type, period and range","Download the official comparison sequence","Calibrate and plate-solve with Siril; aperture photometry","Choose the comparison and check stars","Light curve with errors, airmass and warnings","AAVSO Extended file ready for WebObs"]}},
 
  {id:"exoplanetas", n:"1b", estado:"pronto", icono:"exoplanetas",
   es:{titulo:"Exoplanetas: el tránsito", corto:"Mide el instante exacto en que un planeta pasa por delante de su estrella.",
@@ -2977,8 +3800,13 @@ function pintarBloque(id){
   $("bHaraCaja").style.display = t.hara ? "" : "none";
   $("bHara").innerHTML = (t.hara || []).map(p => `<span>${esc(p)}</span>`).join("");
   $("herramientaCielo").style.display = id === "cielo" ? "" : "none";
+  $("herramientaVariable").style.display = id === "variables" ? "" : "none";
+  BLOQUE_ACTUAL = id;
   if (id === "cielo") abrirCielo();
+  if (id === "variables") abrirVariables();
+  if (id !== "cielo" && id !== "variables") $("trabajo").classList.remove("show");
 }
+let BLOQUE_ACTUAL = "";
 
 /* ============ Calidad del cielo: qué medir ============ */
 const CIELO = {estado:null, sesiones:null, apilados:null, archivo:"", fuente:"tomas", selS:new Set(), selA:new Set(), medidas:[], sondeo:null};
@@ -3069,9 +3897,10 @@ $("btnMedir").onclick = async () => {
 $("btnCancelar").onclick = () => post("/api/cielo/cancelar").catch(()=>{});
 async function sondear(){
   clearTimeout(CIELO.sondeo);
-  let e; try { e = await (await api("/api/cielo/estado")).json(); } catch(_){ return; }
+  let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  if (e.activo || (e.fin && Date.now()/1000 - e.fin < 600)){
+  const mio = (e.tipo === "variable" ? "variables" : "cielo") === BLOQUE_ACTUAL;
+  if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
     $("tSub").textContent = e.sub || "";
@@ -3079,10 +3908,14 @@ async function sondear(){
     $("tErrores").innerHTML = (e.errores || []).map(x => `<div><b class="notr">${esc(x.nombre)}</b>${x.nombre ? ": " : ""}<span>${esc(tr(x.error))}</span></div>`).join("");
     $("tLog").textContent = (e.log || []).join("\n");
     $("btnCancelar").style.display = e.activo ? "" : "none";
-    $("btnMedir").disabled = e.activo;
   } else caja.classList.remove("show");
+  $("btnMedir").disabled = $("btnVariable").disabled = !!e.activo;
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
-  else { $("btnMedir").disabled = false; if (CIELO._activo) { CIELO._activo = false; cargarMedidas(); if ((e.resultados||[]).length === 1) verMedida(e.resultados[0]); } }
+  else if (CIELO._activo) {
+    CIELO._activo = false;
+    if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
+    else { cargarMedidas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "cielo") verMedida(e.resultados[0]); }
+  }
   if (e.activo) CIELO._activo = true;
 }
 
@@ -3219,6 +4052,129 @@ function graficaResiduos(m){
   $("gRes").innerHTML = `<h4>Residuos del punto cero</h4><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg><div class="pie">${esc(tr("Diferencia entre el catálogo y la medida, ya corregido el color. Una nube estrecha y plana es una calibración limpia; dispersión:"))} ${numEs(m.zp_disp, 3)} mag.</div>`;
 }
 
+/* ============ Estrellas variables ============ */
+const VAR = {sesiones:null, sel:null, series:[], cfg:null, actual:null};
+const BANDAS_AAVSO = [["V","V (Johnson, fotométrico)"],["B","B (Johnson, fotométrico)"],["R","R (Cousins, fotométrico)"],["I","I (Cousins, fotométrico)"],
+  ["TG","TG: verde de imagen o canal verde de una cámara en color"],["TB","TB: azul de imagen"],["TR","TR: rojo de imagen"],
+  ["CV","CV: sin filtro o luminancia, con el cero en V"],["CR","CR: sin filtro, con el cero en R"]];
+$("vBanda").innerHTML = BANDAS_AAVSO.map(([c, t]) => `<option value="${c}">${esc(t)}</option>`).join("");
+async function abrirVariables(){
+  try { VAR.cfg = await (await api("/api/variables/config")).json(); } catch(_){ VAR.cfg = {obscode:"", obstype:"CCD"}; }
+  $("vObscode").value = VAR.cfg.obscode || ""; $("vObstype").value = VAR.cfg.obstype || "CCD";
+  if (!CIELO.estado){ try { CIELO.estado = await (await api("/api/estado")).json(); } catch(_){} }
+  if (!VAR.sesiones){ try { VAR.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ VAR.sesiones = []; } }
+  pintarSesionesVar(); cargarSeries(); sondear();
+}
+function pintarSesionesVar(){
+  const ss = (VAR.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.aavso && s.tomas.length >= 2);
+  if (!ss.length){ $("vSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con varias tomas</b>Añade en Control de lights las tomas de una noche de tu estrella variable (todas con el mismo filtro).</div>`; return; }
+  $("vSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th class="num">Exp (s)</th></tr></thead><tbody>${
+    ss.map(([s, i]) => `<tr data-i="${i}" class="${VAR.sel === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="vSes" ${VAR.sel === i ? "checked" : ""}></td><td>${esc(fechaCorta(s.noche))}</td><td class="notr">${esc(s.objeto)}</td>
+      <td class="notr">${esc(s.filtro_original || s.filtro)}</td><td class="notr">${esc(s.cam)}</td><td class="notr">${esc(s.tel)}</td><td class="num">${s.tomas.length}</td><td class="num notr">${esc(s.exp.map(x => numEs(x, 0)).join(", "))}</td></tr>`).join("")}</tbody></table></div>`;
+  $("vSesiones").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
+    VAR.sel = +t.dataset.i; const s = VAR.sesiones[VAR.sel];
+    $("vSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
+    if (s.objeto && s.objeto !== "(sin objeto)") $("vEstrella").value = s.objeto;
+    $("vBanda").value = s.aavso || "CV";
+  });
+}
+$("btnVariable").onclick = async () => {
+  if (VAR.sel === null){ toast("Elige primero la sesión con las tomas de la variable"); return; }
+  const s = VAR.sesiones[VAR.sel];
+  if (!$("vEstrella").value.trim()){ toast("Escribe el nombre de la estrella como en el VSX (por ejemplo, SS Cyg)"); $("vEstrella").focus(); return; }
+  try {
+    await post("/api/variables/medir", {ids: s.tomas.map(t => t.id), estrella: $("vEstrella").value.trim(), banda: $("vBanda").value,
+      agrupar: +$("vAgrupar").value, obscode: $("vObscode").value.trim(), obstype: $("vObstype").value});
+    sondear();
+  } catch(e){ toast(e.message || e); }
+};
+async function cargarSeries(){
+  try { VAR.series = await (await api("/api/variables/series")).json(); } catch(_){ VAR.series = []; }
+  const ss = VAR.series;
+  if (!ss.length){ $("vSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ninguna variable</b>Elige arriba una sesión y pulsa «Medir la serie».</div>`; return; }
+  $("vSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Noche</th><th>Estrella</th><th>Filtro</th><th class="num">Tomas</th><th class="num">Magnitud</th><th class="num">Amplitud</th><th class="num">Error medio</th><th class="num">Control − catálogo</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche || x.inicio))}</td><td class="notr"><b>${esc(x.estrella)}</b></td><td class="notr">${esc(x.banda)}</td>
+      <td class="num">${x.tomas}</td><td class="num">${numEs(x.magnitud, 3)}</td><td class="num">${numEs(x.amplitud, 3)}</td><td class="num">${numEs(x.error_medio, 3)}</td>
+      <td class="num">${x.check_dif != null ? (x.check_dif > 0 ? "+" : "") + numEs(x.check_dif, 3) : "—"}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("vSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verSerie(t.dataset.id));
+}
+async function verSerie(id, calcNuevo){
+  let d; try { d = await (await api("/api/variables/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo; VAR.actual = {s, c};
+  const vsx = s.vsx || {};
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const ck = c.check_dif != null ? `${c.check_dif > 0 ? "+" : ""}${numEs(c.check_dif, 3)} · σ ${numEs(c.check_disp, 3)}` : "—";
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.estrella)}</h2><div class="note"><span>${esc(fechaCorta(s.noche || s.tomas[0].fecha))}</span> ·
+      <span class="notr">${esc([vsx.tipo, vsx.periodo ? "P = " + numEs(vsx.periodo, 4) + " d" : "", vsx.max && vsx.min ? vsx.max + " – " + vsx.min : ""].filter(Boolean).join(" · "))}</span>
+      · <span>carta</span> <span class="notr">${esc(s.chartid || "—")}</span> · <span class="notr">${s.n_tomas}</span> <span>tomas</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(numEs(c.magnitud, 3), "mag " + esc(s.banda), tr("Magnitud mediana de la noche"), true)}${cifra(numEs(c.amplitud, 3), "mag", tr("Amplitud (del más brillante al más débil)"))}
+      ${cifra(numEs(c.error_medio, 3), "mag", tr("Error medio de cada punto"))}${cifra(ck, "", tr("Estrella de control: diferencia con el catálogo y dispersión"))}</div>
+    ${Math.abs(c.check_dif || 0) > 0.1 ? `<div class="avisos"><div>${esc(tr("La estrella de control sale a más de 0,1 mag de su catálogo: revisa las comparaciones (¿alguna variable, saturada o con una vecina?) o el filtro elegido."))}</div></div>` : ""}
+    <div class="graf" id="gCurva"></div>
+    <div class="dos">
+      <div class="graf"><h4>Estrellas de la secuencia de la AAVSO</h4><div class="tabla" style="max-height:300px"><table><thead><tr><th>Comp.</th><th>Control</th><th>Etiqueta</th><th>AUID</th><th class="num">Mag</th><th class="num">B−V</th><th class="num">SNR</th><th class="num">Medida</th></tr></thead><tbody>${
+        c.tabla.map(x => `<tr><td><input type="checkbox" class="vComp" value="${esc(x.id)}" ${c.comps.includes(x.id) ? "checked" : ""}></td><td><input type="radio" name="vCheck" value="${esc(x.id)}" ${c.check === x.id ? "checked" : ""}></td>
+          <td class="notr">${esc(x.label)}</td><td class="notr">${esc(x.auid)}</td><td class="num">${numEs(x.mag, 3)}</td><td class="num">${x.bv != null ? numEs(x.bv, 2) : "—"}</td><td class="num">${numEs(x.snr, 0)}</td>
+          <td class="num">${x.saturada > 0.1 ? `<span class="chip warn">saturada</span>` : numEs(100 * x.presente, 0) + " %"}</td></tr>`).join("")}</tbody></table></div>
+        <div class="acciones" style="margin-top:10px;align-items:center"><label class="note" style="display:flex;gap:6px;align-items:center">Agrupar <select id="dAgrupar" class="btn small">${[1,3,5,10].map(n => `<option value="${n}" ${c.agrupar === n ? "selected" : ""}>${n === 1 ? tr("cada toma") : tr("de # en #").replace(/#/g, n)}</option>`).join("")}</select></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="pie">Marca las estrellas de comparación (con varias se usa el conjunto, «ENSEMBLE») y elige la de control. Conviene que sean de brillo y color parecidos a la variable y que no estén saturadas.</div></div>
+      <div class="graf"><h4>Informe para la AAVSO</h4><pre class="klog notr" style="max-height:220px">${esc(c.aavso.split("\n").slice(0, 12).join("\n"))}${c.puntos.length > 5 ? "\n…" : ""}</pre>
+        <div class="acciones" style="margin-top:10px;align-items:center"><label class="note" style="display:flex;gap:6px;align-items:center">Código <input id="dObscode" class="btn small notr" style="width:80px;text-transform:uppercase" value="${esc((VAR.cfg || {}).obscode || "")}"></label>
+          <a class="btn small primary" href="/api/variables/aavso?id=${encodeURIComponent(s.id)}" download>Descargar para WebObs</a>
+          <a class="btn small" href="https://www.aavso.org/webobs/file" target="_blank" rel="noopener">Abrir WebObs</a></div>
+        <div class="pie">En WebObs, entra con tu cuenta y sube el archivo descargado. Van sin transformar (TRANS=NO) y con la carta <span class="notr">${esc(s.chartid || "")}</span>.</div></div>
+    </div>
+    <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
+      <dt>Filtro</dt><dd><span class="notr">${esc(s.banda)}</span> · ${tr("magnitudes de catálogo en")} <span class="notr">${esc(s.banda_catalogo)}</span></dd>
+      <dt>Calibración</dt><dd>${(s.calibracion || []).length ? s.calibracion.map(x => `<div class="notr">${esc(x)}</div>`).join("") : esc(tr("sin calibrar"))}</dd>
+      <dt>Comparación</dt><dd>${c.modo === "ensemble" ? tr("conjunto de") + " " + c.comps.length + " " + tr("estrellas") : tr("una estrella")} · ${tr("secuencia VSP de la AAVSO")}</dd>
+      <dt>Lugar</dt><dd class="notr">${esc((s.lugar || {}).nombre || "")} ${(s.lugar || {}).lat != null ? "(" + numEs(s.lugar.lat, 3) + ", " + numEs(s.lugar.lon, 3) + ")" : ""}</dd>
+      <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
+    </dl></div>
+    <div class="acciones"><a class="btn small" href="/api/variables/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar esta serie</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "variable"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar esta serie?")) return; await post("/api/variables/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeries(); };
+  $("dRecalcular").onclick = async () => {
+    const comps = [...document.querySelectorAll(".vComp:checked")].map(x => x.value), chk = (document.querySelector("input[name=vCheck]:checked") || {}).value || "";
+    if (!comps.length){ toast("Marca al menos una estrella de comparación"); return; }
+    if (comps.includes(chk)){ toast("La estrella de control no puede estar también entre las de comparación"); return; }
+    try {
+      const nuevo = await (await post("/api/variables/recalcular", {id: s.id, comps, check: chk, agrupar: +$("dAgrupar").value, obscode: $("dObscode").value.trim()})).json();
+      if (VAR.cfg) VAR.cfg.obscode = $("dObscode").value.trim().toUpperCase();
+      verSerie(s.id, nuevo); cargarSeries(); toast("Recalculado");
+    } catch(e){ toast(e.message || e); }
+  };
+  graficaCurva(s, c);
+}
+function graficaCurva(s, c){
+  const P = c.puntos; if (!P.length){ $("gCurva").innerHTML = ""; return; }
+  const W = 1000, H = 330, L = 60, R = 16, Tp = 14, B = 40;
+  const t0 = P[0].jd, horas = p => (p.jd - t0) * 24;
+  const span = Math.max(0.1, horas(P[P.length - 1])), xa = -0.03 * span, x1 = span * 1.03;
+  const ms = P.flatMap(p => [p.mag - p.err, p.mag + p.err]); let y0 = Math.min(...ms), y1 = Math.max(...ms);
+  const ckOff = c.check_media != null ? c.check_media - c.magnitud : null;
+  const pad = Math.max(0.02, (y1 - y0) * 0.12); y0 -= pad; y1 += pad;
+  const X = h => L + (h - xa) / (x1 - xa) * (W - L - R), Y = m => Tp + (m - y0) / (y1 - y0) * (H - Tp - B);
+  let g = "";
+  const pasoY = (y1 - y0) > 1 ? 0.2 : (y1 - y0) > 0.3 ? 0.05 : 0.01;
+  for (let m = Math.ceil(y0 / pasoY) * pasoY; m <= y1; m += pasoY) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m)}" y2="${Y(m)}"/><text class="tx" x="${L-6}" y="${Y(m)+4}" text-anchor="end">${numEs(m, pasoY < 0.05 ? 2 : pasoY < 0.1 ? 2 : 1)}</text>`;
+  const pasoX = span > 8 ? 2 : span > 3 ? 1 : span > 1 ? 0.5 : 0.25;
+  const hIni = new Date((t0 - 2440587.5) * 864e5);
+  const h0 = (Math.ceil((hIni.getUTCHours() + hIni.getUTCMinutes() / 60) / pasoX) * pasoX) - (hIni.getUTCHours() + hIni.getUTCMinutes() / 60 + hIni.getUTCSeconds() / 3600);
+  for (let h = h0; h <= x1 + 1e-9; h += pasoX){ const d = new Date(hIni.getTime() + h * 36e5 + 30e3);
+    g += `<line class="rej" x1="${X(h)}" x2="${X(h)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(h)}" y="${H-B+16}" text-anchor="middle">${d.toISOString().slice(11, 16)}</text>`; }
+  g += P.map(p => `<line stroke="var(--accent)" stroke-width="1.2" opacity=".5" x1="${X(horas(p)).toFixed(1)}" x2="${X(horas(p)).toFixed(1)}" y1="${Y(p.mag - p.err).toFixed(1)}" y2="${Y(p.mag + p.err).toFixed(1)}"/>` +
+    `<circle class="pt zp" cx="${X(horas(p)).toFixed(1)}" cy="${Y(p.mag).toFixed(1)}" r="3"><title>${esc(p.archivo)} · ${numEs(p.mag, 3)} ± ${numEs(p.err, 3)}</title></circle>`).join("");
+  if (ckOff != null) g += P.filter(p => p.check != null).map(p => `<circle cx="${X(horas(p)).toFixed(1)}" cy="${Y(p.check - ckOff).toFixed(1)}" r="2.2" fill="var(--oro)" opacity=".75"/>`).join("");
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("hora UTC"))} · JD ${t0.toFixed(4)}</text>`;
+  $("gCurva").innerHTML = `<h4>Curva de luz</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("En morado, la variable (con su error); en dorado, la estrella de control desplazada a la altura de la variable: si la dorada sale plana, la noche y las comparaciones son buenas. Arriba, más brillante."))}</div>`;
+}
+
 /* ============ Informe de problemas y «Acerca de» ============ */
 let DIAG = null; api("/api/diagnostico").then(r => r.json()).then(d => DIAG = d).catch(()=>{});
 function informarProblema(){
@@ -3274,7 +4230,7 @@ def arrancar():
         aviso(("I can't find the data folder (%s). If it's on an external disk, connect it and open ASTRO again." if _en_ingles() else
                "No encuentro la carpeta de datos (%s). Si está en un disco externo, conéctalo y vuelve a abrir ASTRO.") % DISCO)
         sys.exit(1)
-    for d in (ROOT, CIELO_DIR, CATALOGOS):
+    for d in (ROOT, CIELO_DIR, CATALOGOS, VARIABLES_DIR):
         os.makedirs(d, exist_ok=True)
     port = int(os.environ.get("ASTRO_PUERTO_" + PROGRAMA_ID.upper()) or 0) or puerto_libre()
     srv = ThreadingHTTPServer(("127.0.0.1", port), H)
