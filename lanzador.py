@@ -8,7 +8,9 @@ y Asociación Astronómica de Miguelturra.
 
 La primera vez pregunta dónde guardar los datos. Después arranca los dos
 programas (Control de lights y Biblioteca de calibración) dentro de la propia
-aplicación, abre el navegador y deja una pequeña ventana de control.
+aplicación y enseña la ventana de inicio: un apartado con su dibujo para cada cosa
+que se puede hacer (añadir tomas, mis objetos, próximas noches, sesión en directo,
+apilar y biblioteca de calibración); cada uno abre su parte en el navegador.
 """
 import os, sys, json, socket, threading, time, runpy, webbrowser, urllib.request, subprocess, re, shutil, platform, tempfile
 # Módulos que usan los programas (se cargan como datos; así el empaquetador los incluye)
@@ -130,30 +132,44 @@ except Exception:
 VIOLETA, VIOLETA2, FONDO, TEXTO, GRIS = "#5B2C87", "#8E5BC2", "#F4F2F9", "#1E1830", "#6B6382"
 
 AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra",
-         "en": "Tomás Moreno González · Member of Astrocitas, Asociación Astronómica Azarquiel and Asociación Astronómica de Miguelturra"}
+         "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel and the Asociación Astronómica de Miguelturra"}
 TXT = {
     "es": {"lema": "lights y calibración", "bienvenido": "¡Bienvenido!", "titulo_bienv": "Bienvenido a ASTRO",
            "intro": "ASTRO revisa la calidad de tus lights (estrellas, trazas de satélites, nubes…), organiza tu biblioteca de darks, flats y bias, y apila con Siril.\n\nElige la carpeta donde guardará tus fotos y sus datos. Puede estar en un disco externo. Si ya usabas ASTRO, elige la carpeta que contiene «Lights».",
            "otra": "Elegir otra carpeta…", "empezar": "Empezar", "idioma": "Idioma:", "carpeta_titulo": "Carpeta de datos de ASTRO",
            "no_encuentro": "No encuentro tu carpeta de datos:\n%s", "no_usar": "No se puede usar esa carpeta:\n%s",
-           "marcha": "ASTRO está en marcha", "marcha_txt": "Se abre en tu navegador. Deja esta ventana abierta (puedes minimizarla) mientras lo uses.",
-           "lights": "✦  Control de lights", "biblio": "◐  Biblioteca de calibración", "datos_en": "Datos en:  ", "cambiar": "Cambiar carpeta de datos…",
+           "marcha": "ASTRO está en marcha", "marcha_txt": "Elige por dónde empezar; se abre en el navegador. Deja esta ventana abierta (o minimizada) mientras uses ASTRO.",
+           "lights": "Control de lights", "biblio": "Biblioteca de calibración", "datos_en": "Carpeta de datos:  ", "cambiar": "Cambiar carpeta de datos…",
+           "lema_largo": "Revisa, organiza y apila tus fotos del cielo",
+           "t_anadir": "Añadir tomas", "d_anadir": "Desde la tarjeta o una carpeta; ASTRO revisa cada toma.",
+           "t_objetos": "Mis objetos", "d_objetos": "Horas útiles, calidad de cada noche y lo que te falta.",
+           "t_noches": "Próximas noches", "d_noches": "Luna, nubes y qué fotografiar con tu equipo.",
+           "t_directo": "Sesión en directo", "d_directo": "Revisa cada toma mientras capturas y avisa si algo falla.",
+           "t_apilar": "Apilar con Siril", "d_apilar": "De tus tomas buenas a la imagen final, ya calibrada.",
+           "t_calib": "Biblioteca de calibración", "d_calib": "Darks, flats y bias: qué tienes y qué te falta.",
            "salir": "Salir", "cerrar_q": "¿Cerrar ASTRO?", "nueva_carpeta": "Nueva carpeta de datos de ASTRO",
            "reiniciar_q": "ASTRO se reiniciará usando:\n%s\n\n(Los datos de la carpeta anterior no se mueven.)",
            "no_arranca": "No se pudo arrancar: %s.\nMira el registro en:\n%s", "por": "Creado por",
            "actualizando": "Actualizando ASTRO a la versión %s…",
-           "beta": "Versión de prueba (beta). Si algo falla o echas algo en falta, usa «Informar de un problema» en el menú «Más». ¡Gracias por probar ASTRO!"},
+           "beta": "Versión de prueba (beta). Si algo falla o echas en falta alguna función, usa «Informar de un problema o sugerencia» en «Más opciones». ¡Gracias por probar ASTRO!"},
     "en": {"lema": "lights and calibration", "bienvenido": "Welcome!", "titulo_bienv": "Welcome to ASTRO",
-           "intro": "ASTRO checks the quality of your light frames (stars, satellite trails, clouds…), organises your library of darks, flats and bias, and stacks with Siril.\n\nChoose the folder where it will keep your images and their data. It can be on an external disk. If you already used ASTRO, choose the folder that contains «Lights».",
+           "intro": "ASTRO checks the quality of your light frames (stars, satellite trails, clouds…), organises your library of darks, flats and bias, and stacks them with Siril.\n\nChoose the folder where it will keep your images and their data. It can be on an external disk. If you've used ASTRO before, choose the folder that contains “Lights”.",
            "otra": "Choose another folder…", "empezar": "Start", "idioma": "Language:", "carpeta_titulo": "ASTRO data folder",
-           "no_encuentro": "Your data folder can't be found:\n%s", "no_usar": "That folder can't be used:\n%s",
-           "marcha": "ASTRO is running", "marcha_txt": "It opens in your browser. Keep this window open (you can minimise it) while you use it.",
-           "lights": "✦  Light frames", "biblio": "◐  Calibration library", "datos_en": "Data in:  ", "cambiar": "Change data folder…",
+           "no_encuentro": "I can't find your data folder:\n%s", "no_usar": "That folder can't be used:\n%s",
+           "marcha": "ASTRO is running", "marcha_txt": "Choose where to start; it opens in your browser. Keep this window open (or minimised) while you use ASTRO.",
+           "lights": "Light frames", "biblio": "Calibration library", "datos_en": "Data folder:  ", "cambiar": "Change data folder…",
+           "lema_largo": "Check, organise and stack your astrophotos",
+           "t_anadir": "Add frames", "d_anadir": "From your memory card or a folder; ASTRO checks every frame.",
+           "t_objetos": "My targets", "d_objetos": "Usable hours, quality per night and what's still missing.",
+           "t_noches": "Upcoming nights", "d_noches": "Moon, clouds and what to shoot with your equipment.",
+           "t_directo": "Live session", "d_directo": "Checks each frame as you capture and warns you of problems.",
+           "t_apilar": "Stack with Siril", "d_apilar": "From your good frames to a calibrated final image.",
+           "t_calib": "Calibration library", "d_calib": "Darks, flats and bias: what you have and what's missing.",
            "salir": "Quit", "cerrar_q": "Quit ASTRO?", "nueva_carpeta": "New ASTRO data folder",
            "reiniciar_q": "ASTRO will restart using:\n%s\n\n(Data in the previous folder is not moved.)",
            "no_arranca": "Could not start: %s.\nSee the log in:\n%s", "por": "Created by",
            "actualizando": "Updating ASTRO to version %s…",
-           "beta": "Test version (beta). If something fails or you miss something, use «Report a problem» in the «More» menu. Thank you for testing ASTRO!"},
+           "beta": "Test version (beta). If something goes wrong or you miss a feature, use “Report a problem or suggestion” in “More options”. Thanks for testing ASTRO!"},
 }
 
 
@@ -205,30 +221,103 @@ def _boton(padre, texto, orden, principal=False):
     return b
 
 
-def _ventana(titulo, ancho=560, alto=380):
+def _imagen(nombre):
+    """Dibujo de la carpeta «imagenes» (PNG); None si no está o este Tk no lo sabe leer."""
+    try:
+        ruta = os.path.join(recursos(), "imagenes", nombre)
+        return tk.PhotoImage(file=ruta) if os.path.exists(ruta) else None
+    except Exception:
+        return None
+
+
+def _pantalla_baja(w):
+    """Pantallas de poca altura (portátiles de 13"): cabecera más baja y tarjetas sin descripción."""
+    try:
+        return w.winfo_screenheight() < 940
+    except Exception:
+        return False
+
+
+def _ventana(titulo, ancho=560, alto=380, grande=False):
     w = tk.Tk(); w.title(titulo); w.configure(bg=FONDO); w.resizable(False, False)
     w.minsize(ancho, 0)
+    w._imgs = []                         # referencias a las imágenes (si no, Tk las borra)
     # el alto se ajusta al contenido; se centra cuando ya está dibujada
     def centrar():
         w.update_idletasks()
         w.geometry("+%d+%d" % ((w.winfo_screenwidth() - w.winfo_reqwidth()) // 2,
-                               max(40, (w.winfo_screenheight() - w.winfo_reqheight()) // 3)))
+                               max(20, (w.winfo_screenheight() - w.winfo_reqheight()) // (4 if grande else 3))))
     w.after(10, centrar)
+    if grande:                            # que salga delante de las demás ventanas al abrir ASTRO
+        def delante():
+            try:
+                w.lift(); w.attributes("-topmost", True); w.after(400, lambda: w.attributes("-topmost", False)); w.focus_force()
+            except Exception:
+                pass
+        w.after(60, delante)
     try:
         icono = os.path.join(recursos(), "icono.png")
         if os.path.exists(icono):
             w.iconphoto(True, tk.PhotoImage(file=icono))
     except Exception:
         pass
-    cab = tk.Frame(w, bg=VIOLETA, height=64); cab.pack(fill="x")
-    tk.Label(cab, text="✦  ASTRO", bg=VIOLETA, fg="white", font=("Helvetica", 20, "bold")).pack(side="left", padx=20, pady=14)
-    tk.Label(cab, text=T("lema"), bg=VIOLETA, fg="#E8DDF5", font=("Helvetica", 12)).pack(side="left", pady=18)
-    if ES_BETA:
-        tk.Label(cab, text=" BETA ", bg="#F2C14E", fg="#3A2A00", font=("Helvetica", 11, "bold")).pack(side="right", padx=16)
+    fondo_cab = _imagen("cabecera.png") if grande else None
+    if fondo_cab:
+        # cabecera grande: cielo nocturno con el nombre encima
+        baja = _pantalla_baja(w)
+        alto_cab = 118 if baja else 176
+        cab = tk.Canvas(w, width=ancho, height=alto_cab, highlightthickness=0, bd=0, bg="#140C2C"); cab.pack(fill="x")
+        w._imgs.append(fondo_cab)
+        cab.create_image(0, alto_cab - 176, image=fondo_cab, anchor="nw")
+        y0 = 18 if baja else 30
+        cab.create_text(34, y0, text="✦ ASTRO", anchor="nw", fill="white", font=("Helvetica", 34 if baja else 44, "bold"))
+        cab.create_text(38, y0 + (52 if baja else 72), text=T("lema_largo"), anchor="nw", fill="#E8DDF5", font=("Helvetica", 14 if baja else 16))
+        if ES_BETA:
+            x1 = ancho - 22
+            t = cab.create_text(x1 - 12, 24, text="BETA · v" + re.sub(r"[-\s]*beta", "", VERSION_APP, flags=re.I), anchor="ne", fill="#3A2A00", font=("Helvetica", 11, "bold"))
+            bx0, by0, bx1, by1 = cab.bbox(t)
+            r = cab.create_rectangle(bx0 - 10, by0 - 4, bx1 + 10, by1 + 4, fill="#F2C14E", outline="")
+            cab.tag_lower(r, t)
+    else:
+        cab = tk.Frame(w, bg=VIOLETA, height=64); cab.pack(fill="x")
+        tk.Label(cab, text="✦  ASTRO", bg=VIOLETA, fg="white", font=("Helvetica", 20, "bold")).pack(side="left", padx=20, pady=14)
+        tk.Label(cab, text=T("lema"), bg=VIOLETA, fg="#E8DDF5", font=("Helvetica", 12)).pack(side="left", pady=18)
+        if ES_BETA:
+            tk.Label(cab, text=" BETA ", bg="#F2C14E", fg="#3A2A00", font=("Helvetica", 11, "bold")).pack(side="right", padx=16)
     pie = tk.Frame(w, bg="#ECE8F5"); pie.pack(fill="x", side="bottom")
     tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=7)
-    cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=24, pady=(18, 22))
+    cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=28 if grande else 24, pady=(18, 22))
     return w, cuerpo
+
+
+def _tarjeta(padre, dibujo, titulo, texto, orden, con_texto=True):
+    """Apartado de la ventana de inicio: dibujo que indica lo que se hace, título y una línea de explicación.
+    Toda la tarjeta es un botón."""
+    BORDE, BORDE_ON, FONDO_T, FONDO_ON = "#DDD6EC", VIOLETA2, "#FFFFFF", "#F7F2FE"
+    t = tk.Frame(padre, bg=FONDO_T, highlightthickness=2, highlightbackground=BORDE, cursor="hand2")
+    partes = [t]
+    img = _imagen(dibujo)
+    if img:
+        padre.winfo_toplevel()._imgs.append(img)
+        l = tk.Label(t, image=img, bg=FONDO_T, bd=0, cursor="hand2"); l.pack(padx=10, pady=(10, 6)); partes.append(l)
+    l = tk.Label(t, text=titulo, bg=FONDO_T, fg=TEXTO, font=("Helvetica", 15, "bold"), anchor="w", cursor="hand2")
+    l.pack(fill="x", padx=12); partes.append(l)
+    if con_texto:
+        l = tk.Label(t, text=texto, bg=FONDO_T, fg=GRIS, font=("Helvetica", 11), anchor="nw", justify="left",
+                     wraplength=250, height=2, cursor="hand2")
+        l.pack(fill="x", padx=12, pady=(2, 10)); partes.append(l)
+    else:
+        tk.Frame(t, bg=FONDO_T, height=8).pack()
+
+    def color(on):
+        t.configure(highlightbackground=BORDE_ON if on else BORDE)
+        for x in partes:
+            x.configure(bg=FONDO_ON if on else FONDO_T)
+    for x in partes:
+        x.bind("<Button-1>", lambda e: orden())
+        x.bind("<Enter>", lambda e: color(True))
+        x.bind("<Leave>", lambda e: color(False))
+    return t
 
 
 
@@ -514,7 +603,7 @@ def bienvenida(mensaje=None):
         print("Carpeta de datos:", propuesta)
         return propuesta
     elegido = {"ruta": None}
-    w, c = _ventana(T("titulo_bienv"), 600, 400)
+    w, c = _ventana(T("titulo_bienv"), 760, 460, grande=True)
     fil = tk.Frame(c, bg=FONDO); fil.pack(fill="x", pady=(0, 8))
     tk.Label(fil, text=T("idioma"), bg=FONDO, fg=GRIS, font=("Helvetica", 12)).pack(side="left")
 
@@ -527,13 +616,13 @@ def bienvenida(mensaje=None):
         b.configure(font=("Helvetica", 11, "bold"), padx=10, pady=4); b.pack(side="left", padx=(8, 0))
     if ES_BETA:
         tk.Label(c, text="BETA · " + T("beta"), bg="#FBF1D6", fg="#7A5A00", font=("Helvetica", 11), anchor="w",
-                 justify="left", wraplength=540, padx=10, pady=6).pack(fill="x", pady=(0, 10))
-    tk.Label(c, text=mensaje or T("bienvenido"), bg=FONDO, fg=TEXTO, font=("Helvetica", 17, "bold"), anchor="w", justify="left", wraplength=540).pack(fill="x")
+                 justify="left", wraplength=690, padx=10, pady=6).pack(fill="x", pady=(0, 10))
+    tk.Label(c, text=mensaje or T("bienvenido"), bg=FONDO, fg=TEXTO, font=("Helvetica", 19, "bold"), anchor="w", justify="left", wraplength=690).pack(fill="x")
     tk.Label(c, text=T("intro"),
-             bg=FONDO, fg=GRIS, font=("Helvetica", 13), anchor="w", justify="left", wraplength=540).pack(fill="x", pady=(8, 14))
+             bg=FONDO, fg=GRIS, font=("Helvetica", 13), anchor="w", justify="left", wraplength=690).pack(fill="x", pady=(8, 14))
     var = tk.StringVar(value=propuesta)
     fila = tk.Frame(c, bg="#FFFFFF", highlightthickness=1, highlightbackground="#D8D2E8"); fila.pack(fill="x")
-    tk.Label(fila, textvariable=var, bg="#FFFFFF", fg=TEXTO, font=("Helvetica", 12), anchor="w", padx=10, pady=8, wraplength=520, justify="left").pack(fill="x")
+    tk.Label(fila, textvariable=var, bg="#FFFFFF", fg=TEXTO, font=("Helvetica", 12), anchor="w", padx=10, pady=8, wraplength=680, justify="left").pack(fill="x")
 
     def otra():
         r = filedialog.askdirectory(title=T("carpeta_titulo"), initialdir=os.path.dirname(var.get()) or os.path.expanduser("~"))
@@ -590,6 +679,7 @@ def arrancar(datos):
     os.environ["ASTRO_VERSION_APP"] = VERSION_APP
     os.environ["ASTRO_BETA"] = "1" if ES_BETA else "0"
     os.environ["ASTRO_CONTACTO"] = CONTACTO
+    os.environ["ASTRO_IDIOMA"] = IDIOMA["v"]
     os.environ["ASTRO_REGISTRO"] = REGISTRO
     puertos = {}
     for pid, _, pref in PROGRAMAS:
@@ -615,25 +705,36 @@ def ventana_control(datos, puertos):
                 time.sleep(3600)
         except KeyboardInterrupt:
             os._exit(0)
-    w, c = _ventana("ASTRO", 520, 330)
-    tk.Label(c, text=T("marcha"), bg=FONDO, fg=TEXTO, font=("Helvetica", 17, "bold"), anchor="w").pack(fill="x")
-    tk.Label(c, text=T("marcha_txt"),
-             bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w", justify="left", wraplength=470).pack(fill="x", pady=(4, 14))
+    w, c = _ventana("ASTRO", 960, 700, grande=True)
+    baja = _pantalla_baja(w)
     fila = tk.Frame(c, bg=FONDO); fila.pack(fill="x")
-    _boton(fila, T("lights"), lambda: webbrowser.open(url(puertos["lights"])), principal=True).pack(side="left")
-    _boton(fila, T("biblio"), lambda: webbrowser.open(url(puertos["calibracion"]))).pack(side="left", padx=8)
-    tk.Label(c, text=T("datos_en") + datos, bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=470, justify="left").pack(fill="x", pady=(18, 4))
-
+    punto = tk.Canvas(fila, width=14, height=14, bg=FONDO, highlightthickness=0); punto.pack(side="left", padx=(0, 8), pady=(4, 0))
+    punto.create_oval(2, 2, 12, 12, fill="#3FA56B", outline="")
+    tk.Label(fila, text=T("marcha"), bg=FONDO, fg=TEXTO, font=("Helvetica", 17, "bold"), anchor="w").pack(side="left")
+    tk.Label(c, text=T("marcha_txt"), bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w", justify="left",
+             wraplength=880).pack(fill="x", pady=(2, 12))
+    L, C = url(puertos["lights"]), url(puertos["calibracion"])
+    abrir = lambda u: (lambda: webbrowser.open(u))
+    apartados = [("apartado-anadir.png", "t_anadir", "d_anadir", abrir(L + "#anadir")),
+                 ("apartado-objetos.png", "t_objetos", "d_objetos", abrir(L + "#objetos")),
+                 ("apartado-noches.png", "t_noches", "d_noches", abrir(L + "#noches")),
+                 ("apartado-directo.png", "t_directo", "d_directo", abrir(L + "#directo")),
+                 ("apartado-apilar.png", "t_apilar", "d_apilar", abrir(L + "#apilar")),
+                 ("apartado-calibracion.png", "t_calib", "d_calib", abrir(C))]
+    rejilla = tk.Frame(c, bg=FONDO); rejilla.pack()
+    for k, (dib, t, d, orden) in enumerate(apartados):
+        _tarjeta(rejilla, dib, T(t), T(d), orden, con_texto=not baja).grid(row=k // 3, column=k % 3, padx=8, pady=8, sticky="n")
     def cambiar():
         r = filedialog.askdirectory(title=T("nueva_carpeta"), initialdir=datos)
         if r and messagebox.askyesno("ASTRO", T("reiniciar_q") % normalizar_datos(r)):
             cc = leer_config(); cc["datos"] = normalizar_datos(r); guardar_config(cc); reiniciar()
 
-    pie = tk.Frame(c, bg=FONDO); pie.pack(fill="x", pady=(10, 0))
-    _boton(pie, T("cambiar"), cambiar).pack(side="left")
+    pie = tk.Frame(c, bg=FONDO); pie.pack(fill="x", pady=(12, 0))
     _boton(pie, T("salir"), lambda: os._exit(0)).pack(side="right")
+    _boton(pie, T("cambiar"), cambiar).pack(side="right", padx=8)
+    tk.Label(pie, text=T("datos_en") + datos, bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=520,
+             justify="left").pack(side="left", fill="x", expand=True)
     w.protocol("WM_DELETE_WINDOW", lambda: os._exit(0) if messagebox.askyesno("ASTRO", T("cerrar_q")) else None)
-    w.after(700, lambda: webbrowser.open(url(puertos["lights"])))
     w.mainloop()
     os._exit(0)
 
@@ -656,7 +757,7 @@ def main():
     compartir_idioma(datos)
     puertos, faltan = arrancar(datos)
     if faltan:
-        texto = T("no_arranca") % (", ".join(faltan), REGISTRO)
+        texto = T("no_arranca") % (", ".join(T("lights") if f == "lights" else T("biblio") for f in faltan), REGISTRO)
         if TK:
             r = tk.Tk(); r.withdraw(); messagebox.showerror("ASTRO", texto)
         print(texto)

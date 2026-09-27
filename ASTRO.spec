@@ -11,7 +11,7 @@ extras = [(f, ".") for f in ("version.txt", "repo.txt", "contacto.txt") if os.pa
 
 a = Analysis(
     ["lanzador.py"],
-    datas=[("programa-lights.py", "."), ("programa-calibracion.py", "."), ("icono.png", ".")] + extras,
+    datas=[("programa-lights.py", "."), ("programa-calibracion.py", "."), ("icono.png", "."), ("imagenes", "imagenes")] + extras,
     hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"],
     excludes=["numpy", "matplotlib", "PIL", "pandas", "scipy"],
 )

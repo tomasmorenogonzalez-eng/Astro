@@ -38,7 +38,7 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
    - Windows 10 u 11: **ASTRO-Windows.exe**
 2. **Haz doble clic.** ASTRO se instala solo y, a partir de ahí, se actualiza solo.
 3. Elige el idioma y la carpeta donde quieres guardar tus fotos. Puede estar en un disco externo.
-4. Arrastra la carpeta de una noche de fotos y deja que ASTRO haga el resto.
+4. En la **ventana de inicio** elige por dónde empezar: cada apartado (Añadir tomas, Mis objetos, Próximas noches, Sesión en directo, Apilar con Siril y Biblioteca de calibración) tiene su dibujo y se abre en tu navegador. Arrastra la carpeta de una noche de fotos y deja que ASTRO haga el resto.
 
 **La primera vez**, tu ordenador te avisará de que el programa no está firmado. Es normal en programas gratuitos hechos por aficionados:
 - En **Mac**: ve a *Ajustes del Sistema → Privacidad y seguridad* y pulsa **«Abrir igualmente»**.
@@ -56,7 +56,7 @@ ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en 
 
 ## Esto es una versión de prueba
 
-ASTRO está en **beta**, así que puede tener algún fallo. Si encuentras algo raro, o echas algo en falta, cuéntamelo desde el propio programa: menú **Más → Informar de un problema o sugerencia**. Todo ayuda, también saber lo que te gusta.
+ASTRO está en **beta**, así que puede tener algún fallo. Si encuentras algo raro, o echas algo en falta, cuéntamelo desde el propio programa: **Más opciones → Informar de un problema o sugerencia**. Todo ayuda, también saber lo que te gusta.
 
 Si vas a probarlo, echa un vistazo a la **[guía para probadores](GUIA-BETA.md)**.
 
@@ -76,8 +76,8 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 **ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus), and it can watch your ASIAIR or N.I.N.A. live during the night, checking each frame as it arrives and warning you with a sound and a notification if clouds come in, focus drifts or the sequence stops. It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, plus the cloud forecast for the next week), suggests new targets that fit your field of view (with a ready-made plan for N.I.N.A. or the ASIAIR), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
 
-It has three looks (Day, Night and Red, the last one for use at the telescope). Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
+It has three looks (Day, Night and Red, the last one for use at the telescope). Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself, and its start window shows an illustrated section for each thing you can do. Everything stays on your computer.
 
-It's a beta: if something doesn't work, use **More → Report a problem or suggestion** inside the app.
+It's a beta: if something doesn't work, use **More options → Report a problem or suggestion** inside the app.
 
-*Made by Tomás Moreno González, member of Astrocitas, Asociación Astronómica Azarquiel and Asociación Astronómica de Miguelturra.*
+*Made by Tomás Moreno González, member of Astrocitas, the Asociación Astronómica Azarquiel and the Asociación Astronómica de Miguelturra.*
