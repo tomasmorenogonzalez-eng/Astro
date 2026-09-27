@@ -144,6 +144,7 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 | `contacto.txt` | Correo al que llegan los informes de problemas |
 | `GUIA-BETA.md` | Guía para los probadores de la beta |
 | `entitlements.plist` | Permisos para la firma de Apple (solo si se firma) |
+| `FIRMA.md` | Cómo firmar ASTRO en Mac y Windows: qué certificados conseguir y qué *secrets* poner en GitHub |
 
 
 ---

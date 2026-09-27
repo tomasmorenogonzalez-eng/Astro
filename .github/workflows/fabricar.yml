@@ -67,17 +67,73 @@ jobs:
             codesign --force --deep -s - dist/ASTRO.app
             exit 0
           fi
+          for v in MAC_CERT_PASSWORD APPLE_ID APPLE_APP_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!v}" ]; then echo "::error::Falta el secreto $v (mira FIRMA.md)."; exit 1; fi
+          done
           echo "$MAC_CERT_P12" | base64 --decode > cert.p12
-          security create-keychain -p clave fab.keychain
+          CLAVE=$(openssl rand -hex 16)
+          security create-keychain -p "$CLAVE" fab.keychain
+          security set-keychain-settings -lut 3600 fab.keychain
+          security list-keychains -d user -s fab.keychain $(security list-keychains -d user | tr -d '"')
           security default-keychain -s fab.keychain
-          security unlock-keychain -p clave fab.keychain
+          security unlock-keychain -p "$CLAVE" fab.keychain
           security import cert.p12 -k fab.keychain -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k clave fab.keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$CLAVE" fab.keychain
+          rm -f cert.p12
           ID=$(security find-identity -v -p codesigning fab.keychain | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$ID" ]; then echo "::error::El certificado no es «Developer ID Application» (mira FIRMA.md)."; exit 1; fi
           codesign --force --deep --options runtime --timestamp --entitlements entitlements.plist -s "$ID" dist/ASTRO.app
+          codesign --verify --deep --strict --verbose=2 dist/ASTRO.app
           ditto -c -k --keepParent dist/ASTRO.app certificar.zip
-          xcrun notarytool submit certificar.zip --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          xcrun notarytool submit certificar.zip --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --timeout 30m
           xcrun stapler staple dist/ASTRO.app
+          xcrun stapler validate dist/ASTRO.app
+          spctl --assess --type execute --verbose=2 dist/ASTRO.app
+          rm -f certificar.zip
+          security delete-keychain fab.keychain || true
+
+      # ── Windows: firma (solo si hay credenciales en los «secrets»; mira FIRMA.md) ──
+      #   · Certificado en archivo .pfx (WIN_CERT_PFX + WIN_CERT_PASSWORD), o
+      #   · Azure Artifact Signing (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET + las variables
+      #     AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT y AZURE_SIGNING_PROFILE).
+      - name: Firmar (Windows, opcional)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WIN_CERT_PFX: ${{ secrets.WIN_CERT_PFX }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          $exe = "dist\ASTRO.exe"
+          if (-not $env:WIN_CERT_PFX -and -not $env:AZURE_CLIENT_SECRET) {
+            Write-Output "Sin certificado de Windows: la aplicación va sin firmar (SmartScreen mostrará un aviso la primera vez)."
+            exit 0
+          }
+          $st = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $st) { Write-Output "::error::No encuentro signtool.exe en el Windows SDK."; exit 1 }
+          if ($env:WIN_CERT_PFX) {
+            [IO.File]::WriteAllBytes("$PWD\cert.pfx", [Convert]::FromBase64String($env:WIN_CERT_PFX))
+            & $st.FullName sign /f cert.pfx /p $env:WIN_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "ASTRO" $exe
+            $r = $LASTEXITCODE
+            Remove-Item cert.pfx -Force
+            if ($r -ne 0) { exit $r }
+          } elseif ($env:AZURE_CLIENT_SECRET) {
+            dotnet tool install --global --prerelease sign
+            sign code trusted-signing $exe `
+              --trusted-signing-endpoint $env:AZURE_SIGNING_ENDPOINT `
+              --trusted-signing-account $env:AZURE_SIGNING_ACCOUNT `
+              --trusted-signing-certificate-profile $env:AZURE_SIGNING_PROFILE `
+              --description "ASTRO" --verbosity information
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          & $st.FullName verify /pa /v $exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Empaquetar (Mac)
         if: runner.os == 'macOS'
