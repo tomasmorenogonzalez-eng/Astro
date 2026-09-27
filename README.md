@@ -16,7 +16,9 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 **Ordena tu biblioteca de calibración.** Guarda tus bias, darks y flats, los valora y te avisa de lo que falta. Con un botón te dice qué tomas de calibración tienes que hacer para cada objeto, y te prepara la lista para la ASIAIR o una secuencia lista para cargar en N.I.N.A.
 
-**Te ayuda a llegar a tu objetivo.** Para cada objeto ves cuántas horas útiles llevas por filtro, cuántas te faltan y cuántas noches más necesitarás, más o menos.
+**Se entera solo de tus sesiones.** Dile una vez en qué carpetas guardan las fotos la ASIAIR, N.I.N.A. o tu programa de captura y ASTRO las revisa al abrirse y cada diez minutos: las tomas nuevas se analizan y se colocan solas, sin arrastrar nada.
+
+**Te ayuda a llegar a tu objetivo.** Para cada objeto ves cuántas horas útiles llevas por filtro, cuántas te faltan y cuántas noches más necesitarás, más o menos. Y cómo evoluciona noche a noche: el FWHM y el fondo de cada sesión, qué noches fueron flojas y cuánto mejora de verdad la señal/ruido con otra noche más.
 
 **Y te dice cuándo.** Con tu lugar de observación, la Luna y la altura de cada objeto, ASTRO te enseña qué noches del próximo mes sirven para lo que te falta: la banda ancha cuando no hay Luna y el Hα, el OIII o el SII cuando sí la hay. En «Próximas noches» ves de un vistazo qué hacer esta noche y las siguientes, con la previsión de los próximos siete días hora a hora (nubes, humedad, rocío y viento). Guarda varios lugares, cada uno con su horizonte (los árboles, la casa o la cúpula), y te dibuja la altura de cada objeto esta noche. Y si buscas algo nuevo, **«¿Qué fotografío?»** te propone objetos que encajan en el campo de tu equipo y te prepara el plan para N.I.N.A. o la ASIAIR.
 
