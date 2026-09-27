@@ -16,6 +16,8 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
 
 **Te ayuda a llegar a tu objetivo.** Para cada objeto ves cuántas horas útiles llevas por filtro, cuántas te faltan y cuántas noches más necesitarás, más o menos.
 
+**Y te dice cuándo.** Con tu lugar de observación, la Luna y la altura de cada objeto, ASTRO te enseña qué noches del próximo mes sirven para lo que te falta: la banda ancha cuando no hay Luna y el Hα, el OIII o el SII cuando sí la hay. En «Próximas noches» ves de un vistazo qué hacer esta noche y las siguientes. Funciona sin internet; el tiempo que hará, eso sí, tendrás que mirarlo tú.
+
 **Apila por ti.** Si tienes instalado Siril (también gratuito), ASTRO apila cada objeto por filtros usando las calibraciones que le correspondan.
 
 **Y te enseña el resultado.** Al terminar, ASTRO revela la imagen por ti: quita el gradiente del fondo, equilibra el color y la estira, y si tienes los filtros monta también las versiones RGB, LRGB, SHO (la paleta Hubble) o HOO. Nada de abrir un archivo negro sin saber si ha salido bien: lo ves en el momento. Y cuando quieras rematarla, un botón la abre directamente en GIMP, Photoshop, PixInsight o el programa que uses.
@@ -66,7 +68,7 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 ## In English
 
-**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus). It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target, and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
+**ASTRO** is a free helper for deep-sky astrophotography, for Mac and Windows. It checks your light frames and tells you which ones are good and why the rest aren't (elongated stars, satellite trails, clouds, defocus). It keeps your library of bias, darks and flats in order, tells you which calibration frames you're missing (with a ready-made sequence for N.I.N.A.), tracks how many hours you have on each target and which upcoming nights suit each filter (Moon, altitude and darkness, all offline), and stacks with Siril. After stacking it develops the result for you (gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations) so you can see it straight away, and opens it in GIMP, Photoshop or PixInsight with one click.
 
 Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself. Everything stays on your computer.
 
