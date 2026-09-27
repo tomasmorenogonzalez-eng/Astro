@@ -46,7 +46,7 @@ No vuelve a salir.
 
 ## Tus fotos son tuyas
 
-ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en cuando si hay una versión nueva y, si usas «Próximas noches», pide la previsión del tiempo de tu zona a Open-Meteo.com enviando únicamente tu posición aproximada (se puede desactivar), y en «¿Qué fotografío?» muestra imágenes del cielo del servicio CDS de Estrasburgo. Copia tus tomas a su carpeta sin tocar los originales.
+ASTRO trabaja en tu ordenador. **No sube nada a Internet**: solo mira de vez en cuando si hay una versión nueva y, si usas «Próximas noches», pide la previsión del tiempo de tu zona a Open-Meteo.com enviando únicamente tu posición aproximada (se puede desactivar), y en «¿Qué fotografío?» muestra imágenes del cielo del servicio CDS de Estrasburgo. Copia tus tomas a su carpeta sin tocar los originales, o, si lo prefieres, las analiza y las apila desde donde están, sin copiarlas.
 
 ---
 
