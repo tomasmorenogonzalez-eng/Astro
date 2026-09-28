@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.25",
+  "es": [
+   "Apilado con pesos: Siril pondera cada toma por su ruido, como PixInsight, así que las de mejor señal cuentan más. Se puede desactivar en la ventana de apilar.",
+   "Indicadores de todo el proyecto: todas las noches en las mismas gráficas, cada filtro de su color y con el peso de cada toma. Puedes ponerle al proyecto límites fijos de FWHM, excentricidad y peso; lo que los pasa queda fuera del apilado, también en las tomas que analices después.",
+   "Qué calibra cada noche: en el paso de calibración de cada proyecto, el dark y el flat que le tocan a cada grupo de tomas y, al revés, a cuántas tomas y noches sirve cada uno, con lo que falta en rojo."
+  ],
+  "en": [
+   "Weighted stacking: Siril weights each frame by its noise, as PixInsight does, so the frames with the best signal count more. It can be turned off in the stacking window.",
+   "Whole-project indicators: every night on the same charts, each filter in its colour, with each frame's weight. You can give the project fixed FWHM, eccentricity and weight limits; whatever goes over them is left out of the stack, including frames you analyse later.",
+   "What calibrates each night: in each project's calibration step, the dark and flat each group of frames gets and, the other way round, how many frames and nights each one serves, with what's missing in red."
+  ],
+  "fr": [
+   "Empilement pondéré : Siril pondère chaque pose par son bruit, comme PixInsight, si bien que les poses au meilleur signal comptent davantage. Désactivable dans la fenêtre d'empilement.",
+   "Indicateurs de tout le projet : toutes les nuits sur les mêmes graphiques, chaque filtre dans sa couleur, avec le poids de chaque pose. Vous pouvez fixer au projet des limites de FWHM, d'excentricité et de poids ; ce qui les dépasse reste hors empilement, y compris les poses que vous analyserez ensuite.",
+   "Ce qui calibre chaque nuit : à l'étape de calibration de chaque projet, le dark et le flat qui reviennent à chaque groupe de poses et, dans l'autre sens, combien de poses et de nuits sert chacun, avec ce qui manque en rouge."
+  ],
+  "de": [
+   "Gewichtetes Stacken: Siril gewichtet jede Aufnahme nach ihrem Rauschen, wie PixInsight, sodass die Aufnahmen mit dem besseren Signal mehr zählen. Im Stack-Fenster abschaltbar.",
+   "Indikatoren für das ganze Projekt: alle Nächte in denselben Diagrammen, jeder Filter in seiner Farbe, mit dem Gewicht jeder Aufnahme. Du kannst dem Projekt feste Grenzen für FWHM, Exzentrizität und Gewicht geben; was sie überschreitet, bleibt aus dem Stack, auch bei Aufnahmen, die du später analysierst.",
+   "Was jede Nacht kalibriert: im Kalibrierungsschritt jedes Projekts das Dark und das Flat, das jede Gruppe von Aufnahmen bekommt, und umgekehrt, wie vielen Aufnahmen und Nächten jedes dient, mit dem Fehlenden in Rot."
+  ],
+  "it": [
+   "Impilamento con pesi: Siril pondera ogni posa per il suo rumore, come PixInsight, così le pose con il segnale migliore contano di più. Si può disattivare nella finestra di impilamento.",
+   "Indicatori di tutto il progetto: tutte le notti negli stessi grafici, ogni filtro del suo colore e con il peso di ogni posa. Puoi dare al progetto limiti fissi di FWHM, eccentricità e peso; ciò che li supera resta fuori dall'impilamento, anche nelle pose che analizzerai dopo.",
+   "Cosa calibra ogni notte: nel passo di calibrazione di ogni progetto, il dark e il flat che spettano a ogni gruppo di pose e, al contrario, a quante pose e notti serve ciascuno, con ciò che manca in rosso."
+  ],
+  "pt": [
+   "Empilhamento com pesos: o Siril pondera cada exposição pelo seu ruído, como o PixInsight, e assim as de melhor sinal contam mais. Pode desativar-se na janela de empilhar.",
+   "Indicadores de todo o projeto: todas as noites nos mesmos gráficos, cada filtro com a sua cor e com o peso de cada exposição. Pode dar ao projeto limites fixos de FWHM, excentricidade e peso; o que os passa fica fora do empilhamento, também nas exposições que analisar depois.",
+   "O que calibra cada noite: no passo de calibração de cada projeto, o dark e o flat que cabem a cada grupo de exposições e, ao contrário, a quantas exposições e noites serve cada um, com o que falta a vermelho."
+  ]
+ },
+ {
   "version": "0.24",
   "es": [
    "Archivo: los darks, flats y bias que aparecen entre tus tomas al indexar pasan con un botón a la biblioteca de calibración, que clasifica cada uno por su cabecera (tipo, cámara, exposición, temperatura y gain).",
