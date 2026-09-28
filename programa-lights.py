@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.24"
+VERSION_PROG = "2026.09.29.25"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -3617,7 +3617,33 @@ if ($("navArchivo")) $("navArchivo").textContent = ARCHIVO_TXT();
 const ARC_TABLA = 2500;      // «Todas las tomas» enseña como mucho estas filas (con años de archivo serían decenas de miles)
 const nfmt = n => Number(n || 0).toLocaleString(LOCALE);
 const anioDe = f => (f.night || f.dateObs || "").slice(0, 4);
-const equipoDe = f => [f.tel, f.cam].filter(Boolean).join(" · ") || trLT("Equipo sin nombre", "Unnamed setup");
+// la misma cámara en telescopios distintos (o con y sin reductor): si la cabecera no dice el telescopio, los separa la
+// escala, como en el apilado: se agrupan las escalas de cada cámara que están a menos de un 4 % unas de otras
+const _ESC = {n:-1, t:0, ctx:new Map()};
+function escalaEquipo(f){ const e = f.astro && f.astro.esc; return e > 0 ? e : escalaToma(f); }
+function baseEquipo(f){ return [f.cam || "", (f.tel || "").trim().toLowerCase(), f.bin || "", f.w || "", f.h || ""].join("|"); }
+function contextoEscalas(){
+  if (_ESC.n === frames.length && Date.now() - _ESC.t < 5000) return _ESC.ctx;
+  const por = new Map();
+  for (const f of frames){ const e = escalaEquipo(f); if (!e) continue; const k = baseEquipo(f); if (!por.has(k)) por.set(k, []); por.get(k).push([e, +((f.header || {}).FOCALLEN) || null]); }
+  const ctx = new Map();
+  for (const [k, v] of por){
+    v.sort((a, b) => a[0] - b[0]); const gs = []; let act = [v[0]];
+    for (const x of v.slice(1)){ if (x[0] / act[act.length - 1][0] > 1.04){ gs.push(act); act = [x]; } else act.push(x); }
+    gs.push(act);
+    ctx.set(k, gs.map(g => ({lo: g[0][0], hi: g[g.length - 1][0], esc: med(g.map(x => x[0])), fl: med(g.map(x => x[1]).filter(v => v > 10))})));
+  }
+  _ESC.n = frames.length; _ESC.t = Date.now(); _ESC.ctx = ctx; return ctx;
+}
+function grupoEscala(f){
+  const gs = contextoEscalas().get(baseEquipo(f)); if (!gs || gs.length < 2) return null;
+  const e = escalaEquipo(f); if (!e) return {k: "?", suf: " · ?″/px"};
+  let mejor = null;
+  for (const g of gs){ const d = e >= g.lo && e <= g.hi ? 0 : Math.min(Math.abs(Math.log(e / g.lo)), Math.abs(Math.log(e / g.hi))); if (!mejor || d < mejor.d) mejor = {g, d}; }
+  const g = mejor.g;
+  return {k: g.esc.toFixed(3), suf: g.fl ? " · " + Math.round(g.fl) + " mm" : " · " + numEs(g.esc, 2) + "″/px"};
+}
+const equipoDe = f => { const b = [f.tel, f.cam].filter(Boolean).join(" · ") || trLT("Equipo sin nombre", "Unnamed setup"), g = grupoEscala(f); return g ? b + g.suf : b; };
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 function duracion(seg){
   seg = Math.max(0, Math.round(seg));
@@ -7005,7 +7031,8 @@ function setupDeTomaJS(f, setups){
 function equipoDeToma(f, setups){
   const s = setupDeTomaJS(f, setups);
   if (s) return {k: "s:" + s.id, nombre: nombreSetup(s)};
-  return {k: [f.cam||"", f.tel||"", f.w||"", f.h||"", f.bin||""].join("|"), nombre: [f.tel, f.cam].filter(Boolean).join(" + ") || tr("equipo sin nombre")};
+  const g = grupoEscala(f);
+  return {k: [f.cam||"", f.tel||"", f.w||"", f.h||"", f.bin||"", g ? g.k : ""].join("|"), nombre: ([f.tel, f.cam].filter(Boolean).join(" + ") || tr("equipo sin nombre")) + (g ? g.suf : "")};
 }
 function evolucionObjeto(obj){
   const fl = frames.filter(f => (f.object||"") === obj && f.night);
@@ -8409,10 +8436,64 @@ def escala_toma(r, eq=None, setups=None):
     return None
 
 
-def equipo_toma(r, setups=None):
+# ── la misma cámara en telescopios distintos: se distinguen por la escala ──
+# Si la cabecera no dice el telescopio (o dice siempre el mismo), las tomas de una cámara con dos telescopios o con y sin
+# reductor saldrían como un solo equipo. La escala (la de la astrometría o la de la focal y el píxel de la cabecera) las
+# separa: se agrupan las escalas de cada cámara que están a menos de un 4 % unas de otras.
+def _base_equipo(r):
+    return (cam_clave(r), _norm_nombre((r.get("tel") or "").strip()), _bin(r), int(num(r.get("w")) or 0), int(num(r.get("h")) or 0))
+
+
+def _escala_equipo(r):
+    a = r.get("astro") if isinstance(r.get("astro"), dict) else {}
+    e = num(a.get("esc"))
+    if e and e > 0:
+        return e
+    h = r.get("header") or {}
+    fl, px = num(h.get("FOCALLEN")), num(h.get("XPIXSZ") or h.get("PIXSIZE1"))
+    return 206.265 * px / fl if fl and fl > 10 and px and px > 0.5 else None
+
+
+def contexto_escalas(registros):
+    """{equipo base: [(desde, hasta, escala típica, focal típica)]}: los grupos de escala de cada cámara y telescopio."""
+    por = {}
+    for r in registros:
+        e = _escala_equipo(r)
+        if e:
+            fl = num((r.get("header") or {}).get("FOCALLEN"))
+            por.setdefault(_base_equipo(r), []).append((e, fl if fl and fl > 10 else None))
+    ctx = {}
+    for k, v in por.items():
+        v.sort(key=lambda x: x[0])
+        grupos, act = [], [v[0]]
+        for x in v[1:]:
+            if x[0] / act[-1][0] > 1.04:
+                grupos.append(act); act = [x]
+            else:
+                act.append(x)
+        grupos.append(act)
+        med_ = lambda a: sorted(a)[len(a) // 2] if a else None
+        ctx[k] = [(g[0][0], g[-1][0], med_([x[0] for x in g]), med_([x[1] for x in g if x[1]])) for g in grupos]
+    return ctx
+
+
+def _grupo_escala(r, ctx):
+    """El grupo de escala de una toma (None si su cámara solo tiene uno o no se sabe) y cómo se llama."""
+    gs = (ctx or {}).get(_base_equipo(r))
+    if not gs or len(gs) < 2:
+        return None, ""
+    e = _escala_equipo(r)
+    if not e:
+        return ("sin_escala",), " · ?″/px"
+    g = min(gs, key=lambda g: 0 if g[0] <= e <= g[1] else min(abs(math.log(e / g[0])), abs(math.log(e / g[1]))))
+    return ("escala", round(g[2], 3)), (" · %d mm" % round(g[3]) if g[3] else " · %.2f″/px" % g[2])
+
+
+def equipo_toma(r, setups=None, ctx=None):
     """(clave, nombre) del equipo con el que se hizo una toma: telescopio, cámara, binning y tamaño de imagen.
     Tomas de equipos distintos no se pueden apilar juntas tal cual (cambian la escala, el campo o el tamaño).
-    Si el objeto es un proyecto con varios equipos, cada toma va con el suyo aunque la cabecera no diga el telescopio."""
+    Si el objeto es un proyecto con varios equipos, cada toma va con el suyo aunque la cabecera no diga el telescopio.
+    Con el contexto de escalas (contexto_escalas), la misma cámara con telescopios distintos son equipos distintos."""
     w, hh, b = int(num(r.get("w")) or 0), int(num(r.get("h")) or 0), _bin(r)
     s = setup_de_toma(r, setups)
     if s:
@@ -8422,7 +8503,10 @@ def equipo_toma(r, setups=None):
         return ("setup", s["id"], b, w, hh, c), nombre
     tel, cam = (r.get("tel") or "").strip(), (r.get("cam") or "").strip()
     clave = (cam_clave(r), _norm_nombre(tel), b, w, hh)
-    return clave, (" + ".join(x for x in (tel, cam) if x) or "equipo sin nombre")
+    g, suf = _grupo_escala(r, ctx)
+    if g:
+        clave = clave + (g,)
+    return clave, (" + ".join(x for x in (tel, cam) if x) or "equipo sin nombre") + suf
 
 
 def conjuntos_calibracion(xisf_ok):
@@ -8619,6 +8703,7 @@ def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
     sets = conjuntos_calibracion(xisf_ok)
     eq_cfg = leer_json(EQUIPO_CFG, {})
     setups = setups_de(objeto)
+    ctx_esc = contexto_escalas(lights)
     por_filtro = {}
     for r in lights:
         por_filtro.setdefault(nfiltro(r.get("filter")), []).append(r)
@@ -8627,7 +8712,7 @@ def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
         grupos, avisos = {}, []
         for r in ls:
             dark, bias, flat, cflat, av = calibracion_toma(sets, r)
-            eqk, eqn = equipo_toma(r, setups)
+            eqk, eqn = equipo_toma(r, setups, ctx_esc)
             k = (eqk, dark["id"] if dark else "", bias["id"] if bias else "", flat["id"] if flat else "", cflat["id"] if cflat else "")
             g = grupos.setdefault(k, {"lights": [], "dark": dark, "bias": bias, "flat": flat, "cflat": cflat, "avisos": set(),
                                       "equipo": eqn, "_eqk": eqk})
@@ -10788,7 +10873,8 @@ def mensaje_resumen(noche=None):
             hecho = sum(expo(r) for r in todas if (r.get("object") or "").strip() == obj and not r.get("discarded") and util(r)) / 3600
             lin.append((_L("   📈 Proyecto: %s de %s (%d %%)", "   📈 Project: %s of %s (%d %%)")) % (_fh(hecho, en), _fh(meta, en), min(100, round(100 * hecho / meta))))
         # comparada con lo normal de ese equipo y filtro en este objeto
-        grupo = lambda r: (equipo_toma(r, setups)[0], nfiltro(r.get("filter")))
+        ctx_esc = contexto_escalas([r for r in todas if (r.get("object") or "").strip() == obj])
+        grupo = lambda r: (equipo_toma(r, setups, ctx_esc)[0], nfiltro(r.get("filter")))
         ref = {}
         for r in todas:
             if (r.get("object") or "").strip() == obj and not r.get("discarded") and r.get("status") != "bad" and r.get("fwhm"):
@@ -10807,7 +10893,7 @@ def mensaje_resumen(noche=None):
         # calibración que falta para lo de esta noche
         vistos = set()
         for r in u:
-            k = (equipo_toma(r, setups)[0], nfiltro(r.get("filter")), num(r.get("exp")), num(r.get("gain")), round(num(r.get("temp")) or 0))
+            k = (equipo_toma(r, setups, ctx_esc)[0], nfiltro(r.get("filter")), num(r.get("exp")), num(r.get("gain")), round(num(r.get("temp")) or 0))
             if k in vistos:
                 continue
             vistos.add(k)
@@ -11369,9 +11455,9 @@ def fichas_equipos(objeto):
     fl = [r for r in db.get("frames", []) if (r.get("object") or "").strip() == objeto]
     util = lambda r: not r.get("discarded") and r.get("status") != "bad" and not r.get("fuera")
     expo = lambda r: num(r.get("exp")) or 0
-    grupos = {}
+    grupos, ctx_esc = {}, contexto_escalas(fl)
     for r in fl:
-        k, n = equipo_toma(r, setups)
+        k, n = equipo_toma(r, setups, ctx_esc)
         g = grupos.setdefault(k, {"nombre": n, "tomas": [], "setup": setup_de_toma(r, setups), "clave": k})
         g["tomas"].append(r)
     if len(grupos) < 2 and not setups:
@@ -14713,12 +14799,13 @@ def trabajo_exportar(objeto, opc, extra):
         cfg = leer_json(os.path.join(ROOT, "planificador.json"), {})
         coords = (cfg.get("coords") or {}).get(objeto)
         lista_tomas, setups = [], setups_de(objeto)
+        ctx_esc = contexto_escalas(tomas)
         for r in tomas:
             x = {k: v for k, v in r.items() if k not in ("trails",)}
             x["archivo_en_zip"] = en_zip.get(r.get("id"))
             x["miniatura_en_zip"] = miniaturas.get(r.get("id"))
             x["calibracion"] = asign.get(r.get("id"))
-            x["equipo"] = equipo_toma(r, setups)[1]
+            x["equipo"] = equipo_toma(r, setups, ctx_esc)[1]
             lista_tomas.append(x)
         lista_cal = []
         for s in usados.values():
