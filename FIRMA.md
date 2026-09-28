@@ -32,7 +32,7 @@ Los *secrets* se guardan en GitHub, en el repositorio: **Settings → Secrets an
 | `APPLE_APP_PASSWORD` | la contraseña para apps del paso 5 |
 | `APPLE_TEAM_ID` | el Team ID del paso 6 (opcional: si falta, la fábrica lo lee del nombre del certificado) |
 
-Después, publica una versión nueva. La fábrica firma ASTRO para Apple Silicon y para Intel y lo manda a Apple para la notarización, que tarda unos minutos. Cuando Apple lo aprueba, le «grapa» el visto bueno y comprueba que el Mac lo aceptará. Si falta algo, la fábrica se para y dice qué secret falta.
+Después, publica una versión nueva. La fábrica firma ASTRO para Apple Silicon y para Intel y lo manda a Apple para la notarización, que tarda unos minutos. Cuando Apple lo aprueba, le «grapa» el visto bueno y comprueba que el Mac lo aceptará. Si falta algo, la fábrica se para y dice qué secret falta. La primera notarización de una cuenta nueva puede tardar horas: si Apple tarda más de 40 minutos, ASTRO se publica firmado igualmente y, cuando Apple lo apruebe, el Mac lo comprobará por internet al abrirlo.
 
 ---
 

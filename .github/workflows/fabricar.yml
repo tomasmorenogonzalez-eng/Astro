@@ -102,10 +102,30 @@ jobs:
           codesign --force --deep --options runtime --timestamp --entitlements entitlements.plist -s "$ID" dist/ASTRO.app
           codesign --verify --deep --strict --verbose=2 dist/ASTRO.app
           ditto -c -k --keepParent dist/ASTRO.app certificar.zip
-          xcrun notarytool submit certificar.zip --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM" --wait --timeout 30m
-          xcrun stapler staple dist/ASTRO.app
-          xcrun stapler validate dist/ASTRO.app
-          spctl --assess --type execute --verbose=2 dist/ASTRO.app
+          # Notarización: se envía a Apple y se espera hasta 40 minutos. Si Apple tarda más (la primera
+          # vez puede tardar horas), ASTRO se publica firmado igualmente: cuando Apple lo apruebe, el Mac
+          # lo comprobará por internet al abrirlo. Si Apple lo rechaza, se muestra su informe.
+          CRED=(--apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM")
+          SUB=$(xcrun notarytool submit certificar.zip "${CRED[@]}" --output-format json | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+          echo "Enviado a Apple para la notarización: $SUB"
+          ESTADO=""
+          for i in $(seq 1 40); do
+            ESTADO=$(xcrun notarytool info "$SUB" "${CRED[@]}" --output-format json 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
+            echo "$(date +%H:%M) Apple: ${ESTADO:-sin respuesta}"
+            case "$ESTADO" in Accepted|Invalid|Rejected) break;; esac
+            sleep 60
+          done
+          case "$ESTADO" in
+            Accepted)
+              xcrun stapler staple dist/ASTRO.app
+              xcrun stapler validate dist/ASTRO.app
+              spctl --assess --type execute --verbose=2 dist/ASTRO.app ;;
+            Invalid|Rejected)
+              xcrun notarytool log "$SUB" "${CRED[@]}" || true
+              echo "::warning::Apple ha rechazado la notarización ($SUB). ASTRO se publica firmado, pero sin el visto bueno de Apple: mira su informe arriba." ;;
+            *)
+              echo "::warning::Apple aún no ha terminado de revisar ASTRO ($SUB). Se publica firmado; cuando Apple lo apruebe, el Mac lo comprobará por internet al abrirlo." ;;
+          esac
           rm -f certificar.zip
           security delete-keychain fab.keychain || true
 
