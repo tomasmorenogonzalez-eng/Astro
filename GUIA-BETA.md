@@ -53,7 +53,7 @@ Todo sirve: fallos, frases poco claras, ideas, y también lo que te guste.
 ## Duración
 La beta durará unos **3 meses**. Todas las mejoras te llegarán solas al abrir ASTRO.
 
-*Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra*
+*Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra*
 
 ---
 
@@ -71,4 +71,4 @@ Thank you for testing ASTRO! This is a **test version**: it may have bugs, and t
 
 **Your data** stays in the folder you chose; nothing is uploaded (only your approximate location is sent to Open-Meteo.com to get the weather forecast in «Upcoming nights», and you can turn that off; «Science» queries the Gaia catalogue with the coordinates of the field you measure, and the AAVSO with the name of a variable star, never your images; for transits it downloads the ExoClock and NASA planet lists; for asteroids it asks JPL with the field centre, the time and your site's position; if you turn on the automatic WhatsApp message, it goes through CallMeBot, a free third-party service). ASTRO copies your frames without touching the originals (or, with «Analyse only», just reads them where they are) — but as this is a beta, **keep your originals**.
 
-*Tomás Moreno González · Member of Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and Asociación Astronómica de Miguelturra*
+*Tomás Moreno González · Member of Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and Agrupación Astronómica de Miguelturra*

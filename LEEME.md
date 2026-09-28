@@ -4,7 +4,7 @@ ASTRO revisa tus fotos de cielo profundo y te dice cuáles valen: mide las estre
 
 Funciona en **Mac** y **Windows**, con tomas de la **ASIAIR**, de **N.I.N.A.** o de cualquier programa que guarde en FITS o XISF.
 
-**Autor:** Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.
+**Autor:** Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra.
 
 Disponible en **español** e **inglés**: se elige en la bienvenida y se cambia en cualquier momento con el botón 🌐 de la barra de la izquierda. En esa misma barra, abajo, eliges el aspecto: **Día** (claro), **Noche** (oscuro) o **Rojo** (todo en rojo, para usarlo junto al telescopio sin perder la adaptación a la oscuridad).
 
@@ -198,7 +198,7 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 
 **ASTRO** checks your deep-sky light frames and tells you which ones are good: it measures the stars (FWHM and elongation), detects satellite trails, clouds and defocus, and sorts everything by target, night and filter. It also manages your **library of darks, flats and bias**, tells you **which calibration frames you are missing** (with a ready-made **N.I.N.A. sequence**), creates masters and **stacks with Siril**. Works on **Mac** and **Windows**, with frames from the **ASIAIR**, **N.I.N.A.** or any FITS/XISF software.
 
-**Author:** Tomás Moreno González. Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Asociación Astronómica de Miguelturra.
+**Author:** Tomás Moreno González. Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra.
 
 1. Download the file for your computer from **Releases** (Apple Silicon Mac, Intel Mac or Windows) and **double-click it**. ASTRO installs itself (Applications on Mac; Desktop and Start menu shortcuts on Windows) and **updates itself** whenever a new version is published.
 2. Only the first time, the system may warn that the app is unsigned. **Mac:** *System Settings → Privacy & Security → Open Anyway* (or right-click → Open on macOS 14 and earlier). **Windows:** *More info → Run anyway*.
