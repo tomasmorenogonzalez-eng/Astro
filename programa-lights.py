@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.18"
+VERSION_PROG = "2026.09.29.20"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -135,6 +135,7 @@ DIC_EN.update({"Registros de la ASIAIR": "ASIAIR logs", "Los registros de la ASI
 DIC_EN.update({"Indicadores de calidad": "Quality indicators", "Gradiente": "Gradient"})
 DIC_EN.update({"Dar más peso a las tomas con mejor señal": "Give more weight to the frames with the best signal", "Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.": "Siril weights each frame by its noise, as PixInsight does: a frame with half the SNR of the rest counts for a quarter, not the same as them."})
 DIC_EN.update({"Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "All your projects over the years: how many hours you have, what's missing and how to carry on", "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "All your projects over the years: index the folders, see how they're going, then analyse, clean up and stack each one", "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indexed from the Archive: not analysed yet. Analyse it from its project, in the Archive.", "Ya se está indexando otra carpeta.": "Another folder is already being indexed."})      # Archivo
+DIC_EN.update({"Parpadeo": "Blink", "Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas": "Shows the frames in view one after another, aligned, to catch satellites, clouds or trailed stars", "Anterior (←)": "Previous (←)", "Reproducir o parar (espacio)": "Play or stop (space)", "Siguiente (→)": "Next (→)", "Velocidad": "Speed", "# por segundo": "# per second", "Superpone cada toma a la de referencia del proyecto por sus estrellas, para que lo que se mueve salte a la vista": "Overlays each frame on the project's reference frame using its stars, so that anything that moves stands out", "Alinear": "Align", "Qué tomas pasar": "Which frames to show", "Con avisos o rechazables": "With warnings or rejected", "Fuera del apilado o descartadas": "Left out of the stack or discarded", "Cerrar (Esc)": "Close (Esc)", "Cada raya es una toma: verde, válida; amarilla, con avisos; roja, rechazable. Pulsa para ir a ella.": "Each line is a frame: green, valid; yellow, with warnings; red, rejected. Click to go to it.", "← → pasar · espacio: reproducir o parar · X: dentro o fuera del apilado · Supr o ⌫: descartar o recuperar · Esc: cerrar": "← → step through · space: play or stop · X: in or out of the stack · Del or ⌫: discard or restore · Esc: close"})   # el parpadeo
 
 
 def idioma_actual():
@@ -1031,6 +1032,33 @@ table.arcFxA{min-width:0} table.arcFxA td,table.arcFxA th{text-align:right} tabl
 .arcBarraProg{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:0 0 10px;max-width:420px} .arcBarraProg i{display:block;height:100%;background:var(--accent);transition:width .4s}
 @media (max-width:900px){ .counts.arcCifras{grid-template-columns:repeat(2,minmax(0,1fr))!important} .arcDos{grid-template-columns:1fr} .arcRuta{max-width:100%} }
 .arcCarpeta .spacer,.arcBarra .spacer{flex:1}
+
+/* parpadeo: las tomas una tras otra, a toda pantalla (siempre oscuro, como un visor) */
+.parp{position:fixed;inset:0;z-index:60;background:#050409;color:#EEEAF8;display:none;flex-direction:column}
+.parp.show{display:flex}
+body.parpAbierto{overflow:hidden}
+.parpBarra{display:flex;align-items:center;gap:10px 14px;padding:10px 14px;flex-wrap:wrap;background:#120F1C;border-bottom:1px solid #2A2440}
+.parpTit{display:flex;flex-direction:column;min-width:0;max-width:40%} .parpTit b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .parpTit span{color:#A098AC;font-size:12.5px}
+.parpCtl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.parpB{background:#1C1829;border:1px solid #393243;color:#EEEAF8;border-radius:9px;min-width:38px;height:34px;padding:0 10px;font-size:15px;cursor:pointer;display:inline-grid;place-items:center}
+.parpB:hover{background:#262038} .parpB.on{background:#5B2C87;border-color:#7B45B8}
+.parp select{background:#1C1829;border:1px solid #393243;color:#EEEAF8;border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
+.parp label{display:flex;align-items:center;gap:6px;font-size:13px;color:#C9C2DA}
+.parpLienzo{flex:1;min-height:0;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.parpMarco{position:relative;overflow:hidden;background:#000;box-shadow:0 0 0 1px #1C1829}
+.parpMarco img{position:absolute;left:0;top:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;visibility:hidden;max-width:none}
+.parpSin{position:absolute;color:#A098AC;font-size:14px;text-align:center;padding:20px;max-width:420px}
+.parpTira{display:block;width:calc(100% - 28px);height:16px;margin:8px 14px 0;cursor:pointer}
+.parpPie{display:flex;align-items:center;gap:8px 14px;padding:8px 14px 4px;flex-wrap:wrap}
+.parpDatos{flex:1;min-width:260px;font-size:13px;line-height:1.55;color:#C9C2DA;height:calc(3 * 1.55em);overflow:hidden} .parpDatos b{color:#fff}
+.parpL{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.parpMotivo{color:#E8B84A}
+.parpChip{display:inline-block;padding:1px 9px;border-radius:999px;font-weight:700;font-size:12px;margin-right:6px}
+.parpChip.ok{background:#15291F;color:#5FCF95} .parpChip.warn{background:#2E2510;color:#E8B84A} .parpChip.bad{background:#331816;color:#EF6B5D} .parpChip.na{background:#262038;color:#C9C2DA}
+.parpAcc{display:flex;gap:8px;flex-wrap:nowrap} .parpAcc .btn{white-space:nowrap}
+.parp .btn{background:#1C1829;border-color:#393243;color:#EEEAF8} .parp .btn.danger{color:#EF6B5D} .parp .btn:disabled{opacity:.45}
+.parpAyuda{padding:0 14px 10px;color:#7A7296;font-size:12px}
+@media (max-width:700px){ #parpCerrar{order:1} .parpCtl{order:2;width:100%} .parpAyuda{display:none} .parpPie{padding-bottom:12px} }
 </style>
 </head>
 <body>
@@ -1113,7 +1141,7 @@ table.arcFxA{min-width:0} table.arcFxA td,table.arcFxA th{text-align:right} tabl
       <section>
         <div class="tools">
           <span id="shown" style="color:var(--muted)"></span><span class="spacer"></span>
-          <button class="btn" id="btnLotes" style="display:none" title="Poner a la vez el objeto, el filtro, el telescopio, la cámara o el equipo del proyecto">Cambiar las seleccionadas…</button><button class="btn danger" id="btnDiscSel" style="display:none">Descartar seleccionadas</button><button class="btn danger" id="btnPurge">Descartar rechazadas</button>
+          <button class="btn" id="btnParpadeo" title="Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas">Parpadeo</button><button class="btn" id="btnLotes" style="display:none" title="Poner a la vez el objeto, el filtro, el telescopio, la cámara o el equipo del proyecto">Cambiar las seleccionadas…</button><button class="btn danger" id="btnDiscSel" style="display:none">Descartar seleccionadas</button><button class="btn danger" id="btnPurge">Descartar rechazadas</button>
         </div>
         <div class="tablewrap">
           <table id="table"><thead><tr>
@@ -1204,6 +1232,26 @@ table.arcFxA{min-width:0} table.arcFxA td,table.arcFxA th{text-align:right} tabl
   <div id="regCuerpo" style="display:flex;flex-direction:column;gap:12px"></div>
 </div></div>
 <input type="file" id="regInput" accept=".txt,text/plain" multiple style="display:none">
+<div class="parp" id="parpBox" role="dialog" aria-label="Parpadeo">
+  <div class="parpBarra">
+    <div class="parpTit"><b id="parpTit" class="notr"></b><span id="parpPos"></span></div>
+    <span style="flex:1"></span>
+    <div class="parpCtl">
+      <button class="parpB" id="parpAnt" title="Anterior (←)"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="parpB" id="parpPlay" title="Reproducir o parar (espacio)"></button>
+      <button class="parpB" id="parpSig" title="Siguiente (→)"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <select id="parpVel" title="Velocidad"><option value="1000">1 por segundo</option><option value="500" selected>2 por segundo</option><option value="250">4 por segundo</option><option value="125">8 por segundo</option></select>
+      <label title="Superpone cada toma a la de referencia del proyecto por sus estrellas, para que lo que se mueve salte a la vista"><input type="checkbox" id="parpAlinear" checked> Alinear</label>
+      <select id="parpVer" title="Qué tomas pasar"><option value="todas">Todas</option><option value="dudosas">Con avisos o rechazables</option><option value="fuera">Fuera del apilado o descartadas</option></select>
+    </div>
+    <button class="parpB" id="parpCerrar" title="Cerrar (Esc)"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="parpLienzo" id="parpLienzo"><div class="parpMarco" id="parpMarco"><img id="parpImgA" alt=""><img id="parpImgB" alt=""></div><div class="parpSin" id="parpSin" style="display:none"></div></div>
+  <canvas class="parpTira" id="parpTira" title="Cada raya es una toma: verde, válida; amarilla, con avisos; roja, rechazable. Pulsa para ir a ella."></canvas>
+  <div class="parpPie"><div class="parpDatos" id="parpDatos"></div>
+    <div class="parpAcc"><button class="btn small" id="parpFuera"></button><button class="btn small danger" id="parpDesc"></button></div></div>
+  <div class="parpAyuda">← → pasar · espacio: reproducir o parar · X: dentro o fuera del apilado · Supr o ⌫: descartar o recuperar · Esc: cerrar</div>
+</div>
 <div class="modal" id="nochesBox"><div class="box" style="width:min(900px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2>Próximas noches</h2>
     <div style="display:flex;gap:8px;align-items:center"><select id="nochesDias" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit"><option value="7">7 noches</option><option value="14" selected>14 noches</option><option value="30">30 noches</option></select><button class="btn small" id="nochesClose">Cerrar</button></div></div>
@@ -2941,7 +2989,8 @@ function renderPanel(f){
     <div class="status ${f.discarded?"na":f.status}"><span class="dot ${f.discarded?"na":f.status}"></span>${STATUS[shownStatus(f)]}${f.score!==null?` · ${f.score}/100`:""}</div>
     ${f.fuera && !f.discarded ? `<div class="status na" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="flex:1;min-width:180px">${f.fuera === "limite" ? esc(motivoLimite(f)) : "Fuera del apilado: no se usa al apilar, pero no se borra nada."}</span><button class="btn small" id="pIncluir">Volver a incluir</button></div>` : ""}
     ${f.reasons.length ? `<ul class="reasons">${f.reasons.map(x=>`<li class="${x.s}">${esc(x.t)}</li>`).join("")}</ul>` : `<p style="color:var(--ok);margin:4px 0 12px">Sin incidencias: estrellas puntuales, sin trazas y en línea con el resto de la sesión.</p>`}
-    ${f.thumb ? `<img class="thumb" src="/file?path=${encodeURIComponent(f.thumb)}" alt="Miniatura">` : ""}
+    ${f.thumb ? `<img class="thumb" src="/file?path=${encodeURIComponent(f.thumb)}" alt="Miniatura">
+      <div style="margin:8px 0 14px"><button class="btn small" id="pParp" title="${esc(trLT("Pasa esta toma y las demás de la misma noche, una tras otra y alineadas", "Shows this frame and the others from the same night, one after another and aligned"))}">${esc(trLT("Parpadeo con las de su noche", "Blink with the rest of its night"))}</button></div>` : ""}
     ${bloqueCalidad(f)}
     <details><summary>${esc(trLT("Más medidas", "More measurements"))}</summary><dl class="kv">
       <dt>Alargamiento</dt><dd>${f.ecc!=null?`${f.ecc.toFixed(2)} (<span>centro</span> ${f.eccCenter!=null?f.eccCenter.toFixed(2):"—"}, <span>esquinas</span> ${f.eccCorners!=null?f.eccCorners.toFixed(2):"—"})`:"—"}</dd>
@@ -2981,6 +3030,8 @@ function renderPanel(f){
   if ($("pFuera")) $("pFuera").onclick = () => cambiarFuera(f.object||"", [f.id], true, () => renderPanel(f));
   if ($("pIncluir")) $("pIncluir").onclick = () => cambiarFuera(f.object||"", [f.id], false, () => renderPanel(f));
   if ($("pIndic")) $("pIndic").onclick = () => { closePanel(); abrirIndicadores(f.object || "", sessionKey(f)); };
+  if ($("pParp")) $("pParp").onclick = () => { const obj = (f.object || "").trim();
+    abrirParpadeo(frames.filter(x => (x.object || "").trim() === obj && x.night === f.night), (obj || trLT("Sin objeto", "No target")) + " · " + fechaDia(f.night), f); };
   pintarCalToma(f); pintarRegToma(f);
   if ($("pRestore")) $("pRestore").onclick = () => restore(f);
   if ($("pOrigen")) $("pOrigen").onclick = () => api("/api/importar/revelar", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ruta:f.origen})}).catch(()=>{});
@@ -3022,6 +3073,237 @@ async function restore(f){
   f.discarded = false; evaluateAll(); scheduleSave(); render(); toast("Recuperada");
 }
 function closePanel(){ selected = null; $("panel").classList.remove("open"); document.querySelectorAll("tr.sel").forEach(t=>t.classList.remove("sel")); }
+
+/* ============ Parpadeo: las tomas una tras otra, a toda pantalla ============ */
+// Como el Blink de PixInsight: se pasan las miniaturas en orden de hora, alineadas con la toma de referencia del
+// proyecto (con el encuadre que ASTRO ya mide por la posición de las estrellas), para que salten a la vista satélites,
+// nubes, estrellas movidas o un cambio de encuadre. Desde aquí se deja una toma fuera del apilado o se descarta.
+const TECLA_SUPR = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "") ? "⌫" : trLT("Supr", "Del");
+const PARP = {todas:[], lista:[], i:0, reloj:null, vel:500, alinear:true, ver:"todas", titulo:"", vis:"A", token:0, cache:new Map(),
+  al:new Map(), refs:new Map(), variosObj:false};
+function abrirParpadeo(lista, titulo, inicio){
+  // solo las que tienen miniatura (las indexadas sin analizar no tienen nada que enseñar), en orden de hora
+  const todas = (lista || []).filter(Boolean), l = todas.filter(f => f.thumb)
+    .sort((a, b) => (a.dateObs || "").localeCompare(b.dateObs || "") || (a.name || "").localeCompare(b.name || ""));
+  if (!l.length){ toast(todas.length ? trLT("Ninguna de estas tomas tiene miniatura: analízalas primero", "None of these frames has a thumbnail: analyse them first")
+                                     : trLT("No hay tomas que pasar", "There are no frames to go through")); return; }
+  PARP.todas = l; PARP.titulo = titulo || ""; PARP.ver = "todas"; $("parpVer").value = "todas";
+  PARP.alinear = $("parpAlinear").checked; PARP.vel = +$("parpVel").value || 500;
+  PARP.al.clear(); PARP.refs.clear(); PARP.variosObj = new Set(l.map(f => (f.object || "").trim())).size > 1;
+  // si ninguna tiene medidas sus estrellas (analizadas antes de la 0.24), no hay nada que alinear: se dice una vez, no en cada toma
+  const lab = $("parpAlinear").parentElement; if (PARP.tituloAl == null) PARP.tituloAl = lab.title;
+  PARP.puedeAlinear = l.some(f => f.estrellas && f.estrellas.length >= 5);
+  $("parpAlinear").disabled = !PARP.puedeAlinear; lab.style.opacity = PARP.puedeAlinear ? "" : ".5";
+  lab.title = PARP.puedeAlinear ? PARP.tituloAl : trLT("Para alinearlas hay que medir su encuadre: en el Archivo, abre el proyecto y pulsa «Medir el encuadre»",
+    "To align them, their framing has to be measured: in the Archive, open the project and click “Measure the framing”");
+  filtrarParpadeo(true);
+  PARP.i = Math.max(0, l.indexOf(inicio));
+  $("parpBox").classList.add("show"); document.body.classList.add("parpAbierto");
+  pintarParpadeo();
+  const sinMini = todas.length - l.length;
+  if (sinMini) toast(trLT("{1} tomas sin miniatura no salen: analízalas para verlas aquí", "{1} frames without a thumbnail are left out: analyse them to see them here", nfmt(sinMini)));
+}
+function cerrarParpadeo(){
+  pararParpadeo();
+  $("parpBox").classList.remove("show"); document.body.classList.remove("parpAbierto");
+  PARP.cache.clear(); PARP.al.clear(); PARP.refs.clear();
+}
+function filtrarParpadeo(inicio){
+  const v = PARP.ver, cur = inicio ? null : PARP.lista[PARP.i];
+  PARP.lista = PARP.todas.filter(f => v === "dudosas" ? (!f.discarded && (f.status === "warn" || f.status === "bad"))
+    : v === "fuera" ? (f.discarded || !!f.fuera) : true);
+  const k = cur ? PARP.lista.indexOf(cur) : -1;
+  PARP.i = k >= 0 ? k : Math.min(PARP.i, Math.max(0, PARP.lista.length - 1));
+}
+function alineacionParp(f){
+  // la transformación que lleva la toma de referencia del proyecto a esta, por la posición de sus estrellas (como en el
+  // apartado «Encuadre»). La referencia de cada proyecto se fija al abrir, y cada toma se compara con ella la primera vez
+  // que sale: unos milisegundos.
+  const obj = (f.object || "").trim();
+  if (!PARP.alinear || !PARP.puedeAlinear || !obj || !f.estrellas || f.estrellas.length < 5) return null;
+  if (!PARP.al.has(f)){
+    if (!PARP.refs.has(obj)) PARP.refs.set(obj, refEncuadre(frames.filter(x => (x.object || "").trim() === obj && !x.discarded)));
+    const ref = PARP.refs.get(obj);
+    const T = !ref ? null : f === ref ? {c:1, sn:0, tx:0, ty:0} : transformacionEstrellas(ref.estrellas, f.estrellas);
+    PARP.al.set(f, T ? {T, ref} : null);
+  }
+  return PARP.al.get(f);
+}
+function colocarParp(img, f, al){
+  // la miniatura cubre la toma entera: se dibuja a la escala de la referencia y, si se puede, con la transformación
+  // inversa de la del encuadre, para que las estrellas caigan en el mismo sitio en todas
+  const L = $("parpLienzo"), W = Math.max(100, L.clientWidth - 20), H = Math.max(100, L.clientHeight - 12);
+  const ref = al ? al.ref : f;
+  const rw = ref.w || img.naturalWidth || 900, rh = ref.h || img.naturalHeight || 600;
+  const S = Math.min(W / rw, H / rh), M = $("parpMarco");
+  M.style.width = Math.round(rw * S) + "px"; M.style.height = Math.round(rh * S) + "px";
+  const fw = f.w || rw, fh = f.h || rh;
+  img.style.width = (fw * S) + "px"; img.style.height = (fh * S) + "px";
+  if (al){
+    const T = al.T, s2 = T.c * T.c + T.sn * T.sn || 1;
+    const a = T.c / s2, b = -T.sn / s2, c = T.sn / s2, d = T.c / s2;
+    const e = -(T.c * S * T.tx + T.sn * S * T.ty) / s2, g = -(-T.sn * S * T.tx + T.c * S * T.ty) / s2;
+    img.style.transform = `matrix(${a},${b},${c},${d},${e},${g})`;
+  } else {
+    // sin alinear: centrada en el marco
+    img.style.transform = `translate(${(rw - fw) * S / 2}px,${(rh - fh) * S / 2}px)`;
+  }
+}
+function srcParp(f){ return f && f.thumb ? "/file?path=" + encodeURIComponent(f.thumb) : ""; }
+function precargarParp(){
+  for (const d of [1, 2, 3, -1]){
+    const f = PARP.lista[(PARP.i + d + PARP.lista.length) % Math.max(1, PARP.lista.length)], s = srcParp(f);
+    if (s && !PARP.cache.has(s)){ const im = new Image(); im.src = s; PARP.cache.set(s, im); }
+  }
+  if (PARP.cache.size > 60){ const k = PARP.cache.keys().next().value; PARP.cache.delete(k); }
+}
+function pintarParpadeo(){
+  const n = PARP.lista.length, f = PARP.lista[PARP.i];
+  $("parpTit").textContent = PARP.titulo || trLT("Parpadeo", "Blink");
+  $("parpPos").textContent = n ? trLT("{1} de {2}", "{1} of {2}", nfmt(PARP.i + 1), nfmt(n)) + (n !== PARP.todas.length ? " · " + trLT("{1} en total", "{1} in total", nfmt(PARP.todas.length)) : "") : "";
+  $("parpPlay").innerHTML = PARP.reloj ? '<svg viewBox="0 0 24 24" width="16" height="16"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg>';
+  $("parpPlay").classList.toggle("on", !!PARP.reloj);
+  pintarTiraParp();
+  const sin = $("parpSin"), A = $("parpImgA"), B = $("parpImgB");
+  if (!f){
+    A.style.visibility = B.style.visibility = "hidden"; sin.style.display = "";
+    sin.textContent = PARP.ver === "dudosas" ? trLT("Ninguna de estas tomas tiene avisos ni es rechazable.", "None of these frames has warnings or is rejected.")
+      : trLT("Ninguna de estas tomas está fuera del apilado ni descartada.", "None of these frames is left out of the stack or discarded.");
+    $("parpDatos").innerHTML = ""; $("parpFuera").disabled = $("parpDesc").disabled = true; return;
+  }
+  $("parpFuera").disabled = !!f.discarded; $("parpDesc").disabled = false;
+  $("parpFuera").textContent = f.fuera ? trLT("Volver a incluir (X)", "Include again (X)") : trLT("Dejar fuera del apilado (X)", "Leave out of the stack (X)");
+  $("parpDesc").textContent = f.discarded ? trLT("Recuperar ({1})", "Restore ({1})", TECLA_SUPR) : trLT("Descartar ({1})", "Discard ({1})", TECLA_SUPR);
+  const al = alineacionParp(f);
+  pintarDatosParp(f, al);
+  const s = srcParp(f);
+  if (!s){
+    A.style.visibility = B.style.visibility = "hidden"; sin.style.display = "";
+    sin.textContent = trLT("Esta toma no tiene miniatura: analízala para verla aquí.", "This frame has no thumbnail: analyse it to see it here.");
+    precargarParp(); return;
+  }
+  sin.style.display = "none";
+  // doble búfer: la nueva se carga en la imagen oculta y se cambia al terminar, sin parpadeo en negro
+  const actual = PARP.vis === "A" ? A : B, otra = PARP.vis === "A" ? B : A, token = ++PARP.token;
+  const mostrar = () => {
+    if (token !== PARP.token) return;
+    colocarParp(otra, f, al); otra.style.visibility = "visible"; actual.style.visibility = "hidden";
+    PARP.vis = PARP.vis === "A" ? "B" : "A";
+  };
+  otra.onload = mostrar;
+  otra.onerror = () => { if (token !== PARP.token) return; otra.style.visibility = actual.style.visibility = "hidden"; sin.style.display = "";
+    sin.textContent = trLT("No se ha podido abrir la miniatura de esta toma.", "The thumbnail of this frame could not be opened."); };
+  if (otra.getAttribute("src") === s && otra.complete && otra.naturalWidth) mostrar(); else otra.src = s;
+  precargarParp();
+}
+function pintarDatosParp(f, al){
+  // siempre tres líneas (la toma, sus medidas y el motivo del aviso): así el pie no cambia de alto y la imagen no salta
+  const st = f.discarded ? "disc" : (f.status || "na"), cls = {ok:"ok", warn:"warn", bad:"bad", disc:"na", na:"na"}[st] || "na";
+  const motivo = f.discarded ? null : (f.reasons || []).find(r => r.s === "bad") || (f.reasons || []).find(r => r.s === "warn");
+  const hora = f.dateObs ? String(f.dateObs).slice(11, 19) : "";
+  const marcas = [];
+  if (f.fuera && !f.discarded) marcas.push(`<span class="parpChip na">${esc(trLT("fuera del apilado", "left out of the stack"))}</span>`);
+  if (PARP.alinear && PARP.puedeAlinear && !al) marcas.push(`<span class="parpChip na" title="${esc(f.estrellas ? trLT("No se han podido casar sus estrellas con las de la toma de referencia (nubes, muy pocas estrellas u otro campo)", "Its stars could not be matched with the reference frame's (clouds, too few stars or another field)")
+      : trLT("Para alinearla hay que medir su encuadre: en el Archivo, abre el proyecto y pulsa «Medir el encuadre»", "To align it, its framing has to be measured: in the Archive, open the project and click “Measure the framing”"))}">${esc(trLT("sin alinear", "not aligned"))}</span>`);
+  const l1 = [`<b class="notr">${esc(f.name || "")}</b>`,
+    PARP.variosObj && f.object ? `<span class="notr">${esc(f.object)}</span>` : "",
+    esc(fechaDia(f.night)) + (hora ? ` <span class="notr">${esc(hora)}</span>` : ""),
+    `<span class="notr">${esc(nomFiltro(f.filter))}</span>` + (f.exp ? ` · <span class="notr">${esc(numEs(f.exp, f.exp < 10 ? 1 : 0))} s</span>` : "")].filter(Boolean);
+  const l2 = [f.fwhm ? `FWHM <span class="notr">${esc(numEs(f.fwhm, 2))} px</span>` : "",
+    f.ecc != null ? `<span>${esc(trLT("alarg.", "elong."))}</span> <span class="notr">${esc(numEs(f.ecc, 2))}</span>` : "",
+    f.starCount != null ? `<span class="notr">${esc(nfmt(f.starCount))}</span> <span>${esc(trLT("estrellas", "stars"))}</span>` : "",
+    f.bgPct != null ? `<span>${esc(trLT("fondo", "background"))}</span> <span class="notr">${esc(numEs(f.bgPct, 1))} %</span>` : "",
+    f.score != null ? `<span>${esc(trLT("puntuación", "score"))}</span> <span class="notr">${f.score}</span>` : ""].filter(Boolean);
+  $("parpDatos").innerHTML = `<div class="parpL"><span class="parpChip ${cls}">${esc(STATUS[st] || st)}</span>${marcas.join("")} ${l1.join(" · ")}</div>` +
+    `<div class="parpL">${l2.join(" · ") || "&nbsp;"}</div>` +
+    `<div class="parpL parpMotivo"${motivo ? ` title="${esc(motivo.t)}"` : ""}>${motivo ? esc(motivo.t) : "&nbsp;"}</div>`;
+}
+function pintarTiraParp(){
+  const cv = $("parpTira"), n = PARP.lista.length, W = cv.clientWidth || 800, H = 16, dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(W * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  if (!n) return;
+  const col = {ok:"#2F9A67", warn:"#C8961F", bad:"#C9483A", na:"#4A4266"}, w = W / n;
+  for (let i = 0; i < n; i++){
+    const f = PARP.lista[i];
+    ctx.globalAlpha = f.discarded ? 0.25 : f.fuera ? 0.5 : 1;
+    ctx.fillStyle = f.discarded ? "#4A4266" : (col[f.status] || col.na);
+    ctx.fillRect(i * w, 3, Math.max(1, w - (w > 3 ? 1 : 0)), H - 6);
+  }
+  ctx.globalAlpha = 1; ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(Math.max(0, PARP.i * w + w / 2 - 1.5), 0, 3, H);
+}
+function irParpadeo(i){
+  const n = PARP.lista.length; if (!n) return;
+  PARP.i = ((i % n) + n) % n; pintarParpadeo();
+}
+function pararParpadeo(){ clearInterval(PARP.reloj); PARP.reloj = null; }
+function reproducirParpadeo(){
+  if (PARP.reloj){ pararParpadeo(); pintarParpadeo(); return; }
+  if (PARP.lista.length < 2) return;
+  PARP.reloj = setInterval(() => irParpadeo(PARP.i + 1), PARP.vel);
+  pintarParpadeo();
+}
+async function fueraParpadeo(){
+  const f = PARP.lista[PARP.i]; if (!f || f.discarded) return;
+  await cambiarFuera(f.object || "", [f.id], !f.fuera, () => {});
+  if (PARP.ver !== "todas"){ filtrarParpadeo(); }
+  pintarParpadeo();
+}
+async function descartarParpadeo(){
+  const f = PARP.lista[PARP.i]; if (!f) return;
+  pararParpadeo();
+  if (f.discarded) await restore(f); else await discard([f]);
+  const obj = (f.object || "").trim(); if (obj) ENCUADRE_CACHE.delete(obj);
+  if (PARP.ver !== "todas"){ filtrarParpadeo(); }
+  pintarParpadeo();
+}
+$("parpCerrar").onclick = cerrarParpadeo;
+$("parpAnt").onclick = () => { pararParpadeo(); irParpadeo(PARP.i - 1); };
+$("parpSig").onclick = () => { pararParpadeo(); irParpadeo(PARP.i + 1); };
+$("parpPlay").onclick = reproducirParpadeo;
+$("parpFuera").onclick = fueraParpadeo;
+$("parpDesc").onclick = descartarParpadeo;
+$("parpVel").onchange = e => { PARP.vel = +e.target.value || 500; e.target.blur(); if (PARP.reloj){ pararParpadeo(); reproducirParpadeo(); } };
+$("parpAlinear").onchange = e => { PARP.alinear = e.target.checked; e.target.blur(); pintarParpadeo(); };
+$("parpVer").onchange = e => { PARP.ver = e.target.value; e.target.blur(); pararParpadeo(); filtrarParpadeo(); pintarParpadeo(); };
+// los botones no se quedan con el foco: así el espacio y las flechas siempre van al parpadeo
+$("parpBox").querySelectorAll("button").forEach(b => b.addEventListener("mousedown", e => e.preventDefault()));
+$("parpTira").onclick = e => { const r = e.currentTarget.getBoundingClientRect(), n = PARP.lista.length; if (!n) return;
+  pararParpadeo(); irParpadeo(Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n))); };
+window.addEventListener("resize", () => { if ($("parpBox").classList.contains("show")) pintarParpadeo(); });
+// en el móvil o la tableta, deslizando el dedo a un lado o al otro
+{ let x0 = null, y0 = null;
+  $("parpLienzo").addEventListener("touchstart", e => { if (e.touches.length === 1){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } }, {passive:true});
+  $("parpLienzo").addEventListener("touchend", e => {
+    if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > 1.5 * Math.abs(dy)){ pararParpadeo(); irParpadeo(PARP.i + (dx < 0 ? 1 : -1)); }
+  }, {passive:true}); }
+window.addEventListener("keydown", e => {
+  if (!$("parpBox").classList.contains("show")) return;
+  const t = e.target, k = e.key, enControl = t && (/^(SELECT|TEXTAREA)$/.test(t.tagName) || (t.tagName === "INPUT" && t.type !== "checkbox"));
+  if (enControl && k !== "Escape") return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (k === "ArrowRight" || k === "ArrowDown"){ pararParpadeo(); irParpadeo(PARP.i + 1); }
+  else if (k === "ArrowLeft" || k === "ArrowUp"){ pararParpadeo(); irParpadeo(PARP.i - 1); }
+  else if (k === " "){ if (t && t.blur && t !== document.body) t.blur(); reproducirParpadeo(); }
+  else if (k === "Home"){ pararParpadeo(); irParpadeo(0); }
+  else if (k === "End"){ pararParpadeo(); irParpadeo(PARP.lista.length - 1); }
+  else if (k === "x" || k === "X"){ fueraParpadeo(); }
+  else if (k === "Delete" || k === "Backspace"){ descartarParpadeo(); }
+  else if (k === "Escape"){ cerrarParpadeo(); }
+  else return;
+  e.preventDefault(); e.stopPropagation();
+}, true);
+function tituloParpadeoFiltros(){
+  const partes = [];
+  if (filters.object.size) partes.push([...filters.object].join(", "));
+  if (filters.filter.size) partes.push([...filters.filter].map(nomFiltro).join(", "));
+  if (filters.q) partes.push(filters.q);
+  return partes.length ? partes.join(" · ") : trLT("Todas las tomas", "All frames");
+}
+$("btnParpadeo").onclick = () => abrirParpadeo(visible(), tituloParpadeoFiltros());
 
 /* ============ Informe y exportación ============ */
 function buildReport(){
@@ -3709,7 +3991,7 @@ function renderProyecto(){
   h += paso(2, c.na ? "espera" : "", trLT("Depurar", "Clean up"),
     `<p>${c.na && !analizadas ? esc(trLT("Primero hay que analizarlas: sin medirlas no se sabe cuáles valen.", "Analyse them first: without measuring them there is no way to know which ones are good."))
       : `<span class="arcOk">${esc(trLT("{1} válidas", "{1} valid", nfmt(c.ok)))}</span> · <span class="arcAviso">${esc(trLT("{1} con avisos", "{1} with warnings", nfmt(c.warn)))}</span> · <span class="arcMal">${esc(trLT("{1} rechazables", "{1} rejected", nfmt(c.bad)))}</span>${fuera ? " · " + esc(trLT("{1} fuera del apilado", "{1} left out of the stack", nfmt(fuera))) : ""}${disc ? " · " + esc(trLT("{1} descartadas", "{1} discarded", nfmt(disc))) : ""}`}</p>
-     ${btn(trLT("Ver las tomas", "See the frames"), "tomas")}${analizadas ? btn(trLT("Indicadores y límites del proyecto", "Project indicators and limits"), "indicadores") : ""}${btn(trLT("Criterio y «quedarme con las mejores»", "Criteria and “keep only the best”"), "criterio")}${btn(trLT("Cómo evoluciona, noche a noche", "How it's progressing, night by night"), "resumen")}`);
+     ${btn(trLT("Ver las tomas", "See the frames"), "tomas")}${analizadas ? btn(trLT("Parpadeo: pasarlas una a una", "Blink: go through them one by one"), "parpadeo") : ""}${analizadas ? btn(trLT("Indicadores y límites del proyecto", "Project indicators and limits"), "indicadores") : ""}${btn(trLT("Criterio y «quedarme con las mejores»", "Criteria and “keep only the best”"), "criterio")}${btn(trLT("Cómo evoluciona, noche a noche", "How it's progressing, night by night"), "resumen")}`);
   // 3. calibración
   h += paso(3, cal && !cal.sin_dark && !cal.sin_flat ? "hecho" : "", trLT("Calibración", "Calibration"),
     `<p>${!ARC.cal ? "…" : !cal ? esc(trLT("Sin tomas útiles.", "No usable frames."))
@@ -3750,7 +4032,7 @@ function renderProyecto(){
         <td class="num">${nfmt(x.n)}${x.util !== x.n ? `<div class="note">${esc(trLT("{1} útiles", "{1} usable", nfmt(x.util)))}</div>` : ""}</td>
         <td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td>
         <td>${txtCalNoche([obj], k)}</td>
-        <td><button class="btn small" data-arc-noche="${esc(k)}">${esc(trLT("Ver tomas", "See frames"))}</button></td></tr>`; });
+        <td style="white-space:nowrap"><button class="btn small" data-arc-noche="${esc(k)}">${esc(trLT("Ver tomas", "See frames"))}</button> <button class="btn small" data-arc-parp="${esc(k)}" title="${esc(trLT("Pasar las tomas de esta noche una a una", "Go through this night's frames one by one"))}">${esc(trLT("Parpadeo", "Blink"))}</button></td></tr>`; });
   }
   h += `<h3 class="arcH">${esc(trLT("Sesiones", "Sessions"))} <span class="note">${esc(nNoches(ksS.length))}</span></h3>
     <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Filtros", "Filters"))}</th>
@@ -3761,6 +4043,8 @@ function renderProyecto(){
   el.querySelectorAll("[data-arc-acc]").forEach(b => b.onclick = () => arcAccion(b.dataset.arcAcc, obj));
   el.querySelectorAll("[data-arc-noche]").forEach(b => b.onclick = () => { const n = b.dataset.arcNoche;
     filters.object = new Set([obj]); filters.filter = new Set(); filters.q = n; $("q").value = n; mostrarVista("tomas"); renderFilters(); renderTable(); });
+  el.querySelectorAll("[data-arc-parp]").forEach(b => b.onclick = () => { const n = b.dataset.arcParp;
+    abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj && f.night === n), obj + " · " + fechaDia(n)); });
   if ($("arcSesProyMas")) $("arcSesProyMas").onclick = () => { ARC.sesProy = 100000; renderProyecto(); };
   if ($("arcEstSel")) $("arcEstSel").onchange = e => arcPonerEstado(obj, e.target.value);
 }
@@ -3769,6 +4053,7 @@ function arcAccion(a, obj){
   if (a === "parar"){ ARC.parar = true; return; }
   if (a === "tomas"){ filters.object = new Set([obj]); mostrarVista("tomas"); render(); return; }
   if (a === "criterio") return abrirCriterio(obj);
+  if (a === "parpadeo") return abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj), obj);
   if (a === "indicadores") return abrirIndicadores(obj, "*");
   if (a === "calenviar") return arcEnviarCalibracion();
   if (a === "cobertura") return abrirCobertura(obj);
