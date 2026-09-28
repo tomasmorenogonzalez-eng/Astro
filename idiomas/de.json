@@ -2928,7 +2928,18 @@
 "Pasar las tomas de esta noche una a una": "Die Aufnahmen dieser Nacht einzeln durchgehen",
 "Pasa esta toma y las demás de la misma noche, una tras otra y alineadas": "Zeigt diese Aufnahme und die anderen derselben Nacht nacheinander und ausgerichtet",
 "Parpadeo con las de su noche": "Blinken mit den Aufnahmen ihrer Nacht",
-"Sin objeto": "Ohne Objekt"
+"Sin objeto": "Ohne Objekt",
+"El mismo campo del cielo con otro nombre": "Dasselbe Himmelsfeld unter anderem Namen",
+"Tomas que apuntan al mismo sitio (por las coordenadas de sus cabeceras o, si no las traen, por el catálogo) con nombres distintos. Si son el mismo proyecto, únelas; si no, pulsa «No son el mismo» y no volverá a salir.": "Aufnahmen, die auf dieselbe Stelle zeigen (nach den Koordinaten in ihren Headern oder, falls sie keine haben, nach dem Katalog), aber verschiedene Namen tragen. Ist es dasselbe Projekt, führe sie zusammen; wenn nicht, klicke auf „Nicht dasselbe“, und es erscheint nicht wieder.",
+"en el mismo sitio que {1}": "an derselben Stelle wie {1}",
+"a {1} de {2}": "{1} von {2} entfernt",
+"por el catálogo, es {1}": "laut Katalog ist es {1}",
+"No son el mismo": "Nicht dasselbe",
+"No hay proyectos con distinto nombre en el mismo campo.": "Keine Projekte mit verschiedenen Namen im selben Feld.",
+"Por sus coordenadas, apuntan a {1}": "Nach ihren Koordinaten zeigen sie auf {1}",
+"Por sus coordenadas, apuntan a {1} (a {2} de su centro)": "Nach ihren Koordinaten zeigen sie auf {1} ({2} von seiner Mitte entfernt)",
+"{1} parecen el mismo campo del cielo con distinto nombre.": "{1} scheinen dasselbe Himmelsfeld unter verschiedenen Namen zu sein.",
+"{1} grupos de proyectos parecen el mismo campo del cielo con distinto nombre.": "{1} Projektgruppen scheinen dasselbe Himmelsfeld unter verschiedenen Namen zu sein."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

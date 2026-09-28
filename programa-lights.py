@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.20"
+VERSION_PROG = "2026.09.29.21"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1007,7 +1007,7 @@ table.arcEqT{min-width:900px} tr[data-arc-eq]{cursor:pointer} tr[data-arc-eq]:ho
 .arcPest{display:inline-flex;background:var(--surface2);border-radius:10px;padding:3px}
 .arcPest button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font:inherit;font-weight:650;font-size:13.5px;color:var(--muted);cursor:pointer}
 .arcPest button.on{background:var(--surface);color:var(--text);box-shadow:var(--sombra)}
-table.arcTabla{min-width:980px} table.arcTabla td{vertical-align:middle} table.arcTabla td:nth-child(4){min-width:170px} table.arcTabla td:nth-child(8){max-width:170px}
+table.arcTabla{min-width:980px} table.arcTabla td{vertical-align:middle} table.arcTabla td:nth-child(4){min-width:170px} table.arcTabla td:nth-child(8){min-width:140px;max-width:170px;white-space:normal} table.arcTabla td:nth-child(8) .arcMini{display:block;margin:3px 0}
 tr[data-arc-proy]{cursor:pointer} tr[data-arc-proy]:hover td{background:var(--surface2)}
 .arcAnios{display:flex;align-items:flex-end;gap:2px;height:24px} .arcAnios i{display:block;width:8px;background:var(--accent);border-radius:2px 2px 0 0}
 .arcEje{display:flex;justify-content:space-between;gap:8px;font-weight:500;font-size:10.5px;color:var(--faint)}
@@ -3566,7 +3566,7 @@ function arcPintarProgreso(){
 async function arcCargarProyectos(forzar){
   if (ARC.apilCargando || (!forzar && ARC.apil && Date.now() - ARC.apilPedida < 30000)) return;
   ARC.apilPedida = Date.now(); ARC.apilCargando = true;
-  try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.estados = r.estados || {}; ARC.apil = r.apilados || {}; ARC.limites = r.limites || {}; }
+  try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.estados = r.estados || {}; ARC.apil = r.apilados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []); }
   catch(_){ ARC.apil = ARC.apil || {}; }
   finally { ARC.apilCargando = false; }
   if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto();
@@ -3826,6 +3826,15 @@ function renderArchivo(){
     <div class="tile"><b>${nfmt(lista.length)}</b><span>${esc(trLT("tomas", "frames"))}</span></div>
     <div class="tile ${totNa ? "warn" : "ok"}"><b>${nfmt(totNa)}</b><span>${esc(trLT("sin analizar", "not analysed"))}</span></div>
     <div class="tile"><b>${anios.length ? esc(anios[0] + (anios.length > 1 ? "–" + anios[anios.length - 1] : "")) : "—"}</b><span>${esc(trLT("temporadas", "seasons"))}</span></div></div>`;
+  // proyectos que parecen el mismo campo del cielo con distinto nombre (se revisan y se unen en «Nombres de objeto»)
+  if (!CATALOGO){ if (!ARC.catPedido){ ARC.catPedido = true; catalogo().then(() => { if (VISTA_ACTUAL === "archivo") renderArchivo(); }).catch(() => {}); } }
+  else if (ARC.noUnir){
+    const gc = gruposMismoCampo();
+    if (gc.length) h += `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">${esc(gc.length === 1
+        ? trLT("{1} parecen el mismo campo del cielo con distinto nombre.", "{1} look like the same field of sky under different names.", listaNombresTxt(gc[0].miembros.map(p => p.nombre)))
+        : trLT("{1} grupos de proyectos parecen el mismo campo del cielo con distinto nombre.", "{1} groups of projects look like the same field of sky under different names.", nfmt(gc.length)))}</span>
+      <button class="btn small" onclick="nombresVista()">${esc(trLT("Revisar", "Review"))}</button></div>`;
+  }
   // pestañas y filtros
   const opt = (v, t, sel) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(t)}</option>`;
   h += `<div class="arcBarra">
@@ -5470,9 +5479,19 @@ async function abrirVarios(obj){
   $("varTitulo").textContent = tr(VAR.guardado ? "Equipos del proyecto" : "Proyecto con varios equipos");
   $("varBox").classList.add("show"); pintarVarios();
 }
+let _CAT_IDX = null;
 function catDe(nombre){
-  const k = claveObjeto(nombre || ""); if (!k) return null;
-  return (CATALOGO || []).find(o => [o[0], o[8], o[9], o[10]].filter(Boolean).some(x => claveObjeto(x) === k)) || null;
+  // por su nombre, su otro número de catálogo o su nombre común (en inglés o en español); el índice se hace una vez
+  const k = claveObjeto(nombre || ""); if (!k || !CATALOGO) return null;
+  if (!_CAT_IDX || _CAT_IDX.cat !== CATALOGO){
+    const m = new Map();
+    for (const o of CATALOGO) for (const x of [o[0], o[8], o[9], o[10]]) if (x) for (const y of String(x).split(",")){ const c = claveObjeto(y); if (c && !m.has(c)) m.set(c, o); }
+    // y el nombre común sin «galaxia», «nebulosa»…: «Andrómeda», «Heart», «Rosette»
+    const gen = /\b(the|great|gran|galaxy|galaxia|nebula|nebulosa|cluster|c[uú]mulo|de|del|la|el|los|las)\b/gi;
+    for (const o of CATALOGO) for (const x of [o[9], o[10]]) if (x){ const c = claveObjeto(String(x).replace(gen, " ")); if (c.length >= 4 && !m.has(c)) m.set(c, o); }
+    _CAT_IDX = {cat: CATALOGO, m};
+  }
+  return _CAT_IDX.m.get(k) || null;
 }
 function pintarVarios(){
   const v = VAR, montes = montajesEq(), cams = (EQ && EQ.camaras) || [], filtrosEq = [...new Set(((EQ && EQ.filtros) || []).map(f => f.nombre))];
@@ -6240,8 +6259,105 @@ function renombrarObjeto(desde, hacia){
   if (filters.object && filters.object.has(desde)){ filters.object.delete(desde); }
   return n;
 }
-function nombresVista(){
+/* --- el mismo campo del cielo con distinto nombre («M31», «Andrómeda», «NGC 224»…). Cada nombre se sitúa por las
+   coordenadas de las cabeceras de sus tomas (la mediana) o, si no las traen o no cuadran con él, por el catálogo; dos
+   nombres son el mismo campo si sus centros están a menos de la cuarta parte del lado corto del campo más pequeño de los
+   dos (o a menos de 10′ si no se sabe el campo). Solo se propone: el usuario decide si se unen. --- */
+const _COORD_T = new WeakMap();
+function coordsTomaC(f){
+  let x = _COORD_T.get(f);
+  if (!x || x.h !== f.header){ const c = coordsToma(f); x = {h: f.header, c: c && !(c.ra === 0 && c.dec === 0) ? c : null}; _COORD_T.set(f, x); }   // 0,0: montura sin datos
+  return x.c;
+}
+function campoToma(f){ const e = escalaToma(f); return e && f.w && f.h ? Math.min(f.w, f.h) * e / 3600 : null; }   // lado corto, en grados
+function sepGrados(a, b){
+  const r = Math.PI / 180, d1 = a.dec * r, d2 = b.dec * r, s = Math.sin((d2 - d1) / 2) ** 2 + Math.cos(d1) * Math.cos(d2) * Math.sin((a.ra - b.ra) * r / 2) ** 2;
+  return 2 * Math.asin(Math.min(1, Math.sqrt(s))) / r;
+}
+function fmtSep(g){ return g < 1 ? Math.max(1, Math.round(g * 60)) + "′" : numEs(g, 1) + "°"; }
+function posicionesNombres(){
+  const g = new Map();
+  for (const f of frames){
+    const o = (f.object || "").trim(); if (!o) continue;
+    let x = g.get(o); if (!x){ x = {nombre:o, n:0, cs:[], campo:[]}; g.set(o, x); }
+    x.n++; const c = coordsTomaC(f); if (c) x.cs.push(c);
+    const k = campoToma(f); if (k) x.campo.push(k);
+  }
+  const out = [];
+  for (const x of g.values()){
+    let pos = null, de = "";
+    if (x.cs.length){
+      const m = {ra: medianaAng(x.cs.map(c => c.ra)), dec: med(x.cs.map(c => c.dec))};
+      if (med(x.cs.map(c => sepGrados(c, m))) < 1){ pos = m; de = "cabecera"; }        // si apuntan a sitios muy distintos, no se fía
+    }
+    const cat = CATALOGO ? catDe(x.nombre) : null, campo = x.campo.length ? med(x.campo) : null;
+    if (cat){
+      const pc = {ra: cat[1], dec: cat[2]};
+      if (!pos || sepGrados(pos, pc) > Math.max(2, campo || 0)){ pos = pc; de = "catalogo"; }   // cabeceras que no cuadran con el nombre
+    }
+    out.push({nombre:x.nombre, n:x.n, ra: pos ? pos.ra : null, dec: pos ? pos.dec : null, de, cat: cat ? cat[0] : null, campo});
+  }
+  return out;
+}
+function umbralCampo(a, b){ const k = [a.campo, b.campo].filter(Boolean); return k.length ? Math.max(8 / 60, 0.25 * Math.min(...k)) : 10 / 60; }
+function gruposMismoCampo(){
+  const P = posicionesNombres().sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre)), n = P.length, padre = P.map((_, i) => i);
+  const raiz = i => padre[i] === i ? i : (padre[i] = raiz(padre[i]));
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++){
+    const a = P[i], b = P[j];
+    if (claveObjeto(a.nombre) === claveObjeto(b.nombre)) continue;           // eso ya sale en «Nombres que parecen el mismo objeto»
+    const mismoCat = a.cat && a.cat === b.cat;
+    if (!mismoCat){
+      if (a.ra === null || b.ra === null || Math.abs(a.dec - b.dec) > 5) continue;
+      if (sepGrados(a, b) > umbralCampo(a, b)) continue;
+    }
+    padre[raiz(j)] = raiz(i);
+  }
+  const grupos = new Map();
+  P.forEach((p, i) => { const r = raiz(i); if (!grupos.has(r)) grupos.set(r, []); grupos.get(r).push(p); });
+  return [...grupos.values()].filter(l => l.length > 1).map(l => ({miembros: l, clave: l.map(p => p.nombre).sort().join("\n")}))
+    .filter(g => !(ARC.noUnir && ARC.noUnir.has(g.clave)));
+}
+function objetoPorCampo(l){
+  // las tomas sin objeto: ¿apuntan al campo de alguno de los proyectos?
+  const cs = l.map(coordsTomaC).filter(Boolean); if (!cs.length) return null;
+  const m = {ra: medianaAng(cs.map(c => c.ra)), dec: med(cs.map(c => c.dec))}, campo = med(l.map(campoToma).filter(Boolean));
+  let mejor = null;
+  for (const p of posicionesNombres()){
+    if (p.ra === null) continue;
+    const d = sepGrados(m, p); if (d > umbralCampo({campo}, p)) continue;
+    if (!mejor || d < mejor.d) mejor = {nombre: p.nombre, d};
+  }
+  return mejor;
+}
+async function cargarNoUnir(){
+  if (ARC.noUnir) return;
+  try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.noUnir = new Set(r.no_unir || []); ARC.estados = r.estados || ARC.estados; ARC.limites = r.limites || ARC.limites; }
+  catch(_){ ARC.noUnir = new Set(); }
+}
+async function unirObjetos(lista, dest){
+  // todas las tomas pasan al nombre que queda; su objetivo de horas, su estado y sus límites también, si ese nombre no tiene
+  const otros = lista.filter(x => x !== dest); let n = 0;
+  for (const x of otros) n += renombrarObjeto(x, dest);
+  let cambio = false;
+  for (const x of otros) if (OBJETIVOS[x]){ if (!OBJETIVOS[dest]) OBJETIVOS[dest] = OBJETIVOS[x]; delete OBJETIVOS[x]; cambio = true; }
+  if (cambio) api("/api/objetivos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(OBJETIVOS)}).catch(() => {});
+  try {
+    const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({renombrar:{desde:otros, hacia:dest}})})).json();
+    ARC.estados = r.estados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []);
+  } catch(_){}
+  for (const x of otros) ENCUADRE_CACHE.delete(x);
+  ENCUADRE_CACHE.delete(dest);
+  return n;
+}
+function listaNombresTxt(l){
+  const [qa, qc] = ({en:["“", "”"], fr:["« ", " »"], de:["„", "“"]})[IDIOMA] || ["«", "»"], q = x => qa + x + qc;
+  return l.length === 1 ? q(l[0]) : l.slice(0, -1).map(q).join(", ") + " " + Y_CONJ + " " + q(l[l.length - 1]);
+}
+async function nombresVista(){
   $("namesBox").classList.add("show");
+  try { await catalogo(); } catch(_){}
+  await cargarNoUnir();
   const cuenta = new Map(); for (const f of frames){ const o = (f.object||"").trim(); if (o) cuenta.set(o, (cuenta.get(o)||0)+1); }
   const nombres = [...cuenta.keys()].sort((a,b)=>a.localeCompare(b));
   const porClave = new Map(); for (const n of nombres){ const k = claveObjeto(n); if (!porClave.has(k)) porClave.set(k, []); porClave.get(k).push(n); }
@@ -6255,9 +6371,25 @@ function nombresVista(){
       return `<div class="status warn" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">${l.map(n=>`<label style="font-weight:400"><input type="radio" name="dq${i}" value="${esc(n)}" ${n===def?"checked":""}> <span class="notr">${qa}${esc(n)}${qc}</span> (${cuenta.get(n)})</label>`).join("")}
         <button class="btn small primary" data-unir="${i}">Unir con el nombre marcado</button></div>`; }).join("")
     : `<div class="note">No hay nombres duplicados.</div>`;
+  // el mismo campo del cielo con otro nombre, por las coordenadas
+  const campos = gruposMismoCampo();
+  h += `<h3 style="margin:14px 0 6px">${esc(trLT("El mismo campo del cielo con otro nombre", "The same field of sky under another name"))}</h3>`;
+  h += campos.length ? `<div class="note" style="margin-bottom:6px">${esc(trLT("Tomas que apuntan al mismo sitio (por las coordenadas de sus cabeceras o, si no las traen, por el catálogo) con nombres distintos. Si son el mismo proyecto, únelas; si no, pulsa «No son el mismo» y no volverá a salir.",
+      "Frames pointing at the same place (by the coordinates in their headers or, if they have none, by the catalogue) under different names. If they are the same project, merge them; if not, click “They're not the same” and it won't come up again."))}</div>` +
+    campos.map((g, i) => { const ref = g.miembros[0];
+      const porque = p => { if (p === ref) return "";
+        if (p.de === "cabecera" && ref.ra !== null){ const d = sepGrados(p, ref);
+          return d < 1 / 60 ? trLT("en el mismo sitio que {1}", "at the same spot as {1}", listaNombresTxt([ref.nombre])) : trLT("a {1} de {2}", "{1} from {2}", fmtSep(d), listaNombresTxt([ref.nombre])); }
+        return p.cat ? trLT("por el catálogo, es {1}", "by the catalogue, it is {1}", p.cat) : ""; };
+      return `<div class="status warn" style="display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center">${g.miembros.map(p => `<label style="font-weight:400"><input type="radio" name="cq${i}" value="${esc(p.nombre)}" ${p === ref ? "checked" : ""}> <span class="notr">${qa}${esc(p.nombre)}${qc}</span> (${nfmt(p.n)})${porque(p) ? ` <span class="note">· ${esc(porque(p))}</span>` : ""}</label>`).join("")}
+        <span style="flex:1"></span><button class="btn small primary" data-cunir="${i}">${esc(trLT("Unir con el nombre marcado", "Merge into the selected name"))}</button>
+        <button class="btn small" data-cno="${i}">${esc(trLT("No son el mismo", "They're not the same"))}</button></div>`; }).join("")
+    : `<div class="note">${esc(trLT("No hay proyectos con distinto nombre en el mismo campo.", "There are no projects with different names in the same field."))}</div>`;
   h += `<h3 style="margin:14px 0 6px">Tomas sin objeto${sinObj.length?` (${sinObj.length})`:""}</h3>`;
-  h += sesSin.length ? `<div class="note" style="margin-bottom:6px">Agrupadas por noche y filtro. Escribe el objeto (o elige uno de la lista) y pulsa Asignar.</div>` + sesSin.map(([k,l],i)=>`<div style="display:flex;gap:8px;align-items:center;margin:4px 0;flex-wrap:wrap"><span style="min-width:190px"><b class="notr">${esc(k)}</b> · <span>${l.length} toma${l.length>1?"s":""}</span></span><span class="note notr" style="flex:1;min-width:160px">${esc(l[0].name)}</span>
-      <input list="nmObjs" data-sin="${i}" placeholder="objeto, p. ej. M 33" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:180px"><button class="btn small primary" data-asig="${i}">Asignar</button></div>`).join("")
+  const sugSin = sesSin.map(([k, l]) => objetoPorCampo(l));
+  h += sesSin.length ? `<div class="note" style="margin-bottom:6px">Agrupadas por noche y filtro. Escribe el objeto (o elige uno de la lista) y pulsa Asignar.</div>` + sesSin.map(([k,l],i)=>`<div style="display:flex;gap:8px;align-items:center;margin:4px 0;flex-wrap:wrap"><span style="min-width:190px"><b class="notr">${esc(k)}</b> · <span>${l.length} toma${l.length>1?"s":""}</span></span><span class="note" style="flex:1;min-width:160px"><span class="notr">${esc(l[0].name)}</span>${sugSin[i] ? `<br><span style="color:var(--ok)">${esc(sugSin[i].d < 1 / 60 ? trLT("Por sus coordenadas, apuntan a {1}", "By their coordinates, they point at {1}", listaNombresTxt([sugSin[i].nombre]))
+        : trLT("Por sus coordenadas, apuntan a {1} (a {2} de su centro)", "By their coordinates, they point at {1} ({2} from its centre)", listaNombresTxt([sugSin[i].nombre]), fmtSep(sugSin[i].d)))}</span>` : ""}</span>
+      <input list="nmObjs" data-sin="${i}" placeholder="objeto, p. ej. M 33" value="${sugSin[i] ? esc(sugSin[i].nombre) : ""}" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:180px"><button class="btn small primary" data-asig="${i}">Asignar</button></div>`).join("")
     : `<div class="note">Todas las tomas tienen objeto.</div>`;
   h += `<h3 style="margin:14px 0 6px">Todos los objetos</h3><div class="note" style="margin-bottom:6px">Para renombrar, cambia el nombre y pulsa Renombrar. Si pones el nombre de otro objeto que ya existe, se unen.</div>` +
     nombres.map((n,i)=>`<div style="display:flex;gap:8px;align-items:center;margin:3px 0"><span style="min-width:60px;text-align:right" class="note">${cuenta.get(n)}</span>
@@ -6265,8 +6397,14 @@ function nombresVista(){
   h += `<div class="note" style="margin-top:10px">Solo cambia el nombre en la base de datos de ASTRO; los archivos no se mueven de carpeta y el apilado los encuentra igual.</div>`;
   $("nmBody").innerHTML = h;
   const hecho = (n, txt) => { evaluateAll(); scheduleSave(); render(); toast(`${n} ${n===1 ? "toma" : "tomas"} ${n===1 ? txt.replace(/^(\S+)as /, "$1a ") : txt}`); nombresVista(); };
-  $("nmBody").querySelectorAll("[data-unir]").forEach(b=> b.onclick = ()=>{ const i=+b.dataset.unir, l=dudosos[i], dest=$("nmBody").querySelector(`input[name="dq${i}"]:checked`).value;
-    let n=0; for (const x of l) if (x!==dest) n += renombrarObjeto(x, dest); hecho(n, `unidas en «${dest}»`); });
+  $("nmBody").querySelectorAll("[data-unir]").forEach(b=> b.onclick = async ()=>{ const i=+b.dataset.unir, l=dudosos[i], dest=$("nmBody").querySelector(`input[name="dq${i}"]:checked`).value;
+    hecho(await unirObjetos(l, dest), `unidas en «${dest}»`); });
+  $("nmBody").querySelectorAll("[data-cunir]").forEach(b=> b.onclick = async ()=>{ const i=+b.dataset.cunir, l=campos[i].miembros.map(p=>p.nombre), dest=$("nmBody").querySelector(`input[name="cq${i}"]:checked`).value;
+    b.disabled = true; hecho(await unirObjetos(l, dest), `unidas en «${dest}»`); });
+  $("nmBody").querySelectorAll("[data-cno]").forEach(b=> b.onclick = async ()=>{ const g = campos[+b.dataset.cno]; b.disabled = true;
+    try { const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({no_unir:g.clave})})).json(); ARC.noUnir = new Set(r.no_unir || []); }
+    catch(_){ ARC.noUnir.add(g.clave); }
+    nombresVista(); if (VISTA_ACTUAL === "archivo") renderArchivo(); });
   $("nmBody").querySelectorAll("[data-asig]").forEach(b=> b.onclick = ()=>{ const i=+b.dataset.asig, v=$("nmBody").querySelector(`input[data-sin="${i}"]`).value.trim(); if (!v) return toast("Escribe el objeto");
     const l = sesSin[i][1]; l.forEach(f=>f.object=v); hecho(l.length, `asignadas a «${v}»`); });
   $("nmBody").querySelectorAll("[data-ren]").forEach(b=> b.onclick = ()=>{ const i=+b.dataset.ren, v=$("nmBody").querySelector(`input[data-nom="${i}"]`).value.trim(); if (!v || v===nombres[i]) return;
@@ -13312,6 +13450,28 @@ def archivo_proyectos(d=None):
     v = leer_archivo_cfg()
     est = v.get("estados") if isinstance(v.get("estados"), dict) else {}
     lim = v.get("limites") if isinstance(v.get("limites"), dict) else {}
+    no_unir = [x for x in v.get("no_unir", []) if isinstance(x, str)] if isinstance(v.get("no_unir"), list) else []
+    if d and isinstance(d.get("renombrar"), dict):
+        # varios nombres del mismo objeto se unen en uno: su estado y sus límites pasan al que queda, si él no tiene
+        hacia = str(d["renombrar"].get("hacia") or "").strip()
+        desde = [str(x).strip() for x in (d["renombrar"].get("desde") or []) if str(x).strip() and str(x).strip() != hacia]
+        if hacia and desde:
+            for dic in (est, lim):
+                for x in desde:
+                    if x in dic:
+                        valor = dic.pop(x)
+                        dic.setdefault(hacia, valor)
+            v["estados"], v["limites"] = est, lim
+            guardar_archivo_cfg(v)
+        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+    if d and isinstance(d.get("no_unir"), str):
+        # «no son el mismo»: ese grupo de nombres no se vuelve a proponer
+        k = d["no_unir"].strip()
+        if k and k not in no_unir:
+            no_unir.append(k)
+            v["no_unir"] = no_unir[-500:]
+            guardar_archivo_cfg(v)
+        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
     if d and "limites" in d:
         # límites fijos de un proyecto (FWHM en ″ o px, excentricidad y peso): lo que los pasa queda fuera del apilado
         obj = str(d.get("objeto") or "").strip()
@@ -13324,7 +13484,7 @@ def archivo_proyectos(d=None):
                 lim.pop(obj, None)
             v["limites"] = lim
             guardar_archivo_cfg(v)
-        return {"estados": est, "apilados": archivo_apilados(), "limites": lim}
+        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
     if d:
         obj = str(d.get("objeto") or "").strip()
         if obj:
@@ -13334,7 +13494,7 @@ def archivo_proyectos(d=None):
                 est.pop(obj, None)
             v["estados"] = est
             guardar_archivo_cfg(v)
-    return {"estados": est, "apilados": archivo_apilados(), "limites": lim}
+    return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
 
 # ── carpetas vigiladas: ASTRO las revisa al abrirse y cada rato, y añade solo las tomas nuevas ──
 VIGILADAS_CFG = os.path.join(ROOT, "vigiladas.json")

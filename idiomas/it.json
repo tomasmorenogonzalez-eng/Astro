@@ -2928,7 +2928,18 @@
 "Pasar las tomas de esta noche una a una": "Passare le pose di questa notte una per una",
 "Pasa esta toma y las demás de la misma noche, una tras otra y alineadas": "Mostra questa posa e le altre della stessa notte, una dopo l'altra e allineate",
 "Parpadeo con las de su noche": "Blink con quelle della sua notte",
-"Sin objeto": "Senza oggetto"
+"Sin objeto": "Senza oggetto",
+"El mismo campo del cielo con otro nombre": "Lo stesso campo di cielo con un altro nome",
+"Tomas que apuntan al mismo sitio (por las coordenadas de sus cabeceras o, si no las traen, por el catálogo) con nombres distintos. Si son el mismo proyecto, únelas; si no, pulsa «No son el mismo» y no volverá a salir.": "Pose che puntano allo stesso punto (secondo le coordinate delle loro intestazioni o, se non le hanno, secondo il catalogo) con nomi diversi. Se sono lo stesso progetto, uniscile; altrimenti clicca su «Non sono lo stesso» e non comparirà più.",
+"en el mismo sitio que {1}": "nello stesso punto di {1}",
+"a {1} de {2}": "a {1} da {2}",
+"por el catálogo, es {1}": "secondo il catalogo, è {1}",
+"No son el mismo": "Non sono lo stesso",
+"No hay proyectos con distinto nombre en el mismo campo.": "Non ci sono progetti con nomi diversi nello stesso campo.",
+"Por sus coordenadas, apuntan a {1}": "Dalle loro coordinate, puntano a {1}",
+"Por sus coordenadas, apuntan a {1} (a {2} de su centro)": "Dalle loro coordinate, puntano a {1} (a {2} dal suo centro)",
+"{1} parecen el mismo campo del cielo con distinto nombre.": "{1} sembrano lo stesso campo di cielo con nomi diversi.",
+"{1} grupos de proyectos parecen el mismo campo del cielo con distinto nombre.": "{1} gruppi di progetti sembrano lo stesso campo di cielo con nomi diversi."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",

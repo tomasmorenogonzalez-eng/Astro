@@ -2928,7 +2928,18 @@
 "Pasar las tomas de esta noche una a una": "Passer les poses de cette nuit une à une",
 "Pasa esta toma y las demás de la misma noche, una tras otra y alineadas": "Fait défiler cette pose et les autres de la même nuit, l'une après l'autre et alignées",
 "Parpadeo con las de su noche": "Clignotement avec celles de sa nuit",
-"Sin objeto": "Sans objet"
+"Sin objeto": "Sans objet",
+"El mismo campo del cielo con otro nombre": "Le même champ du ciel sous un autre nom",
+"Tomas que apuntan al mismo sitio (por las coordenadas de sus cabeceras o, si no las traen, por el catálogo) con nombres distintos. Si son el mismo proyecto, únelas; si no, pulsa «No son el mismo» y no volverá a salir.": "Des poses qui visent le même endroit (d'après les coordonnées de leurs en-têtes ou, à défaut, d'après le catalogue) sous des noms différents. S'il s'agit du même projet, fusionnez-les ; sinon, cliquez sur « Ce n'est pas le même » et cela ne réapparaîtra plus.",
+"en el mismo sitio que {1}": "au même endroit que {1}",
+"a {1} de {2}": "à {1} de {2}",
+"por el catálogo, es {1}": "d'après le catalogue, c'est {1}",
+"No son el mismo": "Ce n'est pas le même",
+"No hay proyectos con distinto nombre en el mismo campo.": "Aucun projet sous un nom différent dans le même champ.",
+"Por sus coordenadas, apuntan a {1}": "D'après leurs coordonnées, elles visent {1}",
+"Por sus coordenadas, apuntan a {1} (a {2} de su centro)": "D'après leurs coordonnées, elles visent {1} (à {2} de son centre)",
+"{1} parecen el mismo campo del cielo con distinto nombre.": "{1} semblent être le même champ du ciel sous des noms différents.",
+"{1} grupos de proyectos parecen el mismo campo del cielo con distinto nombre.": "{1} groupes de projets semblent être le même champ du ciel sous des noms différents."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",

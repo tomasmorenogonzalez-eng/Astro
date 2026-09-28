@@ -2928,7 +2928,18 @@
 "Pasar las tomas de esta noche una a una": "Passar as exposições desta noite uma a uma",
 "Pasa esta toma y las demás de la misma noche, una tras otra y alineadas": "Mostra esta exposição e as outras da mesma noite, uma após outra e alinhadas",
 "Parpadeo con las de su noche": "Blink com as da sua noite",
-"Sin objeto": "Sem objeto"
+"Sin objeto": "Sem objeto",
+"El mismo campo del cielo con otro nombre": "O mesmo campo do céu com outro nome",
+"Tomas que apuntan al mismo sitio (por las coordenadas de sus cabeceras o, si no las traen, por el catálogo) con nombres distintos. Si son el mismo proyecto, únelas; si no, pulsa «No son el mismo» y no volverá a salir.": "Exposições que apontam para o mesmo sítio (pelas coordenadas dos seus cabeçalhos ou, se não as tiverem, pelo catálogo) com nomes diferentes. Se forem o mesmo projeto, junte-as; se não, clique em «Não são o mesmo» e não voltará a aparecer.",
+"en el mismo sitio que {1}": "no mesmo sítio que {1}",
+"a {1} de {2}": "a {1} de {2}",
+"por el catálogo, es {1}": "pelo catálogo, é {1}",
+"No son el mismo": "Não são o mesmo",
+"No hay proyectos con distinto nombre en el mismo campo.": "Não há projetos com nomes diferentes no mesmo campo.",
+"Por sus coordenadas, apuntan a {1}": "Pelas suas coordenadas, apontam para {1}",
+"Por sus coordenadas, apuntan a {1} (a {2} de su centro)": "Pelas suas coordenadas, apontam para {1} (a {2} do seu centro)",
+"{1} parecen el mismo campo del cielo con distinto nombre.": "{1} parecem ser o mesmo campo do céu com nomes diferentes.",
+"{1} grupos de proyectos parecen el mismo campo del cielo con distinto nombre.": "{1} grupos de projetos parecem ser o mesmo campo do céu com nomes diferentes."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",
