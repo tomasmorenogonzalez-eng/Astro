@@ -991,7 +991,7 @@ table.arcEqT{min-width:900px} tr[data-arc-eq]{cursor:pointer} tr[data-arc-eq]:ho
 .arcPest{display:inline-flex;background:var(--surface2);border-radius:10px;padding:3px}
 .arcPest button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font:inherit;font-weight:650;font-size:13.5px;color:var(--muted);cursor:pointer}
 .arcPest button.on{background:var(--surface);color:var(--text);box-shadow:var(--sombra)}
-table.arcTabla{min-width:980px} table.arcTabla td{vertical-align:middle} table.arcTabla td:nth-child(4){min-width:170px} table.arcTabla td:nth-child(9){max-width:180px}
+table.arcTabla{min-width:980px} table.arcTabla td{vertical-align:middle} table.arcTabla td:nth-child(4){min-width:170px} table.arcTabla td:nth-child(8){max-width:170px}
 tr[data-arc-proy]{cursor:pointer} tr[data-arc-proy]:hover td{background:var(--surface2)}
 .arcAnios{display:flex;align-items:flex-end;gap:2px;height:24px} .arcAnios i{display:block;width:8px;background:var(--accent);border-radius:2px 2px 0 0}
 .arcEje{display:flex;justify-content:space-between;gap:8px;font-weight:500;font-size:10.5px;color:var(--faint)}
@@ -2826,7 +2826,7 @@ function recDesdeCabecera(it){
 
 /* --- carpetas del archivo e indexado --- */
 async function arcCargarCarpetas(){
-  try { ARC.carpetas = (await (await api("/api/archivo/carpetas")).json()).carpetas || []; } catch(_){ ARC.carpetas = []; }
+  try { const r = await (await api("/api/archivo/carpetas")).json(); ARC.carpetas = r.carpetas || []; ARC.calPend = r.cal_pendiente || null; } catch(_){ ARC.carpetas = []; }
   if (VISTA_ACTUAL === "archivo") renderArchivo();
 }
 async function arcCalibracion(forzar){
@@ -3026,6 +3026,22 @@ function arcEquiposVista(lista){
     <div class="note" style="margin-top:8px">${esc(trLT("Pulsa un equipo para ver sus noches. El nombre sale de la cabecera (TELESCOP e INSTRUME); si un mismo equipo aparece con dos nombres, unifícalos en «Mi equipo».", "Click a setup to see its nights. The name comes from the header (TELESCOP and INSTRUME); if one setup shows up under two names, merge them in “My equipment”."))}</div>`;
 }
 
+async function arcEnviarCalibracion(){
+  // la calibración que ha aparecido al indexar pasa a la biblioteca de calibración, que la importa y la clasifica por cámara
+  let r; try { r = await (await api("/api/archivo/cal_enviar", {method:"POST"})).json(); } catch(e){ return toast(tr(String(e.message || e))); }
+  if (!r.ok) return toast(trLT("No hay calibración pendiente: vuelve a indexar la carpeta", "There is no pending calibration: index the folder again"));
+  if (!PUERTO_CAL) return toast(trLT("La biblioteca de calibración no está abierta", "The calibration library isn't open"));
+  location.href = urlCalibracion("#importar-archivo");
+}
+function htmlCalPendiente(){
+  const c = ARC.calPend; if (!c || (!c.dirs && !c.archivos)) return "";
+  const partes = [c.dirs ? (c.dirs === 1 ? trLT("1 carpeta", "1 folder") : trLT("{1} carpetas", "{1} folders", nfmt(c.dirs))) : "",
+                  c.archivos ? (c.archivos === 1 ? trLT("1 archivo suelto", "1 loose file") : trLT("{1} archivos sueltos", "{1} loose files", nfmt(c.archivos))) : ""].filter(Boolean).join(" · ");
+  return `<div class="status warn indAviso" style="display:flex;margin-top:12px;font-weight:500"><span style="flex:1;min-width:260px;line-height:1.45"><b>${esc(trLT("Hay darks, flats o bias en tus carpetas", "There are darks, flats or bias in your folders"))}</b> (${esc(partes)}).
+    ${esc(trLT("La biblioteca de calibración los importa y clasifica cada uno por su cabecera: tipo, cámara, exposición, temperatura y gain. Se copian a la biblioteca; los originales no se tocan.", "The calibration library imports them and sorts each one by its header: type, camera, exposure, temperature and gain. They are copied into the library; the originals are left untouched."))}</span>
+    <button class="btn small primary" data-arc-cal-enviar>${esc(trLT("Añadirlos a la biblioteca", "Add them to the library"))}</button></div>`;
+}
+
 /* --- inventario: un proyecto por objeto --- */
 function arcTomas(){
   // las tomas que cuentan en el archivo, con el año, el mes y el equipo elegidos
@@ -3123,9 +3139,10 @@ function renderArchivo(){
                         : trLT("No hay tomas nuevas en esa carpeta.", "There are no new frames in that folder."))}</b>
       ${u.repetidas ? `<br>${esc(trLT("{1} ya estaban en ASTRO.", "{1} were already in ASTRO.", nfmt(u.repetidas)))}` : ""}
       ${u.sinObjeto ? `<br>${esc(trLT("{1} tomas no dicen de qué objeto son: asígnalo en «Nombres de objeto».", "{1} frames don't say which target they are: set it in “Target names”.", nfmt(u.sinObjeto)))} <a href="#" onclick="$('btnNombres').click();return false">${esc(trLT("Nombres de objeto", "Target names"))}</a>` : ""}
-      ${u.calibracion || u.dirsCal ? `<br>${esc(trLT("También hay tomas de calibración ({1} archivos sueltos y {2} carpetas de darks, flats o bias): añádelas a la biblioteca de calibración.", "There are calibration frames too ({1} loose files and {2} folders of darks, flats or bias): add them to the calibration library.", nfmt(u.calibracion), nfmt(u.dirsCal)))}${PUERTO_CAL ? ` <a href="${esc(urlCalibracion())}">${esc(trLT("Abrir la biblioteca", "Open the library"))}</a>` : ""}` : ""}
+
       ${u.corto ? `<br>${esc(trLT("La carpeta es enorme: se ha parado a mitad. Vuelve a indexarla para seguir.", "The folder is huge: it stopped half-way. Index it again to carry on."))}` : ""}</div>`;
   }
+  h += htmlCalPendiente();
   h += `</div>`;
   if (!frames.length && !ARC.indexando){
     h += `<div class="arcVacio"><b>${esc(trLT("Tu archivo está vacío", "Your archive is empty"))}</b><span>${esc(trLT("Indexa la carpeta donde guardas tus tomas de todos los años (por ejemplo, la que tiene una carpeta por año). En unos minutos verás cada proyecto con sus horas, sus filtros y sus temporadas.",
@@ -3208,6 +3225,7 @@ function arcEnlazar(){
   el.querySelectorAll("[data-arc-proy]").forEach(tr_ => { tr_.onclick = () => abrirProyecto(tr_.dataset.arcProy); tr_.onkeydown = ev => { if (ev.key === "Enter") abrirProyecto(tr_.dataset.arcProy); }; });
   el.querySelectorAll("[data-arc-pest]").forEach(b => b.onclick = () => { ARC.pestana = b.dataset.arcPest; renderArchivo(); });
   el.querySelectorAll("[data-arc-est]").forEach(b => b.onclick = () => { ARC.estado = b.dataset.arcEst; renderArchivo(); });
+  el.querySelectorAll("[data-arc-cal-enviar]").forEach(b => b.onclick = arcEnviarCalibracion);
   el.querySelectorAll("[data-arc-ir]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrirProyecto(a.dataset.arcIr); });
   el.querySelectorAll("[data-arc-eq]").forEach(tr_ => { const ir = () => { ARC.equipo = tr_.dataset.arcEq; ARC.pestana = "sesiones"; renderArchivo(); window.scrollTo({top:0}); };
     tr_.onclick = ir; tr_.onkeydown = ev => { if (ev.key === "Enter") ir(); }; });
@@ -3243,7 +3261,7 @@ function abrirProyecto(obj){
 }
 function renderProyecto(){
   const el = $("vistaProyecto"), obj = ARC.proyecto; if (!el || VISTA_ACTUAL !== "proyecto" || !obj) return;
-  arcCalibracion(); arcCargarProyectos();
+  arcCalibracion(); arcCargarProyectos(); if (ARC.carpetas === null){ ARC.carpetas = []; arcCargarCarpetas(); }
   const todas = frames.filter(f => (f.object || "").trim() === obj), fl = todas.filter(f => !f.discarded);
   const p = arcProyectos(fl)[0];
   $("tituloVista").textContent = obj;
@@ -3309,7 +3327,7 @@ function renderProyecto(){
     `<p>${!ARC.cal ? "…" : !cal ? esc(trLT("Sin tomas útiles.", "No usable frames."))
       : !cal.sin_dark && !cal.sin_flat ? esc(trLT("Todas las tomas tienen darks y flats en la biblioteca.", "Every frame has darks and flats in the library."))
       : esc(trLT("Sin darks: {1} tomas · sin flats: {2} tomas, en {3} noches.", "No darks: {1} frames · no flats: {2} frames, on {3} nights.", nfmt(cal.sin_dark), nfmt(cal.sin_flat), nfmt(cal.noches_sin)))}</p>
-     ${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}`);
+     ${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}${cal && (cal.sin_dark || cal.sin_flat) && ARC.calPend && (ARC.calPend.dirs || ARC.calPend.archivos) ? btn(trLT("Añadir la calibración de tus carpetas", "Add the calibration from your folders"), "calenviar", true) : ""}`);
   // 4. apilar
   h += paso(4, ap.length ? (est.nuevas ? "" : "hecho") : "", trLT("Apilar", "Stack"),
     `<p>${ap.length ? esc(trLT("Último apilado: {1} ({2}).", "Latest stack: {1} ({2}).", fechaDia(String(ap[0].fecha).slice(0, 10)), (ap[0].filtros || []).map(nomFiltro).join(", "))) + (ap.length > 1 ? " " + esc(trLT("{1} apilados en total.", "{1} stacks in total.", ap.length)) : "")
@@ -3363,6 +3381,7 @@ function arcAccion(a, obj){
   if (a === "tomas"){ filters.object = new Set([obj]); mostrarVista("tomas"); render(); return; }
   if (a === "criterio") return abrirCriterio(obj);
   if (a === "indicadores") return abrirIndicadores(obj);
+  if (a === "calenviar") return arcEnviarCalibracion();
   if (a === "carpeta" || a === "vista"){
     const u = (ARC.apilados[obj] || [])[0]; if (!u) return;
     if (a === "carpeta") return fetch("/api/apilado/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})});
@@ -12157,7 +12176,7 @@ def recorrer_tomas(carpeta, parar=lambda: False, cuenta=None, saltar=None, con_c
     Con «con_cab», cada toma lleva las claves de su cabecera (el Archivo las indexa sin medirlas)."""
     excl, t0 = _excluidas(), time.time()
     vistas, reales, items, corto = set(), set(), [], False
-    salt = {"carpetas": 0, "calibracion": 0, "bucles": 0, "rotos": 0, "repetidos": 0, "otras": 0, "conocidas": 0, "dirs_cal": []}
+    salt = {"carpetas": 0, "calibracion": 0, "bucles": 0, "rotos": 0, "repetidos": 0, "otras": 0, "conocidas": 0, "dirs_cal": [], "cal_archivos": []}
     cuenta = cuenta if cuenta is not None else {}
 
     def excluida(r):
@@ -12189,7 +12208,7 @@ def recorrer_tomas(carpeta, parar=lambda: False, cuenta=None, saltar=None, con_c
                 if e.is_dir():                     # sigue los enlaces
                     if DIR_SALTAR.match(n):
                         salt["carpetas"] += 1      # darks, flats, bias, vistas previas, live…
-                        if re.match(r"(?i)^(bias|offset|dark|flat)", n) and len(salt["dirs_cal"]) < 200:
+                        if re.match(r"(?i)^(bias|offset|dark|flat)", n) and len(salt["dirs_cal"]) < 3000:
                             salt["dirs_cal"].append(e.path)
                     elif prof < 12 and not excluida(_rp(e.path)):
                         subs.append(e.path)
@@ -12201,6 +12220,8 @@ def recorrer_tomas(carpeta, parar=lambda: False, cuenta=None, saltar=None, con_c
                         continue
                     if RE_CAL_ARCHIVO.match(n):
                         salt["calibracion"] += 1
+                        if len(salt["cal_archivos"]) < 30000:
+                            salt["cal_archivos"].append(e.path)
                         continue
                     r = _rp(e.path)
                     if r in reales:                # el mismo archivo por dos caminos
@@ -12218,7 +12239,10 @@ def recorrer_tomas(carpeta, parar=lambda: False, cuenta=None, saltar=None, con_c
                     else:
                         (tipo, _ent), cab = info_toma(e.path, st.st_size), None
                     if tipo and not es_light(tipo):
-                        salt["calibracion" if re.search(r"dark|flat|bias|offset", tipo) else "otras"] += 1
+                        es_cal = bool(re.search(r"dark|flat|bias|offset", tipo))
+                        salt["calibracion" if es_cal else "otras"] += 1
+                        if es_cal and len(salt["cal_archivos"]) < 30000:
+                            salt["cal_archivos"].append(e.path)
                         continue
                     reales.add(r)
                     it = {"ruta": e.path, "nombre": n, "size": st.st_size, "mtime": int(st.st_mtime * 1000),
@@ -12245,6 +12269,7 @@ def importar_recorrer(carpeta, ident):
         if r is None:
             return
         items, salt, corto = r
+        salt.pop("cal_archivos", None)
         with _IMP_LOCK:
             if _IMP["id"] == ident:
                 _IMP_OK.update(x["ruta"] for x in items)
@@ -12305,11 +12330,17 @@ def archivo_recorrer(carpeta, ident):
         if r is None:
             return
         items, salt, corto = r
+        cal_arch = salt.pop("cal_archivos", [])
         with _ARC_LOCK:
             if _ARC["id"] == ident:
                 _IMP_OK.update(x["ruta"] for x in items)
                 _ARC.update(items=items, saltadas=salt, corto=corto, activo=False)
         v = leer_archivo_cfg()
+        if salt.get("dirs_cal") or cal_arch:
+            # la calibración que hay entre las tomas queda apuntada para pasarla a la biblioteca de calibración
+            cp = v.get("cal_pendiente") if isinstance(v.get("cal_pendiente"), dict) else {}
+            v["cal_pendiente"] = {"dirs": list(dict.fromkeys((cp.get("dirs") or []) + salt.get("dirs_cal", []))),
+                                  "archivos": list(dict.fromkeys((cp.get("archivos") or []) + cal_arch))}
         c = next((x for x in v["carpetas"] if x.get("ruta") == carpeta), None)
         if not c:
             c = {"ruta": carpeta}
@@ -12339,7 +12370,34 @@ def archivo_carpetas(d):
         guardar_archivo_cfg(v)
     for x in v["carpetas"]:
         x["existe"] = os.path.isdir(x.get("ruta") or "")
+    cp = v.pop("cal_pendiente", None) or {}
+    v["cal_pendiente"] = {"dirs": len(cp.get("dirs") or []), "archivos": len(cp.get("archivos") or [])}
+    v.pop("estados", None)
     return v
+
+
+ARCH_CAL_PEND = os.path.join(CALIB_ROOT, ".importar-archivo.json")
+
+
+def archivo_cal_enviar():
+    """Pasa la calibración encontrada en el Archivo a la biblioteca de calibración, que la importa al abrirse:
+    cada toma se clasifica por su cabecera (tipo, cámara, exposición, temperatura, gain…) y se copia."""
+    v = leer_archivo_cfg()
+    cp = v.get("cal_pendiente") if isinstance(v.get("cal_pendiente"), dict) else {}
+    dirs, arch = cp.get("dirs") or [], cp.get("archivos") or []
+    if not dirs and not arch:
+        return {"ok": False, "dirs": 0, "archivos": 0}
+    prev = leer_json(ARCH_CAL_PEND, {})
+    prev = prev if isinstance(prev, dict) else {}
+    d = {"dirs": list(dict.fromkeys((prev.get("dirs") or []) + dirs)),
+         "archivos": list(dict.fromkeys((prev.get("archivos") or []) + arch)), "fecha": time.strftime("%Y-%m-%d %H:%M")}
+    os.makedirs(CALIB_ROOT, exist_ok=True)
+    with open(ARCH_CAL_PEND + ".tmp", "w", encoding="utf-8") as fh:
+        json.dump(d, fh, ensure_ascii=False)
+    os.replace(ARCH_CAL_PEND + ".tmp", ARCH_CAL_PEND)
+    v.pop("cal_pendiente", None)
+    guardar_archivo_cfg(v)
+    return {"ok": True, "dirs": len(d["dirs"]), "archivos": len(d["archivos"])}
 
 
 _ARC_CAL = {"clave": None, "res": {}}
@@ -13763,6 +13821,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(archivo_carpetas(json.loads(self._body() or b"{}")), ensure_ascii=False))
             if p.path == "/api/archivo/proyectos":
                 return self._send(200, json.dumps(archivo_proyectos(json.loads(self._body() or b"{}")), ensure_ascii=False))
+            if p.path == "/api/archivo/cal_enviar":
+                return self._send(200, json.dumps(archivo_cal_enviar(), ensure_ascii=False))
             if p.path == "/api/importar/elegir":
                 d_el = json.loads(self._body() or b"{}") if self.headers.get("Content-Length") else {}
                 ruta, fallo = elegir_carpeta(_txt_elegir_archivo() if d_el.get("archivo") else _txt_elegir_importar(), con_fallo=True)

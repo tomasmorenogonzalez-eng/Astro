@@ -14,6 +14,7 @@ DIBUJOS_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes
 DB = os.path.join(ROOT, "biblioteca.json")
 # calibración que llega en un proyecto importado desde el Control de lights: la página la incorpora al abrirse
 PENDIENTE = os.path.join(ROOT, ".importar-pendiente.json")
+ARCH_PEND = os.path.join(ROOT, ".importar-archivo.json")      # calibración encontrada al indexar el Archivo (la deja el Control de lights)
 
 
 ES_MAC = sys.platform == "darwin"
@@ -1022,14 +1023,14 @@ function walk(entry, out){
 }
 const EXT_FITS = /\.(fits?|fts)$/i, EXT_XISF = /\.xisf$/i, EXT_RAW = /\.(cr2|cr3|nef|arw|dng|pef|raf|orf|rw2)$/i;
 
-async function ingest(files){
+async function ingest(files, opc = {}){
   files = files.filter(f => (EXT_FITS.test(f.name) || EXT_XISF.test(f.name) || EXT_RAW.test(f.name)) && f.name !== DB_FILE);
   if (!files.length){ toast("No hay archivos FITS, XISF o RAW entre lo arrastrado"); return; }
-  const copy = $("batchCopy").checked;
+  const copy = opc.copiar ?? $("batchCopy").checked;
   const prog = $("progress"), bar = prog.querySelector("i");
   prog.style.display = "block"; $("log").innerHTML = "";
   let n = 0, added = 0, dup = 0, bad = 0;
-  const batch = { tel: $("batchTel").value.trim(), cam: $("batchCam").value.trim(), note: $("batchNote").value.trim() };
+  const batch = opc.batch || { tel: $("batchTel").value.trim(), cam: $("batchCam").value.trim(), note: $("batchNote").value.trim() };
   for (const f of files){
     n++; bar.style.width = Math.round(100*n/files.length)+"%";
     try {
@@ -1045,6 +1046,45 @@ async function ingest(files){
   revisarGrupos(); render(); await saveDb();
   setTimeout(()=>{ prog.style.display="none"; bar.style.width="0"; }, 800);
   toast(`${added} añadidos · ${dup} duplicados · ${bad} con error`);
+  return {added, dup, bad};
+}
+/* ---- calibración encontrada en el Archivo del Control de lights: se importa sola y se clasifica por su cabecera ---- */
+async function importarDelArchivo(){
+  let d; try { d = await (await api("/api/disco/pendiente_archivo")).json(); } catch(_){ return; }
+  const items = d.items || [];
+  if (!items.length){
+    if (d.dirs || d.archivos) toast(trLT("No encuentro los archivos de calibración del Archivo: ¿está conectado el disco?", "I can't find the Archive's calibration files: is the disk connected?"));
+    return;
+  }
+  abrirAñadir();
+  const antes = new Set(frames.map(f => f.id));
+  const aviso = addLog(trLT("Calibración encontrada en el Archivo: {1} archivos. Cada uno se clasifica por su cabecera (tipo, cámara, exposición, temperatura y gain) y se copia a la biblioteca.",
+    "Calibration found in the Archive: {1} files. Each one is sorted by its header (type, camera, exposure, temperature and gain) and copied into the library.", items.length), "ok");
+  const r = await ingest(items.map(it => new ArchivoDisco(it)), {copiar:true, batch:{tel:"", cam:"", note:""}});
+  if (!r) return;
+  try { await api("/api/disco/pendiente_archivo/hecho", {method:"POST"}); } catch(_){}
+  // resumen por cámara: qué ha entrado de cada una
+  const nuevos = frames.filter(f => !antes.has(f.id)), porCam = new Map();
+  for (const f of nuevos){ const k = f.cam || trLT("cámara sin nombre", "unnamed camera"); if (!porCam.has(k)) porCam.set(k, {}); const t = porCam.get(k); t[f.type] = (t[f.type] || 0) + 1; }
+  const plural = (n, t) => n + " " + t + (n > 1 && !/s$/i.test(t) ? "s" : "");
+  for (const [cam, t] of [...porCam].reverse()){
+    const d2 = addLog("", "ok"); const b = document.createElement("b"); b.className = "notr"; b.textContent = cam;
+    d2.append(b, ": " + Object.entries(t).map(([ty, n]) => plural(n, TYPES[ty] || ty)).join(" · "));
+  }
+  aviso.remove();
+  const res = addLog(trLT("Calibración del Archivo importada: {1} nuevas, {2} ya estaban, {3} con error. Por cámara:", "Archive calibration imported: {1} new, {2} already there, {3} with errors. By camera:", r.added, r.dup, r.bad), "ok");
+  res.style.fontWeight = "700";
+}
+async function avisoPendienteArchivo(){
+  let d; try { d = await (await api("/api/disco/pendiente_archivo?contar=1")).json(); } catch(_){ return; }
+  if (!d || (!d.dirs && !d.archivos)) return;
+  const el = $("estadoGeneral"); if (!el) return;
+  const div = document.createElement("div"); div.className = "status warn"; div.style.cssText = "display:flex;gap:10px;align-items:center;flex-wrap:wrap";
+  const sp = document.createElement("span"); sp.style.cssText = "flex:1;min-width:240px";
+  sp.textContent = trLT("El Archivo ha encontrado darks, flats o bias entre tus tomas y están esperando para entrar en la biblioteca.", "The Archive found darks, flats or bias among your frames and they're waiting to go into the library.");
+  const b = document.createElement("button"); b.className = "btn small primary"; b.textContent = trLT("Importarlos ahora", "Import them now");
+  b.onclick = () => { div.remove(); importarDelArchivo(); };
+  div.append(sp, b); el.parentNode.insertBefore(div, el);      // fuera de «estadoGeneral», que se vuelve a pintar
 }
 function addLog(t, cls){ const d=document.createElement("div"); d.className=cls||""; d.textContent=t; $("log").prepend(d); return d; }
 // línea del registro para un archivo añadido: nombre y ruta tal cual; tipo, estado y motivo traducidos por separado
@@ -1690,7 +1730,9 @@ $("btnFinder").onclick = () => api("/api/finder", {method:"POST"}).catch(()=>toa
 
 (async function init(){ try { REGLAS = (await (await api("/api/config")).json()).reglas_tel || []; } catch(_){}
   await loadDb(); if (revisarGrupos()) scheduleSave(); render(); recogerImportados();
-  if (location.hash === "#falta"){ try { history.replaceState(null, "", location.pathname); } catch(_){} $("btnFaltan").click(); } })();
+  if (location.hash === "#falta"){ try { history.replaceState(null, "", location.pathname); } catch(_){} $("btnFaltan").click(); }
+  else if (location.hash === "#importar-archivo"){ try { history.replaceState(null, "", location.pathname); } catch(_){} importarDelArchivo(); }
+  else avisoPendienteArchivo(); })();
 // calibración que ha llegado en un proyecto importado desde el Control de lights
 async function recogerImportados(){
   let d; try { d = await (await api("/api/importar/pendiente")).json(); } catch(_){ return; }
@@ -3225,6 +3267,39 @@ def elegir_carpeta_cal():
     return ruta, fallo
 
 
+def pendiente_archivo(contar=False):
+    """Los archivos de calibración que el Archivo ha encontrado entre las tomas: los de sus carpetas de darks, flats o bias
+    y los sueltos. Con «contar», solo cuántas carpetas y archivos hay (sin recorrer nada)."""
+    d = leer_json(ARCH_PEND, {})
+    d = d if isinstance(d, dict) else {}
+    dirs, sueltos = d.get("dirs") or [], d.get("archivos") or []
+    if contar:
+        return {"dirs": len(dirs), "archivos": len(sueltos)}
+    items, vistos, faltan = [], set(), 0
+    for c in dirs:
+        try:
+            its, _ = listar_disco(c, 20000)
+        except Exception:
+            faltan += 1
+            continue
+        for it in its:
+            if it["ruta"] not in vistos:
+                vistos.add(it["ruta"]); items.append(it)
+    for r in sueltos:
+        if r in vistos or not r.lower().endswith(EXT_DISCO):
+            continue
+        try:
+            st = os.stat(r)
+        except OSError:
+            faltan += 1
+            continue
+        if st.st_size >= 2880:
+            vistos.add(r)
+            items.append({"ruta": r, "nombre": os.path.basename(r), "size": st.st_size, "mtime": int(st.st_mtime * 1000)})
+    _DISCO_OK.update(x["ruta"] for x in items)
+    return {"items": items, "dirs": len(dirs), "archivos": len(sueltos), "faltan": faltan}
+
+
 def listar_disco(carpeta, maximo=20000):
     """Archivos de calibración de una carpeta (y sus subcarpetas, siguiendo los enlaces sin repetir)."""
     carpeta = os.path.abspath(carpeta)
@@ -3394,6 +3469,9 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(dict(JOBM, log=JOBM["log"][-40:]), ensure_ascii=False, default=str))
         if p.path == "/api/importar/pendiente":
             return self._send(200, json.dumps(leer_json(PENDIENTE, {"frames": []}), ensure_ascii=False))
+        if p.path == "/api/disco/pendiente_archivo":
+            q0 = urllib.parse.parse_qs(p.query)
+            return self._send(200, json.dumps(pendiente_archivo(bool(q0.get("contar"))), ensure_ascii=False))
         if p.path == "/api/db":
             if os.path.exists(DB):
                 with open(DB, "rb") as f: return self._send(200, f.read())
@@ -3415,6 +3493,12 @@ class H(BaseHTTPRequestHandler):
             return
         q = urllib.parse.parse_qs(p.query)
         try:
+            if p.path == "/api/disco/pendiente_archivo/hecho":
+                try:
+                    os.remove(ARCH_PEND)
+                except OSError:
+                    pass
+                return self._send(200, '{"ok":true}')
             if p.path == "/api/importar/pendiente/hecho":
                 hechas = set(json.loads(self._body() or b"{}").get("rutas") or [])
                 d = leer_json(PENDIENTE, {"frames": []})
