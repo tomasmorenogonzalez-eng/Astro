@@ -70,7 +70,11 @@ jobs:
           for v in MAC_CERT_PASSWORD APPLE_ID APPLE_APP_PASSWORD; do
             if [ -z "${!v}" ]; then echo "::error::Falta el secreto $v (mira FIRMA.md)."; exit 1; fi
           done
-          echo "$MAC_CERT_P12" | base64 --decode > cert.p12
+          P12=$(printf '%s' "$MAC_CERT_P12" | tr -d ' \r\n\t')
+          if ! printf '%s' "$P12" | base64 --decode > cert.p12 2>/dev/null || [ "$(wc -c < cert.p12)" -lt 1000 ]; then
+            echo "::error::El secreto MAC_CERT_P12 no es el texto del certificado (tiene ${#P12} caracteres y debería tener varios miles). En el Terminal: base64 -i ~/Desktop/ASTRO.p12 | pbcopy, y pega el resultado en MAC_CERT_P12."
+            exit 1
+          fi
           CLAVE=$(openssl rand -hex 16)
           security create-keychain -p "$CLAVE" fab.keychain
           security set-keychain-settings -lut 3600 fab.keychain
@@ -81,7 +85,10 @@ jobs:
           # sin él el certificado sale como «no es fiable» y no se puede firmar.
           curl -fsSL -o g2.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer && security import g2.cer -k fab.keychain || true
           rm -f g2.cer
-          security import cert.p12 -k fab.keychain -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          if ! security import cert.p12 -k fab.keychain -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign; then
+            echo "::error::La contraseña de MAC_CERT_PASSWORD no abre el certificado: tiene que ser la que pusiste al exportar el ASTRO.p12 (mira FIRMA.md)."
+            exit 1
+          fi
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$CLAVE" fab.keychain
           rm -f cert.p12
           ID=$(security find-identity -v -p codesigning fab.keychain | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
