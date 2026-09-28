@@ -132,7 +132,7 @@ try:
 except Exception:
     TK = False
 
-VIOLETA, VIOLETA2, FONDO, TEXTO, GRIS = "#5B2C87", "#8E5BC2", "#F4F2F9", "#1E1830", "#6B6382"
+VIOLETA, VIOLETA2, FONDO, TEXTO, GRIS = "#5B2C87", "#8E5BC2", "#F5F4F7", "#19141F", "#665E72"
 
 AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real)",
          "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real)"}
@@ -225,7 +225,7 @@ def compartir_idioma(datos):
 def _boton(padre, texto, orden, principal=False):
     b = tk.Label(padre, text=texto, bg=VIOLETA if principal else "#FFFFFF", fg="#FFFFFF" if principal else TEXTO,
                  font=("Helvetica", 13, "bold"), padx=16, pady=9, cursor="hand2",
-                 highlightthickness=1, highlightbackground=VIOLETA if principal else "#D8D2E8")
+                 highlightthickness=1, highlightbackground=VIOLETA if principal else "#D5CFDE")
     b.bind("<Button-1>", lambda e: orden())
     return b
 
@@ -294,19 +294,19 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
         tk.Label(cab, text=T("lema"), bg=VIOLETA, fg="#E8DDF5", font=("Helvetica", 12)).pack(side="left", pady=18)
         if ES_BETA:
             tk.Label(cab, text=" BETA ", bg="#F2C14E", fg="#3A2A00", font=("Helvetica", 11, "bold")).pack(side="right", padx=16)
-    pie = tk.Frame(w, bg="#ECE8F5"); pie.pack(fill="x", side="bottom")
+    pie = tk.Frame(w, bg="#FFFFFF", highlightthickness=1, highlightbackground="#E8E4ED"); pie.pack(fill="x", side="bottom")
     # en las ventanas grandes, los escudos de las tres asociaciones a la derecha del nombre (los que estén en «imagenes»)
     escudos = [im for im in (_imagen(n) for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png")) if im is not None] if grande else []
     if escudos:
-        fila = tk.Frame(pie, bg="#ECE8F5"); fila.pack(side="right", padx=(4, 18), pady=5)
+        fila = tk.Frame(pie, bg="#FFFFFF"); fila.pack(side="right", padx=(4, 18), pady=5)
         for im in escudos:
             w._imgs.append(im)
-            tk.Label(fila, image=im, bg="#ECE8F5", bd=0).pack(side="left", padx=5)
+            tk.Label(fila, image=im, bg="#FFFFFF", bd=0).pack(side="left", padx=5)
         ancho_esc = sum(im.width() + 10 for im in escudos) + 22
-        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 40 - ancho_esc,
+        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 40 - ancho_esc,
                  justify="left", anchor="w").pack(side="left", fill="x", expand=True, padx=(22, 8), pady=7)
     else:
-        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=7)
+        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=7)
     cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=28 if grande else 24, pady=(18, 22))
     return w, cuerpo
 
@@ -314,7 +314,7 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
 def _tarjeta(padre, dibujo, titulo, texto, orden, con_texto=True):
     """Apartado de la ventana de inicio: dibujo que indica lo que se hace, título y una línea de explicación.
     Toda la tarjeta es un botón."""
-    BORDE, BORDE_ON, FONDO_T, FONDO_ON = "#DDD6EC", VIOLETA2, "#FFFFFF", "#F7F2FE"
+    BORDE, BORDE_ON, FONDO_T, FONDO_ON = "#E8E4ED", VIOLETA2, "#FFFFFF", "#F1EAF8"
     t = tk.Frame(padre, bg=FONDO_T, highlightthickness=2, highlightbackground=BORDE, cursor="hand2")
     partes = [t]
     img = _imagen(dibujo)
@@ -601,7 +601,7 @@ def comprobar_actualizacion():
         return
     w, c = _ventana("ASTRO", 460, 200)
     tk.Label(c, text=T("actualizando") % tag, bg=FONDO, fg=TEXTO, font=("Helvetica", 15, "bold"), anchor="w").pack(fill="x")
-    barra = tk.Canvas(c, height=12, bg="#ECE8F5", highlightthickness=0); barra.pack(fill="x", pady=14)
+    barra = tk.Canvas(c, height=12, bg="#E9E5EF", highlightthickness=0); barra.pack(fill="x", pady=14)
     estado = {"p": 0.0, "fin": False, "error": None}
 
     def trabajo():
@@ -644,7 +644,7 @@ def bienvenida(mensaje=None):
     tk.Label(c, text=T("intro"),
              bg=FONDO, fg=GRIS, font=("Helvetica", 13), anchor="w", justify="left", wraplength=690).pack(fill="x", pady=(8, 14))
     var = tk.StringVar(value=propuesta)
-    fila = tk.Frame(c, bg="#FFFFFF", highlightthickness=1, highlightbackground="#D8D2E8"); fila.pack(fill="x")
+    fila = tk.Frame(c, bg="#FFFFFF", highlightthickness=1, highlightbackground="#D5CFDE"); fila.pack(fill="x")
     tk.Label(fila, textvariable=var, bg="#FFFFFF", fg=TEXTO, font=("Helvetica", 12), anchor="w", padx=10, pady=8, wraplength=680, justify="left").pack(fill="x")
 
     def otra():
