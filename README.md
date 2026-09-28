@@ -74,12 +74,12 @@ Si vas a probarlo, echa un vistazo a la **[guía para probadores](GUIA-BETA.md)*
 
 ## Quién está detrás
 
-ASTRO lo ha creado **Tomás Moreno González**, astrofotógrafo y divulgador, miembro de **Astrocitas**, la **Asociación Astronómica Azarquiel (Piedrabuena, C.Real)** y la **Agrupación Astronómica de Miguelturra**.
+ASTRO lo ha creado **Tomás Moreno González**, astrofotógrafo y divulgador, miembro de **Astrocitas**, la **Asociación Astronómica Azarquiel (Piedrabuena, C.Real)** y la **Agrupación Astronómica de Miguelturra (C.Real)**.
 
 <p align="center">
   <img src="imagenes/web/escudo-astrocitas.png" height="80" alt="Astrocitas">&nbsp;&nbsp;&nbsp;
   <img src="imagenes/web/escudo-azarquiel.png" height="118" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-miguelturra.png" height="80" alt="Agrupación Astronómica de Miguelturra">
+  <img src="imagenes/web/escudo-miguelturra.png" height="80" alt="Agrupación Astronómica de Miguelturra (C.Real)">
 </p>
 
 Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más tiempo mirando el cielo.
@@ -98,4 +98,4 @@ Each target can be exported as a project in a ZIP with open formats (JSON and CS
 
 It's a beta: if something doesn't work, use **More options → Report a problem or suggestion** inside the app.
 
-*Made by Tomás Moreno González, member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra.*
+*Made by Tomás Moreno González, member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real).*

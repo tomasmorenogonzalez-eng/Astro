@@ -4,7 +4,7 @@ ASTRO — control de calidad de lights y biblioteca de calibración.
 Lanzador de la aplicación para Mac, Windows y Linux.
 
 Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
-y Agrupación Astronómica de Miguelturra.
+y Agrupación Astronómica de Miguelturra (C.Real).
 
 La primera vez pregunta dónde guardar los datos. Después arranca los dos
 programas (Control de lights, Biblioteca de calibración y Ciencia) dentro de la propia
@@ -19,7 +19,7 @@ import secrets, hmac, locale, unicodedata, base64, plistlib  # noqa: F401
 import array, mmap, io, csv, ssl  # noqa: F401
 
 APP = "ASTRO"
-AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra."
+AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real)."
 ES_MAC, ES_WIN = sys.platform == "darwin", sys.platform.startswith("win")
 PROGRAMAS = (("lights", "programa-lights.py", 8775), ("calibracion", "programa-calibracion.py", 8765),
              ("ciencia", "programa-ciencia.py", 8785))
@@ -134,8 +134,8 @@ except Exception:
 
 VIOLETA, VIOLETA2, FONDO, TEXTO, GRIS = "#5B2C87", "#8E5BC2", "#F4F2F9", "#1E1830", "#6B6382"
 
-AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra",
-         "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra"}
+AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real)",
+         "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real)"}
 TXT = {
     "es": {"lema": "lights y calibración", "bienvenido": "¡Bienvenido!", "titulo_bienv": "Bienvenido a ASTRO",
            "intro": "ASTRO revisa la calidad de tus lights (estrellas, trazas de satélites, nubes…), organiza tu biblioteca de darks, flats y bias, y apila con Siril.\n\nElige la carpeta donde guardará tus fotos y sus datos. Puede estar en un disco externo. Si ya usabas ASTRO, elige la carpeta que contiene «Lights».",
