@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.4"
+VERSION_PROG = "2026.09.28.5"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -767,6 +767,8 @@ def _fila_gaia(f):
     return {"id": str(g("source_id", "Source") or ""), "ra": ra, "dec": dec, "pmra": num(g("pmra", "pmRA")) or 0.0,
             "pmdec": num(g("pmdec", "pmDE")) or 0.0, "g": num(g("phot_g_mean_mag", "Gmag")),
             "bp": num(g("phot_bp_mean_mag", "BPmag")), "rp": num(g("phot_rp_mean_mag", "RPmag")),
+            "plx": num(g("parallax", "Plx")), "e_plx": num(g("parallax_error", "e_Plx")),
+            "e_pm": max(num(g("pmra_error", "e_pmRA")) or 0.0, num(g("pmdec_error", "e_pmDE")) or 0.0) or None,
             "var": var.upper().startswith("VARIABLE")}
 
 
@@ -778,10 +780,11 @@ def gaia_consulta(ra, dec, radio, gmin, gmax, limite):
                and separacion(ra, dec, e["ra"], e["dec"]) <= radio]
         est.sort(key=lambda e: e["g"])
         return {"fuente": "prueba", "consulta": "", "estrellas": est[:limite]}
-    adql_gaia = ("SELECT TOP %d source_id, ra, dec, pmra, pmdec, phot_g_mean_mag, phot_bp_mean_mag, phot_rp_mean_mag, phot_variable_flag "
+    adql_gaia = ("SELECT TOP %d source_id, ra, dec, pmra, pmdec, pmra_error, pmdec_error, parallax, parallax_error, "
+                 "phot_g_mean_mag, phot_bp_mean_mag, phot_rp_mean_mag, phot_variable_flag "
                  "FROM gaiadr3.gaia_source WHERE 1=CONTAINS(POINT('ICRS', ra, dec), CIRCLE('ICRS', %.6f, %.6f, %.5f)) "
                  "AND phot_g_mean_mag >= %.2f AND phot_g_mean_mag < %.2f ORDER BY phot_g_mean_mag" % (limite, ra, dec, radio, gmin, gmax))
-    adql_vizier = ('SELECT TOP %d "Source", "RA_ICRS", "DE_ICRS", "pmRA", "pmDE", "Gmag", "BPmag", "RPmag", "VarFlag" '
+    adql_vizier = ('SELECT TOP %d "Source", "RA_ICRS", "DE_ICRS", "pmRA", "pmDE", "e_pmRA", "e_pmDE", "Plx", "e_Plx", "Gmag", "BPmag", "RPmag", "VarFlag" '
                    'FROM "I/355/gaiadr3" WHERE 1=CONTAINS(POINT(\'ICRS\', "RA_ICRS", "DE_ICRS"), CIRCLE(\'ICRS\', %.6f, %.6f, %.5f)) '
                    'AND "Gmag" >= %.2f AND "Gmag" < %.2f ORDER BY "Gmag"' % (limite, ra, dec, radio, gmin, gmax))
     errores = []
@@ -799,7 +802,7 @@ def gaia_campo(ra, dec, radio, gmax=21.0, radio_profundo=None):
     """Estrellas de Gaia de un campo, guardadas en el disco para no repetir la consulta: las más brillantes de todo
     el campo y, si el campo es grande, las débiles de una zona central (para medir hasta dónde llega la imagen)."""
     os.makedirs(CATALOGOS, exist_ok=True)
-    clave = "gaia_%.3f_%+.3f_%.3f_%.1f_%s" % (ra, dec, radio, gmax, "%.3f" % radio_profundo if radio_profundo else "-")
+    clave = "gaia2_%.3f_%+.3f_%.3f_%.1f_%s" % (ra, dec, radio, gmax, "%.3f" % radio_profundo if radio_profundo else "-")
     ruta = os.path.join(CATALOGOS, clave.replace("+", "p").replace("-", "m") + ".json")
     d = leer_json(ruta, None)
     if d and time.time() - d.get("guardado", 0) < CACHE_DIAS * 86400:
@@ -4302,6 +4305,501 @@ def zip_astrometria(sid, en=False):
     return mem.getvalue(), "ASTRO-asteroides-%s.zip" % (serie.get("noche") or serie["creada"][:10])
 
 
+# ═════════════════════════════ DIAGRAMAS DE HERTZSPRUNG-RUSSELL ═════════════════════════════
+HR_DIR = os.path.join(ROOT, "Diagramas H-R")
+A_G_POR_E = 2.0          # A_G / E(BP−RP), aproximado para estrellas de tipo solar (Casagrande y VandenBerg, 2018)
+PLX_CERO = -0.017        # punto cero global de las paralajes de Gaia DR3 (Lindegren y otros, 2021), en mas
+
+
+def gaia_referencia_hr():
+    """Estrellas a menos de 40 pc con buena paralaje y fotometría de Gaia DR3: el diagrama H-R de la vecindad solar,
+    que sirve de referencia (secuencia principal, gigantes y enanas blancas). Se guarda en el disco."""
+    falso = os.environ.get("ASTRO_HR_FALSO")
+    if falso:
+        return leer_json(falso, {}).get("referencia") or []
+    os.makedirs(CATALOGOS, exist_ok=True)
+    ruta = os.path.join(CATALOGOS, "referencia_hr.json")
+    d = leer_json(ruta, None)
+    if d and d.get("estrellas"):
+        return d["estrellas"]
+    adql_g = ("SELECT TOP 6000 phot_g_mean_mag + 5*LOG10(parallax) - 10 AS mg, bp_rp FROM gaiadr3.gaia_source "
+              "WHERE parallax > 25 AND parallax_over_error > 20 AND phot_bp_mean_flux_over_error > 30 AND phot_rp_mean_flux_over_error > 30 "
+              "AND ruwe < 1.4 AND bp_rp IS NOT NULL ORDER BY random_index")
+    adql_v = ('SELECT TOP 6000 "Gmag" + 5*LOG10("Plx") - 10 AS mg, "BP-RP" AS bp_rp FROM "I/355/gaiadr3" '
+              'WHERE "Plx" > 25 AND "Plx" > 20*"e_Plx" AND "RUWE" < 1.4 AND "BP-RP" IS NOT NULL AND "e_BPmag" < 0.02 AND "e_RPmag" < 0.02')
+    errores = []
+    for url, adql in ((GAIA_TAP, adql_g), (VIZIER_TAP, adql_v)):
+        try:
+            filas = _tap(url, adql, timeout=180)
+            est = [[round(num(f.get("mg")), 3), round(num(f.get("bp_rp")), 3)] for f in filas if num(f.get("mg")) is not None and num(f.get("bp_rp")) is not None]
+            if est:
+                escribir_json(ruta, {"fecha": _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "consulta": adql, "estrellas": est})
+                return est
+        except Exception as e:
+            errores.append(str(e))
+    raise RuntimeError("No he podido descargar la referencia de Gaia (¿hay conexión a Internet?). " + " · ".join(errores))
+
+
+def cresta(ref, paso=0.25, mmin=0.5, mmax=10.0):
+    """La secuencia principal de referencia: color mediano por tramos de magnitud absoluta."""
+    out = []
+    m = mmin
+    while m < mmax:
+        cs = sorted(c for mg, c in ref if m <= mg < m + paso and -0.3 < c < 4.5)
+        if len(cs) >= 5:
+            q1, q3 = cs[len(cs) // 4], cs[3 * len(cs) // 4]
+            med = cs[len(cs) // 2]
+            cs = [c for c in cs if q1 - 1.5 * (q3 - q1) <= c <= q3 + 1.5 * (q3 - q1)]
+            out.append((m + paso / 2, cs[len(cs) // 2] if cs else med))
+        m += paso
+    return out
+
+
+def color_cresta(cr, mg):
+    if not cr or mg < cr[0][0] or mg > cr[-1][0]:
+        return None
+    for (m0, c0), (m1, c1) in zip(cr, cr[1:]):
+        if m0 <= mg <= m1:
+            return c0 + (c1 - c0) * (mg - m0) / (m1 - m0)
+    return cr[-1][1]
+
+
+def miembros_cumulo(est):
+    """Miembros probables de un cúmulo con Gaia: se busca el grupo más apretado de movimientos propios y, dentro
+    de él, las estrellas con una paralaje compatible. Devuelve un diccionario con el centro, la dispersión y los ids."""
+    cand = [e for e in est if e.get("plx") is not None and e.get("e_plx") and e["e_plx"] < 0.4 and e.get("g") is not None and e["g"] < 18.5
+            and (e.get("pmra") or e.get("pmdec"))]
+    if len(cand) < 20:
+        return None
+    centros = sorted(cand, key=lambda e: e["g"])[:900]
+    r1, r2 = 0.6, 2.5
+    mejor, puntos = None, -1e9
+    for c in centros:
+        n1 = n2 = 0
+        for e in cand:
+            d2 = (e["pmra"] - c["pmra"]) ** 2 + (e["pmdec"] - c["pmdec"]) ** 2
+            if d2 < r1 * r1:
+                n1 += 1
+            elif d2 < r2 * r2:
+                n2 += 1
+        exceso = n1 - n2 * (r1 * r1) / (r2 * r2 - r1 * r1)
+        if exceso > puntos:
+            mejor, puntos = c, exceso
+    if not mejor or puntos < 8:
+        return None
+    cx, cy = mejor["pmra"], mejor["pmdec"]
+    for _ in range(5):
+        cerca = [e for e in cand if (e["pmra"] - cx) ** 2 + (e["pmdec"] - cy) ** 2 < r1 * r1]
+        cx, cy = _mediana([e["pmra"] for e in cerca]), _mediana([e["pmdec"] for e in cerca])
+    dist = sorted(math.hypot(e["pmra"] - cx, e["pmdec"] - cy) for e in cerca)
+    sig = max(0.12, 1.4826 * dist[len(dist) // 2] / 1.1774 if dist else 0.3)
+    en_pm = [e for e in cand if math.hypot(e["pmra"] - cx, e["pmdec"] - cy) < max(0.4, 2.5 * sig)]
+    plxs = sorted(e["plx"] for e in en_pm)
+    plx_c = plxs[len(plxs) // 2]
+    for _ in range(4):
+        buenos = [e for e in en_pm if abs(e["plx"] - plx_c) < 3 * math.hypot(e["e_plx"], 0.05)]
+        if not buenos:
+            break
+        w = [1 / (e["e_plx"] ** 2 + 0.01 ** 2) for e in buenos]
+        plx_c = sum(e["plx"] * wi for e, wi in zip(buenos, w)) / sum(w)
+    miembros = [e for e in en_pm if abs(e["plx"] - plx_c) < 3 * math.hypot(e["e_plx"], 0.05)]
+    if len(miembros) < 10:
+        return None
+    w = [1 / (e["e_plx"] ** 2 + 0.01 ** 2) for e in miembros]
+    plx_err = math.sqrt(1 / sum(w)) if w else None
+    campo = len(cand) - len(miembros)
+    return {"pmra": round(cx, 3), "pmdec": round(cy, 3), "sigma_pm": round(sig, 3), "plx": round(plx_c, 4),
+            "plx_err_est": round(plx_err, 4) if plx_err else None, "n": len(miembros), "n_campo": campo, "ids": [e["id"] for e in miembros],
+            "contraste": round(puntos, 1)}
+
+
+def _fotometria_campo(ruta, wcs, est, plano=None):
+    """Mide todas las estrellas de Gaia que caen en la imagen: magnitud instrumental, error y pico."""
+    img = Imagen(ruta, plano=plano)
+    try:
+        fws = []
+        for e in sorted(est, key=lambda e: e["g"])[:300]:
+            if not (10 < e["g"] < 14.5):
+                continue
+            pp = wcs.cielo_a_pix(e["ra_f"], e["dec_f"])
+            if pp and 30 < pp[0] < img.w - 30 and 30 < pp[1] < img.h - 30:
+                v = fwhm_hfr(img, pp[0], pp[1], 12.0)
+                if v and 0.8 < v < 40:
+                    fws.append(v)
+                if len(fws) >= 40:
+                    break
+        fw = sigma_clip(fws, 2.5, 3)[0] if len(fws) >= 3 else 3.0
+        r, rin, rout = max(2.0, 1.5 * fw), max(3.5 * fw, 1.5 * fw + 3), max(5.5 * fw, 1.5 * fw + 8)
+        out = {}
+        for e in est:
+            pp = wcs.cielo_a_pix(e["ra_f"], e["dec_f"])
+            if not pp or not (rout + 2 < pp[0] < img.w - rout - 2 and rout + 2 < pp[1] < img.h - rout - 2):
+                continue
+            m = medir_estrella(img, pp[0], pp[1], r, rin, rout, centrar=True)
+            if not m or m["flujo"] <= 0:
+                continue
+            ruido = math.sqrt(m["n_ap"] * m["sd"] ** 2 * (1 + m["n_ap"] / max(m["n_an"], 1)))
+            snr = m["flujo"] / ruido if ruido > 0 else 0
+            if snr < 5:
+                continue
+            out[e["id"]] = [-2.5 * math.log10(m["flujo"]), 1.0857 / snr, m["pico"]]
+        return out, fw
+    finally:
+        img.cerrar()
+
+
+def _ajuste_recortado(xs, ys, k=3.0):
+    """Recta y = a + b·x con recorte iterativo de los puntos que se salen más de k sigmas."""
+    usar = list(range(len(xs)))
+    a = b = 0.0
+    sd = 0.0
+    for _ in range(6):
+        if len(usar) < 5:
+            break
+        a, b = ajuste_lineal([xs[i] for i in usar], [ys[i] for i in usar])
+        res = [ys[i] - a - b * xs[i] for i in usar]
+        sd = 1.4826 * _mediana([abs(r) for r in res]) or 1e-3
+        nuevos = [i for i in usar if abs(ys[i] - a - b * xs[i]) < k * sd]
+        if len(nuevos) == len(usar):
+            break
+        usar = nuevos
+    return a, b, sd, len(usar)
+
+
+def trabajo_hr(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "hr-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        color_unica = p.get("color")
+        items = [("azul", p.get("azul")), ("verde", p.get("verde"))] if not color_unica else [("color", color_unica)]
+        if any(not rel for _n, rel in items):
+            raise RuntimeError("elige las dos imágenes (azul y verde o roja) o una en color")
+        JOB["total"] = 4
+        prep = {}
+        for k, (nombre, rel) in enumerate(items):
+            JOB["hechos"] = k
+            ruta, info, ficha = preparar({"tipo": "apilado", "rel": rel}, siril, ver, os.path.join(base, nombre), "", {})
+            hs = cabecera_de(ruta)
+            wcs = WCS(hs) if _ya_resuelta(hs) else WCS(info["wcs_cab"])
+            prep[nombre] = (ruta, wcs, ficha, hs)
+        r0, w0, f0, h0 = prep["color" if color_unica else "verde"]
+        w, h = int(num(h0.get("NAXIS1"))), int(num(h0.get("NAXIS2")))
+        ra_c, dec_c = w0.pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0)
+        radio = max(separacion(ra_c, dec_c, *w0.pix_a_cielo(x, y)) for x, y in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)))
+        JOB["hechos"], JOB["texto"], JOB["archivo"] = 2, "Consultando el catálogo Gaia", ""
+        cat = gaia_campo(ra_c, dec_c, radio * 1.02, gmax=19.0)
+        fecha = fecha_fits(h0.get("DATE-OBS")) or _dt.datetime.utcnow()
+        anio = fecha.year + (fecha.timetuple().tm_yday - 0.5) / 365.25
+        est = []
+        for e in cat["estrellas"]:
+            if e["g"] is None:
+                continue
+            ra, dec = posicion_en(e, anio)
+            est.append(dict(e, ra_f=ra, dec_f=dec))
+        JOB["texto"] = "Midiendo las estrellas"
+        if color_unica:
+            JOB["archivo"] = "canal azul"
+            f_az, fw_az = _fotometria_campo(r0, w0, est, plano=2)
+            JOB["archivo"] = "canal verde"
+            f_vd, fw_vd = _fotometria_campo(r0, w0, est, plano=1)
+            filtros = ("B (canal azul)", "G (canal verde)")
+        else:
+            ra_, wa_, fa_, ha_ = prep["azul"]
+            JOB["archivo"] = fa_["nombre"]
+            f_az, fw_az = _fotometria_campo(ra_, wa_, est)
+            JOB["archivo"] = f0["nombre"]
+            f_vd, fw_vd = _fotometria_campo(r0, w0, est)
+            filtros = (prep["azul"][2].get("filtro") or "?", f0.get("filtro") or "?")
+        JOB["hechos"], JOB["texto"], JOB["archivo"] = 3, "Calibrando con Gaia y buscando el cúmulo", ""
+        por_id = {e["id"]: e for e in est}
+        comunes = [i for i in f_az if i in f_vd]
+        if len(comunes) < 20:
+            raise RuntimeError("hay muy pocas estrellas medidas en las dos imágenes (¿son del mismo campo?)")
+        techo_a = sorted(f_az[i][2] for i in comunes)[-1]
+        techo_v = sorted(f_vd[i][2] for i in comunes)[-1]
+        buenas = [i for i in comunes if f_az[i][1] < 0.03 and f_vd[i][1] < 0.03 and f_az[i][2] < 0.8 * techo_a and f_vd[i][2] < 0.8 * techo_v
+                  and por_id[i].get("bp") is not None and por_id[i].get("rp") is not None and not por_id[i].get("var")]
+        if len(buenas) < 10:
+            raise RuntimeError("hay muy pocas estrellas buenas para calibrar el color con Gaia")
+        ci = [f_az[i][0] - f_vd[i][0] for i in buenas]
+        bprp = [por_id[i]["bp"] - por_id[i]["rp"] for i in buenas]
+        c0, c1, sd_c, n_c = _ajuste_recortado(ci, bprp)
+        col = {i: c0 + c1 * (f_az[i][0] - f_vd[i][0]) for i in comunes}
+        dg = [por_id[i]["g"] - f_vd[i][0] for i in buenas]
+        z0, z1, sd_g, n_g = _ajuste_recortado([col[i] for i in buenas], dg)
+        estrellas = []
+        for i in comunes:
+            e = por_id[i]
+            g_m = f_vd[i][0] + z0 + z1 * col[i]
+            e_col = abs(c1) * math.hypot(f_az[i][1], f_vd[i][1])
+            estrellas.append({"id": i, "ra": round(e["ra"], 6), "dec": round(e["dec"], 6), "g": round(g_m, 3), "e_g": round(f_vd[i][1], 3),
+                              "bp_rp": round(col[i], 3), "e_bp_rp": round(e_col, 3), "g_gaia": e["g"],
+                              "bp_rp_gaia": round(e["bp"] - e["rp"], 3) if e.get("bp") is not None and e.get("rp") is not None else None,
+                              "pmra": e.get("pmra"), "pmdec": e.get("pmdec"), "plx": e.get("plx"), "e_plx": e.get("e_plx"),
+                              "saturada": f_az[i][2] >= 0.8 * techo_a or f_vd[i][2] >= 0.8 * techo_v})
+        cum = miembros_cumulo(est)
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "hr",
+                 "nombre": (p.get("nombre") or f0.get("objeto") or "").strip(), "imagenes": {k: v[2]["nombre"] for k, v in prep.items()},
+                 "rel": {k: rel for k, rel in items}, "filtros": list(filtros), "centro": [ra_c, dec_c], "radio": radio,
+                 "fwhm": [round(fw_az, 2), round(fw_vd, 2)], "calibracion": {"color": [round(c0, 4), round(c1, 4), round(sd_c, 4), n_c],
+                                                                             "mag": [round(z0, 4), round(z1, 4), round(sd_g, 4), n_g]},
+                 "cumulo": cum, "estrellas": estrellas, "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")},
+                 "fecha": fecha.strftime("%Y-%m-%d"), "cam": f0.get("cam") or "", "tel": f0.get("tel") or "", "siril": ver}
+        calc = calcular_hr(serie, {})
+        d = os.path.join(HR_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        guardar_hr(serie, calc)
+        JOB["hechos"] = 4
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_hr(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        JOB.update(activo=True, tipo="hr", texto="Empezando", archivo="", sub="", hechos=0, total=4, log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    threading.Thread(target=trabajo_hr, args=(p,), daemon=True).start()
+
+
+def calcular_hr(serie, sel):
+    """Distancia (paralaje de Gaia de los miembros), enrojecimiento (ajustando la secuencia principal medida a la de
+    la vecindad solar) y el diagrama en magnitudes absolutas."""
+    cum = serie.get("cumulo")
+    est = serie["estrellas"]
+    miembros = set((cum or {}).get("ids") or [])
+    res = {"n_estrellas": len(est), "n_miembros": sum(1 for e in est if e["id"] in miembros), "avisos": []}
+    comp = [(e["g"] - e["g_gaia"], e["bp_rp"] - e["bp_rp_gaia"]) for e in est if e.get("bp_rp_gaia") is not None and e["e_g"] < 0.05 and not e["saturada"]]
+    if comp:
+        res["dif_g"] = round(1.4826 * _mediana([abs(a) for a, _b in comp]), 3)
+        res["dif_color"] = round(1.4826 * _mediana([abs(b) for _a, b in comp]), 3)
+    try:
+        ref = gaia_referencia_hr()
+    except Exception as e:
+        ref = []
+        res["avisos"].append(str(e))
+    res["referencia"] = len(ref)
+    if not cum:
+        res["avisos"].append("no encuentro un cúmulo claro en los movimientos propios de Gaia: el diagrama sale con todas las estrellas del campo")
+        return res
+    plx = cum["plx"] - PLX_CERO
+    if sel.get("plx"):
+        plx = float(sel["plx"])
+    if plx <= 0.05:
+        res["avisos"].append("la paralaje del cúmulo es demasiado pequeña para dar una distancia fiable")
+        return res
+    dist = 1000.0 / plx
+    e_plx = math.hypot(cum.get("plx_err_est") or 0.0, 0.011)       # con el error sistemático de Gaia (Maíz Apellániz, 2022)
+    res.update(plx=round(plx, 4), plx_err=round(e_plx, 4), distancia_pc=round(dist, 1), distancia_err=round(dist * e_plx / plx, 1),
+               modulo=round(5 * math.log10(dist) - 5, 3))
+    cr = cresta(ref)
+    mm = [e for e in est if e["id"] in miembros and not e["saturada"] and e["e_g"] < 0.05 and e["e_bp_rp"] < 0.08]
+    E = float(sel["e_bprp"]) if sel.get("e_bprp") not in (None, "") else None
+    if E is None and cr and len(mm) >= 8:
+        E = 0.0
+        for _ in range(15):
+            difs = []
+            for e in mm:
+                mg = e["g"] - res["modulo"] - A_G_POR_E * E
+                if 2.0 <= mg <= 7.5:
+                    c = color_cresta(cr, mg)
+                    if c is not None:
+                        difs.append(e["bp_rp"] - c)
+            if len(difs) < 5:
+                break
+            nuevo = max(0.0, _mediana(difs))
+            if abs(nuevo - E) < 1e-4:
+                E = nuevo
+                break
+            E = nuevo
+        if E is not None:
+            res["n_ajuste_e"] = len(difs)
+    if E is not None:
+        res["e_bprp"] = round(E, 3)
+        res["a_g"] = round(A_G_POR_E * E, 3)
+        res["e_bv"] = round(E / 1.339, 3)
+    res["cresta"] = [[round(m, 2), round(c, 3)] for m, c in cr]
+    return res
+
+
+def guardar_hr(serie, calc):
+    d = os.path.join(HR_DIR, serie["id"])
+    os.makedirs(d, exist_ok=True)
+    escribir_json(os.path.join(d, "resultado.json"), calc)
+    miembros = set((serie.get("cumulo") or {}).get("ids") or [])
+    with open(os.path.join(d, "estrellas.csv"), "w", encoding="utf-8", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["gaia_dr3", "ra", "dec", "G_medida", "error_G", "BP_RP_medido", "error_color", "G_gaia", "BP_RP_gaia", "pmra", "pmdec",
+                     "paralaje", "error_paralaje", "miembro", "saturada"])
+        for e in serie["estrellas"]:
+            wr.writerow([e["id"], e["ra"], e["dec"], e["g"], e["e_g"], e["bp_rp"], e["e_bp_rp"], e["g_gaia"], e["bp_rp_gaia"], e["pmra"], e["pmdec"],
+                         e["plx"], e["e_plx"], e["id"] in miembros, e["saturada"]])
+    with open(os.path.join(d, "diagrama.svg"), "w", encoding="utf-8") as f:
+        f.write(svg_hr(serie, calc))
+
+
+def svg_hr(serie, calc, en=False):
+    """Figura del diagrama color-magnitud: a la izquierda, el medido (miembros en color); a la derecha, los miembros
+    en magnitud absoluta y color intrínseco sobre las estrellas de la vecindad solar."""
+    W, H = 1000, 560
+    miembros = set((serie.get("cumulo") or {}).get("ids") or [])
+    est = [e for e in serie["estrellas"] if not e["saturada"] and e["e_bp_rp"] < 0.15]
+    g = ['<rect width="100%" height="100%" fill="#ffffff"/>']
+
+    def panel(x0, y0, pw, ph, xa, xb, ya, yb, puntos, titulo, ejx, ejy):
+        X = lambda v: x0 + (v - xa) / (xb - xa) * pw
+        Y = lambda v: y0 + (v - ya) / (yb - ya) * ph
+        out = ['<rect x="%d" y="%d" width="%d" height="%d" fill="none" stroke="#bbb"/>' % (x0, y0, pw, ph)]
+        v = math.ceil(xa * 2) / 2
+        while v <= xb:
+            out.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#eee"/><text x="%.1f" y="%d" font-size="11" text-anchor="middle" fill="#555">%.1f</text>' % (X(v), X(v), y0, y0 + ph, X(v), y0 + ph + 15, v))
+            v += 0.5
+        lo, hi = min(ya, yb), max(ya, yb)
+        v = math.ceil(lo)
+        while v <= hi:
+            out.append('<line x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke="#eee"/><text x="%d" y="%.1f" font-size="11" text-anchor="end" fill="#555">%d</text>' % (x0, x0 + pw, Y(v), Y(v), x0 - 5, Y(v) + 4, v))
+            v += 2 if hi - lo > 10 else 1
+        for (cx, cy, color, r) in puntos:
+            if xa <= cx <= xb and lo <= cy <= hi:
+                out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>' % (X(cx), Y(cy), r, color))
+        out.append('<text x="%d" y="%d" font-size="14" font-weight="700" fill="#222">%s</text>' % (x0, y0 - 10, _xml(titulo)))
+        out.append('<text x="%d" y="%d" font-size="12" text-anchor="middle" fill="#333">%s</text>' % (x0 + pw // 2, y0 + ph + 34, _xml(ejx)))
+        out.append('<text x="%d" y="%d" font-size="12" text-anchor="middle" fill="#333" transform="rotate(-90 %d %d)">%s</text>' % (x0 - 38, y0 + ph // 2, x0 - 38, y0 + ph // 2, _xml(ejy)))
+        return out
+
+    gs = [e["g"] for e in est] or [10, 18]
+    pts = [(e["bp_rp"], e["g"], "#D9D3E6", 1.4) for e in est if e["id"] not in miembros] + [(e["bp_rp"], e["g"], "#5B2C87", 2.2) for e in est if e["id"] in miembros]
+    nombre = serie.get("nombre") or ""
+    g += panel(80, 50, 380, 440, -0.5, 3.0, min(gs) - 0.5, max(gs) + 0.5, pts, ("%s · measured" if en else "%s · medido") % nombre if nombre else ("Measured" if en else "Medido"),
+               "BP−RP", "G")
+    if calc.get("modulo") is not None:
+        E, A = calc.get("e_bprp") or 0.0, calc.get("a_g") or 0.0
+        ref = []
+        try:
+            ref = gaia_referencia_hr()
+        except Exception:
+            pass
+        p2 = [(c, mg, "#C9C9C9", 1.2) for mg, c in ref]
+        p2 += [(e["bp_rp"] - E, e["g"] - calc["modulo"] - A, "#5B2C87", 2.2) for e in est if e["id"] in miembros]
+        tit = ("Members over the solar neighbourhood (< 40 pc)" if en else "Miembros sobre la vecindad solar (< 40 pc)")
+        g += panel(580, 50, 380, 440, -0.5, 3.0, -2.0, 13.0, p2, tit, "(BP−RP)₀", "M_G")
+        pie = ("d = %.0f ± %.0f pc · E(BP−RP) = %.2f · A_G = %.2f" % (calc["distancia_pc"], calc["distancia_err"], E, A))
+        g.append('<text x="580" y="545" font-size="12" fill="#333">%s</text>' % _xml(pie))
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d" font-family="Helvetica, Arial, sans-serif">%s</svg>\n' % (W, H, W, H, "".join(g))
+
+
+def series_hr():
+    out = []
+    if not os.path.isdir(HR_DIR):
+        return out
+    for n in sorted(os.listdir(HR_DIR), reverse=True):
+        s = leer_json(os.path.join(HR_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(HR_DIR, n, "resultado.json"), None) or {}
+        if not s:
+            continue
+        out.append({"id": s["id"], "nombre": s.get("nombre") or "", "fecha": s.get("fecha"), "filtros": s.get("filtros"), "n_estrellas": len(s["estrellas"]),
+                    "n_miembros": c.get("n_miembros"), "distancia_pc": c.get("distancia_pc"), "distancia_err": c.get("distancia_err"), "e_bprp": c.get("e_bprp")})
+    return out
+
+
+def serie_hr(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return leer_json(os.path.join(HR_DIR, sid, "serie.json"), None), leer_json(os.path.join(HR_DIR, sid, "resultado.json"), None)
+
+
+def recalcular_hr(sid, sel):
+    serie, _c = serie_hr(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la medida")
+    c = calcular_hr(serie, sel)
+    guardar_hr(serie, c)
+    return c
+
+
+def borrar_hr(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("medida no válida")
+    shutil.rmtree(os.path.join(HR_DIR, sid), ignore_errors=True)
+
+
+LEEME_HR_ES = """DIAGRAMA COLOR-MAGNITUD DE {nombre} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  estrellas.csv  Cada estrella medida: identificador de Gaia DR3, posición, G y BP−RP medidos (con su error), los de
+                 Gaia para comparar, movimiento propio, paralaje y si es miembro probable del cúmulo.
+  diagrama.svg   La figura: el diagrama medido y los miembros en magnitud absoluta sobre la vecindad solar.
+  serie.json     Todo: imágenes, calibración, cúmulo (centro de movimientos propios, paralaje) y estrellas.
+  resultado.json Distancia, enrojecimiento y comparación con Gaia.
+
+Resultado
+  Miembros probables: {n} · distancia {d} · E(BP−RP) = {e}
+
+Método
+  Imágenes apiladas y resueltas con Siril; fotometría de apertura de todas las estrellas de Gaia DR3 del campo en las
+  dos imágenes. El color instrumental se lleva a BP−RP de Gaia con una recta ajustada con las estrellas no saturadas, y la
+  magnitud a G con un término de color. Miembros: el grupo más apretado de movimientos propios de Gaia y, dentro de él, las
+  estrellas con paralaje compatible. Distancia: inversa de la paralaje media ponderada de los miembros, corregida del
+  punto cero de Gaia DR3 (−0,017 mas) y con 0,011 mas de error sistemático. Enrojecimiento: el desplazamiento en color que
+  lleva la secuencia principal de los miembros (M_G de 2 a 7,5) sobre la de las estrellas a menos de 40 pc, con
+  A_G = 2,0·E(BP−RP) (aproximado). Para la edad, compara con isocronas (por ejemplo, PARSEC: stev.oapd.inaf.it/cmd).
+  Esta investigación usa datos de la misión Gaia de la ESA (https://www.cosmos.esa.int/gaia), procesados por el DPAC.
+"""
+LEEME_HR_EN = """COLOUR-MAGNITUDE DIAGRAM OF {nombre} · ASTRO (Science section)
+
+What this package contains
+  estrellas.csv  Every star measured: Gaia DR3 identifier, position, measured G and BP−RP (with errors), Gaia's values for
+                 comparison, proper motion, parallax and whether it is a probable cluster member.
+  diagrama.svg   The figure: the measured diagram and the members in absolute magnitude over the solar neighbourhood.
+  serie.json     Everything: images, calibration, cluster (proper-motion centre, parallax) and stars.
+  resultado.json Distance, reddening and comparison with Gaia.
+
+Result
+  Probable members: {n} · distance {d} · E(BP−RP) = {e}
+
+Method
+  Stacked images plate-solved with Siril; aperture photometry of every Gaia DR3 star in the field on both images. The
+  instrumental colour is brought to Gaia BP−RP with a straight line fitted to unsaturated stars, and the magnitude to G with
+  a colour term. Members: the tightest proper-motion group in Gaia and, within it, stars with a compatible parallax.
+  Distance: inverse of the members' weighted mean parallax, corrected for the Gaia DR3 zero point (−0.017 mas) with a
+  0.011 mas systematic error. Reddening: the colour shift that brings the members' main sequence (M_G 2 to 7.5) onto that of
+  stars within 40 pc, with A_G = 2.0·E(BP−RP) (approximate). For the age, compare with isochrones (e.g. PARSEC:
+  stev.oapd.inaf.it/cmd).
+  This work has made use of data from the ESA mission Gaia (https://www.cosmos.esa.int/gaia), processed by the DPAC.
+"""
+
+
+def zip_hr(sid, en=False):
+    serie, c = serie_hr(sid)
+    if not serie or not c:
+        raise RuntimeError("no encuentro la medida")
+    d = os.path.join(HR_DIR, sid)
+    dist = ("%.0f ± %.0f pc" % (c["distancia_pc"], c["distancia_err"])) if c.get("distancia_pc") else "—"
+    texto = (LEEME_HR_EN if en else LEEME_HR_ES).format(nombre=serie.get("nombre") or "?", n=c.get("n_miembros") or 0, d=dist,
+                                                         e=("%.2f" % c["e_bprp"]) if c.get("e_bprp") is not None else "—")
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt" if en else "LEEME.txt", texto)
+        for n in ("estrellas.csv", "serie.json", "resultado.json"):
+            if os.path.isfile(os.path.join(d, n)):
+                with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                    z.writestr(n, sin_rutas(f.read()))
+        z.writestr("diagrama.svg", svg_hr(serie, c, en))
+    return mem.getvalue(), "ASTRO-HR-%s.zip" % re.sub(r"[^\w.-]+", "_", serie.get("nombre") or serie["id"])
+
+
 # ═════════════════════════════ AUTOPRUEBA (para la fábrica) ═════════════════════════════
 def escribir_fits_flotante(ruta, w, h, datos, claves):
     """FITS de 32 bits en coma flotante, sin librerías (datos: lista de filas)."""
@@ -4715,6 +5213,31 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/ast/zip":
                 datos, nombre = zip_astrometria((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
                 return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/hr/series":
+                return self._json(series_hr())
+            if p.path == "/api/hr/serie":
+                serie, calc = serie_hr((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                ref = []
+                try:
+                    ref = gaia_referencia_hr()
+                except Exception:
+                    pass
+                return self._json({"serie": serie, "calculo": calc, "referencia": ref[:4000]})
+            if p.path in ("/api/hr/csv", "/api/hr/svg"):
+                sid = (qs.get("id") or [""])[0]
+                serie, calc = serie_hr(sid)
+                if not calc:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                nombre = re.sub(r"[^\w.-]+", "_", serie.get("nombre") or sid)
+                if p.path.endswith("svg"):
+                    return self._send(200, svg_hr(serie, calc, idioma_actual() == "en"), "image/svg+xml; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-HR-%s.svg"' % nombre})
+                with open(os.path.join(HR_DIR, sid, "estrellas.csv"), "r", encoding="utf-8") as f:
+                    return self._send(200, "\ufeff" + f.read(), "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-HR-%s.csv"' % nombre})
+            if p.path == "/api/hr/zip":
+                datos, nombre = zip_hr((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
             if p.path == "/api/cielo/medidas":
                 return self._json(medidas())
             if p.path == "/api/cielo/medida":
@@ -4794,6 +5317,20 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/ast/borrar":
                 borrar_astrometria(d.get("id"))
                 return self._json({"ok": True})
+            if p.path == "/api/hr/medir":
+                try:
+                    iniciar_hr(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/hr/recalcular":
+                try:
+                    return self._json(recalcular_hr(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/hr/borrar":
+                borrar_hr(d.get("id"))
+                return self._json({"ok": True})
             if p.path == "/api/exo/borrar":
                 borrar_exo(d.get("id"))
                 return self._json({"ok": True})
@@ -4813,7 +5350,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "ast": ASTROMETRIA_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -5299,6 +5836,61 @@ DIC_EN = {
     "~No he podido preguntar al JPL qué asteroides hay en el campo (¿hay conexión a Internet?).": "I couldn't ask JPL which asteroids are in the field (is there an Internet connection?).",
     "~No he podido pedir las efemérides al JPL Horizons": "I couldn't get the ephemerides from JPL Horizons",
     "~Horizons no ha dado efemérides para": "Horizons gave no ephemeris for",
+    "Diagrama de un cúmulo": "Diagram of a cluster",
+    "Elige dos apilados del mismo cúmulo, uno con filtro azul y otro verde (o verde y rojo), o un apilado en color. ASTRO mide todas las estrellas de Gaia del campo en las dos imágenes, calibra el color y el brillo con Gaia, encuentra los miembros del cúmulo por su movimiento propio y su paralaje, y calcula la distancia y el enrojecimiento.": "Choose two stacks of the same cluster, one with a blue filter and another green (or green and red), or one colour stack. ASTRO measures every Gaia star in the field on both images, calibrates colour and brightness with Gaia, finds the cluster members by proper motion and parallax, and computes the distance and reddening.",
+    "Dos imágenes": "Two images",
+    "Una imagen en color": "One colour image",
+    "Imagen azul": "Blue image",
+    "Imagen verde (o roja)": "Green (or red) image",
+    "Imagen en color": "Colour image",
+    "Cúmulo": "Cluster",
+    "p. ej. M 67": "e.g. M 67",
+    "Hace falta Internet para el catálogo Gaia (con movimientos propios y paralajes) y Siril para resolver las imágenes si no lo están. Mejor con cúmulos abiertos y exposiciones que no saturen demasiadas estrellas.": "An Internet connection is needed for the Gaia catalogue (with proper motions and parallaxes), and Siril to plate-solve the images if they aren't already. Best with open clusters and exposures that don't saturate too many stars.",
+    "Tus diagramas": "Your diagrams",
+    "no hay apilados": "no stacks",
+    "Elige dos apilados distintos: uno azul y otro verde (o rojo)": "Choose two different stacks: one blue and another green (or red)",
+    "Elige un apilado en color": "Choose a colour stack",
+    "Todavía no has medido ningún cúmulo": "You haven't measured any cluster yet",
+    "Elige arriba los apilados y pulsa «Medir».": "Choose the stacks above and press “Measure”.",
+    "Filtros": "Filters",
+    "Estrellas": "Stars",
+    "Miembros": "Members",
+    "Distancia (pc)": "Distance (pc)",
+    "estrellas medidas": "stars measured",
+    "Distancia (paralaje de Gaia de los miembros)": "Distance (Gaia parallax of the members)",
+    "miembros": "members",
+    "por movimiento propio y paralaje": "by proper motion and parallax",
+    "Diferencia típica con Gaia en color": "Typical difference with Gaia in colour",
+    "Diagrama medido": "Measured diagram",
+    "Color y brillo medidos con tus imágenes, calibrados con Gaia. En morado, los miembros del cúmulo; en gris, las estrellas del campo.": "Colour and brightness measured with your images, calibrated with Gaia. In purple, the cluster members; in grey, the field stars.",
+    "Miembros sobre la vecindad solar": "Members over the solar neighbourhood",
+    "Los miembros, corregidos de la distancia y del enrojecimiento, sobre las estrellas de Gaia a menos de 40 pc (secuencia principal, gigantes y enanas blancas).": "The members, corrected for distance and reddening, over the Gaia stars within 40 pc (main sequence, giants and white dwarfs).",
+    "Movimientos propios (Gaia)": "Proper motions (Gaia)",
+    "Las estrellas del cúmulo se mueven juntas por el cielo: forman el grupo apretado. Los miembros son las de ese grupo con una paralaje compatible.": "The cluster stars move together across the sky: they form the tight group. The members are the stars in that group with a compatible parallax.",
+    "Ajustes": "Settings",
+    "automático": "automatic",
+    "Déjalo vacío para que ASTRO lo ajuste llevando la secuencia principal del cúmulo sobre la de las estrellas cercanas al Sol; o escribe el de la literatura para comparar.": "Leave it empty for ASTRO to fit it by bringing the cluster's main sequence onto that of the stars near the Sun; or type the literature value to compare.",
+    "Descargas": "Downloads",
+    "Isocronas PARSEC": "PARSEC isochrones",
+    "Para estimar la edad, descarga isocronas en las bandas de Gaia (DR3) y compáralas con los miembros en magnitud absoluta.": "To estimate the age, download isochrones in the Gaia (DR3) bands and compare them with the members in absolute magnitude.",
+    "Fotometría": "Photometry",
+    "apertura de 1,5 FWHM sobre todas las estrellas de Gaia DR3 del campo": "1.5 FWHM aperture on every Gaia DR3 star in the field",
+    "Color": "Colour",
+    "no encontrado": "not found",
+    "Distancia": "Distance",
+    "paralaje media ponderada de los miembros, con el punto cero de Gaia DR3 (−0,017 mas) y 0,011 mas de error sistemático": "weighted mean parallax of the members, with the Gaia DR3 zero point (−0.017 mas) and a 0.011 mas systematic error",
+    "Referencia": "Reference",
+    "estrellas de Gaia a menos de 40 pc": "Gaia stars within 40 pc",
+    "Midiendo las estrellas": "Measuring the stars",
+    "canal azul": "blue channel",
+    "canal verde": "green channel",
+    "Calibrando con Gaia y buscando el cúmulo": "Calibrating with Gaia and looking for the cluster",
+    "elige las dos imágenes (azul y verde o roja) o una en color": "choose the two images (blue and green or red) or a colour one",
+    "hay muy pocas estrellas medidas en las dos imágenes (¿son del mismo campo?)": "very few stars were measured on both images (are they of the same field?)",
+    "hay muy pocas estrellas buenas para calibrar el color con Gaia": "there are very few good stars to calibrate the colour with Gaia",
+    "no encuentro un cúmulo claro en los movimientos propios de Gaia: el diagrama sale con todas las estrellas del campo": "I can't find a clear cluster in the Gaia proper motions: the diagram shows every star in the field",
+    "la paralaje del cúmulo es demasiado pequeña para dar una distancia fiable": "the cluster's parallax is too small to give a reliable distance",
+    "~No he podido descargar la referencia de Gaia (¿hay conexión a Internet?).": "I couldn't download the Gaia reference (is there an Internet connection?).",
 }
 
 HTML = r'''<!DOCTYPE html>
@@ -5570,6 +6162,28 @@ td.num{text-align:right}
         <h3 class="seccion">Tus medidas de asteroides y cometas</h3>
         <div id="aSeries"></div>
       </div>
+      <div id="herramientaHR" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Diagrama de un cúmulo</h3>
+          <div class="note">Elige dos apilados del mismo cúmulo, uno con filtro azul y otro verde (o verde y rojo), o un apilado en color. ASTRO mide todas las estrellas de Gaia del campo en las dos imágenes, calibra el color y el brillo con Gaia, encuentra los miembros del cúmulo por su movimiento propio y su paralaje, y calcula la distancia y el enrojecimiento.</div>
+          <div class="fuentes" id="hFuentes" style="margin-top:14px"><button data-f="dos" class="on">Dos imágenes</button><button data-f="color">Una imagen en color</button></div>
+          <div class="opciones" id="hDos">
+            <label>Imagen azul <select id="hAzul"></select></label>
+            <label>Imagen verde (o roja) <select id="hVerde"></select></label>
+          </div>
+          <div class="opciones" id="hUna" style="display:none">
+            <label>Imagen en color <select id="hColor"></select></label>
+          </div>
+          <div class="opciones">
+            <label>Cúmulo <input id="hNombre" placeholder="p. ej. M 67" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnHR">Medir</button>
+          </div>
+          <div class="note" style="margin-top:10px">Hace falta Internet para el catálogo Gaia (con movimientos propios y paralajes) y Siril para resolver las imágenes si no lo están. Mejor con cúmulos abiertos y exposiciones que no saturen demasiadas estrellas.</div>
+        </div>
+        <h3 class="seccion">Tus diagramas</h3>
+        <div id="hSeries"></div>
+      </div>
       <div id="herramientaCielo" style="display:none">
         <div class="caja">
           <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:260px"><h3 style="font-size:17px">Medir el cielo</h3>
@@ -5805,7 +6419,7 @@ const BLOQUES = [
    destino:["Minor Planet Center: your positions enter every new orbit computation; if you confirm a NEO, your code appears in the circular.","COBS: comet brightness, in ICQ format.","Minor Planet Bulletin: asteroid rotation periods."],
    hara:["Which known asteroids and comets are in your field (JPL)","Position in each frame with the Gaia stars (plate constants)","O−C against the JPL Horizons ephemeris","Approximate G magnitude of each asteroid","ADES report for the Minor Planet Center"]}},
 
- {id:"hr", n:"4", estado:"pronto", icono:"hr",
+ {id:"hr", n:"4", estado:"ya", icono:"hr",
   es:{titulo:"Diagramas de Hertzsprung-Russell", corto:"Ordena las estrellas de un cúmulo por color y brillo, y lee su edad.",
    historia:[
     "Hacia 1910, Ejnar Hertzsprung y Henry Norris Russell, cada uno por su lado, pusieron en un gráfico el brillo real de las estrellas frente a su color. Esperaban una nube sin orden y salió un dibujo con estructura: una franja diagonal donde vive la mayoría, la secuencia principal; las gigantes rojas arriba a la derecha; y las enanas blancas, pequeñas y calientes, abajo a la izquierda. Ese gráfico es hoy el mapa de la vida de las estrellas.",
@@ -5815,7 +6429,7 @@ const BLOQUES = [
    necesitas:["Filtros Johnson B y V (imprescindibles para un diagrama estándar).","Un refractor con cámara mono para cúmulos abiertos; más focal para los globulares.","Dos tiempos de exposición por filtro: cortas para las brillantes y largas para las débiles."],
    programas:[["Siril","Detecta y mide todas las estrellas del campo"],["Archivo de Gaia / VizieR","Pertenencia por paralaje y movimiento propio"],["PARSEC y MIST","Isocronas para la edad, la distancia y el enrojecimiento"],["TOPCAT","Explorar y cruzar tablas"]],
    destino:["Prácticas de astrofísica observacional y cursos.","Divulgación: un diagrama medido en el propio observatorio.","Research Notes of the AAS o JAAVSO; las variables nuevas, al catálogo VSX."],
-   hara:["Plan del cúmulo en B y V","Medir todas las estrellas en los dos filtros","Limpiar con Gaia (miembros y campo)","Diagrama con errores e isocronas","Tabla, figura e informe del método"]},
+   hara:["Medir todas las estrellas de Gaia en las dos imágenes","Calibrar el color y el brillo con Gaia","Miembros por movimiento propio y paralaje","Distancia y enrojecimiento del cúmulo","Diagrama sobre la vecindad solar, tabla, figura e informe del método"]},
   en:{titulo:"Hertzsprung-Russell diagrams", corto:"Sort the stars of a cluster by colour and brightness, and read its age.",
    historia:[
     "Around 1910 Ejnar Hertzsprung and Henry Norris Russell, independently, plotted the true brightness of stars against their colour. They expected a shapeless cloud and got a structured picture instead: a diagonal band where most stars live, the main sequence; the red giants at the top right; and the small, hot white dwarfs at the bottom left. Today that plot is the map of the lives of stars.",
@@ -5825,7 +6439,7 @@ const BLOQUES = [
    necesitas:["Johnson B and V filters (essential for a standard diagram).","A refractor with a mono camera for open clusters; a longer focal length for globulars.","Two exposure times per filter: short for the bright stars and long for the faint ones."],
    programas:[["Siril","Detects and measures every star in the field"],["Gaia Archive / VizieR","Membership through parallax and proper motion"],["PARSEC and MIST","Isochrones for age, distance and reddening"],["TOPCAT","Explore and cross-match tables"]],
    destino:["Observational astrophysics practicals and courses.","Outreach: a diagram measured at the observatory itself.","Research Notes of the AAS or JAAVSO; new variables go to the VSX catalogue."],
-   hara:["Plan the cluster in B and V","Measure every star in both filters","Clean with Gaia (members and field)","Diagram with errors and isochrones","Table, figure and method report"]}},
+   hara:["Measure every Gaia star on both images","Calibrate colour and brightness with Gaia","Members by proper motion and parallax","Distance and reddening of the cluster","Diagram over the solar neighbourhood, table, figure and method report"]}},
 
  {id:"espectros", n:"5", estado:"pronto", icono:"espectros",
   es:{titulo:"Espectroscopia", corto:"Separa la luz en sus colores y lee de qué está hecha una estrella.",
@@ -5892,12 +6506,14 @@ function pintarBloque(id){
   $("herramientaVariable").style.display = id === "variables" ? "" : "none";
   $("herramientaExo").style.display = id === "exoplanetas" ? "" : "none";
   $("herramientaAst").style.display = id === "astrometria" ? "" : "none";
+  $("herramientaHR").style.display = id === "hr" ? "" : "none";
   BLOQUE_ACTUAL = id;
   if (id === "cielo") abrirCielo();
   if (id === "variables") abrirVariables();
   if (id === "exoplanetas") abrirExo();
   if (id === "astrometria") abrirAst();
-  if (!["cielo", "variables", "exoplanetas", "astrometria"].includes(id)) $("trabajo").classList.remove("show");
+  if (id === "hr") abrirHR();
+  if (!["cielo", "variables", "exoplanetas", "astrometria", "hr"].includes(id)) $("trabajo").classList.remove("show");
 }
 let BLOQUE_ACTUAL = "";
 
@@ -5992,7 +6608,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", exo: "exoplanetas", astrometria: "astrometria"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", exo: "exoplanetas", astrometria: "astrometria", hr: "hr"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -6002,13 +6618,14 @@ async function sondear(){
     $("tLog").textContent = (e.log || []).join("\n");
     $("btnCancelar").style.display = e.activo ? "" : "none";
   } else caja.classList.remove("show");
-  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnAst").disabled = !!e.activo;
+  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnAst").disabled = $("btnHR").disabled = !!e.activo;
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
     if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
     else if (e.tipo === "astrometria"){ cargarSeriesAst(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "astrometria") verAst(e.resultados[0]); }
+    else if (e.tipo === "hr"){ cargarSeriesHR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "hr") verHR(e.resultados[0]); }
     else { cargarMedidas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "cielo") verMedida(e.resultados[0]); }
   }
   if (e.activo) CIELO._activo = true;
@@ -6594,6 +7211,120 @@ function graficaOC(obs){
   g += pts.map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="4" fill="${p[3] ? COLORES_OBJ[p[2] % COLORES_OBJ.length] : "none"}" stroke="${COLORES_OBJ[p[2] % COLORES_OBJ.length]}" stroke-width="1.5"/>`).join("");
   g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">O−C RA·cos Dec (″)</text><text class="tx" x="12" y="${(T+H-B)/2}" text-anchor="middle" transform="rotate(-90 12 ${(T+H-B)/2})">O−C Dec (″)</text>`;
   $("gOC").innerHTML = `<h4>O−C: medida menos efeméride</h4><div style="max-width:420px"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("Cada punto es una toma (vacío: no se usa). El círculo marca 1″. Un grupo apretado lejos del centro es un error de la efeméride (normal en objetos poco observados); puntos dispersos, un problema de medida o de hora."))}</div>`;
+}
+
+/* ============ Diagramas de Hertzsprung-Russell ============ */
+const HR = {apilados:null, fuente:"dos", series:[], actual:null};
+document.querySelectorAll("#hFuentes button").forEach(b => b.onclick = () => {
+  HR.fuente = b.dataset.f;
+  document.querySelectorAll("#hFuentes button").forEach(x => x.classList.toggle("on", x === b));
+  $("hDos").style.display = HR.fuente === "dos" ? "" : "none"; $("hUna").style.display = HR.fuente === "color" ? "" : "none";
+});
+async function abrirHR(){
+  if (!HR.apilados){ try { HR.apilados = await (await api("/api/apilados")).json(); } catch(_){ HR.apilados = []; } }
+  const opts = HR.apilados.length ? HR.apilados.map(a => `<option value="${esc(a.rel)}">${esc(a.objeto + " · " + a.nombre)}</option>`).join("") : `<option value="">${esc(tr("no hay apilados"))}</option>`;
+  ["hAzul", "hVerde", "hColor"].forEach(k => $(k).innerHTML = opts);
+  const az = HR.apilados.find(a => /(^|[_\s-])(b|blue|azul)([_\s.-]|$)/i.test(a.nombre)), vd = HR.apilados.find(a => /(^|[_\s-])(g|v|green|verde)([_\s.-]|$)/i.test(a.nombre));
+  if (az) $("hAzul").value = az.rel; if (vd) $("hVerde").value = vd.rel;
+  if (az && !$("hNombre").value) $("hNombre").value = az.objeto;
+  cargarSeriesHR(); sondear();
+}
+$("btnHR").onclick = async () => {
+  const d = HR.fuente === "color" ? {color: $("hColor").value} : {azul: $("hAzul").value, verde: $("hVerde").value};
+  if (HR.fuente === "dos" && (!d.azul || !d.verde || d.azul === d.verde)){ toast("Elige dos apilados distintos: uno azul y otro verde (o rojo)"); return; }
+  if (HR.fuente === "color" && !d.color){ toast("Elige un apilado en color"); return; }
+  d.nombre = $("hNombre").value.trim();
+  try { await post("/api/hr/medir", d); sondear(); } catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesHR(){
+  try { HR.series = await (await api("/api/hr/series")).json(); } catch(_){ HR.series = []; }
+  const ss = HR.series;
+  if (!ss.length){ $("hSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ningún cúmulo</b>Elige arriba los apilados y pulsa «Medir».</div>`; return; }
+  $("hSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Fecha</th><th>Cúmulo</th><th>Filtros</th><th class="num">Estrellas</th><th class="num">Miembros</th><th class="num">Distancia (pc)</th><th class="num">E(BP−RP)</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.fecha))}</td><td class="notr"><b>${esc(x.nombre || "—")}</b></td><td class="notr">${esc((x.filtros || []).join(" · "))}</td>
+      <td class="num">${x.n_estrellas}</td><td class="num">${x.n_miembros ?? "—"}</td><td class="num">${x.distancia_pc != null ? numEs(x.distancia_pc, 0) + " ± " + numEs(x.distancia_err, 0) : "—"}</td>
+      <td class="num">${numEs(x.e_bprp, 2)}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("hSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verHR(t.dataset.id));
+}
+async function verHR(id, calcNuevo){
+  let d; try { d = await (await api("/api/hr/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo, cum = s.cumulo; HR.actual = {s, c, ref: d.referencia};
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.nombre || tr("Cúmulo"))}</h2><div class="note"><span>${esc(fechaCorta(s.fecha))}</span> · <span class="notr">${esc(s.filtros.join(" + "))}</span> · <span class="notr">${s.estrellas.length}</span> <span>estrellas medidas</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(c.distancia_pc != null ? numEs(c.distancia_pc, 0) : "—", "pc", tr("Distancia (paralaje de Gaia de los miembros)") + (c.distancia_err != null ? " · ± " + numEs(c.distancia_err, 0) + " pc" : ""), true)}
+      ${cifra(String(c.n_miembros || 0), tr("miembros"), tr("por movimiento propio y paralaje"))}
+      ${cifra(c.e_bprp != null ? numEs(c.e_bprp, 2) : "—", "", "E(BP−RP) · A_G " + numEs(c.a_g, 2) + " · E(B−V) ≈ " + numEs(c.e_bv, 2))}
+      ${cifra(numEs(c.dif_color, 3), "mag", tr("Diferencia típica con Gaia en color") + " · G " + numEs(c.dif_g, 3))}</div>
+    ${(c.avisos || []).length ? `<div class="avisos">${c.avisos.map(a => `<div>${esc(tr(a))}</div>`).join("")}</div>` : ""}
+    <div class="dos"><div class="graf" id="gCMD"></div><div class="graf" id="gAbs"></div></div>
+    <div class="dos"><div class="graf" id="gVPD"></div>
+      <div class="graf"><h4>Ajustes</h4>
+        <div class="opciones"><label>E(BP−RP) <input id="dE" class="notr" placeholder="${esc(tr("automático"))}" value="" style="width:90px;padding:5px 7px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="pie">Déjalo vacío para que ASTRO lo ajuste llevando la secuencia principal del cúmulo sobre la de las estrellas cercanas al Sol; o escribe el de la literatura para comparar.</div>
+        <h4 style="margin-top:14px">Descargas</h4>
+        <div class="acciones" style="flex-wrap:wrap"><a class="btn small primary" href="/api/hr/svg?id=${encodeURIComponent(s.id)}" download>Figura (SVG)</a>
+          <a class="btn small" href="/api/hr/csv?id=${encodeURIComponent(s.id)}" download>Tabla (CSV)</a>
+          <a class="btn small" href="http://stev.oapd.inaf.it/cgi-bin/cmd" target="_blank" rel="noopener">Isocronas PARSEC</a></div>
+        <div class="pie">Para estimar la edad, descarga isocronas en las bandas de Gaia (DR3) y compáralas con los miembros en magnitud absoluta.</div></div></div>
+    <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
+      <dt>Fotometría</dt><dd><span>apertura de 1,5 FWHM sobre todas las estrellas de Gaia DR3 del campo</span> · FWHM <span class="notr">${s.fwhm.map(f => numEs(f, 1)).join(" / ")}</span> px</dd>
+      <dt>Color</dt><dd><span>BP−RP = a + b·(azul − verde)</span> · <span class="notr">b = ${numEs(s.calibracion.color[1], 3)} · ${s.calibracion.color[3]}</span> <span>estrellas</span></dd>
+      <dt>Magnitud</dt><dd><span>G = verde + a + b·(BP−RP)</span> · <span class="notr">${s.calibracion.mag[3]}</span> <span>estrellas</span></dd>
+      <dt>Cúmulo</dt><dd>${cum ? `<span class="notr">μ = (${numEs(cum.pmra, 2)}, ${numEs(cum.pmdec, 2)}) mas/a · σ ${numEs(cum.sigma_pm, 2)} · ϖ ${numEs(c.plx, 3)} ± ${numEs(c.plx_err, 3)} mas</span>` : esc(tr("no encontrado"))}</dd>
+      <dt>Distancia</dt><dd><span>paralaje media ponderada de los miembros, con el punto cero de Gaia DR3 (−0,017 mas) y 0,011 mas de error sistemático</span></dd>
+      <dt>Referencia</dt><dd><span class="notr">${c.referencia || 0}</span> <span>estrellas de Gaia a menos de 40 pc</span></dd>
+      <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
+    </dl></div>
+    <div class="acciones"><a class="btn small" href="/api/hr/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar esta medida</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "hr"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar esta medida?")) return; await post("/api/hr/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesHR(); };
+  $("dRecalcular").onclick = async () => {
+    const v = $("dE").value.trim().replace(",", ".");
+    try { const nuevo = await (await post("/api/hr/recalcular", {id: s.id, e_bprp: v === "" ? null : +v})).json(); verHR(s.id, nuevo); cargarSeriesHR(); toast("Recalculado"); }
+    catch(e){ toast(e.message || e); }
+  };
+  graficasHR(s, c, d.referencia || []);
+}
+function dispersion(el, titulo, puntos, xa, xb, ya, yb, ejx, ejy, pie, extra){
+  const W = 480, H = 480, L = 46, R = 12, T = 12, B = 40;
+  const X = v => L + (v - xa) / (xb - xa) * (W - L - R), Y = v => T + (v - ya) / (yb - ya) * (H - T - B);
+  let g = "";
+  const paso = r => [0.25, 0.5, 1, 2, 4, 5, 10, 20].find(p => r / p <= 8) || 50;
+  const cero = v => Math.abs(v) < 1e-9 ? 0 : v;
+  const pasoX = paso(Math.abs(xb - xa)), pasoY = paso(Math.abs(yb - ya));
+  for (let v = Math.ceil(xa / pasoX) * pasoX; v <= xb + 1e-9; v += pasoX) g += `<line class="rej" x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${H-B}"/><text class="tx" x="${X(v)}" y="${H-B+15}" text-anchor="middle">${numEs(cero(v), pasoX < 1 ? 1 : 0)}</text>`;
+  const y0 = Math.min(ya, yb), y1 = Math.max(ya, yb);
+  for (let v = Math.ceil(y0 / pasoY) * pasoY; v <= y1 + 1e-9; v += pasoY) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tx" x="${L-5}" y="${Y(v)+4}" text-anchor="end">${numEs(cero(v), pasoY < 1 ? 1 : 0)}</text>`;
+  g += puntos.filter(p => p[0] >= Math.min(xa, xb) && p[0] <= Math.max(xa, xb) && p[1] >= y0 && p[1] <= y1)
+             .map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="${p[3]}" fill="${p[2]}"/>`).join("");
+  g += extra ? extra(X, Y) : "";
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(ejx)}</text><text class="tx" x="12" y="${(T+H-B)/2}" text-anchor="middle" transform="rotate(-90 12 ${(T+H-B)/2})">${esc(ejy)}</text>`;
+  el.innerHTML = `<h4>${esc(tr(titulo))}</h4><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg><div class="pie">${esc(tr(pie))}</div>`;
+}
+function graficasHR(s, c, ref){
+  const miembros = new Set((s.cumulo || {}).ids || []);
+  const est = s.estrellas.filter(e => !e.saturada && e.e_bp_rp < 0.15);
+  const gs = est.map(e => e.g);
+  const fondo = "var(--line2)", mc = "var(--accent)";
+  dispersion($("gCMD"), "Diagrama medido", est.filter(e => !miembros.has(e.id)).map(e => [e.bp_rp, e.g, fondo, 1.5]).concat(est.filter(e => miembros.has(e.id)).map(e => [e.bp_rp, e.g, mc, 2.3])),
+    -0.5, 3.0, Math.min(...gs) - 0.3, Math.max(...gs) + 0.3, "BP−RP", "G", "Color y brillo medidos con tus imágenes, calibrados con Gaia. En morado, los miembros del cúmulo; en gris, las estrellas del campo.");
+  if (c.modulo != null){
+    const E = c.e_bprp || 0, A = c.a_g || 0;
+    const pts = ref.map(r => [r[1], r[0], "var(--line2)", 1.3]).concat(est.filter(e => miembros.has(e.id)).map(e => [e.bp_rp - E, e.g - c.modulo - A, mc, 2.3]));
+    dispersion($("gAbs"), "Miembros sobre la vecindad solar", pts, -0.5, 3.0, -2, 13, "(BP−RP)₀", "M_G",
+      "Los miembros, corregidos de la distancia y del enrojecimiento, sobre las estrellas de Gaia a menos de 40 pc (secuencia principal, gigantes y enanas blancas).",
+      (X, Y) => (c.cresta || []).length ? `<polyline fill="none" stroke="var(--oro)" stroke-width="1.5" stroke-dasharray="5 4" points="${c.cresta.map(p => X(p[1]).toFixed(1) + "," + Y(p[0]).toFixed(1)).join(" ")}"/>` : "");
+  } else $("gAbs").innerHTML = "";
+  const pm = s.estrellas.filter(e => e.pmra != null);
+  const cum = s.cumulo || {pmra:0, pmdec:0};
+  const lim = 12;
+  dispersion($("gVPD"), "Movimientos propios (Gaia)", pm.filter(e => !miembros.has(e.id)).map(e => [e.pmra, e.pmdec, fondo, 1.5]).concat(pm.filter(e => miembros.has(e.id)).map(e => [e.pmra, e.pmdec, mc, 2.3])),
+    cum.pmra - lim, cum.pmra + lim, cum.pmdec + lim, cum.pmdec - lim, "μα* (mas/a)", "μδ (mas/a)", "Las estrellas del cúmulo se mueven juntas por el cielo: forman el grupo apretado. Los miembros son las de ese grupo con una paralaje compatible.");
 }
 
 /* ============ Informe de problemas y «Acerca de» ============ */
