@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-# ASTRO · Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel
+# ASTRO · Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
 # y Asociación Astronómica de Miguelturra.
 #
 # CIENCIA: medir con las fotos. Lo común a todos los bloques (leer FITS sin librerías, saber adónde apunta cada
 # píxel, consultar Gaia, fotometría de apertura, el reloj astronómico) y el primer bloque: magnitud límite y
 # calidad del cielo. Siril resuelve y calibra; ASTRO mide, calcula, compara y lo deja todo trazado.
-import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, urllib.request, time, math, re, shutil
+import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, urllib.request, urllib.error, time, math, re, shutil
 import array, mmap, hashlib, zipfile, io, csv, ssl, random
 import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.6"
+VERSION_PROG = "2026.09.28.8"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1885,10 +1885,16 @@ def estado_publico():
 # las estrellas de la secuencia, así que se puede cambiar el conjunto de comparación o la de control sin volver a medir.
 VARIABLES_DIR = os.path.join(ROOT, "Estrellas variables")
 CONFIG_CIENCIA = os.path.join(ROOT, "config.json")
-VSP_URLS = ("https://app.aavso.org/vsp/api/chart/", "https://www.aavso.org/apps/vsp/api/chart/")
-VSX_URL = "https://www.aavso.org/vsx/index.php"
-# banda de las magnitudes de catálogo que corresponde a cada filtro de la AAVSO
-BANDA_CATALOGO = {"V": "V", "B": "B", "R": "R", "I": "I", "TG": "V", "TB": "B", "TR": "R", "CV": "V", "CR": "R"}
+VSP_URLS = ("https://apps.aavso.org/vsp/api/chart/", "https://app.aavso.org/vsp/api/chart/")
+VSX_URL = "https://vsx.aavso.org/index.php"
+# banda de las magnitudes de catálogo que corresponde a cada filtro de la AAVSO (en las secuencias VSP el rojo y el
+# infrarrojo de Cousins se llaman «Rc» e «Ic»)
+BANDA_CATALOGO = {"V": "V", "B": "B", "R": "Rc", "I": "Ic", "TG": "V", "TB": "B", "TR": "Rc", "CV": "V", "CR": "Rc"}
+BANDA_ALTERNATIVA = {"Rc": "R", "Ic": "I"}
+
+
+class ErrorServicio(RuntimeError):
+    """El servicio ha contestado, pero con un error (por ejemplo, «esa estrella no existe»): no es falta de conexión."""
 
 
 def config_ciencia():
@@ -1905,8 +1911,19 @@ def guardar_config_ciencia(**kw):
 
 def _get_json(url, timeout=45):
     req = urllib.request.Request(url, headers={"User-Agent": "ASTRO-Ciencia/%s" % VERSION_PROG, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout, context=_contexto_ssl()) as r:
-        return json.loads(r.read().decode("utf-8", errors="replace"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=_contexto_ssl()) as r:
+            return json.loads(r.read().decode("utf-8", errors="replace"))
+    except urllib.error.HTTPError as e:
+        # si el servicio explica el error (la AAVSO lo hace en JSON), se da su explicación
+        try:
+            d = json.loads(e.read().decode("utf-8", errors="replace"))
+        except Exception:
+            d = None
+        if isinstance(d, dict) and (d.get("errors") or d.get("detail")):
+            errs = d.get("errors") or [d.get("detail")]
+            raise ErrorServicio(" · ".join(str(x) for x in (errs if isinstance(errs, list) else [errs])))
+        raise
 
 
 def _coord(v, horas):
@@ -1933,19 +1950,103 @@ def vsx_objeto(nombre):
     else:
         ruta = os.path.join(CATALOGOS, "vsx_%s.json" % _slug(nombre))
         d = leer_json(ruta, None)
-        if not d or time.time() - d.get("_guardado", 0) > 30 * 86400:
+        if not d or not (d.get("VSXObject") or {}) or time.time() - d.get("_guardado", 0) > 30 * 86400:
             try:
                 d = _get_json(VSX_URL + "?" + urllib.parse.urlencode({"view": "api.object", "ident": nombre, "format": "json"}))
+            except ErrorServicio:
+                return None
+            except Exception as e:
+                raise RuntimeError("No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?). %s" % e)
+            if isinstance(d, dict) and d.get("VSXObject"):
                 d["_guardado"] = time.time()
                 escribir_json(ruta, d)
-            except Exception:
-                return None
     o = (d or {}).get("VSXObject") or {}
+    if isinstance(o, list):
+        o = o[0] if o else {}
     if not o or not o.get("Name"):
         return None
     return {"nombre": o.get("Name"), "auid": o.get("AUID") or "", "ra": _coord(o.get("RA2000"), False), "dec": _coord(o.get("Declination2000"), False),
             "tipo": o.get("VariabilityType") or "", "periodo": num(o.get("Period")), "max": o.get("MaxMag") or "", "min": o.get("MinMag") or "",
             "constelacion": o.get("Constellation") or ""}
+
+
+def _amplitud_vsx(mx, mn):
+    """Amplitud (mag) a partir de los textos del VSX: «12.07 G» y «12.12 G», o «(0.316) r» (la amplitud entre paréntesis)."""
+    a = re.match(r"\s*([<>]?)\s*(-?\d+(?:\.\d+)?)", str(mx or ""))
+    t = str(mn or "")
+    m = re.match(r"\s*\(\s*(\d+(?:\.\d+)?)\s*\)", t)
+    if m:
+        return float(m.group(1)), (float(a.group(2)) if a else None)
+    b = re.match(r"\s*([<>]?)\s*(-?\d+(?:\.\d+)?)", t)
+    if a and b:
+        return round(float(b.group(2)) - float(a.group(2)), 3), float(a.group(2))
+    return None, (float(a.group(2)) if a else None)
+
+
+def vsx_en_campo(ra, dec, radio, tomag=15.5):
+    """Estrellas variables conocidas (VSX) en un círculo: nombre, AUID, tipo, periodo, brillo y amplitud."""
+    falso = os.environ.get("ASTRO_AAVSO_FALSO")
+    if falso:
+        d = leer_json(falso, {}).get("vsx_lista") or {}
+    else:
+        ruta = os.path.join(CATALOGOS, "vsxlista_%.3f_%+.3f_%.3f_%.1f.json" % (ra, dec, radio, tomag))
+        d = leer_json(ruta, None)
+        if not d or time.time() - d.get("_guardado", 0) > 30 * 86400:
+            try:
+                d = _get_json(VSX_URL + "?" + urllib.parse.urlencode({"view": "api.list", "ra": "%.5f" % ra, "dec": "%.5f" % dec,
+                                                                        "radius": "%.4f" % radio, "tomag": "%.1f" % tomag, "format": "json"}), timeout=60)
+            except Exception as e:
+                raise RuntimeError("No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?). %s" % e)
+            d = d if isinstance(d, dict) else {}
+            d["_guardado"] = time.time()
+            escribir_json(ruta, d)
+    lista = ((d.get("VSXObjects") or {}).get("VSXObject") if isinstance(d.get("VSXObjects"), dict) else d.get("VSXObjects")) or []
+    if isinstance(lista, dict):
+        lista = [lista]
+    out = []
+    for o in lista:
+        ra_o, dec_o = _coord(o.get("RA2000"), False), _coord(o.get("Declination2000"), False)
+        if ra_o is None or dec_o is None or not o.get("Name"):
+            continue
+        amp, brillo = _amplitud_vsx(o.get("MaxMag"), o.get("MinMag"))
+        out.append({"nombre": o["Name"], "auid": o.get("AUID") or "", "ra": ra_o, "dec": dec_o, "tipo": o.get("VariabilityType") or "",
+                    "periodo": num(o.get("Period")), "max": o.get("MaxMag") or "", "min": o.get("MinMag") or "", "amplitud": amp, "brillo": brillo,
+                    "sospechosa": (o.get("Category") or "").lower().startswith("susp")})
+    return out
+
+
+def variables_de_toma(id_toma):
+    """Las variables conocidas que caen dentro de una toma de ASTRO, ordenadas de más a menos interesantes para medir."""
+    datos = api_lights("/api/ciencia/tomas", {"ids": [id_toma]}).get("tomas", [])
+    if not datos or not datos[0].get("ruta") or not os.path.isfile(datos[0]["ruta"]):
+        raise RuntimeError("no encuentro el archivo de la toma (¿está conectado el disco?)")
+    d = datos[0]
+    h = cabecera_de(d["ruta"])
+    w, hh = int(num(h.get("NAXIS1")) or 0), int(num(h.get("NAXIS2")) or 0)
+    escala = num(d.get("escala"))
+    wcs = WCS(h) if _ya_resuelta(h) else None
+    if wcs:
+        ra, dec = wcs.pix_a_cielo((w - 1) / 2.0, (hh - 1) / 2.0)
+        radio = max(separacion(ra, dec, *wcs.pix_a_cielo(x, y)) for x, y in ((0, 0), (w - 1, 0), (0, hh - 1), (w - 1, hh - 1)))
+    else:
+        c = coords_cabecera(h) or (tuple(d["coords"]) if d.get("coords") else None)
+        if not c or not escala or not w:
+            raise RuntimeError("la toma no dice adónde apunta (ni coordenadas ni astrometría en la cabecera)")
+        ra, dec = c
+        radio = math.hypot(w, hh) / 2 * escala / 3600.0
+    lista = vsx_en_campo(ra, dec, min(radio, 3.0))
+    dentro = []
+    for v in lista:
+        if wcs:
+            pp = wcs.cielo_a_pix(v["ra"], v["dec"])
+            if not pp or not (30 < pp[0] < w - 30 and 30 < pp[1] < hh - 30):
+                continue
+        elif separacion(ra, dec, v["ra"], v["dec"]) > 0.8 * radio * min(w, hh) / math.hypot(w, hh):
+            continue
+        dentro.append(v)
+    dentro.sort(key=lambda v: (not v["auid"], v["sospechosa"], -(v["amplitud"] or 0), v["brillo"] if v["brillo"] is not None else 99))
+    return {"centro": [round(ra, 5), round(dec, 5)], "radio": round(radio, 4), "resuelta": bool(wcs), "objeto": d.get("objeto") or "",
+            "variables": dentro[:40], "total": len(dentro)}
 
 
 def vsp_carta(estrella, fov, maglimit=16.0, ra=None, dec=None):
@@ -1972,6 +2073,11 @@ def vsp_carta(estrella, fov, maglimit=16.0, ra=None, dec=None):
                     d = _get_json(url + "?" + urllib.parse.urlencode(pars))
                     fuente = url
                     break
+                except ErrorServicio as e:
+                    if "does not exist" in str(e).lower():
+                        raise RuntimeError("«%s» no está en el VSX, el catálogo de estrellas variables de la AAVSO: elige una estrella variable "
+                                           "(pulsa «Buscar variables en estas tomas» para ver las que hay en el campo)" % estrella)
+                    raise RuntimeError("La AAVSO no ha podido preparar la secuencia: %s" % e)
                 except Exception as e:
                     errores.append(str(e))
             if d is None:
@@ -1988,8 +2094,11 @@ def vsp_carta(estrella, fov, maglimit=16.0, ra=None, dec=None):
         ra_c, dec_c = _coord(p.get("ra"), True), _coord(p.get("dec"), False)
         if ra_c is None or dec_c is None or not mags:
             continue
+        comentario = p.get("comments") or ""
+        if re.search(r"not use|variab", comentario, re.I):      # la AAVSO avisa de que no sirve para CCD
+            continue
         comps.append({"auid": p.get("auid") or "", "label": str(p.get("label") or p.get("auid") or ""), "ra": ra_c, "dec": dec_c,
-                      "mags": mags, "comentario": p.get("comments") or ""})
+                      "mags": mags, "comentario": comentario})
     return {"chartid": d.get("chartid") or "", "estrella": d.get("star") or estrella, "auid": d.get("auid") or "",
             "ra": _coord(d.get("ra"), True), "dec": _coord(d.get("dec"), False), "fov": fov, "maglimit": maglimit,
             "comps": comps, "fuente": fuente}
@@ -2300,6 +2409,9 @@ def trabajo_variable(p):
         estrella = (p.get("estrella") or d0.get("objeto") or "").strip()
         JOB["texto"], JOB["archivo"] = "Consultando la secuencia de la AAVSO", estrella
         vsx = vsx_objeto(estrella) if estrella else None
+        if not vsx and not os.environ.get("ASTRO_AAVSO_FALSO"):
+            raise RuntimeError("«%s» no está en el VSX, el catálogo de estrellas variables de la AAVSO: elige una estrella variable "
+                               "(pulsa «Buscar variables en estas tomas» para ver las que hay en el campo)" % estrella)
         carta = vsp_carta(vsx["nombre"] if vsx else estrella, min(lado * 1.1, 600), float(p.get("maglimit") or 16.0))
         ra_v = carta["ra"] if carta["ra"] is not None else (vsx or {}).get("ra")
         dec_v = carta["dec"] if carta["dec"] is not None else (vsx or {}).get("dec")
@@ -2309,6 +2421,8 @@ def trabajo_variable(p):
             raise RuntimeError("la AAVSO no tiene estrellas de comparación para «%s» en este campo" % estrella)
         banda = p.get("banda") or banda_aavso(h0.get("FILTER") or d0.get("filtro"), bool(h0.get("BAYERPAT")) or d0.get("bayer"))
         bcat = BANDA_CATALOGO.get(banda, "V")
+        if not any(bcat in c["mags"] for c in carta["comps"]) and any(BANDA_ALTERNATIVA.get(bcat, "-") in c["mags"] for c in carta["comps"]):
+            bcat = BANDA_ALTERNATIVA[bcat]
         estrellas = [{"id": "VAR", "label": carta["estrella"] or estrella, "auid": carta["auid"] or (vsx or {}).get("auid", ""),
                       "ra": ra_v, "dec": dec_v, "mags": {}}] + \
                     [dict(c, id=c["auid"] or c["label"]) for c in carta["comps"] if bcat in c["mags"]]
@@ -2652,7 +2766,7 @@ def banda_exo(filtro, color):
     return {"B": ("B", "B"), "G": ("V", "V"), "R": ("R", "R")}.get(f, ("CLEAR", "Clear"))
 
 
-# ── Los planetas: efemérides de ExoClock (las que usa la misión Ariel) y geometría del archivo de exoplanetas de la NASA ──
+# ── Los planetas: efemérides y geometría de ExoClock (las que usa la misión Ariel) o del archivo de exoplanetas de la NASA ──
 _EXO_MEM = {}
 
 
@@ -2694,10 +2808,13 @@ def exoclock_planetas():
             continue
         out[_norm_planeta(nombre)] = {
             "nombre": nombre, "prioridad": x.get("priority") or "", "ra": _coord(x.get("ra_j2000"), True), "dec": _coord(x.get("dec_j2000"), False),
-            "v": num(x.get("v_mag")), "r": num(x.get("r_mag")), "g": num(x.get("gaia_g_mag")), "prof_mmag": num(x.get("depth_mmag")),
+            "v": num(x.get("v_mag")), "r": num(x.get("r_mag")), "g": num(x.get("gaia_g_mag")), "prof_mmag": num(x.get("depth_r_mmag")) or num(x.get("depth_mmag")),
             "dur_h": num(x.get("duration_hours")), "t0": t0, "t0_err": num(x.get("t0_unc")) or 0.0, "periodo": per,
             "periodo_err": num(x.get("period_unc")) or 0.0, "oc_min": num(x.get("current_oc_min")),
-            "telescopio_min": num(x.get("min_telescope_inches")), "observaciones": x.get("total_observations")}
+            "telescopio_min": num(x.get("min_telescope_inches")), "observaciones": x.get("total_observations"),
+            # geometría del tránsito de ExoClock (coherente con sus efemérides) y datos de la estrella
+            "estrella": x.get("star") or "", "p": num(x.get("rp_over_rs")), "a": num(x.get("sma_over_rs")), "inc": num(x.get("inclination")),
+            "ecc": num(x.get("eccentricity")), "teff": num(x.get("teff")), "logg": num(x.get("logg")), "met": num(x.get("meta"))}
     _EXO_MEM["exoclock"] = (time.time(), out)
     return out
 
@@ -2751,11 +2868,13 @@ def buscar_planeta(nombre):
     if not e and not n:
         return None
     base = dict(n or {})
-    pl = {"nombre": (e or n)["nombre"], "estrella": base.get("estrella") or re.sub(r"\s*[a-z]$", "", (e or n)["nombre"]),
+    ee = e or {}
+    pl = {"nombre": (e or n)["nombre"], "estrella": base.get("estrella") or ee.get("estrella") or re.sub(r"\s*[a-z]$", "", (e or n)["nombre"]),
           "ra": (e or {}).get("ra") if (e or {}).get("ra") is not None else base.get("ra"),
           "dec": (e or {}).get("dec") if (e or {}).get("dec") is not None else base.get("dec"),
           "v": (e or {}).get("v") or base.get("v"), "g": (e or {}).get("g") or base.get("g"),
-          "teff": base.get("teff"), "logg": base.get("logg"), "ecc": base.get("ecc"),
+          "teff": base.get("teff") or ee.get("teff"), "logg": base.get("logg") or ee.get("logg"),
+          "ecc": base.get("ecc") if base.get("ecc") is not None else ee.get("ecc"),
           "prioridad": (e or {}).get("prioridad", ""), "en_exoclock": bool(e), "telescopio_min": (e or {}).get("telescopio_min")}
     if e:
         pl.update(t0=e["t0"], t0_err=e["t0_err"], periodo=e["periodo"], periodo_err=e["periodo_err"], efemerides="ExoClock",
@@ -2765,7 +2884,16 @@ def buscar_planeta(nombre):
                   efemerides="NASA Exoplanet Archive", dur_h=base.get("dur_h"))
     if not pl["t0"] or not pl["periodo"] or pl["ra"] is None:
         return None
-    # geometría: radio relativo, a/R* e inclinación (con lo que haya)
+    # geometría: radio relativo, a/R* e inclinación. Si ExoClock la tiene completa, la suya (va con sus efemérides); si no,
+    # la del archivo de la NASA; y si falta algo, se estima con la profundidad y la duración.
+    if ee.get("p") and ee.get("a") and ee.get("inc"):
+        base.update(p=ee["p"], a=ee["a"], inc=ee["inc"], b=None)
+        fuente_geo = "ExoClock"
+    else:
+        for c in ("p", "a", "inc"):
+            if not base.get(c) and ee.get(c):
+                base[c] = ee[c]
+        fuente_geo = "NASA Exoplanet Archive" if n else ("ExoClock" if ee.get("p") or ee.get("a") else "estimada")
     p = base.get("p")
     if not p:
         if base.get("prof_pct"):
@@ -2782,7 +2910,7 @@ def buscar_planeta(nombre):
     if not inc:
         bb = base.get("b") if base.get("b") is not None else 0.3
         inc = math.degrees(math.acos(max(-1.0, min(1.0, bb / a))))
-    pl.update(p=p, a=a, inc=inc, geometria="NASA Exoplanet Archive" if n else "estimada")
+    pl.update(p=p, a=a, inc=inc, geometria=fuente_geo)
     if not dur:
         pl["dur_h"] = duracion_t14(pl["periodo"], p, a, inc) * 24.0
     return pl
@@ -5687,9 +5815,9 @@ class H(BaseHTTPRequestHandler):
             if p.path.startswith("/img/"):
                 n = os.path.basename(p.path)
                 ruta = os.path.join(DIBUJOS_WEB, n)
-                if re.match(r"^[\w-]+\.jpg$", n) and os.path.isfile(ruta):
+                if re.match(r"^[\w-]+\.(jpg|png)$", n) and os.path.isfile(ruta):
                     with open(ruta, "rb") as f:
-                        return self._send(200, f.read(), "image/jpeg", {"Cache-Control": "max-age=86400"})
+                        return self._send(200, f.read(), "image/png" if n.endswith(".png") else "image/jpeg", {"Cache-Control": "max-age=86400"})
                 return self._send(404, "", "text/plain")
             if p.path == "/api/diagnostico":
                 return self._json(diagnostico())
@@ -5710,6 +5838,11 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/variables/config":
                 c = config_ciencia()
                 return self._json({"obscode": c.get("obscode") or "", "obstype": c.get("obstype") or "CCD"})
+            if p.path == "/api/variables/campo":
+                try:
+                    return self._json(variables_de_toma((qs.get("id") or [""])[0]))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/variables/serie":
                 serie, calc = serie_variable((qs.get("id") or [""])[0])
                 if not serie:
@@ -6017,7 +6150,7 @@ DIC_EN = {
     "La regla de oro: medir sobre datos lineales, calibrados y con la hora exacta": "The golden rule: measure on linear, calibrated data with the exact time",
     "Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.": "No stretching, deconvolution or noise reduction (BlurXTerminator, NoiseXTerminator…) before measuring: they change the brightness of each star differently. The same frames serve both purposes: the calibrated, linear copy goes to the measurement and the processed one to the picture. ASTRO always measures on the original frames, calibrated with your library.",
     "Programa creado por": "Created by",
-    "Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra.": "Member of Astrocitas, the Asociación Astronómica Azarquiel and the Asociación Astronómica de Miguelturra.",
+    "Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.": "Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Asociación Astronómica de Miguelturra.",
     "Medir el cielo": "Measure the sky",
     "Elige qué medir. ASTRO calibra cada toma con tu biblioteca, la resuelve con Siril, la compara con las estrellas de Gaia y calcula el brillo del fondo, la magnitud límite, el tamaño de las estrellas y la transparencia.": "Choose what to measure. ASTRO calibrates each frame with your library, plate-solves it with Siril, compares it with the Gaia stars and computes the background brightness, the limiting magnitude, the star size and the transparency.",
     "Tomas de ASTRO": "ASTRO frames",
@@ -6567,6 +6700,27 @@ DIC_EN = {
     "no encuentro el espectro": "I can't find the spectrum",
     "no encuentro la imagen original para volver a extraer el espectro": "I can't find the original image to extract the spectrum again",
     "espectro no válido": "invalid spectrum",
+    "Buscar variables en estas tomas": "Find variables in these frames",
+    "ASTRO pregunta al VSX de la AAVSO qué estrellas variables conocidas hay en el campo.": "ASTRO asks the AAVSO's VSX which known variable stars are in the field.",
+    "Buscando en el VSX las variables conocidas del campo…": "Looking up the known variables of the field in the VSX…",
+    "El objeto de la sesión,": "The session's object,",
+    "no es una estrella variable del VSX.": "is not a VSX variable star.",
+    "Elige una de las variables que hay en el campo:": "Choose one of the variables in the field:",
+    "No hay variables conocidas en estas tomas": "No known variables in these frames",
+    "Ninguna estrella del VSX más brillante que la magnitud 15,5 cae dentro de la imagen. Para medir una variable, fotografía su campo.": "No VSX star brighter than magnitude 15.5 falls inside the image. To measure a variable, photograph its field.",
+    "Variable": "Variable",
+    "Brillo": "Brightness",
+    "Periodo (d)": "Period (d)",
+    "Secuencia AAVSO": "AAVSO sequence",
+    "sí": "yes",
+    "probablemente no": "probably not",
+    "sospechosa": "suspected",
+    "Pulsa una para medirla. Las que tienen AUID suelen tener secuencia de comparación de la AAVSO; en las demás puede no haberla. Conviene que la amplitud sea mayor que el error de tus medidas (unas centésimas).": "Click one to measure it. Those with an AUID usually have an AAVSO comparison sequence; the others may not. The amplitude should be larger than the error of your measurements (a few hundredths).",
+    "Se muestran las 40 más interesantes.": "The 40 most interesting ones are shown.",
+    "la toma no dice adónde apunta (ni coordenadas ni astrometría en la cabecera)": "the frame doesn't say where it points (no coordinates or astrometry in the header)",
+    "~no está en el VSX, el catálogo de estrellas variables de la AAVSO: elige una estrella variable (pulsa «Buscar variables en estas tomas» para ver las que hay en el campo)": "is not in the VSX, the AAVSO's catalogue of variable stars: choose a variable star (press “Find variables in these frames” to see those in the field)",
+    "~La AAVSO no ha podido preparar la secuencia:": "The AAVSO couldn't prepare the sequence:",
+    "~No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?).": "I couldn't query the AAVSO's VSX (is there an Internet connection?).",
 }
 
 HTML = r'''<!DOCTYPE html>
@@ -6707,7 +6861,7 @@ td.num{text-align:right}
 .acciones{display:flex;gap:8px;flex-wrap:wrap}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.show{opacity:1}
-.autor{margin:30px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center} .autor b{color:var(--text)}
+.autor{margin:30px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center} .autor b{color:var(--text)}.escudos{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 2px}.escudos:empty{display:none}.escudos img{height:46px;width:auto;max-width:130px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-shadow:0 0 0 1px var(--line)}.escudos.grandes img{height:62px;max-width:160px}
 @media (max-width:860px){
   .app{grid-template-columns:1fr;background:none}
   .lat{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:4px;background:var(--bg2);border-bottom:1px solid var(--line);padding:12px}
@@ -6751,7 +6905,7 @@ td.num{text-align:right}
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
       <h3 class="seccion">Los cinco bloques</h3>
       <div class="bloques" id="bloques"></div>
-      <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra.</span></div>
+      <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
     </section>
 
     <section id="vistaBloque" style="display:none">
@@ -6767,6 +6921,8 @@ td.num{text-align:right}
           <h3 style="font-size:17px">Medir una estrella variable</h3>
           <div class="note">Elige la sesión con las tomas de la variable. ASTRO descarga de la AAVSO la secuencia oficial de estrellas de comparación, calibra y mide cada toma, dibuja la curva de luz y prepara el informe para WebObs.</div>
           <div id="vSesiones" style="margin-top:12px"></div>
+          <div class="acciones" style="margin-top:10px"><button class="btn small" id="btnCampoVar">Buscar variables en estas tomas</button><span class="note">ASTRO pregunta al VSX de la AAVSO qué estrellas variables conocidas hay en el campo.</span></div>
+          <div id="vCampo" style="margin-top:8px"></div>
           <div class="opciones">
             <label>Estrella <input id="vEstrella" placeholder="p. ej. SS Cyg" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
             <label>Filtro AAVSO <select id="vBanda"></select></label>
@@ -7485,8 +7641,33 @@ function pintarSesionesVar(){
   $("vSesiones").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
     VAR.sel = +t.dataset.i; const s = VAR.sesiones[VAR.sel];
     $("vSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
-    if (s.objeto && s.objeto !== "(sin objeto)") $("vEstrella").value = s.objeto;
+    $("vEstrella").value = "";
     $("vBanda").value = s.aavso || "CV";
+    buscarVariablesCampo();
+  });
+}
+$("btnCampoVar").onclick = () => buscarVariablesCampo();
+async function buscarVariablesCampo(){
+  if (VAR.sel === null){ toast("Elige primero la sesión con las tomas de la variable"); return; }
+  const s = VAR.sesiones[VAR.sel], sel = VAR.sel;
+  $("vCampo").innerHTML = `<div class="note">${esc(tr("Buscando en el VSX las variables conocidas del campo…"))}</div>`;
+  let d;
+  try { d = await (await api("/api/variables/campo?id=" + encodeURIComponent(s.tomas[Math.floor(s.tomas.length / 2)].id))).json(); }
+  catch(e){ if (VAR.sel === sel) $("vCampo").innerHTML = `<div class="avisos"><div>${esc(tr(e.message || String(e)))}</div></div>`; return; }
+  if (VAR.sel !== sel) return;
+  const norma = t => String(t || "").toLowerCase().replace(/[\s_-]+/g, "");
+  const propia = d.variables.find(v => norma(v.nombre) === norma(s.objeto));
+  if (propia) $("vEstrella").value = propia.nombre;
+  const aviso = !propia && s.objeto && s.objeto !== "(sin objeto)" ? `<div class="avisos" style="margin-bottom:8px"><div><span>El objeto de la sesión,</span> <b class="notr">${esc(s.objeto)}</b>, <span>no es una estrella variable del VSX.</span> ${d.variables.length ? esc(tr("Elige una de las variables que hay en el campo:")) : ""}</div></div>` : "";
+  if (!d.variables.length){ $("vCampo").innerHTML = aviso + `<div class="vacio"><b>${esc(tr("No hay variables conocidas en estas tomas"))}</b>${esc(tr("Ninguna estrella del VSX más brillante que la magnitud 15,5 cae dentro de la imagen. Para medir una variable, fotografía su campo."))}</div>`; return; }
+  $("vCampo").innerHTML = aviso + `<div class="tabla" style="max-height:260px"><table><thead><tr><th>${esc(tr("Variable"))}</th><th>${esc(tr("Tipo"))}</th><th>${esc(tr("Brillo"))}</th><th class="num">${esc(tr("Amplitud"))}</th><th class="num">${esc(tr("Periodo (d)"))}</th><th>${esc(tr("Secuencia AAVSO"))}</th></tr></thead><tbody>${
+    d.variables.map((v, i) => `<tr data-i="${i}" class="${v.nombre === $("vEstrella").value ? "sel" : ""}" style="cursor:pointer"><td class="notr"><b>${esc(v.nombre)}</b></td><td class="notr">${esc(v.tipo)}</td>
+      <td class="notr">${esc(v.max)}${v.min ? " – " + esc(v.min) : ""}</td><td class="num">${v.amplitud != null ? numEs(v.amplitud, 2) : "—"}</td><td class="num">${v.periodo != null ? numEs(v.periodo, v.periodo < 1 ? 4 : 2) : "—"}</td>
+      <td>${v.auid ? `<span class="chip ya">${esc(tr("sí"))}</span>` : `<span class="chip">${esc(tr("probablemente no"))}</span>`}${v.sospechosa ? ` <span class="chip warn">${esc(tr("sospechosa"))}</span>` : ""}</td></tr>`).join("")}</tbody></table></div>
+    <div class="note" style="margin-top:6px">${esc(tr("Pulsa una para medirla. Las que tienen AUID suelen tener secuencia de comparación de la AAVSO; en las demás puede no haberla. Conviene que la amplitud sea mayor que el error de tus medidas (unas centésimas)."))}${d.total > d.variables.length ? " " + esc(tr("Se muestran las 40 más interesantes.")) : ""}</div>`;
+  $("vCampo").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
+    const v = d.variables[+t.dataset.i]; $("vEstrella").value = v.nombre;
+    $("vCampo").querySelectorAll("tr[data-i]").forEach(x => x.classList.toggle("sel", x === t));
   });
 }
 $("btnVariable").onclick = async () => {
@@ -8168,7 +8349,7 @@ function acercaDe(){
     <h2>ASTRO</h2><div class="note">${tr("Ciencia: medir con tus fotos")} · ${tr("versión")} <span class="notr">${VERSION_ACTUAL}</span></div>
     <p>${tr("Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila con Siril y mide con tus fotos.")}</p>
     <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;width:100%"><div class="note">${tr("Programa creado por")}</div><b style="font-size:16px">Tomás Moreno González</b>
-      <div style="font-size:13.5px">${tr("Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra.")}</div></div>
+      <div style="font-size:13.5px">${tr("Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.")}</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
     <button class="btn primary" onclick="this.closest('.modal').remove()">${tr("Cerrar")}</button></div>`;
   d.onclick = e => { if (e.target === d) d.remove(); };
   document.body.appendChild(d);

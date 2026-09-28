@@ -3,7 +3,7 @@
 ASTRO — control de calidad de lights y biblioteca de calibración.
 Lanzador de la aplicación para Mac, Windows y Linux.
 
-Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel
+Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
 y Asociación Astronómica de Miguelturra.
 
 La primera vez pregunta dónde guardar los datos. Después arranca los dos
@@ -19,7 +19,7 @@ import secrets, hmac, locale, unicodedata, base64, plistlib  # noqa: F401
 import array, mmap, io, csv, ssl  # noqa: F401
 
 APP = "ASTRO"
-AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra."
+AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra."
 ES_MAC, ES_WIN = sys.platform == "darwin", sys.platform.startswith("win")
 PROGRAMAS = (("lights", "programa-lights.py", 8775), ("calibracion", "programa-calibracion.py", 8765),
              ("ciencia", "programa-ciencia.py", 8785))
@@ -134,8 +134,8 @@ except Exception:
 
 VIOLETA, VIOLETA2, FONDO, TEXTO, GRIS = "#5B2C87", "#8E5BC2", "#F4F2F9", "#1E1830", "#6B6382"
 
-AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel y Asociación Astronómica de Miguelturra",
-         "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel and the Asociación Astronómica de Miguelturra"}
+AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra",
+         "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Asociación Astronómica de Miguelturra"}
 TXT = {
     "es": {"lema": "lights y calibración", "bienvenido": "¡Bienvenido!", "titulo_bienv": "Bienvenido a ASTRO",
            "intro": "ASTRO revisa la calidad de tus lights (estrellas, trazas de satélites, nubes…), organiza tu biblioteca de darks, flats y bias, y apila con Siril.\n\nElige la carpeta donde guardará tus fotos y sus datos. Puede estar en un disco externo. Si ya usabas ASTRO, elige la carpeta que contiene «Lights».",
@@ -294,7 +294,16 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
         if ES_BETA:
             tk.Label(cab, text=" BETA ", bg="#F2C14E", fg="#3A2A00", font=("Helvetica", 11, "bold")).pack(side="right", padx=16)
     pie = tk.Frame(w, bg="#ECE8F5"); pie.pack(fill="x", side="bottom")
-    tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=7)
+    tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=(7, 4 if grande else 7))
+    if grande:                            # los escudos de las tres asociaciones (los que estén en «imagenes»)
+        fila = tk.Frame(pie, bg="#ECE8F5")
+        for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png"):
+            im = _imagen(n)
+            if im is not None:
+                w._imgs.append(im)
+                tk.Label(fila, image=im, bg="#ECE8F5", bd=0).pack(side="left", padx=9)
+        if fila.winfo_children():
+            fila.pack(pady=(0, 8))
     cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=28 if grande else 24, pady=(18, 22))
     return w, cuerpo
 
