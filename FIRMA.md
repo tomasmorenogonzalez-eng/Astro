@@ -30,7 +30,7 @@ Los *secrets* se guardan en GitHub, en el repositorio: **Settings → Secrets an
 | `MAC_CERT_PASSWORD` | la contraseña con la que exportaste el .p12 |
 | `APPLE_ID` | el correo de tu Apple ID |
 | `APPLE_APP_PASSWORD` | la contraseña para apps del paso 5 |
-| `APPLE_TEAM_ID` | el Team ID del paso 6 |
+| `APPLE_TEAM_ID` | el Team ID del paso 6 (opcional: si falta, la fábrica lo lee del nombre del certificado) |
 
 Después, publica una versión nueva. La fábrica firma ASTRO para Apple Silicon y para Intel y lo manda a Apple para la notarización, que tarda unos minutos. Cuando Apple lo aprueba, le «grapa» el visto bueno y comprueba que el Mac lo aceptará. Si falta algo, la fábrica se para y dice qué secret falta.
 
@@ -69,7 +69,7 @@ Las versiones 0.x llevan la etiqueta «BETA». Cuando quieras la primera versió
 ## In English
 
 The GitHub build is ready to sign and notarize on macOS and to sign on Windows. It only needs repository secrets:
-- **macOS:** `MAC_CERT_P12` (Developer ID Application certificate as base64 .p12), `MAC_CERT_PASSWORD`, `APPLE_ID`, `APPLE_APP_PASSWORD` (app-specific password) and `APPLE_TEAM_ID`. Apple Developer Program: 99 USD/year.
+- **macOS:** `MAC_CERT_P12` (Developer ID Application certificate as base64 .p12), `MAC_CERT_PASSWORD`, `APPLE_ID`, `APPLE_APP_PASSWORD` (app-specific password) and, optionally, `APPLE_TEAM_ID` (read from the certificate name if missing). Apple Developer Program: 99 USD/year.
 - **Windows:** either `WIN_CERT_PFX` + `WIN_CERT_PASSWORD`, or Azure Artifact Signing. For Azure, set the secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET`, and the variables `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`. Azure only accepts individuals in the US and Canada; organisations in the EU can use it.
 
 Without these secrets the build carries on unsigned, exactly as before.

@@ -67,7 +67,7 @@ jobs:
             codesign --force --deep -s - dist/ASTRO.app
             exit 0
           fi
-          for v in MAC_CERT_PASSWORD APPLE_ID APPLE_APP_PASSWORD APPLE_TEAM_ID; do
+          for v in MAC_CERT_PASSWORD APPLE_ID APPLE_APP_PASSWORD; do
             if [ -z "${!v}" ]; then echo "::error::Falta el secreto $v (mira FIRMA.md)."; exit 1; fi
           done
           echo "$MAC_CERT_P12" | base64 --decode > cert.p12
@@ -89,10 +89,13 @@ jobs:
             security find-identity -p codesigning fab.keychain || true
             echo "::error::No hay un certificado «Developer ID Application» válido con su clave en el .p12 (mira FIRMA.md)."; exit 1
           fi
+          # El Team ID va entre paréntesis en el nombre del certificado; el secreto APPLE_TEAM_ID es opcional.
+          TEAM="${APPLE_TEAM_ID:-$(printf '%s' "$ID" | sed -nE 's/.*\(([A-Z0-9]{10})\)$/\1/p')}"
+          if [ -z "$TEAM" ]; then echo "::error::Falta el secreto APPLE_TEAM_ID (mira FIRMA.md)."; exit 1; fi
           codesign --force --deep --options runtime --timestamp --entitlements entitlements.plist -s "$ID" dist/ASTRO.app
           codesign --verify --deep --strict --verbose=2 dist/ASTRO.app
           ditto -c -k --keepParent dist/ASTRO.app certificar.zip
-          xcrun notarytool submit certificar.zip --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --timeout 30m
+          xcrun notarytool submit certificar.zip --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM" --wait --timeout 30m
           xcrun stapler staple dist/ASTRO.app
           xcrun stapler validate dist/ASTRO.app
           spctl --assess --type execute --verbose=2 dist/ASTRO.app
