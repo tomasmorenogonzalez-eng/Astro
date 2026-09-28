@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.10"
+VERSION_PROG = "2026.09.28.11"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2232,7 +2232,7 @@ async function pintarCalToma(f){
   h += `</dl>`;
   const av = (c.avisos || []).filter(a => !/^(sin darks|sin flats|flats sin bias)/.test(a));      // lo demás ya se ve arriba
   if (av.length) h += `<ul class="reasons">${av.map(a=>`<li class="warn">${esc(a)}</li>`).join("")}</ul>`;
-  if (c.faltan && c.faltan.length) h += `<div class="note" style="line-height:1.5">${c.faltan.map(x=>`<span>${esc(x)}</span>`).join(" ")}${PUERTO_CAL ? ` <a href="http://127.0.0.1:${PUERTO_CAL}/#falta" target="_blank" rel="noopener">¿Qué me falta?</a>` : ""}</div>`;
+  if (c.faltan && c.faltan.length) h += `<div class="note" style="line-height:1.5">${c.faltan.map(x=>`<span>${esc(x)}</span>`).join(" ")}${PUERTO_CAL ? ` <a href="${esc(urlCalibracion("#falta"))}">¿Qué me falta?</a>` : ""}</div>`;
   if (!c.biblioteca) h += `<div class="note">Tu biblioteca de calibración está vacía: añade allí tus darks, flats y bias y ASTRO elegirá los de cada toma.</div>`;
   el.innerHTML = h;
 }
@@ -2369,6 +2369,12 @@ function abrirDesdeEnlace(){
   const h = (location.hash || "").slice(1); if (!h) return;
   try { history.replaceState(null, "", location.pathname + location.search); } catch(_){}
   document.querySelectorAll(".modal.show").forEach(m => m.classList.remove("show"));
+  if (h.startsWith("obj=")){
+    let o = ""; try { o = decodeURIComponent(h.slice(4)); } catch(_){}
+    mostrarVista("objetos"); ADD_EQUIPO = null;
+    if (o && frames.some(f => (f.object||"") === o)) try { resumenObjeto(o); } catch(e){ console.error(e); }
+    return;
+  }
   const ir = {anadir: ()=>abrirAñadir(), objetos: ()=>mostrarVista("objetos"), tomas: ()=>mostrarVista("tomas"),
               noches: ()=>abrirNoches(), directo: ()=>abrirDirecto(), apilar: ()=>stkOpen(), varios: ()=>abrirVarios(""), criterio: ()=>abrirCriterio("")}[h];
   ADD_EQUIPO = null;
@@ -4501,6 +4507,7 @@ function lineaObjetivo(obj, fl){
   return `<div style="margin:2px 0 8px"><div class="m">${fmtH(h)} útiles · ${noches} noche${noches!==1?"s":""}</div>${barra}<button class="btn small" data-resumen="${esc(obj)}" style="margin-top:4px">Resumen y objetivo</button></div>`;
 }
 async function resumenObjeto(obj){
+  RESUMEN_OBJ = obj;
   $("objBox").classList.add("show"); $("objTitle").innerHTML = `<span class="notr">${esc(obj)}</span>`; $("objBody").innerHTML = `<div class="note">Calculando…</div>`;
   const fl = frames.filter(f=>(f.object||"")===obj), ok = fl.filter(esUtil);
   const c = {ok:0,warn:0,bad:0,disc:0}; fl.forEach(f=>{ const s = shownStatus(f); if (c[s]!==undefined) c[s]++; });
@@ -5486,7 +5493,12 @@ $("regInput").onchange = e => { const l = [...e.target.files]; e.target.value = 
 
 /* ============ Navegación: pestañas, menú, añadir sesión ============ */
 const VISTAS = {objetos:["Mis objetos","Lo que llevas de cada objeto y cuándo te conviene seguir"], tomas:["Todas las tomas","Cada toma con su valoración: filtra, ordena y descarta las que no valen"]};
+let VISTA_ACTUAL = "objetos", RESUMEN_OBJ = "";
+// desde dónde se va a la biblioteca de calibración: su botón «Volver a…» trae aquí mismo
+function volverDesde(){ return $("objBox").classList.contains("show") && RESUMEN_OBJ ? "obj:" + RESUMEN_OBJ : VISTA_ACTUAL; }
+function urlCalibracion(extra){ return `http://127.0.0.1:${PUERTO_CAL}/?volver=${encodeURIComponent(volverDesde())}${extra||""}`; }
 function mostrarVista(v){
+  VISTA_ACTUAL = v;
   $("vistaObjetos").style.display = v==="objetos" ? "" : "none";
   $("vistaTomas").style.display = v==="tomas" ? "" : "none";
   $("estaNoche").classList.toggle("oculto", v!=="objetos");
@@ -5547,7 +5559,8 @@ $("drop").addEventListener("drop", ()=>{ _arr = 0; document.body.classList.remov
   const e = await (await fetch("/api/enlaces")).json();
   if (!e.integrado) return;
   const p = e["calibracion"]; PUERTO_CAL = p || null;
-  if (p){ const a = document.createElement("a"); a.className = "nav"; a.href = `http://127.0.0.1:${p}/`;
+  if (p){ const a = document.createElement("a"); a.className = "nav"; a.href = urlCalibracion();
+    a.addEventListener("click", () => { a.href = urlCalibracion(); });      // con lo que esté abierto en ese momento
     a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg><span>Biblioteca de calibración</span>'; $("navCalib").replaceWith(a); }
   const hr = document.createElement("hr"), b = document.createElement("button"); b.textContent = "Salir de ASTRO";
   b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return; try { await fetch("/api/salir",{method:"POST",body:"{}"}); } catch(_){}

@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.14"
+VERSION_PROG = "2026.09.28.15"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -5906,6 +5906,8 @@ class H(BaseHTTPRequestHandler):
                     with open(ruta, "rb") as f:
                         return self._send(200, f.read(), "image/png" if n.endswith(".png") else "image/jpeg", {"Cache-Control": "max-age=86400"})
                 return self._send(404, "", "text/plain")
+            if p.path == "/api/enlaces":
+                return self._json({"integrado": INTEGRADO, "lights": (puerto_lights() or 0) if INTEGRADO else 0})
             if p.path == "/api/diagnostico":
                 return self._json(diagnostico())
             if p.path == "/api/prueba/medir":
@@ -6849,6 +6851,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .grupo{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px;font-weight:700}
 .nav{display:flex;align-items:center;gap:11px;width:100%;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;text-align:left;cursor:pointer}
 .nav:hover{background:var(--surface2);color:var(--text)}
+.volverAstro{margin:0 0 10px;border:1px solid var(--line);color:var(--text);text-decoration:none} .volverAstro svg{color:var(--accent)} .volverAstro .vtx{display:flex;flex-direction:column;line-height:1.2;min-width:0} .volverAstro small{font-size:11px;font-weight:600;color:var(--muted)} .volverAstro b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav.on{background:var(--accent-soft);color:var(--text)} .nav.on svg{color:var(--accent)}
 .nav .ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block}
 .nav .pronto{margin-left:auto;font-size:10.5px;color:var(--faint);font-weight:600}
@@ -7037,6 +7040,7 @@ th{background:var(--surface);font-weight:700}
 <div class="app">
   <aside class="lat">
     <div class="marca"><span class="logo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z"/></svg></span><div><h1>ASTRO</h1><div class="sub">Ciencia: medir con tus fotos</div></div></div>
+    <a class="nav volverAstro notr" id="volverLights" href="#" style="display:none"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span class="vtx"><small></small><b></b></span></a>
     <button class="nav on" data-vista="inicio"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
     <div class="grupo">Los seis bloques</div>
     <div id="navBloques"></div>
@@ -7240,6 +7244,25 @@ th{background:var(--surface);font-weight:700}
 const VERSION_ACTUAL = "__VERSION__";
 const IDIOMAS_ASTRO = {es:"Español", en:"English", fr:"Français", de:"Deutsch", it:"Italiano", pt:"Português"};
 const IDIOMA = (v => IDIOMAS_ASTRO[v] ? v : (l => IDIOMAS_ASTRO[l] ? l : "en")((navigator.language||"es").slice(0,2).toLowerCase()))("__IDIOMA__");
+// de dónde se llegó (el Control de lights abre esta página con ?volver=…): el botón «Volver a…» del lateral lleva allí
+const VOLVER_ASTRO = (() => { try {
+  const v = new URLSearchParams(location.search).get("volver");
+  if (v !== null){ sessionStorage.setItem("astroVolver", v); history.replaceState(null, "", location.pathname + location.hash); }
+  return sessionStorage.getItem("astroVolver");
+} catch(_){ return null; } })();
+function ponerVolverAstro(p){
+  const a = document.getElementById("volverLights"); if (!a || !p) return;
+  const v = VOLVER_ASTRO || "", obj = v.startsWith("obj:") ? v.slice(4) : "";
+  a.href = `http://127.0.0.1:${p}/#` + (obj ? "obj=" + encodeURIComponent(obj) : v === "tomas" ? "tomas" : "objetos");
+  a.querySelector("small").textContent = VOLVER_ASTRO === null ? trLT("Ir a", "Go to") : trLT("Volver a", "Back to");
+  a.querySelector("b").textContent = obj || (v === "tomas" ? trLT("Todas las tomas", "All frames") : trLT("Mis objetos", "My targets"));
+  a.title = trLT("Control de lights", "Light frame checker");
+  a.style.display = "";
+}
+(() => {
+  const ir = async () => { try { const e = await (await fetch("/api/enlaces")).json(); if (e.integrado && e.lights) ponerVolverAstro(e.lights); } catch(_){} };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ir); else setTimeout(ir, 0);
+})();
 const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemplo
 (function(){
   if (!EJEMPLO_ASTRO) return;
@@ -7250,7 +7273,7 @@ const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemp
     d.style.cssText = "margin:10px 4px 12px;padding:10px 12px;border-radius:10px;background:rgba(242,193,78,.16);border:1px solid rgba(242,193,78,.6);font-size:12.5px;line-height:1.4";
     d.innerHTML = "<b style='display:block;margin-bottom:2px'>" + trLT("Datos de ejemplo", "Example data") + "</b>" +
       trLT("Fotos y medidas inventadas para que explores ASTRO. Para usar las tuyas, pulsa «Volver a mis datos» en la ventana de inicio.", "Made-up frames and measurements for you to explore ASTRO. To use yours, click “Back to my data” in the start window.");
-    lat.insertBefore(d, lat.children[1] || null);
+    const tras = document.getElementById("volverLights"); lat.insertBefore(d, (tras ? tras.nextSibling : lat.children[1]) || null);
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", poner); else setTimeout(poner, 0);
 })();

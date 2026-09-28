@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.20.1",
+  "es": [
+   "Desde la biblioteca de calibración y desde Ciencia, el botón «Volver a…» de arriba a la izquierda te devuelve justo donde estabas en el control de lights: Mis objetos, Todas las tomas o el resumen de un objeto."
+  ],
+  "en": [
+   "From the calibration library and from Science, the “Back to…” button at the top left takes you back to exactly where you were in the light frame checker: My targets, All frames or a target's summary."
+  ],
+  "fr": [
+   "Depuis la bibliothèque de calibration et depuis Science, le bouton « Revenir à… » en haut à gauche vous ramène exactement là où vous étiez dans le contrôle des lights : Mes objets, Toutes les poses ou le résumé d'un objet."
+  ],
+  "de": [
+   "In der Kalibrierbibliothek und in der Wissenschaft bringt dich die Schaltfläche „Zurück zu …“ oben links genau dorthin zurück, wo du in der Lights-Kontrolle warst: Meine Objekte, Alle Aufnahmen oder die Übersicht eines Objekts."
+  ],
+  "it": [
+   "Dalla libreria di calibrazione e da Scienza, il pulsante «Torna a…» in alto a sinistra ti riporta esattamente dove eri nel controllo dei light: I miei oggetti, Tutte le pose o il riepilogo di un oggetto."
+  ],
+  "pt": [
+   "Na biblioteca de calibração e na Ciência, o botão «Voltar a…» em cima, à esquerda, leva-o de volta exatamente onde estava no controlo de lights: Os meus objetos, Todas as exposições ou o resumo de um objeto."
+  ]
+ },
+ {
   "version": "0.20",
   "es": [
    "Nuevo: «Ver con datos de ejemplo», en la ventana de inicio. Explora ASTRO con tomas y medidas de ejemplo (lights, calibración, apilados y los seis bloques de Ciencia) sin tocar tus datos.",
