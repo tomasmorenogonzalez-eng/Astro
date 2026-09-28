@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.25.1",
+  "es": [
+   "Ventana: si la última vez cerraste ASTRO en una pantalla más grande (un monitor externo, por ejemplo), en el portátil se abría más ancha que la pantalla y todo salía desplazado y cortado. Ahora, si la ventana guardada no cabe en las pantallas conectadas, se abre ocupando la pantalla; en el Mac, solo la parte útil, sin la barra de menús ni el Dock.",
+   "La configuración se guarda de forma segura: si ASTRO se cierra de golpe mientras la escribe, ya no se pierde la carpeta de datos."
+  ],
+  "en": [
+   "Window: if you last closed ASTRO on a bigger screen (an external monitor, for example), on the laptop it opened wider than the screen and everything appeared shifted and cut off. Now, if the saved window doesn't fit on the connected screens, it opens filling the screen; on the Mac, just the usable area, without the menu bar or the Dock.",
+   "Settings are saved safely: if ASTRO closes suddenly while writing them, the data folder is no longer lost."
+  ],
+  "fr": [
+   "Fenêtre : si vous aviez fermé ASTRO sur un écran plus grand (un moniteur externe, par exemple), sur le portable elle s'ouvrait plus large que l'écran et tout apparaissait décalé et coupé. Désormais, si la fenêtre enregistrée ne tient pas sur les écrans branchés, elle s'ouvre en occupant l'écran ; sur Mac, seulement la zone utile, sans la barre des menus ni le Dock.",
+   "Les réglages sont enregistrés de façon sûre : si ASTRO se ferme brusquement pendant qu'il les écrit, le dossier de données n'est plus perdu."
+  ],
+  "de": [
+   "Fenster: Wenn du ASTRO zuletzt auf einem größeren Bildschirm geschlossen hattest (etwa einem externen Monitor), öffnete es sich auf dem Laptop breiter als der Bildschirm, und alles erschien verschoben und abgeschnitten. Passt das gespeicherte Fenster nicht auf die angeschlossenen Bildschirme, öffnet es sich jetzt bildschirmfüllend; auf dem Mac nur im nutzbaren Bereich, ohne Menüleiste und Dock.",
+   "Die Einstellungen werden sicher gespeichert: Wird ASTRO beim Schreiben plötzlich beendet, geht der Datenordner nicht mehr verloren."
+  ],
+  "it": [
+   "Finestra: se l'ultima volta avevi chiuso ASTRO su uno schermo più grande (un monitor esterno, per esempio), sul portatile si apriva più larga dello schermo e tutto appariva spostato e tagliato. Ora, se la finestra salvata non entra negli schermi collegati, si apre occupando lo schermo; sul Mac, solo l'area utile, senza la barra dei menu né il Dock.",
+   "Le impostazioni si salvano in modo sicuro: se ASTRO si chiude di colpo mentre le scrive, la cartella dei dati non si perde più."
+  ],
+  "pt": [
+   "Janela: se da última vez fechou o ASTRO num ecrã maior (um monitor externo, por exemplo), no portátil abria-se mais larga do que o ecrã e tudo aparecia deslocado e cortado. Agora, se a janela guardada não couber nos ecrãs ligados, abre-se a ocupar o ecrã; no Mac, só a área útil, sem a barra de menus nem a Dock.",
+   "As definições guardam-se de forma segura: se o ASTRO fechar de repente enquanto as escreve, a pasta de dados já não se perde."
+  ]
+ },
+ {
   "version": "0.25",
   "es": [
    "Apilado con pesos: Siril pondera cada toma por su ruido, como PixInsight, así que las de mejor señal cuentan más. Se puede desactivar en la ventana de apilar.",

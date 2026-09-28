@@ -77,8 +77,17 @@ def leer_config():
 
 
 def guardar_config(c):
-    with open(CONFIG, "w", encoding="utf-8") as f:
+    """Se escribe en un archivo aparte y luego se cambia por el bueno: si ASTRO se cierra de golpe a mitad de la
+    escritura, la configuración (la carpeta de datos, sobre todo) no se queda vacía."""
+    tmp = "%s.%d-%d.tmp" % (CONFIG, os.getpid(), threading.get_ident())
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(c, f, ensure_ascii=False, indent=1)
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            pass
+    os.replace(tmp, CONFIG)
 
 
 def carpeta_por_defecto():
@@ -1706,6 +1715,46 @@ def _guardar_geometria():
         pass
 
 
+def _pantallas_ventana(webview):
+    """Las pantallas conectadas ahora, como rectángulos (x, y, ancho, alto) en las coordenadas de pywebview:
+    desde la esquina de arriba a la izquierda de la pantalla principal, con la y hacia abajo."""
+    try:
+        ps = list(webview.screens)
+    except Exception:
+        return []
+    if ES_MAC and ps:
+        alto0 = ps[0].height                  # en el Mac las pantallas vienen con la y hacia arriba
+        return [(p.x, alto0 - (p.y + p.height), p.width, p.height) for p in ps]
+    return [(p.x, p.y, p.width, p.height) for p in ps]
+
+
+def _geometria_cabe(webview, x, y, ancho, alto, margen=12):
+    """La ventana guardada cabe entera en alguna de las pantallas conectadas ahora. Si se guardó en un monitor
+    más grande que ya no está (o en otra posición), no cabe: abrirla así la dejaría cortada o fuera de la vista."""
+    if not (ES_MAC or ES_WIN or os.environ.get("ASTRO_VENTANA_LINUX") == "1"):
+        return True
+    if x is None or y is None:
+        return False
+    for px, py, pw, ph in _pantallas_ventana(webview):
+        if px - margen <= x and x + ancho <= px + pw + margen and py - margen <= y and y + alto <= py + ph + margen:
+            return True
+    return False
+
+
+def _pantalla_util_mac():
+    """(x, y, ancho, alto) de la parte útil de la pantalla principal del Mac, sin la barra de menús ni el Dock, en
+    las coordenadas de pywebview. El «maximizar» de pywebview ocupa la pantalla entera y, como el Mac no deja la
+    ventana debajo de la barra de menús, la parte de abajo se quedaba fuera."""
+    try:
+        import AppKit
+        s = AppKit.NSScreen.mainScreen() or AppKit.NSScreen.screens()[0]
+        f, v = s.frame(), s.visibleFrame()
+        return (int(v.origin.x - f.origin.x), int(f.size.height - (v.origin.y - f.origin.y) - v.size.height),
+                int(v.size.width), int(v.size.height))
+    except Exception:
+        return None
+
+
 def _ventana_a_prueba():
     """Seguro por si la ventana propia no llega a abrirse en algún ordenador (el motor web se cierra de golpe
     o no carga): se apunta el intento antes de abrirla y se borra en cuanto la ventana muestra la primera
@@ -1738,10 +1787,17 @@ def main_ventana(webview):
     builtins.ASTRO_DIALOGOS = {"carpeta": _dlg_carpeta, "archivo": _dlg_archivo, "abrir_url": _abrir_url_externa}
     geo = leer_config().get("ventana_geo") or {}
     maxim = geo.get("max", True) if geo else True           # la primera vez, a toda la pantalla
+    ancho, alto = int(geo.get("w") or 1280), int(geo.get("h") or 860)
+    if not maxim and not _geometria_cabe(webview, geo.get("x"), geo.get("y"), ancho, alto):
+        print("La ventana guardada (%s×%s en %s, %s) no cabe en las pantallas de ahora: se abre a toda la pantalla" % (ancho, alto, geo.get("x"), geo.get("y")))
+        maxim = True
     VENTANA_APP["max"] = maxim
-    opciones = dict(width=int(geo.get("w") or 1280), height=int(geo.get("h") or 860), min_size=(900, 620),
+    opciones = dict(width=ancho, height=alto, min_size=(900, 620),
                     background_color="#F5F4F7", text_select=True, maximized=maxim, confirm_close=True, js_api=ApiVentana())
-    if geo.get("x") is not None and not maxim:
+    util = _pantalla_util_mac() if (ES_MAC and maxim) else None
+    if util:                                                # en el Mac, «a toda la pantalla» es la parte útil de la pantalla
+        opciones.update(x=util[0], y=util[1], width=max(900, util[2]), height=max(620, util[3]), maximized=False)
+    elif geo.get("x") is not None and not maxim:
         opciones.update(x=int(geo["x"]), y=int(geo["y"]))
     w = webview.create_window("ASTRO", url_app("/espera"), **opciones)
     VENTANA_APP["w"] = w
