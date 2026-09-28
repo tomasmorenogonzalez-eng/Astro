@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.23",
+  "es": [
+   "Archivo: cada proyecto tiene su estado (por analizar, en curso, apilado o por volver a apilar si hay tomas nuevas) y puedes darlo por terminado o dejarlo en pausa: así deja de salir en los planes de la noche.",
+   "Archivo: pestañas nuevas «Sesiones» (cada noche, con qué equipo y qué proyectos) y «Equipos», y en cada proyecto sus sesiones noche a noche, con su calidad y su calibración.",
+   "Indicadores de calidad: nitidez, redondez, estrellas, fondo, ruido y SNR de las estrellas, en la ficha de cada toma y en gráficas por sesión, con lo que mide cada uno y por qué el límite está ahí. Una toma con menos de la mitad de SNR que su sesión se marca como rechazable.",
+   "Apilar y procesar van por separado: primero los masters lineales y después la vista previa revelada, que es solo para ver cómo va."
+  ],
+  "en": [
+   "Archive: each project has a status (to analyse, in progress, stacked, or needs restacking when there are new frames) and you can mark it finished or on hold, so it no longer shows up in the night plans.",
+   "Archive: new «Sessions» (each night, with which setup and which projects) and «Setups» tabs, and each project shows its sessions night by night, with their quality and calibration.",
+   "Quality indicators: sharpness, roundness, stars, background, noise and star SNR, in each frame's panel and as charts per session, with what each one measures and why the limit sits there. A frame with less than half its session's SNR is rejected.",
+   "Stacking and processing are now separate: first the linear masters, then the developed preview, which is only there to see how it's going."
+  ],
+  "fr": [
+   "Archives : chaque projet a son état (à analyser, en cours, empilé ou à réempiler s'il y a de nouvelles poses) et vous pouvez le marquer comme terminé ou le mettre en pause : il n'apparaît alors plus dans les plans de la nuit.",
+   "Archives : nouveaux onglets « Sessions » (chaque nuit, avec quel équipement et quels projets) et « Équipements », et dans chaque projet ses sessions nuit par nuit, avec leur qualité et leur calibration.",
+   "Indicateurs de qualité : netteté, rondeur, étoiles, fond, bruit et SNR des étoiles, dans la fiche de chaque pose et en graphiques par session, avec ce que mesure chacun et pourquoi la limite est là. Une pose avec moins de la moitié du SNR de sa session est rejetée.",
+   "Empiler et traiter sont séparés : d'abord les masters linéaires, puis l'aperçu développé, qui sert seulement à voir où vous en êtes."
+  ],
+  "de": [
+   "Archiv: Jedes Projekt hat seinen Status (zu analysieren, in Arbeit, gestackt oder neu zu stacken, wenn neue Aufnahmen da sind), und du kannst es als abgeschlossen markieren oder pausieren; dann erscheint es nicht mehr in den Nachtplänen.",
+   "Archiv: neue Reiter „Sitzungen“ (jede Nacht, mit welchem Setup und welchen Projekten) und „Setups“, und in jedem Projekt seine Sitzungen Nacht für Nacht, mit Qualität und Kalibrierung.",
+   "Qualitätsindikatoren: Schärfe, Rundheit, Sterne, Hintergrund, Rauschen und Stern-SNR, im Datenblatt jeder Aufnahme und als Diagramme pro Sitzung, mit dem, was jeder misst, und warum die Grenze dort liegt. Eine Aufnahme mit weniger als der Hälfte des SNR ihrer Sitzung wird aussortiert.",
+   "Stacken und Bearbeiten sind getrennt: zuerst die linearen Masters, dann die entwickelte Vorschau, die nur zeigt, wie es läuft."
+  ],
+  "it": [
+   "Archivio: ogni progetto ha il suo stato (da analizzare, in corso, impilato o da reimpilare se ci sono pose nuove) e puoi segnarlo come finito o metterlo in pausa: così non compare più nei piani della notte.",
+   "Archivio: nuove schede «Sessioni» (ogni notte, con quale configurazione e quali progetti) e «Configurazioni», e in ogni progetto le sue sessioni notte per notte, con qualità e calibrazione.",
+   "Indicatori di qualità: nitidezza, rotondità, stelle, fondo, rumore e SNR delle stelle, nella scheda di ogni posa e in grafici per sessione, con cosa misura ciascuno e perché il limite sta lì. Una posa con meno della metà dell'SNR della sua sessione viene scartata.",
+   "Impilare ed elaborare sono separati: prima i master lineari e poi l'anteprima sviluppata, che serve solo a vedere come va."
+  ],
+  "pt": [
+   "Arquivo: cada projeto tem o seu estado (por analisar, em curso, empilhado ou por voltar a empilhar se há exposições novas) e pode dá-lo por terminado ou deixá-lo em pausa: assim deixa de aparecer nos planos da noite.",
+   "Arquivo: separadores novos «Sessões» (cada noite, com que equipamento e que projetos) e «Equipamentos», e em cada projeto as suas sessões noite a noite, com a qualidade e a calibração.",
+   "Indicadores de qualidade: nitidez, redondeza, estrelas, fundo, ruído e SNR das estrelas, na ficha de cada exposição e em gráficos por sessão, com o que mede cada um e porque é que o limite está ali. Uma exposição com menos de metade da SNR da sua sessão é rejeitada.",
+   "Empilhar e processar estão separados: primeiro os masters lineares e depois a pré-visualização revelada, que serve só para ver como vai."
+  ]
+ },
+ {
   "version": "0.22",
   "es": [
    "ASTRO se abre en su propia ventana, a pantalla completa y sin navegador: el inicio, las tomas, la biblioteca de calibración y Ciencia van todos en la misma ventana.",
