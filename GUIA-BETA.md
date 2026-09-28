@@ -9,7 +9,7 @@ Un programa gratuito para astrofotografía que:
 - **organiza tu biblioteca de calibración** (bias, darks, flats) y te dice **qué te falta**, con la lista para la ASIAIR o una **secuencia lista para N.I.N.A.**;
 - **apila con Siril** (gratuito) cada objeto por filtros y te deja una **vista previa ya revelada** (y las combinaciones RGB, LRGB, SHO o HOO), lista para abrir en GIMP, Photoshop o PixInsight.
 
-Funciona en **Mac** y **Windows**, en español e inglés.
+Funciona en **Mac** y **Windows**, en español, inglés, francés, alemán, italiano y portugués.
 
 ## Instalación (2 minutos)
 1. Descarga el archivo de tu ordenador desde la página de descarga (**Releases**).
@@ -61,7 +61,7 @@ La beta durará unos **3 meses**. Todas las mejoras te llegarán solas al abrir 
 
 Thank you for testing ASTRO! This is a **test version**: it may have bugs, and that's exactly why I need you.
 
-**What it is:** free astrophotography software that checks your light frames (stars, satellite trails, clouds, defocus), organises your calibration library (bias, darks, flats), tells you **what you're missing** (with a ready-made **N.I.N.A. sequence**) and **stacks with Siril**, leaving a **ready-developed preview** (plus RGB, LRGB, SHO or HOO combinations) you can open in GIMP, Photoshop or PixInsight. Mac and Windows, Spanish and English.
+**What it is:** free astrophotography software that checks your light frames (stars, satellite trails, clouds, defocus), organises your calibration library (bias, darks, flats), tells you **what you're missing** (with a ready-made **N.I.N.A. sequence**) and **stacks with Siril**, leaving a **ready-developed preview** (plus RGB, LRGB, SHO or HOO combinations) you can open in GIMP, Photoshop or PixInsight. Mac and Windows, in Spanish, English, French, German, Italian and Portuguese.
 
 **Install:** download the file for your computer from **Releases** and **double-click it**. ASTRO installs and updates itself. Only the first time, allow it: **Mac** → *System Settings → Privacy & Security → Open Anyway*; **Windows** → *More info → Run anyway*. Install **Siril** (siril.org) to stack.
 
