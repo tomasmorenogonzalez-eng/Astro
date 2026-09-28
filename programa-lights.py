@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.21"
+VERSION_PROG = "2026.09.29.22"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -135,7 +135,7 @@ DIC_EN.update({"Registros de la ASIAIR": "ASIAIR logs", "Los registros de la ASI
 DIC_EN.update({"Indicadores de calidad": "Quality indicators", "Gradiente": "Gradient"})
 DIC_EN.update({"Dar más peso a las tomas con mejor señal": "Give more weight to the frames with the best signal", "Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.": "Siril weights each frame by its noise, as PixInsight does: a frame with half the SNR of the rest counts for a quarter, not the same as them."})
 DIC_EN.update({"Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "All your projects over the years: how many hours you have, what's missing and how to carry on", "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "All your projects over the years: index the folders, see how they're going, then analyse, clean up and stack each one", "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indexed from the Archive: not analysed yet. Analyse it from its project, in the Archive.", "Ya se está indexando otra carpeta.": "Another folder is already being indexed."})      # Archivo
-DIC_EN.update({"Parpadeo": "Blink", "Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas": "Shows the frames in view one after another, aligned, to catch satellites, clouds or trailed stars", "Anterior (←)": "Previous (←)", "Reproducir o parar (espacio)": "Play or stop (space)", "Siguiente (→)": "Next (→)", "Velocidad": "Speed", "# por segundo": "# per second", "Superpone cada toma a la de referencia del proyecto por sus estrellas, para que lo que se mueve salte a la vista": "Overlays each frame on the project's reference frame using its stars, so that anything that moves stands out", "Alinear": "Align", "Qué tomas pasar": "Which frames to show", "Con avisos o rechazables": "With warnings or rejected", "Fuera del apilado o descartadas": "Left out of the stack or discarded", "Cerrar (Esc)": "Close (Esc)", "Cada raya es una toma: verde, válida; amarilla, con avisos; roja, rechazable. Pulsa para ir a ella.": "Each line is a frame: green, valid; yellow, with warnings; red, rejected. Click to go to it.", "← → pasar · espacio: reproducir o parar · X: dentro o fuera del apilado · Supr o ⌫: descartar o recuperar · Esc: cerrar": "← → step through · space: play or stop · X: in or out of the stack · Del or ⌫: discard or restore · Esc: close"})   # el parpadeo
+DIC_EN.update({"Parpadeo": "Blink", "Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas": "Shows the frames in view one after another, aligned, to catch satellites, clouds or trailed stars", "Anterior (←)": "Previous (←)", "Reproducir o parar (espacio)": "Play or stop (space)", "Siguiente (→)": "Next (→)", "Velocidad": "Speed", "# por segundo": "# per second", "Superpone cada toma a la de referencia del proyecto por sus estrellas, para que lo que se mueve salte a la vista": "Overlays each frame on the project's reference frame using its stars, so that anything that moves stands out", "Alinear": "Align", "Qué tomas pasar": "Which frames to show", "Con avisos o rechazables": "With warnings or rejected", "Fuera del apilado o descartadas": "Left out of the stack or discarded", "Cerrar (Esc)": "Close (Esc)", "Cada raya es una toma: verde, válida; amarilla, con avisos; roja, rechazable. Pulsa para ir a ella.": "Each line is a frame: green, valid; yellow, with warnings; red, rejected. Click to go to it.", "← → pasar · espacio: reproducir o parar · X: dentro o fuera del apilado · Supr o ⌫: descartar o recuperar · Esc: cerrar": "← → step through · space: play or stop · X: in or out of the stack · Del or ⌫: discard or restore · Esc: close", "# tomas fuera del apilado": "# frames left out of the stack", "# tomas vuelven al apilado": "# frames go back into the stack", "1 toma vuelve al apilado": "1 frame goes back into the stack"})   # el parpadeo
 
 
 def idioma_actual():
@@ -966,6 +966,14 @@ table.arcSes{min-width:900px} table.arcSes td{vertical-align:top}
 tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowrap}
 .arcSesObj{margin:0 0 4px} .arcSesObj .chips{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle} .arcSesObj a{font-weight:700;color:var(--text)}
 .arcH{margin:22px 0 8px;font-size:17px}
+.hist{position:relative;margin:4px 0 10px}
+.hist::before{content:"";position:absolute;left:115px;top:10px;bottom:10px;width:2px;background:var(--line2)}
+.histI{display:grid;grid-template-columns:100px 12px 1fr;gap:10px;align-items:start;padding:5px 0}
+.histF{color:var(--muted);font-size:12.5px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;padding-top:1px}
+.histP{width:12px;height:12px;border-radius:50%;margin-top:3px;background:var(--surface);border:2px solid var(--accent);position:relative;box-sizing:border-box}
+.histP.noche{background:var(--accent)} .histP.ok{border-color:var(--ok);background:var(--ok)} .histP.aviso{border-color:var(--warn)} .histP.mal{border-color:var(--bad)}
+.histT{font-size:13.5px;line-height:1.5} .histT .fchip{font-size:11.5px}
+@media (max-width:600px){ .histI{grid-template-columns:78px 12px 1fr;gap:8px} .hist::before{left:91px} }
 .indBloque{background:var(--surface2);border-radius:12px;padding:10px 12px;margin:0 0 12px}
 .indBloque h3{margin:0 0 6px;font-size:14px}
 .indFila{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,.9fr) auto;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--line);font-size:13.5px}
@@ -2608,8 +2616,8 @@ async function aplicarLimites(obj, lim){
   }
   try {
     const x = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({objeto:obj, limites: vacio ? null : {u:lim.u, fwhm:lim.fwhm || null, ecc:lim.ecc || null, peso:lim.peso || null}})})).json();
-    ARC.limites = x.limites || {};
+      body:JSON.stringify({objeto:obj, limites: vacio ? null : {u:lim.u, fwhm:lim.fwhm || null, ecc:lim.ecc || null, peso:lim.peso || null}, fuera: vacio ? vuelven : ids.size})})).json();
+    ARC.limites = x.limites || {}; if (ARC.hist) delete ARC.hist[obj];
   } catch(e){ toast(tr(String(e.message || e))); }
   while (saving) await new Promise(res => setTimeout(res, 120));
   await saveDb(); render();
@@ -3066,11 +3074,12 @@ async function discard(list){
   if (list.length>1 && !confirm(`¿Descartar ${list.length} lights? Se mueven a la carpeta _Descartadas (se pueden recuperar).`)) return;
   let moved = 0;
   for (const f of list){ if (f.path && !f.path.startsWith("_Descartadas/")){ try { await moveOnDisk(f, "_Descartadas/"+f.path); moved++; } catch(e){ toast("No se pudo mover "+f.name); } } f.discarded = true; }
+  historialTomas(list, "descartadas");
   evaluateAll(); scheduleSave(); render(); toast(`${list.length} descartadas${moved?" · "+moved+" movidas a _Descartadas":""}`);
 }
 async function restore(f){
   if (f.path && f.path.startsWith("_Descartadas/")){ try { await moveOnDisk(f, f.path.slice("_Descartadas/".length)); } catch(e){ toast("No se pudo mover "+f.name); } }
-  f.discarded = false; evaluateAll(); scheduleSave(); render(); toast("Recuperada");
+  f.discarded = false; historialTomas([f], "recuperadas"); evaluateAll(); scheduleSave(); render(); toast("Recuperada");
 }
 function closePanel(){ selected = null; $("panel").classList.remove("open"); document.querySelectorAll("tr.sel").forEach(t=>t.classList.remove("sel")); }
 
@@ -3571,11 +3580,98 @@ async function arcCargarProyectos(forzar){
   finally { ARC.apilCargando = false; }
   if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto();
 }
+/* --- historial del proyecto: cada noche (por sus tomas), cada apilado (por sus carpetas) y lo que se ha ido haciendo
+   (estado, límites, tomas fuera o descartadas, análisis, cambios de nombre y de calibración), que apunta el servidor --- */
+function registrarHistorial(obj, tipo, datos){
+  obj = (obj || "").trim(); if (!obj) return;
+  api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, historial:Object.assign({tipo}, datos || {})})})
+    .then(() => { if (ARC.hist) delete ARC.hist[obj]; if (VISTA_ACTUAL === "proyecto" && ARC.proyecto === obj) renderProyecto(); }).catch(() => {});
+}
+function historialTomas(lista, tipo, extra){
+  for (const [obj, l] of groupBy(lista.filter(f => (f.object || "").trim()), f => f.object.trim()))
+    registrarHistorial(obj, tipo, Object.assign({n: l.length, noches: [...new Set(l.map(f => f.night).filter(Boolean))].sort().slice(0, 20)}, extra || {}));
+}
+function textoNochesHist(ns){
+  if (!ns || !ns.length) return "";
+  return ns.length <= 3 ? ns.map(fechaDia).join(", ") : trLT("de {1} noches", "from {1} nights", nfmt(ns.length));
+}
+function textoEventoHist(e){
+  // [etiqueta, texto, clase del punto]
+  const n = nfmt(e.n || 0), uno = e.n === 1, noches = textoNochesHist(e.noches), conNoches = t => noches ? t + " (" + noches + ")" : t;
+  switch (e.tipo){
+    case "estado": return [trLT("Estado", "Status"), e.estado === "terminado" ? trLT("Lo diste por terminado", "You marked it finished")
+      : e.estado === "pausa" ? trLT("Lo pusiste en pausa", "You put it on hold") : trLT("Lo retomaste", "You picked it up again"), "evento"];
+    case "limites": {
+      const l = e.limites;
+      if (!l) return [trLT("Límites", "Limits"), trLT("Quitaste los límites del proyecto", "You removed the project limits") + (e.fuera ? " · " + (e.fuera === 1 ? trLT("vuelve 1 toma al apilado", "1 frame goes back into the stack")
+        : trLT("vuelven {1} tomas al apilado", "{1} frames go back into the stack", nfmt(e.fuera))) : ""), "evento"];
+      const d = [l.fwhm ? "FWHM ≤ " + numEs(l.fwhm, 2) + (l.u === "arcsec" ? "″" : " px") : "", l.ecc ? trLT("alargamiento ≤ {1}", "elongation ≤ {1}", numEs(l.ecc, 2)) : "",
+                 l.peso ? trLT("peso ≥ {1}", "weight ≥ {1}", numEs(l.peso, 2)) : ""].filter(Boolean).join(", ");
+      return [trLT("Límites", "Limits"), d + (e.fuera != null ? " · " + (e.fuera === 1 ? trLT("1 toma fuera del apilado", "1 frame left out of the stack")
+        : trLT("{1} tomas fuera del apilado", "{1} frames left out of the stack", nfmt(e.fuera))) : ""), "evento"];
+    }
+    case "union": return [trLT("Nombre", "Name"), trLT("Se le unieron las tomas de {1}", "The frames of {1} were merged into it", listaNombresTxt(e.nombres || [])), "evento"];
+    case "nombre": return [trLT("Nombre", "Name"), trLT("Antes se llamaba {1}", "It used to be called {1}", listaNombresTxt(e.nombres || [])), "evento"];
+    case "fuera": return [trLT("Tomas", "Frames"), conNoches(e.fuera === false ? (uno ? trLT("1 toma vuelve al apilado", "1 frame goes back into the stack") : trLT("{1} tomas vuelven al apilado", "{1} frames go back into the stack", n))
+      : uno ? trLT("1 toma fuera del apilado", "1 frame left out of the stack") : trLT("{1} tomas fuera del apilado", "{1} frames left out of the stack", n)), "evento"];
+    case "descartadas": return [trLT("Tomas", "Frames"), conNoches(uno ? trLT("1 toma descartada", "1 frame discarded") : trLT("{1} tomas descartadas", "{1} frames discarded", n)), "mal"];
+    case "recuperadas": return [trLT("Tomas", "Frames"), conNoches(uno ? trLT("1 toma recuperada", "1 frame restored") : trLT("{1} tomas recuperadas", "{1} frames restored", n)), "evento"];
+    case "analisis": return [trLT("Análisis", "Analysis"), (uno ? trLT("1 toma analizada", "1 frame analysed") : trLT("{1} tomas analizadas", "{1} frames analysed", n)) +
+      (e.errores ? " · " + trLT("{1} no se han podido leer", "{1} could not be read", nfmt(e.errores)) : ""), "evento"];
+    case "calibracion": {
+      if (!e.sin_dark && !e.sin_flat) return [trLT("Calibración", "Calibration"), trLT("Completa: todas las tomas tienen dark y flat", "Complete: every frame has a dark and a flat"), "ok"];
+      const p = [e.sin_dark ? (e.sin_dark === 1 ? trLT("1 toma sin dark", "1 frame without a dark") : trLT("{1} tomas sin dark", "{1} frames without a dark", nfmt(e.sin_dark))) : "",
+                 e.sin_flat ? (e.sin_flat === 1 ? trLT("1 toma sin flat", "1 frame without a flat") : trLT("{1} tomas sin flat", "{1} frames without a flat", nfmt(e.sin_flat))) : ""].filter(Boolean);
+      return [trLT("Calibración", "Calibration"), p.join(" · ") + (e.noches_sin ? " (" + nNoches(e.noches_sin) + ")" : ""), "aviso"];
+    }
+  }
+  return null;
+}
+function htmlHistorial(obj, fl, ap){
+  if (!ARC.hist) ARC.hist = {};
+  if (!ARC.hist[obj]){
+    ARC.hist[obj] = {cargando:true, eventos:[]};
+    api("/api/archivo/historial?objeto=" + encodeURIComponent(obj)).then(r => r.json())
+      .then(x => { ARC.hist[obj] = {eventos: x.eventos || []}; if (VISTA_ACTUAL === "proyecto" && ARC.proyecto === obj) renderProyecto(); })
+      .catch(() => { ARC.hist[obj] = {eventos: []}; });
+  }
+  const it = [];
+  // las noches, por sus tomas
+  const variosEq = new Set(fl.map(f => [f.tel, f.cam].filter(Boolean).join(" · "))).size > 1;
+  for (const [n, l] of groupBy(fl.filter(f => f.night), f => f.night)){
+    const ok = l.filter(esUtil), an = l.filter(f => f.status !== "na"), fil = [...new Set(l.map(f => f.filter || "SIN_FILTRO"))].sort(ordenFiltros);
+    const fa = med(ok.map(f => fwhmEn(f, "arcsec"))), fp = fa ? null : med(ok.map(f => f.fwhm));
+    const eq = variosEq ? [...new Set(l.map(f => [f.tel, f.cam].filter(Boolean).join(" · ")))].join(", ") : "";
+    it.push({f: n, o: "0", et: trLT("Noche", "Night"), cls: "noche",
+      t: esc(trLT("{1} tomas, {2} útiles", "{1} frames, {2} usable", nfmt(l.length), fmtH(horasDe(ok)))) + " · " +
+         fil.map(fi => `<span class="fchip notr" style="--c:${COLOR_FILTRO(fi)}">${esc(nomFiltro(fi))}</span>`).join(" ") +
+         (an.length ? " · " + esc(trLT("{1} % válidas", "{1}% valid", Math.round(100 * an.filter(f => f.status !== "bad").length / an.length))) : " · " + esc(trLT("sin analizar", "not analysed"))) +
+         (fa ? ` · FWHM ${esc(numEs(fa, 1))}″` : fp ? ` · FWHM ${esc(numEs(fp, 1))} px` : "") + (eq ? ` · <span class="notr">${esc(eq)}</span>` : "")});
+  }
+  // los apilados
+  for (const a of ap || []){
+    const fecha = String(a.fecha || "").slice(0, 10); if (!/^\d{4}-\d\d-\d\d$/.test(fecha)) continue;
+    it.push({f: fecha, o: "2" + String(a.fecha).slice(11), et: trLT("Apilado", "Stacked"), cls: "ok",
+      t: esc((a.tomas ? trLT("{1} tomas, {2} en {3}", "{1} frames, {2} in {3}", nfmt(a.tomas), fmtH(a.horas || 0), (a.filtros || []).map(nomFiltro).join(", "))
+              : (a.filtros || []).map(nomFiltro).join(", ")) + (a.ponderado ? " · " + trLT("con pesos", "weighted") : ""))});
+  }
+  // lo que se ha ido haciendo
+  (ARC.hist[obj].eventos || []).forEach((e, i) => {
+    const x = textoEventoHist(e); if (!x) return;
+    it.push({f: String(e.fecha || "").slice(0, 10), o: "1" + String(e.fecha || "").slice(11) + String(i).padStart(4, "0"), et: x[0], cls: x[2], t: esc(x[1])});
+  });
+  if (!it.length) return "";
+  it.sort((a, b) => b.f.localeCompare(a.f) || b.o.localeCompare(a.o));
+  const vis = ARC.histTodo === obj ? it : it.slice(0, 12);
+  return `<h3 class="arcH">${esc(trLT("Historial", "History"))} <span class="note">${esc(trLT("{1} anotaciones", "{1} entries", nfmt(it.length)))}</span></h3>
+    <div class="hist">${vis.map(x => `<div class="histI"><span class="histF">${esc(fechaDia(x.f))}</span><span class="histP ${x.cls}"></span><div class="histT"><b>${esc(x.et)}</b> · ${x.t}</div></div>`).join("")}</div>
+    ${it.length > vis.length ? `<button class="btn small" data-arc-acc="historial">${esc(trLT("Ver todo el historial", "Show the whole history"))}</button>` : ""}`;
+}
 function estadoManual(obj){ try { return ((ARC.estados || {})[obj] || {}).estado || ""; } catch(_){ return ""; } }
 async function arcPonerEstado(obj, estado){
   try {
     const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, estado})})).json();
-    ARC.estados = r.estados || {}; ARC.apil = r.apilados || ARC.apil; ARC.limites = r.limites || ARC.limites;
+    ARC.estados = r.estados || {}; ARC.apil = r.apilados || ARC.apil; ARC.limites = r.limites || ARC.limites; if (ARC.hist) delete ARC.hist[obj];
   } catch(e){ return toast(tr(String(e.message || e))); }
   toast(estado === "terminado" ? trLT("Proyecto terminado: ya no sale en lo que falta ni en los planes de la noche", "Project finished: it no longer shows up in what's left or in the night plans")
       : estado === "pausa" ? trLT("Proyecto en pausa: no sale en los planes de la noche hasta que lo retomes", "Project on hold: it won't show up in the night plans until you pick it up again")
@@ -4048,6 +4144,7 @@ function renderProyecto(){
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th><th></th></tr></thead><tbody>${filasS}</tbody></table></div>
     ${ksS.length > visS.length ? `<div style="margin-top:8px"><button class="btn small" id="arcSesProyMas">${esc(trLT("Ver todas las noches", "Show all nights"))}</button></div>` : ""}`;
   try { h += htmlEncuadre(obj); } catch(e){ console.error(e); }
+  try { h += htmlHistorial(obj, fl, ap); } catch(e){ console.error(e); }
   el.innerHTML = h;
   el.querySelectorAll("[data-arc-acc]").forEach(b => b.onclick = () => arcAccion(b.dataset.arcAcc, obj));
   el.querySelectorAll("[data-arc-noche]").forEach(b => b.onclick = () => { const n = b.dataset.arcNoche;
@@ -4062,6 +4159,7 @@ function arcAccion(a, obj){
   if (a === "parar"){ ARC.parar = true; return; }
   if (a === "tomas"){ filters.object = new Set([obj]); mostrarVista("tomas"); render(); return; }
   if (a === "criterio") return abrirCriterio(obj);
+  if (a === "historial"){ ARC.histTodo = obj; return renderProyecto(); }
   if (a === "parpadeo") return abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj), obj);
   if (a === "indicadores") return abrirIndicadores(obj, "*");
   if (a === "calenviar") return arcEnviarCalibracion();
@@ -4168,6 +4266,7 @@ async function analizarProyecto(obj){
     await esperar(0);
   }
   const x = ARC.analizando; ARC.analizando = null;
+  if (x.hechas) registrarHistorial(obj, "analisis", {n: x.hechas, errores: x.errores});
   evaluateAll(); const nl = limitesNuevas(lista.filter(f => f.starCount != null)); await saveDb(); render();
   toast((x.errores ? trLT("{1} tomas analizadas · {2} no se han podido leer (¿está conectado el disco?)", "{1} frames analysed · {2} could not be read (is the disk connected?)", nfmt(x.hechas), nfmt(x.errores))
                    : trLT("{1} tomas analizadas", "{1} frames analysed", nfmt(x.hechas))) + (nl ? " · " + trLT("{1} fuera del apilado por los límites del proyecto", "{1} left out of the stack by the project limits", nl) : ""));
@@ -6336,15 +6435,16 @@ async function cargarNoUnir(){
   catch(_){ ARC.noUnir = new Set(); }
 }
 async function unirObjetos(lista, dest){
-  // todas las tomas pasan al nombre que queda; su objetivo de horas, su estado y sus límites también, si ese nombre no tiene
+  // todas las tomas pasan al nombre que queda; su objetivo de horas, su estado, sus límites y su historial también
   const otros = lista.filter(x => x !== dest); let n = 0;
+  const tipo = frames.some(f => (f.object || "").trim() === dest) ? "union" : "nombre";
   for (const x of otros) n += renombrarObjeto(x, dest);
   let cambio = false;
   for (const x of otros) if (OBJETIVOS[x]){ if (!OBJETIVOS[dest]) OBJETIVOS[dest] = OBJETIVOS[x]; delete OBJETIVOS[x]; cambio = true; }
   if (cambio) api("/api/objetivos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(OBJETIVOS)}).catch(() => {});
   try {
-    const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({renombrar:{desde:otros, hacia:dest}})})).json();
-    ARC.estados = r.estados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []);
+    const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({renombrar:{desde:otros, hacia:dest, tipo}})})).json();
+    ARC.estados = r.estados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []); ARC.hist = {};
   } catch(_){}
   for (const x of otros) ENCUADRE_CACHE.delete(x);
   ENCUADRE_CACHE.delete(dest);
@@ -6407,8 +6507,8 @@ async function nombresVista(){
     nombresVista(); if (VISTA_ACTUAL === "archivo") renderArchivo(); });
   $("nmBody").querySelectorAll("[data-asig]").forEach(b=> b.onclick = ()=>{ const i=+b.dataset.asig, v=$("nmBody").querySelector(`input[data-sin="${i}"]`).value.trim(); if (!v) return toast("Escribe el objeto");
     const l = sesSin[i][1]; l.forEach(f=>f.object=v); hecho(l.length, `asignadas a «${v}»`); });
-  $("nmBody").querySelectorAll("[data-ren]").forEach(b=> b.onclick = ()=>{ const i=+b.dataset.ren, v=$("nmBody").querySelector(`input[data-nom="${i}"]`).value.trim(); if (!v || v===nombres[i]) return;
-    hecho(renombrarObjeto(nombres[i], v), `renombradas a «${v}»`); });
+  $("nmBody").querySelectorAll("[data-ren]").forEach(b=> b.onclick = async ()=>{ const i=+b.dataset.ren, v=$("nmBody").querySelector(`input[data-nom="${i}"]`).value.trim(); if (!v || v===nombres[i]) return;
+    hecho(await unirObjetos([nombres[i], v], v), `renombradas a «${v}»`); });
 }
 $("btnNombres").onclick = nombresVista;
 $("nmClose").onclick = ()=> $("namesBox").classList.remove("show");
@@ -6687,8 +6787,9 @@ function enlazarEvolucion(obj){
   if ($("evIncluirTodas")) $("evIncluirTodas").onclick = () => cambiarFuera(obj, l.filter(x=>x.fuera).flatMap(x=>x.ids), false);
 }
 async function cambiarFuera(obj, ids, fuera, despues){
-  const set = new Set(ids); let n = 0;
-  for (const f of frames) if (set.has(f.id) && (!!f.fuera) !== fuera){ if (fuera) f.fuera = true; else delete f.fuera; n++; }
+  const set = new Set(ids); let n = 0; const cambiadas = [];
+  for (const f of frames) if (set.has(f.id) && (!!f.fuera) !== fuera){ if (fuera) f.fuera = true; else delete f.fuera; n++; cambiadas.push(f); }
+  historialTomas(cambiadas, "fuera", {fuera});
   while (saving) await new Promise(r => setTimeout(r, 120));
   await saveDb(); render();
   toast(fuera ? (n === 1 ? "1 toma fuera del apilado" : `${n} tomas fuera del apilado`) : (n === 1 ? "1 toma vuelve al apilado" : `${n} tomas vuelven al apilado`));
@@ -9143,9 +9244,12 @@ def apilados_de(objeto):
     out = []
     for d in dirs[:20]:
         c = os.path.join(base, d)
-        _, lst = masters_apilado(c)
+        inf, lst = masters_apilado(c)
         if lst:
-            out.append({"carpeta": rel_apil(c), "fecha": d, "filtros": [f for f, _ in lst], "vista": leer_vista(c)})
+            fi = [f for f in (inf.get("filtros") or []) if isinstance(f, dict)]
+            out.append({"carpeta": rel_apil(c), "fecha": d, "filtros": [f for f, _ in lst], "vista": leer_vista(c),
+                        "tomas": sum(int(f.get("tomas") or 0) for f in fi), "horas": round(sum(float(f.get("exposicion_h") or 0) for f in fi), 2),
+                        "ponderado": any(f.get("ponderado") for f in fi)})
     return out
 
 
@@ -13333,7 +13437,32 @@ def archivo_calibracion():
     for x in res.values():
         x["noches_sin"] = len(x["noches_sin"])
     _ARC_CAL.update(clave=clave, res=res)
+    try:
+        _historial_calibracion(res)
+    except Exception as e:
+        print("historial de calibración:", e)
     return res
+
+
+def _historial_calibracion(res):
+    """Compara lo que le falta a cada proyecto con lo que le faltaba la última vez: si ha cambiado (ahora tiene sus
+    darks, le faltan flats de otra noche…), lo apunta en su historial. La primera vez solo se toma nota."""
+    with _HIST_LOCK:
+        v = leer_archivo_cfg()
+        foto = v.get("cal_foto") if isinstance(v.get("cal_foto"), dict) else {}
+        cambio = False
+        for obj, x in res.items():
+            ahora = [x["sin_dark"] > 0, x["sin_flat"] > 0, x["noches_sin"]]
+            antes = foto.get(obj)
+            if antes == ahora:
+                continue
+            if isinstance(antes, list):
+                _historial(v, obj, "calibracion", {"n": x["n"], "sin_dark": x["sin_dark"], "sin_flat": x["sin_flat"], "noches_sin": x["noches_sin"]})
+            foto[obj] = ahora
+            cambio = True
+        if cambio:
+            v["cal_foto"] = foto
+            guardar_archivo_cfg(v)
 
 
 def cobertura_calibracion(objeto):
@@ -13443,10 +13572,36 @@ def archivo_apilados():
 
 
 ESTADOS_PROYECTO = ("terminado", "pausa")
+TIPOS_HISTORIAL = ("estado", "limites", "union", "nombre", "fuera", "descartadas", "recuperadas", "analisis", "calibracion")
+_HIST_LOCK = threading.RLock()
+
+
+def _historial(v, obj, tipo, datos=None):
+    """Apunta un suceso en el historial del proyecto (dentro de archivo.json; se guarda con él)."""
+    if not obj or tipo not in TIPOS_HISTORIAL:
+        return
+    h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
+    lst = h.get(obj) if isinstance(h.get(obj), list) else []
+    e = {k: x for k, x in (datos or {}).items() if k not in ("tipo", "fecha") and isinstance(x, (int, float, str, bool, list, dict, type(None)))}
+    e.update(tipo=tipo, fecha=time.strftime("%Y-%m-%dT%H:%M"))
+    lst.append(e)
+    h[obj] = lst[-300:]
+    v["historial"] = h
+
+
+def archivo_historial(obj):
+    v = leer_archivo_cfg()
+    h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
+    return {"eventos": h.get(obj) if isinstance(h.get(obj), list) else []}
 
 
 def archivo_proyectos(d=None):
-    """Estados de los proyectos (los que pone el usuario: terminado o en pausa) y sus apilados."""
+    """Estados de los proyectos (los que pone el usuario: terminado o en pausa), sus límites y sus apilados."""
+    with _HIST_LOCK:
+        return _archivo_proyectos(d)
+
+
+def _archivo_proyectos(d=None):
     v = leer_archivo_cfg()
     est = v.get("estados") if isinstance(v.get("estados"), dict) else {}
     lim = v.get("limites") if isinstance(v.get("limites"), dict) else {}
@@ -13462,6 +13617,14 @@ def archivo_proyectos(d=None):
                         valor = dic.pop(x)
                         dic.setdefault(hacia, valor)
             v["estados"], v["limites"] = est, lim
+            h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
+            junto = list(h.get(hacia) or [])
+            for x in desde:
+                junto += [e for e in (h.pop(x, None) or []) if isinstance(e, dict)]
+            if junto:
+                h[hacia] = sorted(junto, key=lambda e: str(e.get("fecha") or ""))[-300:]
+            v["historial"] = h
+            _historial(v, hacia, "nombre" if d["renombrar"].get("tipo") == "nombre" else "union", {"nombres": desde})
             guardar_archivo_cfg(v)
         return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
     if d and isinstance(d.get("no_unir"), str):
@@ -13480,18 +13643,28 @@ def archivo_proyectos(d=None):
         if obj:
             if limpio:
                 lim[obj] = dict(limpio, u="arcsec" if l.get("u") == "arcsec" else "px", fecha=time.strftime("%Y-%m-%d"))
+                _historial(v, obj, "limites", {"limites": lim[obj], "fuera": d.get("fuera")})
             else:
+                if obj in lim:
+                    _historial(v, obj, "limites", {"limites": None, "fuera": d.get("fuera")})
                 lim.pop(obj, None)
             v["limites"] = lim
             guardar_archivo_cfg(v)
         return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
     if d:
         obj = str(d.get("objeto") or "").strip()
-        if obj:
+        if obj and isinstance(d.get("historial"), dict):
+            # lo que se hace desde la página (dejar fuera, descartar, analizar…): solo se apunta
+            _historial(v, obj, str(d["historial"].get("tipo") or ""), d["historial"])
+            guardar_archivo_cfg(v)
+        elif obj:
+            antes = (est.get(obj) or {}).get("estado", "")
             if d.get("estado") in ESTADOS_PROYECTO:
                 est[obj] = {"estado": d["estado"], "fecha": time.strftime("%Y-%m-%d")}
             else:
                 est.pop(obj, None)
+            if (est.get(obj) or {}).get("estado", "") != antes:
+                _historial(v, obj, "estado", {"estado": (est.get(obj) or {}).get("estado", ""), "antes": antes})
             v["estados"] = est
             guardar_archivo_cfg(v)
     return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
@@ -14580,6 +14753,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(archivo_calibracion(), ensure_ascii=False))
         if p.path == "/api/archivo/cobertura":
             return self._send(200, json.dumps(cobertura_calibracion(q.get("objeto", [""])[0]), ensure_ascii=False, default=str))
+        if p.path == "/api/archivo/historial":
+            return self._send(200, json.dumps(archivo_historial(q.get("objeto", [""])[0]), ensure_ascii=False))
         if p.path == "/api/archivo/proyectos":
             return self._send(200, json.dumps(archivo_proyectos(), ensure_ascii=False))
         if p.path == "/api/importar/estado":
