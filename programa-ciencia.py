@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.17"
+VERSION_PROG = "2026.09.29.19"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2062,7 +2062,7 @@ def vsx_objeto(nombre):
         return None
     return {"nombre": o.get("Name"), "auid": o.get("AUID") or "", "ra": _coord(o.get("RA2000"), False), "dec": _coord(o.get("Declination2000"), False),
             "tipo": o.get("VariabilityType") or "", "periodo": num(o.get("Period")), "max": o.get("MaxMag") or "", "min": o.get("MinMag") or "",
-            "constelacion": o.get("Constellation") or ""}
+            "constelacion": o.get("Constellation") or "", "epoca": num(o.get("Epoch")), "subida": num(o.get("RiseDuration"))}
 
 
 def _amplitud_vsx(mx, mn):
@@ -3822,6 +3822,907 @@ def zip_exo(sid, en=False):
                     z.writestr(n, sin_rutas(f.read()))
         z.writestr("curva.svg", svg_transito(serie, c, en))
     return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", pl["nombre"]), serie.get("noche") or serie["creada"][:10])
+
+
+# ═════════════════════════════ RR LYRAE: EL INSTANTE DEL MÁXIMO (PARA GEOS) ═════════════════════════════
+# Una RR Lyrae sube de brillo en menos de una hora y baja despacio: el máximo es un instante muy marcado que se puede
+# cronometrar con uno o dos minutos de error. Comparado con el previsto por sus elementos (O−C), delata cambios de
+# periodo y el efecto Blazhko. GEOS (Groupe Européen d'Observations Stellaires) reúne esos máximos en su base de
+# datos de RR Lyrae, en HJD.
+RR_DIR = os.path.join(ROOT, "RR Lyrae")
+FACTORES_RR = [1.0, 1.3, 1.6, 2.0, 2.5]           # aperturas, en FWHM de cada toma
+RR_VSX = "B/vsx/vsx"                                # el VSX de la AAVSO en VizieR (CDS): época del máximo en HJD
+RR_MARGEN_H = 1.5                                   # se observa hora y media antes y después del máximo previsto
+RR_VMAX_CATALOGO = 14.0
+_RE_GCVS = re.compile(r"^(V\d{3,4}|[A-Z]{1,2}) [A-Z][a-z]{2}$")
+GEOS_URL = "https://rr-lyr.irap.omp.eu/dbrr/"
+
+
+def _rr_falso():
+    ruta = os.environ.get("ASTRO_RR_FALSO")               # para las pruebas, sin Internet
+    return leer_json(ruta, None) if ruta else None
+
+
+def _fila_rr(f):
+    """Una RR Lyrae del VSX (tabla de VizieR): nombre, posición, tipo, brillo, época del máximo (HJD) y periodo."""
+    g = lambda *ks: next((f[k] for k in ks if k in f and f[k] not in ("", None)), None)
+    ra, dec = num(g("RAJ2000", "RAdeg", "ra")), num(g("DEJ2000", "DEdeg", "dec"))
+    e, p = num(g("Epoch", "epoca")), num(g("Period", "periodo"))
+    nombre = re.sub(r"\s+", " ", str(g("Name", "nombre") or "")).strip()
+    tipo = str(g("Type", "tipo") or "").strip()
+    if ra is None or dec is None or not e or not p or not nombre or not (0.15 <= p <= 1.2):
+        return None
+    if e < 100000:                                       # época abreviada (HJD − 2400000)
+        e += 2400000.0
+    mx, mn = num(g("max")), num(g("min"))
+    amp = None
+    if mn is not None:
+        amp = mn if str(g("f_min") or "").strip() == "(" else (round(mn - mx, 3) if mx is not None else None)
+    return {"nombre": nombre, "ra": ra, "dec": dec, "tipo": tipo, "epoca": e, "periodo": p, "max": mx,
+            "amplitud": amp if amp and 0 < amp < 3 else None, "banda": str(g("n_max") or "").strip(),
+            "gcvs": bool(_RE_GCVS.match(nombre)), "blazhko": "BL" in tipo.upper()}
+
+
+def rr_catalogo():
+    """Las RR Lyrae del VSX (la copia de VizieR) más brillantes que la magnitud 14 en el máximo, con su época y su
+    periodo. Se guarda un mes en el disco; sin conexión se usa la guardada, aunque sea más vieja."""
+    falso = _rr_falso()
+    if falso is not None:
+        return [x for x in (_fila_rr(f) for f in falso.get("lista") or []) if x]
+    os.makedirs(CATALOGOS, exist_ok=True)
+    ruta = os.path.join(CATALOGOS, "rrlyrae_vsx.json")
+    d = leer_json(ruta, None)
+    if d and time.time() - d.get("guardado", 0) < 30 * 86400:
+        return d["lista"]
+    cols = '"Name", "RAJ2000", "DEJ2000", "Type", "max", "n_max", "f_min", "min", "Epoch", "Period"'
+    tipos = "(\"Type\" LIKE 'RRAB%' OR \"Type\" LIKE 'RRC%' OR \"Type\" LIKE 'RRD%')"
+    adql = 'SELECT TOP 80000 %s FROM "%s" WHERE %s AND "max" < %.1f AND "Period" > 0.1 AND "Epoch" > 0' % (cols, RR_VSX, tipos, RR_VMAX_CATALOGO)
+    try:
+        filas = _tap(VIZIER_TAP, adql, timeout=240)
+    except Exception as e:
+        if d:
+            return d["lista"]
+        raise RuntimeError("No he podido descargar la lista de RR Lyrae del VSX (VizieR, CDS). ¿Hay conexión a Internet? %s" % e)
+    lista = [x for x in (_fila_rr(f) for f in filas) if x]
+    if not lista:
+        raise RuntimeError("VizieR no ha devuelto ninguna RR Lyrae: prueba otra vez dentro de un rato")
+    escribir_json(ruta, {"guardado": time.time(), "fecha": _dt.datetime.utcnow().strftime("%Y-%m-%d"), "fuente": "VSX (VizieR %s)" % RR_VSX,
+                         "consulta": adql, "lista": lista})
+    return lista
+
+
+def buscar_rr(nombre):
+    """Una RR Lyrae por su nombre, con sus elementos: primero en el VSX (datos al día) y, si allí falta la época o
+    el periodo, en la lista guardada de VizieR."""
+    nombre = re.sub(r"\s+", " ", (nombre or "").replace("_", " ")).strip()
+    nombre = re.sub(r"^(V\d{3,4}|[A-Z]{1,2})([A-Z][A-Za-z]{2})$", r"\1 \2", nombre)     # RRLyr → RR Lyr
+    if not nombre:
+        return None
+    falso = _rr_falso()
+    v = None
+    if falso is not None:
+        v = next((x for x in (falso.get("vsx") or []) if _slug(x.get("nombre")) == _slug(nombre)), None)
+    else:
+        try:
+            v = vsx_objeto(nombre)
+        except RuntimeError:
+            v = None
+    cat = None
+    if not v or not v.get("epoca") or not v.get("periodo"):
+        try:
+            cat = next((x for x in rr_catalogo() if _slug(x["nombre"]) == _slug(nombre)), None)
+        except RuntimeError:
+            cat = None
+    if not v and not cat:
+        return None
+    if v:
+        amp, brillo = _amplitud_vsx(v.get("max"), v.get("min"))
+        r = {"nombre": v["nombre"], "auid": v.get("auid") or "", "ra": v["ra"], "dec": v["dec"], "tipo": v.get("tipo") or "",
+             "periodo": v.get("periodo"), "epoca": v.get("epoca"), "max": v.get("max") or "", "min": v.get("min") or "",
+             "amplitud": amp, "brillo": brillo, "subida": v.get("subida"), "constelacion": v.get("constelacion") or "", "fuente": "VSX (AAVSO)"}
+        if cat and (not r["epoca"] or not r["periodo"]):
+            r.update(epoca=cat["epoca"], periodo=cat["periodo"], fuente="VSX (VizieR)")
+    else:
+        r = {"nombre": cat["nombre"], "auid": "", "ra": cat["ra"], "dec": cat["dec"], "tipo": cat["tipo"], "periodo": cat["periodo"],
+             "epoca": cat["epoca"], "max": "%.2f %s" % (cat["max"], cat["banda"]) if cat["max"] is not None else "", "min": "",
+             "amplitud": cat["amplitud"], "brillo": cat["max"], "subida": None, "constelacion": "", "fuente": "VSX (VizieR)"}
+    if r["epoca"] and r["epoca"] < 100000:
+        r["epoca"] += 2400000.0
+    r["rr"] = r["tipo"].upper().startswith("RR")
+    r["blazhko"] = "BL" in r["tipo"].upper()
+    return r
+
+
+def maximo_previsto(rr, hjd):
+    """(instante del máximo previsto más cercano, en HJD, y su número de ciclo desde la época)."""
+    n = round((hjd - rr["epoca"]) / rr["periodo"])
+    return rr["epoca"] + n * rr["periodo"], n
+
+
+def hjd_a_jd_utc(hjd, ra, dec):
+    """El JD (UTC) en que llega a la Tierra la luz de un instante dado en HJD (para enseñar horas de reloj)."""
+    jd = hjd
+    for _ in range(3):
+        f = _dt.datetime(1970, 1, 1) + _dt.timedelta(days=jd - 2440587.5)
+        jd += hjd - tiempos(f, ra, dec)["hjd_utc"]
+    return jd
+
+
+def maximos_proximos(lugar_id="", dias=3, vmax=12.0, alt_min=30.0, todos=False, solo_gcvs=True):
+    """Máximos de RR Lyrae de los próximos días que se ven desde un lugar con hora y media antes y después: la estrella
+    alta y el Sol más de 12° bajo el horizonte."""
+    lg = lugar_por_id(lugar_id)
+    if not lg or lg.get("lat") is None:
+        raise RuntimeError("elige un lugar con coordenadas (en «Próximas noches» del Control de lights)")
+    lat, lon = float(lg["lat"]), float(lg["lon"])
+    lista = rr_catalogo()
+    ahora = 2440587.5 + time.time() / 86400.0
+    fin = ahora + max(1, min(14, dias))
+    m = RR_MARGEN_H / 24.0
+    # las noches: el Sol cada 10 minutos (con un poco de margen a los lados)
+    paso = 10.0 / 1440
+    t0 = ahora - 2 * m
+    oscuro = []
+    t = t0
+    while t <= fin + 2 * m:
+        oscuro.append(luna_y_sol(t, lat, lon)["sol_alt"] <= -12)
+        t += paso
+
+    def de_noche(a, b):
+        i0, i1 = int(math.floor((a - t0) / paso)), int(math.ceil((b - t0) / paso))
+        return 0 <= i0 <= i1 < len(oscuro) and all(oscuro[i0:i1 + 1])
+
+    out = []
+    for s in lista:
+        if s["max"] is not None and s["max"] > vmax:
+            continue
+        if solo_gcvs and not s["gcvs"]:
+            continue
+        if s["dec"] < lat - 90 + alt_min or s["dec"] > lat + 90 - alt_min:        # nunca sube lo bastante
+            continue
+        P, E0 = s["periodo"], s["epoca"]
+        n = math.ceil((ahora - E0) / P)
+        while True:
+            T = E0 + n * P
+            n += 1
+            if T > fin + 0.01:
+                break
+            ancho = m if not todos else m / 2
+            if not de_noche(T - ancho - 0.006, T + ancho + 0.006):             # HJD y reloj difieren menos de 9 min
+                continue
+            tu = hjd_a_jd_utc(T, s["ra"], s["dec"])
+            if tu < ahora:
+                continue
+            completo = de_noche(tu - m, tu + m)
+            if not completo and not (todos and de_noche(tu - m / 2, tu + m / 2)):
+                continue
+            alts = [altura(s["ra"], s["dec"], x, lat, lon) for x in (tu - m, tu, tu + m)]
+            if min(alts) < alt_min:
+                if not todos or min(altura(s["ra"], s["dec"], x, lat, lon) for x in (tu - m / 2, tu, tu + m / 2)) < alt_min:
+                    continue
+                completo = False
+            ls = luna_y_sol(tu, lat, lon, s["ra"], s["dec"])
+            out.append({"estrella": s["nombre"], "tipo": s["tipo"], "periodo": round(P, 7), "max": s["max"], "banda": s["banda"],
+                        "amplitud": s["amplitud"], "blazhko": s["blazhko"], "gcvs": s["gcvs"], "maximo": _iso_jd(tu),
+                        "inicio": _iso_jd(tu - m), "fin": _iso_jd(tu + m), "hjd": round(T, 5), "alt": [round(a) for a in alts],
+                        "completo": completo, "luna_ilum": ls["luna_ilum"], "luna_sep": ls["luna_sep"],
+                        "epoca_anio": int(2000 + (E0 - 2451544.5) / 365.25), "ciclos": n - 1})
+    out.sort(key=lambda x: x["maximo"])
+    return {"lugar": lg.get("nombre", ""), "origen": "VSX (AAVSO), VizieR", "dias": dias, "estrellas": len(lista), "maximos": out[:500]}
+
+
+# ── El ajuste del máximo ──
+def _poli_ajuste(xs, ys, ws, grado):
+    """Coeficientes (de menor a mayor grado) del polinomio de mínimos cuadrados ponderados."""
+    n = grado + 1
+    S = [0.0] * (2 * grado + 1)
+    b = [0.0] * n
+    for x, y, w in zip(xs, ys, ws):
+        p = w
+        for k in range(2 * grado + 1):
+            S[k] += p
+            if k < n:
+                b[k] += p * y
+            p *= x
+    return _resolver([[S[j + k] for k in range(n)] for j in range(n)], b)
+
+
+def _poli(c, x):
+    v = 0.0
+    for a in reversed(c):
+        v = v * x + a
+    return v
+
+
+def _minimo_poli(c, xa, xb, pasos=1200):
+    """(x del mínimo del polinomio en [xa, xb], número de extremos en la parte central, si cae en un borde). El máximo
+    de brillo es el mínimo de la magnitud."""
+    xs = [xa + (xb - xa) * i / pasos for i in range(pasos + 1)]
+    vs = [_poli(c, x) for x in xs]
+    k = min(range(len(vs)), key=lambda i: vs[i])
+    lo, hi = xa + 0.1 * (xb - xa), xb - 0.1 * (xb - xa)
+    ext = sum(1 for i in range(1, pasos) if lo <= xs[i] <= hi and (vs[i] - vs[i - 1]) * (vs[i + 1] - vs[i]) < 0)
+    borde = k <= 2 or k >= pasos - 2
+    if borde:
+        return xs[k], ext, True
+    a, b = xs[k - 1], xs[k + 1]
+    r = (math.sqrt(5) - 1) / 2
+    c1, c2 = b - r * (b - a), a + r * (b - a)
+    f1, f2 = _poli(c, c1), _poli(c, c2)
+    for _ in range(50):
+        if f1 < f2:
+            b, c2, f2 = c2, c1, f1
+            c1 = b - r * (b - a)
+            f1 = _poli(c, c1)
+        else:
+            a, c1, f1 = c1, c2, f2
+            c2 = a + r * (b - a)
+            f2 = _poli(c, c2)
+    return (a + b) / 2, ext, False
+
+
+def _acf_longitud(r):
+    """Número de puntos seguidos que se parecen entre sí en los residuos (ruido correlacionado): el primer retardo
+    en el que la autocorrelación baja de 0,3."""
+    n = len(r)
+    m = sum(r) / n
+    v = sum((x - m) ** 2 for x in r) / n
+    if v <= 0:
+        return 1
+    for k in range(1, max(2, n // 4)):
+        c = sum((r[i] - m) * (r[i + k] - m) for i in range(n - k)) / (n * v)
+        if c < 0.3:
+            return k
+    return max(1, n // 4)
+
+
+def ajustar_maximo(ts, ms, es, periodo=None, amplitud=None, frac=None, grado=None, n_boot=300, semilla=7, lado_max=2.5, beta_comps=1.0):
+    """Instante del máximo de brillo de una curva de luz (ts en días, ms en magnitudes, es sus errores).
+
+    Se busca el pico en la curva suavizada (mediana móvil de unos 8 minutos) y se toman los puntos que quedan a menos
+    de frac·A de él (A, la amplitud de la estrella; por defecto frac = 0,3), sin pasar de ±0,2 periodos y sin que la
+    bajada ocupe más de lado_max veces lo que ocupa la subida (en las RRab la subida es corta y, si no, la cola manda).
+    A esos puntos se les ajustan polinomios de grado 3 a 6 (el máximo de una RRab no es simétrico) y se promedian los
+    que no hacen ondas espurias, cada uno con su peso según el BIC. El error combina el de remuestrear los residuos por
+    bloques del tamaño de su ruido correlacionado (multiplicado por el factor β del ruido correlacionado, el de los
+    residuos o, si es mayor, el de las estrellas de comparación, beta_comps: el polinomio se come parte de ese ruido y
+    en los residuos no se ve entero), el de las «cuentas de rosario» y lo que cambia el instante de un grado a otro."""
+    n = len(ts)
+    if n < 12:
+        raise RuntimeError("hacen falta al menos 12 puntos para buscar el máximo")
+    orden = sorted(range(n), key=lambda i: ts[i])
+    ts = [ts[i] for i in orden]
+    ms = [ms[i] for i in orden]
+    es = [max(es[i], 5e-4) for i in orden]
+    cad = _mediana([ts[i + 1] - ts[i] for i in range(n - 1)]) or 1e-3
+    semi = max(2.5 * cad, 4.0 / 1440)
+    suave, j0, j1 = [], 0, 0
+    for i in range(n):
+        while ts[j0] < ts[i] - semi:
+            j0 += 1
+        j1 = max(j1, i)
+        while j1 + 1 < n and ts[j1 + 1] <= ts[i] + semi:
+            j1 += 1
+        suave.append(_mediana(ms[j0:j1 + 1]))
+    kp = min(range(n), key=lambda i: suave[i])
+    orden_s = sorted(suave)
+    a_obs = orden_s[int(0.97 * (n - 1))] - orden_s[int(0.03 * (n - 1))]
+    A = amplitud if amplitud and 0.1 < amplitud < 2.5 else a_obs
+    A = max(A, 0.15)
+    frac = float(frac) if frac else 0.3
+    umbral = suave[kp] + frac * A
+    lim_t = 0.2 * periodo if periodo else 0.12
+
+    def extender(d, lim):
+        k, fuera, ultimo = kp, 0, kp
+        while 0 <= k + d < n:
+            k += d
+            if abs(ts[k] - ts[kp]) > lim:
+                break
+            if suave[k] > umbral:
+                fuera += 1
+                if fuera >= 3:
+                    break
+            else:
+                fuera, ultimo = 0, k
+        return ultimo
+    i0 = extender(-1, lim_t)
+    subida = max(ts[kp] - ts[i0], 8.0 / 1440)
+    i1 = extender(1, min(lim_t, lado_max * subida)) if lado_max else extender(1, lim_t)
+    i0, i1 = min(i0, max(0, kp - 5)), max(i1, min(n - 1, kp + 5))
+    tv, mv, ev = ts[i0:i1 + 1], ms[i0:i1 + 1], es[i0:i1 + 1]
+    nv = len(tv)
+    if nv < 8:
+        raise RuntimeError("hay muy pocos puntos alrededor del máximo")
+    t0 = ts[kp]
+    s = max(tv[-1] - t0, t0 - tv[0], 1e-4)
+    xv = [(t - t0) / s for t in tv]
+    xa, xb = xv[0], xv[-1]
+    ws = [1.0 / (e * e) for e in ev]
+    gmax = max(3, min(6, nv // 5))
+    grados = [int(grado)] if grado else (list(range(3, gmax + 1)) if nv >= 12 else [2])
+    fits = {}
+    for g in grados:
+        if nv < g + 4:
+            continue
+        c = _poli_ajuste(xv, mv, ws, g)
+        if not c:
+            continue
+        mod = [_poli(c, x) for x in xv]
+        chi = sum(w * (y - q) ** 2 for w, y, q in zip(ws, mv, mod))
+        xm, ext, borde = _minimo_poli(c, xa, xb)
+        fits[g] = {"g": g, "c": c, "chi": chi, "bic": chi + (g + 1) * math.log(nv), "x": xm, "ext": ext, "borde": borde, "mod": mod}
+    if not fits:
+        raise RuntimeError("no se ha podido ajustar el máximo")
+    limpios = [f for f in fits.values() if not f["borde"] and f["ext"] <= 1]
+    usables = limpios or [f for f in fits.values() if not f["borde"]] or list(fits.values())
+    mejor = min(usables, key=lambda f: f["bic"])
+    # los errores de los puntos se escalan con la dispersión real del mejor ajuste; con ellos, el peso de cada grado
+    escala = math.sqrt(mejor["chi"] / max(1, nv - mejor["g"] - 1))
+    e2 = max(escala, 1e-6) ** 2
+    bmin = min(f["bic"] for f in usables)
+    pesos = {f["g"]: math.exp(-0.5 * (f["chi"] / e2 + (f["g"] + 1) * math.log(nv) - (mejor["chi"] / e2 + (mejor["g"] + 1) * math.log(nv)))) for f in usables}
+    sp = sum(pesos.values()) or 1.0
+    tg = {f["g"]: t0 + f["x"] * s for f in usables}
+    T = sum(pesos[g] * tg[g] for g in pesos) / sp
+    err_grado = math.sqrt(sum(pesos[g] * (tg[g] - T) ** 2 for g in pesos) / sp)
+    g, c = mejor["g"], mejor["c"]
+    resid = [y - q for y, q in zip(mv, mejor["mod"])]
+    # remuestreo por bloques de los residuos (con el grado elegido): cuánto se mueve el instante
+    rnd = random.Random(semilla)
+    L = max(1, min(nv // 4, 2 * _acf_longitud(resid)))
+    tb, mb = [], []
+    for _ in range(n_boot if not mejor["borde"] else 0):
+        r = []
+        while len(r) < nv:
+            k = rnd.randrange(0, max(1, nv - L + 1))
+            r.extend(resid[k:k + L])
+        y2 = [q + e for q, e in zip(mejor["mod"], r[:nv])]
+        c2 = _poli_ajuste(xv, y2, ws, g)
+        if not c2:
+            continue
+        x2, _e2, b2 = _minimo_poli(c2, xa, xb, 400)
+        if not b2:
+            tb.append(t0 + x2 * s)
+            mb.append(_poli(c2, x2))
+    tg_mejor = tg[g]
+    err_boot = (sum((x - tg_mejor) ** 2 for x in tb) / len(tb)) ** 0.5 if len(tb) >= 20 else None
+    # «cuentas de rosario»: los residuos desplazados en bloque conservan su ruido correlacionado tal cual
+    tpb = []
+    if not mejor["borde"]:
+        pasos_pb = max(1, nv // 60)
+        for k in range(pasos_pb, nv, pasos_pb):
+            y2 = [q + resid[(i + k) % nv] for i, q in enumerate(mejor["mod"])]
+            c2 = _poli_ajuste(xv, y2, ws, g)
+            if c2:
+                x2, _e2, b2 = _minimo_poli(c2, xa, xb, 400)
+                if not b2:
+                    tpb.append(t0 + x2 * s)
+    err_pb = (sum((x - tg_mejor) ** 2 for x in tpb) / len(tpb)) ** 0.5 if len(tpb) >= 10 else None
+    beta = ruido_rojo(tv, resid, (8, 25))
+    beta = max(beta, beta_comps or 1.0)
+    err_azar = max((err_boot or 0.0) * beta, err_pb or 0.0) if err_boot is not None else None
+    err = math.sqrt(err_azar ** 2 + err_grado ** 2) if err_azar is not None else None
+    xT = (T - t0) / s
+    mag = _poli(c, xT)
+    mag_err = (sum((x - mag) ** 2 for x in mb) / len(mb)) ** 0.5 if len(mb) >= 20 else None
+    fino_x = [xa + (xb - xa) * i / 200 for i in range(201)]
+    antes = sum(1 for t in tv if t < T)
+    return {"tmax": T, "err": err, "err_boot": err_boot, "err_pb": err_pb, "beta": beta, "err_grado": err_grado, "grado": g, "n": nv, "frac": frac, "amplitud": round(A, 3),
+            "amplitud_observada": round(a_obs, 3), "umbral": round(umbral, 4), "t_ini": tv[0], "t_fin": tv[-1], "mag": mag, "mag_err": mag_err,
+            "borde": bool(mejor["borde"]), "limpio": bool(limpios), "rms": (sum(r * r for r in resid) / nv) ** 0.5, "escala_err": escala,
+            "antes": antes, "despues": nv - antes, "cadencia": cad, "bloque": L, "n_boot": len(tb),
+            "bic": {str(h): round(f["bic"], 2) for h, f in sorted(fits.items())},
+            "t_grados": {str(h): round(t0 + f["x"] * s, 6) for h, f in sorted(fits.items()) if not f["borde"]},
+            "pesos_grados": {str(h): round(pesos[h] / sp, 3) for h in sorted(pesos)},
+            "modelo": [[t0 + x * s, _poli(c, x)] for x in fino_x], "pico_suave": ts[kp], "ventana": [ts[i0], ts[i1]],
+            "en_ajuste": [ts[i] for i in range(i0, i1 + 1)]}
+
+
+def _comparaciones_gaia(ra_p, dec_p, g_t, w, h, escala, f0, maximo=18):
+    """El objetivo en Gaia (si está) y estrellas de comparación de brillo y color parecidos, aisladas y no variables,
+    repartidas por el campo. Devuelve (estrellas, catálogo)."""
+    radio = math.hypot(w, h) / 2 * escala / 3600.0 * 1.05
+    cat = gaia_campo(ra_p, dec_p, radio, gmax=min(20.0, g_t + 4.0))
+    anio = f0.year + (f0.timetuple().tm_yday - 0.5) / 365.25
+    est_cat = []
+    for e in cat["estrellas"]:
+        ra, dec = posicion_en(e, anio)
+        est_cat.append(dict(e, ra_f=ra, dec_f=dec))
+    objetivo = min(est_cat, key=lambda e: separacion(ra_p, dec_p, e["ra_f"], e["dec_f"]), default=None)
+    if objetivo and separacion(ra_p, dec_p, objetivo["ra_f"], objetivo["dec_f"]) * 3600 < 4 and abs((objetivo["g"] or 99) - g_t) < 1.5:
+        ra_t, dec_t, g_t = objetivo["ra_f"], objetivo["dec_f"], objetivo["g"]
+        bprp_t = (objetivo["bp"] - objetivo["rp"]) if objetivo.get("bp") is not None and objetivo.get("rp") is not None else None
+    else:
+        objetivo, ra_t, dec_t, bprp_t = None, ra_p, dec_p, None
+    media = min(w, h) / 2 * escala / 3600.0 * 0.92
+    cands = []
+    for e in est_cat:
+        if objetivo and e["id"] == objetivo["id"]:
+            continue
+        if e["g"] is None or not (g_t - 1.5 <= e["g"] <= g_t + 2.5) or e.get("var"):
+            continue
+        dist = separacion(ra_t, dec_t, e["ra_f"], e["dec_f"])
+        if dist * 3600 < 20 or dist > media:
+            continue
+        vecina = any(x is not e and x["g"] is not None and x["g"] < e["g"] + 3.0 and separacion(e["ra_f"], e["dec_f"], x["ra_f"], x["dec_f"]) * 3600 < 12 * max(1.0, escala)
+                     for x in est_cat if abs(x["dec_f"] - e["dec_f"]) < 0.01)
+        if vecina:
+            continue
+        bprp = (e["bp"] - e["rp"]) if e.get("bp") is not None and e.get("rp") is not None else None
+        puntos = abs(e["g"] - g_t) + (abs(bprp - bprp_t) if bprp is not None and bprp_t is not None else 0.5) + dist / media
+        cands.append((puntos, e, bprp, dist))
+    cands.sort(key=lambda c: c[0])
+    if len(cands) < 2:
+        raise RuntimeError("no encuentro estrellas de comparación parecidas en el campo")
+    estrellas = [{"id": "T", "ra": ra_t, "dec": dec_t, "g": g_t, "bp_rp": bprp_t, "gaia": (objetivo or {}).get("id", "")}] + \
+                [{"id": e["id"], "ra": e["ra_f"], "dec": e["dec_f"], "g": round(e["g"], 3), "bp_rp": round(bprp, 3) if bprp is not None else None,
+                  "dist": round(dist * 60, 1), "var": bool(e.get("var"))} for _p, e, bprp, dist in cands[:maximo]]
+    return estrellas, cat
+
+
+def trabajo_rr(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "rr-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        ids = [i for i in (p.get("ids") or []) if i]
+        JOB["texto"], JOB["archivo"] = "Buscando la estrella en el VSX", p.get("estrella") or ""
+        rr = buscar_rr(p.get("estrella") or "")
+        if not rr:
+            raise RuntimeError("no encuentro la estrella «%s» en el VSX de la AAVSO: escribe su nombre como allí (por ejemplo, RR Lyr o XZ Cyg)" % (p.get("estrella") or ""))
+        if not rr.get("periodo") or not rr.get("epoca"):
+            raise RuntimeError("el VSX no da el periodo y la época de la estrella «%s»: sin ellos no se puede calcular el O−C" % rr["nombre"])
+        tomas = _tomas_de_ids(ids)
+        if len(tomas) < 15:
+            raise RuntimeError("para un máximo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[0]
+        escala = num(d0.get("escala")) or 1.0
+        w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        g_t = (rr["brillo"] + (rr["amplitud"] or 0.6) / 2) if rr.get("brillo") is not None else 12.0
+        estrellas, cat = _comparaciones_gaia(rr["ra"], rr["dec"], g_t, w, h, escala, f0)
+        estrellas[0]["nombre"] = rr["nombre"]
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        color = bool(h0.get("BAYERPAT")) or d0.get("bayer")
+        filtro = banda_aavso(h0.get("FILTER") or d0.get("filtro"), color)
+        registros = _medir_serie(tomas, estrellas, escala, lg, estrellas[0]["ra"], estrellas[0]["dec"], FACTORES_RR, base, siril, ver)
+        if len(registros) < 15:
+            raise RuntimeError("no he podido medir bastantes tomas")
+        JOB["hechos"] = len(tomas)
+        JOB["texto"], JOB["archivo"] = "Ajustando el máximo", ""
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "rrlyrae",
+                 "estrella": rr, "estrellas": estrellas, "tomas": registros, "factores": FACTORES_RR, "filtro": filtro,
+                 "filtro_original": d0.get("filtro") or "", "objeto": d0.get("objeto") or "", "cam": d0.get("cam") or "", "tel": d0.get("tel") or "",
+                 "noche": d0.get("noche") or "", "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon")},
+                 "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
+                 "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
+        d = os.path.join(RR_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        calc = calcular_rr(serie, {"frac": p.get("frac"), "grado": p.get("grado")})
+        guardar_rr(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_rr(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="rr", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    if p.get("observador") is not None:
+        guardar_config_ciencia(observador=(p.get("observador") or "").strip())
+    threading.Thread(target=trabajo_rr, args=(p,), daemon=True).start()
+
+
+def calcular_rr(serie, sel):
+    """Curva de luz de la RR Lyrae frente a la suma de las comparaciones (las elegidas o las automáticas), con la
+    apertura de menos dispersión, el ajuste del máximo y su O−C frente a los elementos del VSX."""
+    rr = serie["estrella"]
+    est = {e["id"]: e for e in serie["estrellas"]}
+    tomas = [t for t in serie["tomas"] if t.get("hjd")]
+    nap = len(serie["factores"])
+    sat = 1.0 if all(t.get("flotante") for t in tomas) else (65535.0 if all(t.get("bits") == 16 for t in tomas) else None)
+    no_lineal = 0.8 * sat if sat else None
+
+    def g_nat(t):
+        g = num(t.get("gain"))
+        if not g or not (0.01 < g < 50):
+            return None
+        return g * (65535.0 if t.get("flotante") and t.get("bits") == 16 else 1.0)
+
+    def med(t, sid, a):
+        m = t["estrellas"].get(sid)
+        if not m or m[0][a] <= 0:
+            return None
+        f, sd, n_ap, n_an, pico = m[0][a], m[1], m[2][a], m[3], m[4]
+        g = g_nat(t)
+        var = n_ap * sd * sd * (1 + n_ap / max(n_an, 1)) + (f / g if g else 0.0)
+        return f, var, bool(no_lineal and pico > no_lineal)
+
+    comps_todas = [e["id"] for e in serie["estrellas"][1:]]
+    utiles = []
+    for cid in comps_todas:
+        vals = [med(t, cid, nap // 2) for t in tomas]
+        if sum(1 for v in vals if v and not v[2]) >= 0.9 * len(tomas) and not est[cid].get("var"):
+            utiles.append(cid)
+    avisos = []
+    n_sat = sum(1 for t in tomas if (lambda v: v and v[2])(med(t, "T", nap // 2)))
+    if n_sat:
+        avisos.append("la estrella está saturada o casi en %d tomas: se quitan (baja la exposición o desenfoca un poco)" % n_sat)
+
+    def relativa(a, comps):
+        pts = []
+        for t in tomas:
+            vt = med(t, "T", a)
+            if not vt or vt[2]:
+                continue
+            vc = [med(t, c, a) for c in comps]
+            if any(v is None or v[2] for v in vc):
+                continue
+            sc, ec = sum(v[0] for v in vc), sum(v[1] for v in vc)
+            f = vt[0] / sc
+            pts.append((t, f, f * math.sqrt(vt[1] / vt[0] ** 2 + ec / sc ** 2)))
+        return pts
+
+    def limpiar_comps(a, comps):
+        """Quita, una a una, las comparaciones que bailan más de lo que explica su ruido o que cambian despacio a lo
+        largo de la noche (variables que Gaia no tiene marcadas), mirando cada una frente a la suma de las demás."""
+        comps = list(comps)
+        while len(comps) > 3:
+            blanco, lento = {}, {}
+            for c in comps:
+                otros = [x for x in comps if x != c]
+                ts_, vals, esp = [], [], []
+                for t in tomas:
+                    vc = med(t, c, a)
+                    vo = [med(t, x, a) for x in otros]
+                    if vc and not vc[2] and all(v and not v[2] for v in vo):
+                        so = sum(v[0] for v in vo)
+                        ts_.append(t["hjd"]); vals.append(vc[0] / so)
+                        esp.append(math.sqrt(vc[1] / vc[0] ** 2 + sum(v[1] for v in vo) / so ** 2))
+                if len(vals) < 10:
+                    blanco[c] = lento[c] = float("inf")
+                    continue
+                m = _mediana(vals)
+                rel = [x / m for x in vals]
+                pp = _p2p(rel)
+                a0, b0 = ajuste_lineal(ts_, rel)
+                rms = (sum((y - a0 - b0 * t) ** 2 for t, y in zip(ts_, rel)) / len(rel)) ** 0.5
+                blanco[c] = pp / max(1e-9, _mediana(esp))
+                lento[c] = rms / max(1e-9, pp)
+            mb = _mediana(list(blanco.values())) or 1.0
+            ml = max(1.0, _mediana(list(lento.values())) or 1.0)
+            nota = {c: max(blanco[c] / mb, lento[c] / ml) for c in comps}
+            peor = max(comps, key=lambda c: nota[c])
+            if nota[peor] > 1.6:
+                comps.remove(peor)
+            else:
+                break
+        return comps
+
+    elegidas = [c for c in (sel.get("comps") or []) if c in est and c != "T"]
+    ap_sel = sel.get("apertura")
+    candidatas = []
+    for a in ([int(ap_sel)] if ap_sel is not None and str(ap_sel) != "" and 0 <= int(ap_sel) < nap else range(nap)):
+        cs = elegidas or limpiar_comps(a, utiles)
+        if not cs:
+            continue
+        pts = relativa(a, cs)
+        if len(pts) < 12:
+            continue
+        mg = [-2.5 * math.log10(f) for _t, f, _e in pts if f > 0]
+        candidatas.append((_p2p(mg), a, cs, pts))
+    if not candidatas:
+        raise RuntimeError("no hay bastantes tomas con la estrella y sus comparaciones medidas")
+    disp, a_mejor, comps, pts = min(candidatas, key=lambda c: c[0])
+    # magnitud aproximada: la suma de las comparaciones tiene la magnitud G de Gaia de su flujo total
+    zp = -2.5 * math.log10(sum(10 ** (-0.4 * est[c]["g"]) for c in comps if est[c].get("g") is not None) or 1.0)
+    puntos = [{"jd": t["jd"], "hjd": t["hjd"], "bjd": t.get("bjd_tdb"), "mag": -2.5 * math.log10(f) + zp, "err": 1.0857 * e / f,
+               "masa_aire": t.get("masa_aire"), "archivo": t["archivo"]} for t, f, e in pts if f > 0]
+    puntos.sort(key=lambda x: x["hjd"])
+    frac = num(sel.get("frac")) or None
+    grado = int(sel["grado"]) if sel.get("grado") not in (None, "", 0, "0") else None
+
+    def beta_de_comps(a, cs):
+        """Ruido correlacionado de la noche, visto en las comparaciones: cada una frente a la suma de las demás."""
+        bs = []
+        for c in cs:
+            otros = [x for x in cs if x != c]
+            if not otros:
+                continue
+            ts_, vals = [], []
+            for t in tomas:
+                vc = med(t, c, a)
+                vo = [med(t, x, a) for x in otros]
+                if vc and not vc[2] and all(v and not v[2] for v in vo):
+                    ts_.append(t["hjd"])
+                    vals.append(vc[0] / sum(v[0] for v in vo))
+            if len(vals) < 20:
+                continue
+            m = _mediana(vals)
+            rel = [x / m for x in vals]
+            a0, b0 = ajuste_lineal(ts_, rel)
+            bs.append(ruido_rojo(ts_, [y - a0 - b0 * t for t, y in zip(ts_, rel)], (8, 25)))
+        return _mediana(bs) if bs else 1.0
+    beta_c = beta_de_comps(a_mejor, comps)
+    aj = ajustar_maximo([x["hjd"] for x in puntos], [x["mag"] for x in puntos], [x["err"] for x in puntos],
+                        rr.get("periodo"), rr.get("amplitud"), frac, grado, beta_comps=beta_c)
+    en = set(aj["en_ajuste"])
+    for x in puntos:
+        x["ajuste"] = x["hjd"] in en
+    T = aj["tmax"]
+    cerca = min(puntos, key=lambda x: abs(x["hjd"] - T))
+    d_bjd = (cerca["bjd"] - cerca["hjd"]) if cerca.get("bjd") else None
+    d_jd = cerca["jd"] - cerca["hjd"]
+    C, ciclo = maximo_previsto(rr, T)
+    oc = T - C
+    fiable = not aj["borde"] and aj["err"] is not None
+    antes_min = (T - puntos[0]["hjd"]) * 1440
+    despues_min = (puntos[-1]["hjd"] - T) * 1440
+    if aj["borde"]:
+        avisos.append("la serie no llega a ver el máximo entero: empieza después de él o termina antes, así que el instante no es de fiar")
+    elif not aj["limpio"]:
+        avisos.append("ningún polinomio sigue el máximo sin ondas: prueba con otra ventana o otro grado")
+    if fiable and (antes_min < 20 or despues_min < 20):
+        avisos.append(("hay poca curva antes del máximo (%.0f min): el error puede ser mayor de lo que parece" if antes_min < despues_min
+                       else "hay poca curva después del máximo (%.0f min): el error puede ser mayor de lo que parece") % min(antes_min, despues_min))
+    if fiable and aj["err"] * 1440 > 5:
+        avisos.append("el instante del máximo tiene un error grande (más de 5 minutos)")
+    if abs(oc) > 0.25 * rr["periodo"]:
+        avisos.append(("el máximo medido cae lejos del previsto (O−C de %.2f periodos): ¿es la estrella buena, o sus elementos son muy antiguos?" % (oc / rr["periodo"])).replace(".", ",", 1))
+    if not rr.get("rr"):
+        avisos.append("según el VSX, esta estrella no es una RR Lyrae: mira su tipo arriba")
+    if aj["beta"] > 2:
+        avisos.append(("hay mucho ruido correlacionado (β = %.1f): nubes, seguimiento o enfoque; el error ya lo tiene en cuenta" % aj["beta"]).replace(".", ",", 1))
+    if aj["escala_err"] > 3:
+        avisos.append(("los puntos bailan mucho más de lo que explica su ruido (factor %.1f): nubes, seguimiento o una comparación mala" % aj["escala_err"]).replace(".", ",", 1))
+    tabla = []
+    for cid in comps_todas:
+        e = est[cid]
+        vals = [med(t, cid, a_mejor) for t in tomas]
+        ok = [v for v in vals if v and not v[2]]
+        tabla.append({"id": cid, "g": e.get("g"), "bp_rp": e.get("bp_rp"), "dist": e.get("dist"), "var": bool(e.get("var")),
+                      "presente": round(len(ok) / max(1, len(tomas)), 2), "saturada": round(sum(1 for v in vals if v and v[2]) / max(1, len(tomas)), 2),
+                      "snr": round(_mediana([v[0] / math.sqrt(v[1]) for v in ok if v[1] > 0]) or 0, 0)})
+    err = aj["err"]
+    return {"comps": comps, "apertura": a_mejor, "factor_apertura": serie["factores"][a_mejor], "fiable": fiable,
+            "tmax": round(T, 6), "tmax_err": round(err, 6) if err is not None else None, "tmax_bjd": round(T + d_bjd, 6) if d_bjd is not None else None,
+            "tmax_jd": round(T + d_jd, 6), "tmax_utc": _iso_jd(T + d_jd),
+            "err_boot": round(aj["err_boot"], 6) if aj["err_boot"] is not None else None, "err_grado": round(aj["err_grado"], 6),
+            "mag_max": round(aj["mag"], 3), "mag_max_err": round(aj["mag_err"], 3) if aj["mag_err"] is not None else None,
+            "c_hjd": round(C, 6), "c_jd": round(C + d_jd, 6), "ciclo": ciclo, "oc": round(oc, 6), "oc_min": round(oc * 1440, 2),
+            "oc_fase": round(oc / rr["periodo"], 4), "grado": aj["grado"], "n_ajuste": aj["n"], "frac": aj["frac"], "amplitud": aj["amplitud"],
+            "amplitud_observada": aj["amplitud_observada"], "ventana_jd": [round(aj["t_ini"] + d_jd, 6), round(aj["t_fin"] + d_jd, 6)],
+            "antes_min": round(antes_min, 1), "despues_min": round(despues_min, 1), "puntos_antes": aj["antes"], "puntos_despues": aj["despues"],
+            "rms_mmag": round(aj["rms"] * 1000, 1), "escala_err": round(aj["escala_err"], 2), "cadencia_min": round(aj["cadencia"] * 1440, 2),
+            "bloque": aj["bloque"], "n_boot": aj["n_boot"], "bic": aj["bic"], "t_grados": aj["t_grados"], "pesos_grados": aj["pesos_grados"], "limpio": aj["limpio"],
+            "beta": round(aj["beta"], 2), "beta_comps": round(beta_c, 2), "err_pb": round(aj["err_pb"], 6) if aj["err_pb"] is not None else None,
+            "n": len(puntos), "zp": round(zp, 3), "frac_elegida": frac, "grado_elegido": grado, "comps_elegidas": bool(elegidas),
+            "apertura_elegida": ap_sel is not None and str(ap_sel) != "",
+            "puntos": [{"jd": round(x["jd"], 6), "hjd": round(x["hjd"], 6), "bjd": round(x["bjd"], 6) if x.get("bjd") else None, "mag": round(x["mag"], 4),
+                        "err": round(x["err"], 4), "ajuste": x["ajuste"], "masa_aire": x["masa_aire"], "archivo": x["archivo"]} for x in puntos],
+            "modelo": [[round(t + d_jd, 6), round(m, 4)] for t, m in aj["modelo"]], "tabla": tabla, "avisos": avisos}
+
+
+def _geos_filtro(serie):
+    f = serie.get("filtro") or "CV"
+    return {"CV": "C (clear)", "TG": "TG (green)", "TB": "TB (blue)", "TR": "TR (red)"}.get(f, f)
+
+
+def archivo_geos(serie, c):
+    """El máximo para GEOS: una cabecera con cómo se ha medido y una línea con el resultado (instante en HJD)."""
+    rr = serie["estrella"]
+    cfg = config_ciencia()
+    obs = (cfg.get("observador") or "").strip() or "?"
+    code = (cfg.get("obscode") or "").strip().upper()
+    lg = serie.get("lugar") or {}
+    t = serie["tomas"]
+    exp = _exp_serie(serie)
+    app = os.environ.get("ASTRO_VERSION_APP") or ""
+    sitio = lg.get("nombre") or ""
+    if lg.get("lat") is not None and lg.get("lon") is not None:
+        sitio = ("%s (%.3f, %.3f)" % (sitio, lg["lat"], lg["lon"])).strip()
+    cab = ["# %s (Ciencia %s) · time of maximum light of an RR Lyrae star" % (("ASTRO " + app).strip(), VERSION_PROG),
+           "# Star: %s · type %s · elements from %s: epoch %.5f HJD, P = %.7f d" % (rr["nombre"], rr.get("tipo") or "?", rr.get("fuente") or "VSX", rr["epoca"], rr["periodo"]),
+           "# Observer: %s%s · site: %s" % (obs, (" (AAVSO %s)" % code) if code else "", sitio or "?"),
+           "# Instrument: %s · filter %s · exposure %s s · %d frames, %s to %s UTC" % (" + ".join(x for x in (serie.get("tel"), serie.get("cam")) if x) or "?",
+                                                                                     _geos_filtro(serie), exp, len(t), t[0]["fecha"][:16].replace("T", " "), t[-1]["fecha"][11:16]),
+           "# Times at mid-exposure: heliocentric HJD (UTC) and barycentric BJD_TDB.",
+           "# Method: differential aperture photometry against %d Gaia DR3 stars; polynomials of degree 3 to 6 fitted to the %d points within" % (len(c["comps"]), c["n_ajuste"]),
+           "#         %.0f%% of the amplitude below the peak, BIC-weighted (best: degree %d); error: the larger of a block bootstrap of the" % (100 * c["frac"], c["grado"]),
+           "#         residuals (times beta for correlated noise) and the prayer-bead method, combined with the spread between degrees.",
+           "# O-C against the elements above: cycle E = %d, C = %.5f HJD" % (c["ciclo"], c["c_hjd"])]
+    if not c.get("fiable"):
+        cab.append("# WARNING: the series does not cover the whole maximum: the time is not reliable.")
+    cab += ["#", "# Star;HJD_max;HJD_err_d;BJD_TDB_max;E;O-C_d;Filter;N_points;Mag_max_approx_G;Method;Observer"]
+    lin = ";".join([rr["nombre"], "%.5f" % c["tmax"], "%.5f" % c["tmax_err"] if c.get("tmax_err") is not None else "?",
+                    "%.5f" % c["tmax_bjd"] if c.get("tmax_bjd") else "?", str(c["ciclo"]), "%+.5f" % c["oc"], serie.get("filtro") or "CV",
+                    str(c["n_ajuste"]), "%.2f" % c["mag_max"], "CCD, polynomial degree %d" % c["grado"], obs])
+    return "\n".join(cab + [lin]) + "\n"
+
+
+def svg_rr(serie, c, en=False):
+    """Figura de la curva de luz con el ajuste del máximo (SVG, para una memoria o un artículo)."""
+    W, H, L, R, T, B = 900, 520, 80, 20, 40, 60
+    pts = c["puntos"]
+    tj = c["tmax_jd"]
+    x_ = [(p["jd"] - tj) * 24 for p in pts]
+    xa, xb = min(x_), max(x_)
+    ms = [p["mag"] for p in pts]
+    y0, y1 = min(ms), max(ms)
+    py = (y1 - y0) * 0.08 or 0.05
+    y0, y1 = y0 - py, y1 + py
+    X = lambda v: L + (v - xa) / max(1e-9, xb - xa) * (W - L - R)
+    Y = lambda v: T + (v - y0) / max(1e-9, y1 - y0) * (H - T - B)
+    rr = serie["estrella"]
+    tit = "%s · %s · HJD %.5f ± %s" % (rr["nombre"], serie.get("noche") or "", c["tmax"], ("%.5f" % c["tmax_err"]) if c.get("tmax_err") is not None else "?")
+    g = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" font-family="Helvetica, Arial, sans-serif" font-size="13">' % (W, H),
+         '<rect width="100%" height="100%" fill="#fff"/>', '<text x="%d" y="24" font-size="16" font-weight="bold">%s</text>' % (L, _xml(tit))]
+    a, b = (c["ventana_jd"][0] - tj) * 24, (c["ventana_jd"][1] - tj) * 24
+    g.append('<rect x="%.1f" y="%d" width="%.1f" height="%d" fill="#f3eefb"/>' % (X(a), T, max(1, X(b) - X(a)), H - T - B))
+    paso = 0.1 if (y1 - y0) < 1.2 else 0.2
+    v = math.ceil(y0 / paso) * paso
+    while v <= y1:
+        g.append('<line x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke="#ddd"/><text x="%d" y="%.1f" text-anchor="end" fill="#555">%.1f</text>' % (L, W - R, Y(v), Y(v), L - 6, Y(v) + 4, v))
+        v += paso
+    h = math.ceil(xa * 2) / 2
+    while h <= xb:
+        g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#eee"/><text x="%.1f" y="%d" text-anchor="middle" fill="#555">%+.1f</text>' % (X(h), X(h), T, H - B, X(h), H - B + 18, h))
+        h += 0.5
+    for p, x in zip(pts, x_):
+        g.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s" opacity="%s"/>' % (X(x), Y(p["mag"]), 2.6 if p["ajuste"] else 2.0, "#5B2C87", "0.9" if p["ajuste"] else "0.35"))
+    g.append('<polyline fill="none" stroke="#C27A00" stroke-width="2.4" points="%s"/>' % " ".join("%.1f,%.1f" % (X((t - tj) * 24), Y(m)) for t, m in c["modelo"]))
+    g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#C27A00" stroke-dasharray="5 3"/>' % (X(0), X(0), T, H - B))
+    xc = (c["c_jd"] - tj) * 24
+    if xa <= xc <= xb:
+        g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#888" stroke-dasharray="2 4"/>' % (X(xc), X(xc), T, H - B))
+    g.append('<text x="%d" y="%d" text-anchor="middle" fill="#333">%s</text>' % ((L + W - R) // 2, H - 14, _xml(_L("horas desde el máximo", "hours from maximum"))))
+    g.append('<text x="18" y="%d" transform="rotate(-90 18 %d)" text-anchor="middle" fill="#333">%s</text>' % ((T + H - B) // 2, (T + H - B) // 2, _xml(_L("magnitud (aprox. G)", "magnitude (approx. G)"))))
+    g.append("</svg>")
+    return "\n".join(g)
+
+
+def guardar_rr(serie, c):
+    d = os.path.join(RR_DIR, serie["id"])
+    escribir_json(os.path.join(d, "calculo.json"), c)
+    for nombre, texto in (("geos.txt", archivo_geos(serie, c)), ("curva.svg", svg_rr(serie, c))):
+        with open(os.path.join(d, nombre), "w", encoding="utf-8", newline="\n") as f:
+            f.write(texto)
+    with open(os.path.join(d, "curva.csv"), "w", encoding="utf-8", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["jd_utc", "hjd_utc", "bjd_tdb", "mag_aprox_G", "error", "en_el_ajuste", "masa_aire", "archivo"])
+        for x in c["puntos"]:
+            wr.writerow([x["jd"], x["hjd"], x["bjd"], x["mag"], x["err"], 1 if x["ajuste"] else 0, x["masa_aire"], x["archivo"]])
+
+
+def series_rr():
+    out = []
+    if not os.path.isdir(RR_DIR):
+        return out
+    for n in sorted(os.listdir(RR_DIR), reverse=True):
+        s = leer_json(os.path.join(RR_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(RR_DIR, n, "calculo.json"), None) or {}
+        if not s:
+            continue
+        out.append({"id": s["id"], "estrella": s["estrella"]["nombre"], "noche": s.get("noche"), "filtro": s.get("filtro"), "tomas": len(s["tomas"]),
+                    "tmax": c.get("tmax"), "tmax_err": c.get("tmax_err"), "tmax_utc": c.get("tmax_utc"), "oc_min": c.get("oc_min"),
+                    "ciclo": c.get("ciclo"), "mag_max": c.get("mag_max"), "fiable": c.get("fiable"), "lugar": (s.get("lugar") or {}).get("nombre", "")})
+    return out
+
+
+def serie_rr(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return leer_json(os.path.join(RR_DIR, sid, "serie.json"), None), leer_json(os.path.join(RR_DIR, sid, "calculo.json"), None)
+
+
+def recalcular_rr(sid, sel):
+    serie, _c = serie_rr(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la medida")
+    c = calcular_rr(serie, sel)
+    guardar_rr(serie, c)
+    return c
+
+
+def borrar_rr(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("medida no válida")
+    shutil.rmtree(os.path.join(RR_DIR, sid), ignore_errors=True)
+
+
+LEEME_RR_ES = """MÁXIMO DE {estrella} · {noche} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  geos.txt      El máximo para GEOS (base de datos de RR Lyrae, {geos}): cómo se ha medido y una línea con el
+                resultado. El instante va en HJD (UTC), que es como lo guarda GEOS, y también en BJD_TDB.
+  curva.csv     Todos los puntos: JD, HJD y BJD_TDB a mitad de la exposición, magnitud aproximada (G de Gaia),
+                error, si entra en el ajuste, masa de aire y archivo.
+  curva.svg     La figura: la curva, los puntos del ajuste, el polinomio y el instante del máximo.
+  serie.json    Las medidas de cada toma: flujos de la estrella y de cada comparación de Gaia DR3 con cinco aperturas
+                (1 a 2,5 FWHM), fondo, FWHM y horas (JD, HJD y BJD_TDB).
+  calculo.json  Las comparaciones y la apertura elegidas, y el resultado del ajuste.
+
+Resultado
+  Máximo: HJD {tmax:.5f} ± {err} (BJD_TDB {tbjd})
+  O−C = {oc:+.5f} d ({ocmin:+.1f} min) frente a los elementos del {fuente}: época {e0:.5f} HJD, periodo {per:.7f} d (ciclo {ciclo})
+  Brillo en el máximo: {mag:.2f} (aproximado, en la escala G de Gaia de las comparaciones)
+
+Método
+  Tomas calibradas con los masters de la biblioteca de ASTRO y resueltas con Siril; fotometría de apertura de la
+  estrella y de estrellas de Gaia DR3 de brillo y color parecidos; se elige la apertura con menos dispersión de punto
+  a punto y se descartan las comparaciones que bailan más de lo que explica su ruido o que cambian a lo largo de la
+  noche. El máximo se busca en la curva suavizada y se toman los {n} puntos que quedan a menos del {frac:.0f} % de la
+  amplitud por debajo del pico. Se les ajustan polinomios de grado 3 a 6, y el instante es la media de los que no hacen
+  ondas, pesados por el BIC (el mejor, de grado {grado}). El error es el mayor entre el de remuestrear los residuos por
+  bloques ({nboot} veces, multiplicado por el factor β del ruido correlacionado) y el de las «cuentas de rosario»,
+  combinado con la diferencia entre grados.
+"""
+LEEME_RR_EN = """MAXIMUM OF {estrella} · {noche} · ASTRO (Science section)
+
+What this package contains
+  geos.txt      The maximum for GEOS (RR Lyrae database, {geos}): how it was measured and one line with the result.
+                The time is in HJD (UTC), as GEOS stores it, and also in BJD_TDB.
+  curva.csv     Every point: JD, HJD and BJD_TDB at mid-exposure, approximate magnitude (Gaia G), error, whether it
+                enters the fit, airmass and file.
+  curva.svg     The figure: the light curve, the points of the fit, the polynomial and the time of maximum.
+  serie.json    The measurements of each frame: fluxes of the star and of every Gaia DR3 comparison star with five
+                apertures (1 to 2.5 FWHM), background, FWHM and times (JD, HJD and BJD_TDB).
+  calculo.json  The comparison stars and aperture chosen, and the fit result.
+
+Result
+  Maximum: HJD {tmax:.5f} ± {err} (BJD_TDB {tbjd})
+  O−C = {oc:+.5f} d ({ocmin:+.1f} min) against the {fuente} elements: epoch {e0:.5f} HJD, period {per:.7f} d (cycle {ciclo})
+  Brightness at maximum: {mag:.2f} (approximate, on the Gaia G scale of the comparison stars)
+
+Method
+  Frames calibrated with the masters of ASTRO's library and plate-solved with Siril; aperture photometry of the star
+  and of Gaia DR3 stars of similar brightness and colour; the aperture with the lowest point-to-point scatter is
+  chosen and comparison stars that scatter more than their noise explains, or drift during the night, are dropped.
+  The maximum is located on the smoothed curve and the {n} points within {frac:.0f}% of the amplitude below the peak
+  are taken. Polynomials of degree 3 to 6 are fitted to them, and the time is the BIC-weighted mean of those without
+  spurious waves (the best, of degree {grado}). The error is the larger of a block bootstrap of the residuals ({nboot}
+  resamplings, multiplied by the β factor of the correlated noise) and the prayer-bead method, combined with the
+  spread between degrees.
+"""
+
+
+def zip_rr(sid, en=False):
+    serie, c = serie_rr(sid)
+    if not serie or not c:
+        raise RuntimeError("no encuentro la medida")
+    d = os.path.join(RR_DIR, sid)
+    rr = serie["estrella"]
+    texto = _leeme_ciencia("LEEME_RR").format(
+        estrella=rr["nombre"], noche=serie.get("noche") or "", geos=GEOS_URL, tmax=c["tmax"],
+        err=("%.5f" % c["tmax_err"]) if c.get("tmax_err") is not None else "?", tbjd=("%.5f" % c["tmax_bjd"]) if c.get("tmax_bjd") else "?",
+        oc=c["oc"], ocmin=c["oc_min"], fuente=rr.get("fuente") or "VSX", e0=rr["epoca"], per=rr["periodo"], ciclo=c["ciclo"], mag=c["mag_max"],
+        grado=c["grado"], n=c["n_ajuste"], frac=100 * c["frac"], nboot=c["n_boot"])
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(_L("LEEME.txt", "README.txt"), texto)
+        z.writestr("geos.txt", archivo_geos(serie, c))
+        for n in ("curva.csv", "serie.json", "calculo.json"):
+            if os.path.isfile(os.path.join(d, n)):
+                with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                    z.writestr(n, sin_rutas(f.read()))
+        z.writestr("curva.svg", svg_rr(serie, c, en))
+    return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", rr["nombre"]), serie.get("noche") or serie["creada"][:10])
 
 
 # ═════════════════════════════ ASTEROIDES Y COMETAS: ASTROMETRÍA ═════════════════════════════
@@ -5664,12 +6565,38 @@ def autoprueba(carpeta):
     plano_ok = abs(ra_v - ra0 - 0.1) < 1e-9 and abs(dec_v - dec0 + 0.05) < 1e-9
     ok = ok and plano_ok
     ok = ok and abs((dispersion_teorica(100, 50, 3.76) or 0) - 7.52) < 1e-6
+    # el máximo de una RR Lyrae: una RRab de juguete (diente de sierra que sube en el 15 % del periodo, suavizado con
+    # 8 armónicos), con el máximo en T
+    rnd2 = random.Random(9)
+    T, P_rr, A_rr = 2461000.5, 0.57, 0.8
+    ca, cb = [0.0] * 9, [0.0] * 9
+    for i in range(720):
+        f = i / 720.0
+        v = f / 0.15 if f < 0.15 else 1 - (f - 0.15) / 0.85
+        for k in range(1, 9):
+            ca[k] += 2 * v * math.cos(2 * math.pi * k * f) / 720
+            cb[k] += 2 * v * math.sin(2 * math.pi * k * f) / 720
+    forma = lambda f: -sum(ca[k] * math.cos(2 * math.pi * k * f) + cb[k] * math.sin(2 * math.pi * k * f) for k in range(1, 9))
+    lo, hi = 0.10, 0.25                               # la fase del máximo (el mínimo de la magnitud), por sección áurea
+    for _ in range(60):
+        m1, m2 = lo + (hi - lo) / 3, hi - (hi - lo) / 3
+        if forma(m1) < forma(m2):
+            hi = m2
+        else:
+            lo = m1
+    f_max = (lo + hi) / 2
+    amp = max(forma(i / 500.0) for i in range(500)) - min(forma(i / 500.0) for i in range(500))
+    ts_rr = [T - 1.5 / 24 + k / 1440.0 for k in range(181)]
+    ms_rr = [12.0 + A_rr * forma((t - T) / P_rr + f_max) / amp + rnd2.gauss(0, 0.006) for t in ts_rr]
+    aj = ajustar_maximo(ts_rr, ms_rr, [0.006] * len(ts_rr), P_rr, A_rr, n_boot=60)
+    rr_seg = (aj["tmax"] - T) * 86400
+    ok = ok and abs(rr_seg) < 240 and aj["err"] is not None
     try:
         os.remove(ruta)
     except OSError:
         pass
     return {"ok": ok, "zp": r["zp"], "zp_esperado": zp, "cielo": r["brillo_cielo"], "cielo_esperado": sb, "fwhm_px": r["fwhm_px"],
-            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "plano": plano_ok, "segundos": r["segundos"]}
+            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "plano": plano_ok, "rr_seg": round(rr_seg, 1), "segundos": r["segundos"]}
 
 
 # ═════════════════════════════ LO QUE PIDE LA PÁGINA ═════════════════════════════
@@ -6018,6 +6945,55 @@ class H(BaseHTTPRequestHandler):
                                                          float(num((qs.get("vmax") or ["13"])[0]) or 13), todos=(qs.get("todos") or ["0"])[0] == "1"))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/rr/series":
+                return self._json(series_rr())
+            if p.path == "/api/rr/serie":
+                serie, calc = serie_rr((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                resumen = {k: v for k, v in serie.items() if k != "tomas"}
+                resumen["n_tomas"] = len(serie["tomas"])
+                resumen["exp"] = _exp_serie(serie)
+                resumen["observador"] = config_ciencia().get("observador") or ""
+                return self._json({"serie": resumen, "calculo": calc})
+            if p.path == "/api/rr/archivo":
+                sid, tipo = (qs.get("id") or [""])[0], (qs.get("tipo") or [""])[0]
+                serie, calc = serie_rr(sid)
+                if not calc or tipo not in ("geos", "csv", "svg"):
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                base = "%s-%s" % (re.sub(r"[^\w.-]+", "_", serie["estrella"]["nombre"]), serie.get("noche") or serie["creada"][:10])
+                if tipo == "svg":
+                    return self._send(200, svg_rr(serie, calc, idioma_actual() == "en"), "image/svg+xml; charset=utf-8",
+                                      {"Content-Disposition": 'attachment; filename="ASTRO-%s.svg"' % base})
+                if tipo == "csv":
+                    with open(os.path.join(RR_DIR, sid, "curva.csv"), "r", encoding="utf-8") as f:
+                        return self._send(200, "\ufeff" + f.read(), "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-%s.csv"' % base})
+                return self._send(200, archivo_geos(serie, calc), "text/plain; charset=utf-8", {"Content-Disposition": 'attachment; filename="GEOS-%s.txt"' % base})
+            if p.path == "/api/rr/zip":
+                datos, nombre = zip_rr((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/rr/estrella":
+                try:
+                    rr = buscar_rr((qs.get("nombre") or [""])[0])
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                if not rr:
+                    return self._json({"encontrado": False})
+                jd = num((qs.get("jd") or [""])[0])
+                if jd and rr.get("periodo") and rr.get("epoca"):
+                    C, ciclo = maximo_previsto(rr, jd)
+                    utc = hjd_a_jd_utc(C, rr["ra"], rr["dec"])
+                    m = RR_MARGEN_H / 24.0
+                    rr = dict(rr, maximo_previsto=_iso_jd(utc), inicio_previsto=_iso_jd(utc - m), fin_previsto=_iso_jd(utc + m),
+                              maximo_previsto_hjd=round(C, 5), ciclo=ciclo)
+                return self._json(dict(rr, encontrado=True, observador=config_ciencia().get("observador") or ""))
+            if p.path == "/api/rr/proximos":
+                try:
+                    return self._json(maximos_proximos((qs.get("lugar") or [""])[0], int(num((qs.get("dias") or ["3"])[0]) or 3),
+                                                       float(num((qs.get("vmax") or ["12"])[0]) or 12), todos=(qs.get("todos") or ["0"])[0] == "1",
+                                                       solo_gcvs=(qs.get("gcvs") or ["1"])[0] == "1"))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/ast/series":
                 return self._json(series_astrometria())
             if p.path == "/api/ast/config":
@@ -6158,6 +7134,28 @@ class H(BaseHTTPRequestHandler):
                     return self._json(recalcular_exo(d.get("id"), d))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/rr/medir":
+                try:
+                    iniciar_rr(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/rr/recalcular":
+                try:
+                    if d.get("observador") is not None:
+                        guardar_config_ciencia(observador=(d.get("observador") or "").strip())
+                    return self._json(recalcular_rr(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/rr/borrar":
+                borrar_rr(d.get("id"))
+                return self._json({"ok": True})
+            if p.path == "/api/rr/observador":
+                guardar_config_ciencia(observador=(d.get("observador") or "").strip())
+                serie, calc = serie_rr(d.get("id") or "")
+                if serie and calc:
+                    guardar_rr(serie, calc)
+                return self._json({"ok": True})
             if p.path == "/api/ast/medir":
                 try:
                     iniciar_astrometria(d)
@@ -6219,7 +7217,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -6243,7 +7241,7 @@ DIC_EN = {
     "Ciencia · ASTRO": "Science · ASTRO",
     "Ciencia: medir con tus fotos": "Science: measuring with your images",
     "Inicio": "Home",
-    "Los seis bloques": "The six blocks",
+    "Los siete bloques": "The seven blocks",
     "Día": "Day",
     "Noche": "Night",
     "Rojo": "Red",
@@ -6836,6 +7834,127 @@ DIC_EN = {
     "~No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?).": "I couldn't query the AAVSO's VSX (is there an Internet connection?).",
 }
 DIC_EN.update({'Idioma': 'Language'})
+# RR Lyrae: el máximo
+DIC_EN.update({
+    "Máximos de las próximas noches": "Maxima in the coming nights",
+    "Las RR Lyrae del VSX cuyo máximo se ve desde tu lugar con hora y media antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.": "RR Lyrae stars from the VSX whose maximum can be seen from your site with an hour and a half before and after: the star more than 30° high and the Sun more than 12° below the horizon. Times are your computer's.",
+    "Solo las del GCVS": "Only GCVS stars",
+    "Buscar máximos": "Find maxima",
+    "Medir un máximo": "Measure a maximum",
+    "Elige la sesión con las tomas de la estrella (unas tres horas seguidas alrededor del máximo). ASTRO busca sus elementos en el VSX, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el máximo y calcula su O−C.": "Choose the session with the frames of the star (about three hours in a row around the maximum). ASTRO looks up its elements in the VSX, chooses Gaia comparison stars, calibrates and measures every frame, fits the maximum and computes its O−C.",
+    "Ventana del ajuste": "Fit window",
+    "automática (30 % de la amplitud)": "automatic (30% of the amplitude)",
+    "# % de la amplitud": "#% of the amplitude",
+    "Polinomio": "Polynomial",
+    "el que mejor encaje (BIC)": "the best fit (BIC)",
+    "grado": "degree",
+    "grado #": "degree #",
+    "Tu nombre para GEOS": "Your name for GEOS",
+    "Medir el máximo": "Measure the maximum",
+    "Hace falta conexión a Internet para el VSX y el catálogo Gaia, y Siril para calibrar y resolver.": "An Internet connection is needed for the VSX and the Gaia catalogue, and Siril to calibrate and plate-solve.",
+    "Tus máximos": "Your maxima",
+    "Las que tienen nombre del catálogo general (GCVS), como RR Lyr o XZ Cyg: las más estudiadas, con O−C de muchos años en GEOS.": "Those with a name from the General Catalogue (GCVS), such as RR Lyr or XZ Cyg: the best studied, with many years of O−C in GEOS.",
+    "p. ej. RR Lyr": "e.g. RR Lyr",
+    "Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la amplitud por debajo del pico.": "The points that go into the fit: those less than that fraction of the amplitude below the peak.",
+    "Efecto Blazhko: la altura y la forma del máximo cambian en semanas o meses, y el instante baila con ellas.": "Blazhko effect: the height and shape of the maximum change over weeks or months, and its timing wanders with them.",
+    "Calculando… La primera vez ASTRO descarga del VSX la lista de RR Lyrae, y puede tardar un par de minutos.": "Calculating… The first time, ASTRO downloads the list of RR Lyrae stars from the VSX, which can take a couple of minutes.",
+    "No hay máximos que se vean enteros": "No maxima fully visible",
+    "Prueba con más días, estrellas más débiles, no solo las del GCVS o también los que se ven a medias.": "Try more days, fainter stars, not only GCVS stars, or also the partly visible ones.",
+    "No la encuentro en el VSX": "I can't find it in the VSX",
+    "Escribe su nombre como allí, por ejemplo RR Lyr o XZ Cyg.": "Type its name as it appears there, for example RR Lyr or XZ Cyg.",
+    "las tomas no llegan al máximo previsto": "the frames don't reach the predicted maximum",
+    "poca curva antes del máximo previsto": "little curve before the predicted maximum",
+    "poca curva después del máximo previsto": "little curve after the predicted maximum",
+    "según el VSX no es una RR Lyrae": "according to the VSX it is not an RR Lyrae",
+    "Elige primero la sesión con las tomas de la estrella": "First choose the session with the frames of the star",
+    "Escribe el nombre de la estrella (por ejemplo, RR Lyr)": "Type the name of the star (for example, RR Lyr)",
+    "no fiable": "unreliable",
+    "Copiado": "Copied",
+    "Selecciónalo y cópialo con ⌘C o Ctrl+C": "Select it and copy it with ⌘C or Ctrl+C",
+    "Esta medida no tiene resultado: vuelve a medirla": "This measurement has no result: measure it again",
+    "Instante del máximo": "Time of maximum",
+    "O−C: adelanto (−) o retraso (+) frente a los elementos del VSX": "O−C: early (−) or late (+) against the VSX elements",
+    "Brillo en el máximo (aprox., en la escala G de Gaia)": "Brightness at maximum (approx., on the Gaia G scale)",
+    "amplitud vista": "amplitude seen",
+    "Dispersión del ajuste": "Scatter of the fit",
+    "polinomio de grado # con # puntos": "polynomial of degree # with # points",
+    "no se puede calcular: la serie no ve el máximo entero": "can't be computed: the series doesn't see the whole maximum",
+    "Guardado": "Saved",
+    "previsto": "predicted",
+    "máximo": "maximum",
+    "Magnitud aproximada en la escala G de Gaia (arriba, más brillante). En morado oscuro, los puntos del ajuste, dentro de la franja; en dorado, el polinomio y el instante del máximo, con su margen de error. La línea de puntos gris es el máximo previsto por los elementos del VSX.": "Approximate magnitude on the Gaia G scale (brighter at the top). In dark purple, the points of the fit, inside the band; in gold, the polynomial and the time of maximum, with its error margin. The grey dotted line is the maximum predicted by the VSX elements.",
+    "minutos desde el máximo": "minutes from maximum",
+    "Los puntos que entran en el ajuste y el polinomio. Abajo, lo que queda al quitarlo: si hace ondas, prueba otro grado u otra ventana.": "The points that go into the fit and the polynomial. Below, what is left after removing it: if it shows waves, try another degree or another window.",
+    "O−C en minutos, frente a los elementos del VSX": "O−C in minutes, against the VSX elements",
+    "De momento, solo este. Con más máximos de la misma estrella verás aquí cómo cambia su periodo: una recta inclinada si los elementos no son buenos, una curva si el periodo cambia, y saltos de semanas si tiene efecto Blazhko.": "Only this one so far. With more maxima of the same star you will see here how its period changes: a sloping line if the elements are not good, a curve if the period changes, and jumps over weeks if it has the Blazhko effect.",
+    "Cada punto es uno de tus máximos (en dorado, este). Una recta inclinada dice que el periodo del VSX no es del todo bueno; una curva, que el periodo cambia; los saltos de unas semanas a otras, el efecto Blazhko.": "Each point is one of your maxima (in gold, this one). A sloping line says the VSX period is not quite right; a curve, that the period changes; jumps from one week to another, the Blazhko effect.",
+    "Periodo": "Period",
+    "elementos de": "elements from",
+    "Elementos del": "Elements from the",
+    "La altura es la de la estrella al empezar, en el máximo y al terminar; el brillo, el del máximo según el VSX. Con elementos de hace muchos años el máximo puede llegar bastante antes o después: por eso se deja hora y media a cada lado.": "The altitude is the star's at the start, at maximum and at the end; the brightness, the maximum according to the VSX. With elements from many years ago the maximum can come quite a bit earlier or later: that is why an hour and a half is left on each side.",
+    "Añade en Control de lights las tomas de la noche del máximo (al menos 15 seguidas, todas con el mismo filtro; lo normal son más de cien).": "Add the frames of the night of the maximum in the Light frame checker (at least 15 in a row, all with the same filter; usually more than a hundred).",
+    "máximo previsto": "predicted maximum",
+    "elementos del": "elements from the",
+    "Todavía no has medido ningún máximo": "You haven't measured any maximum yet",
+    "Elige arriba una sesión y la estrella, y pulsa «Medir el máximo».": "Choose a session and the star above, and click “Measure the maximum”.",
+    "Máximo (HJD)": "Maximum (HJD)",
+    "Ventana": "Window",
+    "ASTRO elige la apertura con menos dispersión y quita las comparaciones que bailan más de lo que explica su ruido o cambian despacio (variables). Puedes marcar las tuyas, cambiar la ventana del ajuste o el grado del polinomio, y recalcular.": "ASTRO picks the aperture with the least scatter and drops comparison stars that scatter more than their noise explains or drift slowly (variables). You can tick your own, change the fit window or the degree of the polynomial, and recalculate.",
+    "Para GEOS": "For GEOS",
+    "Máximo para GEOS": "Maximum for GEOS",
+    "Curva (CSV)": "Light curve (CSV)",
+    "Tu nombre": "Your name",
+    "Guardar": "Save",
+    "Copiar": "Copy",
+    "Abrir la base de datos de GEOS": "Open the GEOS database",
+    "GEOS guarda cada máximo con la estrella, el instante en HJD y su error, el filtro, el método y el observador. El archivo lleva todo eso, además del O−C, el BJD_TDB y cómo se ha medido.": "GEOS stores each maximum with the star, the time in HJD and its error, the filter, the method and the observer. The file carries all that, plus the O−C, the BJD_TDB and how it was measured.",
+    "Elementos": "Elements",
+    "subida": "rise",
+    "del periodo": "of the period",
+    "Máximo previsto": "Predicted maximum",
+    "Ajuste": "Fit",
+    "polinomio de grado": "polynomial of degree",
+    "puntos, hasta el": "points, down to",
+    "de la amplitud": "of the amplitude",
+    "por debajo del pico": "below the peak",
+    "Instante con cada grado": "Time with each degree",
+    "Error del instante": "Error of the time",
+    "el mayor entre el remuestreo por bloques de": "the larger of the bootstrap with blocks of",
+    "puntos (por β": "points (times β",
+    ") y las «cuentas de rosario»:": ") and the prayer bead:",
+    "con la diferencia entre grados": "with the spread between degrees",
+    "Curva": "Light curve",
+    "tomas medidas, una cada": "frames measured, one every",
+    "min antes y": "min before and",
+    "después del máximo": "after the maximum",
+    "dispersión frente a lo que explica el ruido:": "scatter against what the noise explains:",
+    "β de las comparaciones": "β of the comparison stars",
+    "La curva de la noche": "The night's light curve",
+    "El máximo de cerca": "The maximum up close",
+    "Tus máximos de esta estrella": "Your maxima of this star",
+    "~No he podido descargar la lista de RR Lyrae del VSX (VizieR, CDS). ¿Hay conexión a Internet?": "I couldn't download the list of RR Lyrae stars from the VSX (VizieR, CDS). Is there an Internet connection?",
+    "VizieR no ha devuelto ninguna RR Lyrae: prueba otra vez dentro de un rato": "VizieR returned no RR Lyrae stars: try again in a while",
+    "hacen falta al menos 12 puntos para buscar el máximo": "at least 12 points are needed to look for the maximum",
+    "hay muy pocos puntos alrededor del máximo": "there are very few points around the maximum",
+    "no se ha podido ajustar el máximo": "the maximum couldn't be fitted",
+    "Buscando la estrella en el VSX": "Looking up the star in the VSX",
+    "~en el VSX de la AAVSO: escribe su nombre como allí (por ejemplo, RR Lyr o XZ Cyg)": "in the AAVSO's VSX: type its name as it appears there (for example, RR Lyr or XZ Cyg)",
+    "~el VSX no da el periodo y la época de la estrella": "the VSX doesn't give the period and epoch of the star",
+    "~: sin ellos no se puede calcular el O−C": ": without them the O−C can't be computed",
+    "para un máximo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)": "a maximum needs many frames in a row (at least 15; usually more than a hundred)",
+    "Ajustando el máximo": "Fitting the maximum",
+    "la estrella está saturada o casi en # tomas: se quitan (baja la exposición o desenfoca un poco)": "the star is saturated or nearly so in # frames: they are removed (lower the exposure or defocus a little)",
+    "no hay bastantes tomas con la estrella y sus comparaciones medidas": "there are not enough frames with the star and its comparison stars measured",
+    "la serie no llega a ver el máximo entero: empieza después de él o termina antes, así que el instante no es de fiar": "the series doesn't see the whole maximum: it starts after it or ends before it, so the time can't be trusted",
+    "ningún polinomio sigue el máximo sin ondas: prueba con otra ventana o otro grado": "no polynomial follows the maximum without waves: try another window or degree",
+    "hay poca curva antes del máximo (# min): el error puede ser mayor de lo que parece": "there is little curve before the maximum (# min): the error may be larger than it looks",
+    "hay poca curva después del máximo (# min): el error puede ser mayor de lo que parece": "there is little curve after the maximum (# min): the error may be larger than it looks",
+    "el instante del máximo tiene un error grande (más de 5 minutos)": "the time of maximum has a large error (more than 5 minutes)",
+    "el máximo medido cae lejos del previsto (O−C de # periodos): ¿es la estrella buena, o sus elementos son muy antiguos?": "the measured maximum falls far from the predicted one (O−C of # periods): is it the right star, or are its elements very old?",
+    "según el VSX, esta estrella no es una RR Lyrae: mira su tipo arriba": "according to the VSX, this star is not an RR Lyrae: see its type above",
+    "hay mucho ruido correlacionado (β = #): nubes, seguimiento o enfoque; el error ya lo tiene en cuenta": "there is a lot of correlated noise (β = #): clouds, tracking or focus; the error already takes it into account",
+    "los puntos bailan mucho más de lo que explica su ruido (factor #): nubes, seguimiento o una comparación mala": "the points scatter much more than their noise explains (factor #): clouds, tracking or a bad comparison star",
+})
 
 # letra Manrope (SIL Open Font License), subconjunto latino en woff2: va dentro del programa para que se vea igual en el Mac y en Windows
 MANROPE_WOFF2 = "d09GMgABAAAAAGEEABMAAAAA8egAAGCUAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGlAb1Vwckwo/SFZBUosuBmA/U1RBVIECAIRmL2oRCAqBrRiBil0LhDIAMIGXUgE2AiQDiGAEIAWHJgeKVwwHGyrdJapbsyO6W1VRAyCkmYjcDlGobB7ODOZxCMLdIvv/M5IOGdu4bQBmptaC5Cw3Zs/B24Wc3UejP90jo4xEJ5+mL/pCijoTBwmGLDIUXTjoFu5sGgiWh5SZ4XskoeA6g+tCYUQnLgcljNh0f2nfNxg8GVT06PO6JmtJp2lI0E+iP+eQObd50DSNzKChwFooKPopSntFwrM4C87KVzoD3MmxCDlyQjzPr+nPufe+93aXXVhg0WwIUYg6TRaa0NTyqSU0JSoVJ76PiFY9VifmJJ84cadO1SnLw9d+9Z7b3Q9m5kMISM6GWaLwsX33b0ClUp40sYoi4cI2wiC8/+F/W//7HA54RETUIx4RERHJkBAVv6EdCB2ynzn2M/pMMdYts5/9HZ9gt/n+uz/n7/01jstbvsZpfPZ9jeOYOQ3X/DKGSkhGhkSHAzz8f27VLcAwOdkhc2ykHcxIv3qUBVm6RKSrSwyLTEljSSOtZaKHjX/7mSf/7X6FGD5Dzi4MwTY7nJgzehNBzJiIYgMqNhJHDFHEAhRMjMbuxW/ac1iLcuHCWqUuXORn+Tn4svm7nZl+F5oU6xEKZ65BaPH45/2DnfuzjKKoBSVB2AKMMNAM24o04PShbtjAPE5fqtk4YfvxGwnJ8KX1LenDnCnzj272Gdoxlzd3Xt8XR8fi5vbmstxOQowpTREpItLIRcSIKaVxRcpRxFGKlHJILe75ep2Dh69d76e9kLV6RHVDY6QdI3CH/r5LLOUcP36unPn7szAvsCmjah2g0HecPcQcwU/GJDYrVB1JImGq6g/8/OmqUdVVOIQjXzbVxCO/RlcYUGU55OmvT1eSCxK1XpBjH3Pzz8ueuy9UJQlR8zebREU2inU2U4Rc/gnxYToUNoe6CFKTpG5ce9Pj3S5TBTKVn7+mncEKuHxUpvsEa62oF1f5//uqWfsuIXhAOgGO0FSc4wOf7yw7l5Nap1jUuXv/PfwMgB9hJAQFCCJGAESNP0DqnA9QsAHy4wuElGcyNXSKlGN6AMQZKNmgSIccqxQ2hNSmUOtsUU05Rentttw2pNPv1v2W1Wa/d6rYSbop2YsVobx39fudg2HVdyd5SV2TIG4ZBcaPX0vtzb0QvSIo4F+hdnKu6i6uVbUVLkA/k01JbS4l2AKjBZTXqkpQAVVCVWXZWFZWl4haOctWV8qvRdgogbTHHv/UoVBsFEGCUJF8j9SfjEIjozxWY48/1z8zKdhYB49s1NBj9P++eg5rOYNb9O+macheZRsOWRxxRIL4fdW/vofst/eG2OeH/ehH7xFNgjkJ55wXHONA6pA5c4Atn1baX8uZTYQjOTLB+iwILVpKEgGdKJAJgiR8x6BKEhAIPf8lTqjvszvcPi4hSddVlN3MVARcvMv4UFIAq4+ezjN/5G6jxvxJK02H+WAAYM12E9caDpOBxEow0J+laDYHuKBhE8lA1qQn+8EDKIkeVofwLXBezMYB3EmvSoKQSGjh58bexG4LM9orxlA+KoIlKF0OUBE1yPVfIyY3MZKjdFle30lAxXN1+6no/PJ/oeImxsJU/UGx2EQPsa7MwZ1nI7Y4JvvHOHyZr2+DBOrSNDFcSNmOkGZbryqq4xz65thY7cc3G+SCVIxN0+vn09cx/ugmNsZpJdkja11OXfe6xUN9BGe9sk/TO1TTzcOnriWRFiXFYwIU+wA6kHioq9ENsYGHLwDWXJOnZ2DQU0rzjCapSk/kniR/ZmKXqllkdCsd5yYM7bM7NuxF2dWXgCmLl7xpNkhMFzd9Hb0xdTchBLuCSSkydZzKOTITinW0t55f7hbFcmETa0BzVHHIokp9ClImst285sIDBOQ2LRRxbKkLgw6hjmw17aGZbpbBDj2oSfp1uqrlVIVw44ucX+7SXFus6IpBNsVccdbGFGAJIFtXpLmJfJGvxlsefnxc01NUpBuSVQ1ZpUphJ0/qzMJW5xQIMX6LQZ8iT0eXRPqA4usLfawlYGLnIGXNirtFwAWex2JXobQ0ybYdukN+j869qdgSslOYMJhrEihot8g+xgeGPxI/BRkEqrtuUfMjBP9Owu3moCaEmf/9/yLSkkvyfDPXEav4kJjarH5+y8VeiA/t4WoRLUFLiUa0T2QLWwIVYSFUxY+dwxh+j6PNBnASRakoNbRL6O+Bq/XpN9Fz8CMcg6FmqE5qb9rlFFmOWStPavnsPKLPzTlij0mvkXG3/mYxYJNKFfWKE8Ll+e6RC32bYnN1jdZ5jG07xFX0hEo8kexTeiZLi0PCsiZv3khz6VoaIFux+9xmsFJF5sGdZLfD7neZT/rELfWtH0z2U1/TgbcDrBaJiIMfCXBE9aT0IbyMODCL3xQfKLFqwWYaWoBVpLQClTZM1vZJCdrpxNFZF0FdGzdeN9159XDT9FTAdqNr6aOQuImN9XPFzW7jczvr6c8U/3MzFRnAYyBzFTPsXtdjkPskKnEtg40iRjPRGDYxls2NY6rxTDLxSfVN8hDtYY+I82jjhjzmCX5PutlKTVbPVKuX4CcZq62RY611GtkJNrKb6fYww16m28cM+5nuADNUMd1BZjjEdIctI1NosG8DX6nR1DdgU9+yoe+ofM9kPzDLT317KQWEh+bNzoQ+PvHi+k4QEK+xBMkMoh4kylWfTJblNtFILqU5jZZhw9z51mAzbZim7dm+DCI92EjCPp9WkMdp++grTqEEawkbOSqjAXUDP6qnbQybG8sWxjHFeKaawKCJlp01CPxIQkCa1oI5drO+Pcyy1+rnBVmojyzURxbqIwshC+UiGIe0/IQfIVbpA+7cGs/f8Am3Ud76297q397/NC7DRQ15Tp2e7Bp23lMt4J5xGvo+7/ugb6d+0A8jS4YJYOszNs25bDctnsg53JvWc5U9bN20uq1OS2QdMfiG2CfG5NWrdhmQW7Khb8BhAKESS1BYT6KqcQ04BElIUKIiM8fJz+5HS9FRTAnLoNpdJKlav9U22+2w0y677fFG1jb5rve87wMf+sjH0nziCz/7RToVQgZSJso+GvTpZ4jHnriZWvX8AoLCIpq1aNWux7jzxGJcPgfQt1XoJv30N9gQQw0z3AgjjTLW+Lr6f7M1+bZ3LKlwbwpyDS1K0AyLzeHhreGYuQPn6XbmO/mulKLJpvZ5ix+RTxrUtf9PW2fnGOMDxTZieoI8N+ilt0jyQcG/zuFiIiTyQ+hZ8FRSKo001kRTzeTI1Vyr2jZmddblhhjevx9v4/MwXR4R+Q5W/SDo9CtIgYxcnHiTTDbliOiW0Upmt06zENsBglFACOS6VJSgGRabw8P7NBw716B2jVG6mdId8qjrydwybqEvrGHOm/5ohNcoYydLy8RzrVWoXwbB7D7Pec5znvOc5xoYdToaDtmm4nSwELqYnnFmc1/97OKSMBOAKKB5bUE9wdEv+3zaNlaB+CggCBJzFNAMi83h4a2zgczrvl9I6XNHF2MnAebDC+o2IpEEvwQd5VXGv1sMyCQk/HERkwF8UYAPBAAU0gyLzeHhNQ95JXwF0j7PdRHfRmFrxLNPLiibkPBfCIDGnm67CO3VdMW8ce4KIy5bdVfvDhRiqdBnrl7Mnt9WhdWUQNDQl2P/2NA/2S9Irw9c2As4ipl9gsPARMUOhd/FGfesor2AamlG699FGQrrPNxQnhWaKMpzTT6MRQVcAVqCRDK2NMNic3h4r8OAakG11XMZXHSgWIllKHqGeSMghlJlTFnNMIO7bEPb7fCCnXax5IRHJoOpfd5Cl0i6G9Q9S2KfAw46vA2eaAl0Q19acwFdVD3pc+ihhAp6Dsh9mlEtzbDYHB7e4zDqd15o51IAAL7t276NhoZ08SQwSZAq6XaOBTRQnp45hRUdoqChTcLflacouT2ODafGbFnCiml4WutI+ytiIn+i237IzQzHUnYw4DAk7STxImon5SGEmxFj1k96TWZDKfp+Xj5xhtROaju1lW+an2bbgcam6tv914pUDtpvJ0cGGr827TOAYqyLhKBs5KRKgbxFNsRI2Yf/FsryAfsLnYD2w6TR8QGEcOBgAwUCAAsYuAgDZ0sEQo9k+iYc56+wLudL5yObQYTQ6UdIE1SHSLAtiKqOvbR/Gx1KOq8qBx1y2BFHfeozlwmv3fbYa5/9Drjiqk88MrMFwtPy0TEZsh8R8AyPydw//ZUJflQryXb6v0q7iK53xlmyx0u21kabbSG9Vr8jGomF8zl3s65ardZb1uGeN3oQtozNMd+ZfnPBnDNNxuLb7nsYE2O4/oPl0P26S7fqD7RN13nf8W71Ps2SsQQojU6qXtWhzqkmVet5yfMsKkV58qWcl7fkoPKKgiBioHGKcrHQSCcDsUYgQaeyQKAv/c0ALVBsDwsJGAv4QcxvzC8MFiYXirhbJG1K8fkUxqiEwNFKJsot5CQiMSAs2d/2teGWYto0SYrIhiRMyR+ehfKGnSRcJUXNG4KJsKTd/wsUUt/85HY75M5NFss7/bd5gwkg0WEyrq+0U6rWEBIixNtmHJuNCoVU5ksRMFOLPajHVtaSmTTS5ijhR7VNYFu8Q7E+YgrVnHwPcY4YEHOtRHSJXtKEzWC3jflzg3OT/cXm+TAds0DAMb84WGx9mN8r2Aud0uTqGKDCxer9yf/MXP0m3x2KGiWFSGQEWIJ/4ody6d8W7zBUX5EN+hGp0kO4SWp0mSzTD/BZOaafl2nBGTEgsqyua4JCQlNfnr52gOfRTVmTWaAY7n0TiW6DUpkZRr6Ucu1JXJpV/YF0JPZXqk+zqHxUPEs1QNFtQBnWZ+bT8ta5RIptZONCj3n0vy5Uc7HyBm6k6tX/qmDNjRAZrqXy9OsRmD1uE3LFwDkXZcB84Ih+A8hFuUCE4LD+c/oNp9OboMHruib9mlPp5bbnX5UirRl4RYNIBhIQgtZvGKgxPeTgDU3fTeIxewmCEvG5WYRJvJO+CMPFvv2cNUwKDw6TxniQlAVsy4cjacDK0ZWuTl8m6VPvEU+jTMS+YamCfKaC95riFiml3G6yv30ZCZsPm2i3Y77y12Xs3Z7g07L2cuPPp7w8z5is1fmp+A42VtEqzOO0SLnWNcdKQ0Nils42ly4UaCEvlcVZFh9jokVYRA5FPwaEUG/MjQxXR0HD+L8wbDjwwAsf4uBHAPFIQBCJSEIyQkhBKtKQjgxkoh7CqI8sNEA2GqIRGqMJmqIZcpCL5miBlmiF1miDtmiH9uiAjuiEzuiCruiG7uiBnsjDDeiF3oggHwW4EX3QF4W4Cf1wM27BrbgNt6M//oci3IE7cRfuxj0YgIEoxr0YhPtQgsEYgqEYhuEYgZEYhdEYg7EYh/GYgImYhPvxAB7EQ3gYj+BRPIbH8QSeRCkmYwqmYhqmYwZmIgoXZZiF2ZiDuZiH+ViAhViExXgKT+MZPIvn8DxewIt4CS/jFbyK1/A63sCbeAtv4x0swVIsw3KswLt4D+/jA3yIj/AxyrESq7Aaa7AW67AeG7ARm7AZW7AV27AdFdiBnfg/KrELu7EHe7EP+3EAVTiIQziMIziKYziOEziJUziNMziLcziPC7iIS7iMK7iKa7iOanyCT/EZPscX+BJfoQZf4xt8i+/wPX7Aj/gJP+MX/Irf8Dv+wJ/4C3/jH/yLWvyHOsQQSCAFqUhDBmREJmRGVsga2SD7kP3IAeQgclhyeHJEcmRyVHJ0ckxybAJ1IwL8kZ4QAC+ujy3ST8m4xzwvb9oik7yown3ROSV6mKvGvXKcFnraOE9YIVe/pQlftMR+1zL2u3OCmTZM8bgRuimc+xDDzFDhvuoDFY6YoSY0+Pth8cjXFXhamRk46QaLTRKdPuhEx+Rx2M9LSKY8hSpMU6nSGI+4TSPGDFFG3XOJ+7TTQxPB2SXfK56wv2FDIf11+bfjq1Z5NQJz/0Tvl7jsQ1pdrtkqiJaY5ORJKTimO27d+Wr+WNw/cihRsrLBKvCToUWrACBWo9hj3jQfXLNpFJjrqusoFza0Mm1o3bfCs3L1SVJQmlLjwHRDrha2DAZ96+fhvCyiAC8Hfb5pE6liwTpqbeBl9WD1iQ7rFfWYKHL8bl9/gp53XTIJKgXOeLzqv1YY3khVzEZeBZjrrgVkM+Sy4QMMIQ4IU0+PtZsKQLxMzXRRoL9BBCBBFeg8RVqBLqjQ8iwjybyhyW9480EVN4/2DZPOvqcwpG+3UOUx5U6tA7uPX5KAtrqbISaS9p5XX1BDajg7SkVSiVQmVUiLpEZs+YlGKe+eeOFkkiwu9AcB2aWiLXF3Vt5CpKRUfPaFf85wBdwFiAlZ1F2ZQsbjOwCqX9Ud1ZPVoh5y95djB7tzut6ODoOAduA2ZwDyAgBAno929bG+skG17b5XV/jkFmx+m1+sianVKgZyE3/5g7Dpwyd84gQkCEmRKk1YfVkayNZIC6201kZb7QbJjtXDfjscUOtUgnpWUOgfGtu2yEDF7t3oNtpY44w30aRhS+VR/FP2pL1FsM8/amz0rR9956deYkuCOEx3xb+Oh0sKLn9bbkUG/dfClkxbZoarViq3ymY2xfCwOLz8kgUlSlJPugyZ4jXUTGNN5GrqNzk6aa+DjrpraYLe8twgXy8RBfq6bZiv+wB3usvdblJieKWMBPxe/JD7PeBBKGMwublRLrns3CBe8PwtVVCkxFVfeWeoQuMvwFEhoa+UWdStXhSyEn2rL0LWYjr/CtmIBepRSIm/3EdlvzgUETkweT8vfwkAOS5AXRbyGaS9oekX5EfIlwAEKHoaNA0Bj1CCii5/xhQFk6RLUvBTFkk4vTMVIkiN1A8oAv+M+gnhqXQowSz6S84tTLj6nkOistQxhkiyThELiBCurpZ69XJ6vxFJYUhAmIou1OgPIPSdIjWSnCp8nZcgxI7WlHjkuV0TKYCUwRHpIY9cZEaFJgBJbpLaz6nVTCJGKO6QKSBjIlBoFP3U9x4oExQ0vZgHBdZpzdCGKwsrmKFFGAWYIfKKTxU/MfpHZmBoKqyaS8ohL6YRTgijANu4Fjtk8aEfdwbHvdRj5DsEfbhpuBr3YMusOYCgDIIGBBfMmXNzCQhxR2eIZGOSHdPwh0TaXr9UnEMYhBmu0AvoscNB9q13xEQ8UR/L1A4BB5NqsaFjv8UDHmNLjyg0J/FRNX2EsbuC6xDGsYIf6oOl7MMYcdWFHbg+N5tlWTByMLEGnAzM5+onca4wXLue0kqJHKjnd/AVtfGFF65ZUv5L7yKwWsdTjNzMy4zZjacRmQzS69ahtNzBZ8m3fzAoMsnhxmBEKmNwepuKNESBuMvX/UGaX2CCh2R40DH8v5FBvtWT1Cge+UuRcyrkSJy7ZNuDCpjZJsPyhypgS1Q7XqOqc1lO6GR1f9L+DRyrHwcNyO/ZGjrqSu0gEdp4LRAJjpEg+XE0G7R82Eoa+fx70chfr9xPsNR+425AiXZRBR+IVM4sj1Ppz1unKM6NTvnXFao4HvwvZde7rj8e1qCLlQo/gkKW5IFKObuVP/M7TtXsEiF/iiNapmhGP6g16v4VAZdaCm7dlrA6wux6RdpUcM5ETP4MfQ7eFmnKP2o7wMYWMvHaxhFEBwjkapT1lziq9A9VhVPJjEWMKzksfp5hA/UCZMKNvLoPsaflVSSib8ReessdQ82/Llqe2Va6WGMb1YEp9YNtwiP1gJrY0GXB/IZaoW8NEdrvRi5/59A2Hq8uCZ14OMcZOoLS1PD+cYOD4cBAfOsd1o4fnq6T7NAICTrMclP2NMZeI7e0mLqpxRyX3+awsrvtFh2qbJGbU3peWeIR2ngCZ3yjJmgRLEqPJHRWyl2arPzfIFqTiZpVtYMXja6UzhryWcKMlboBvtJaxAQdJ0unhfGx1ArjYonQ8bByOuKc4yjigu+0OQnJHU5X8UqKl1fQ6rKjl/+JOmuaSBYCa5tjXEwzcUrntpLZjqe9jhIGwiS6D4GV2pPYhUsl+wW/2QueTEGhonYEnzQU9rcSincIEYbSfj7LYX1HyZs+ROwQWWg9+Mm89EcgPPIjWVVCmE6ltI1QhoN+3b9FqWXqScUzG5w7TzqkWum8sWUSxqyLdGgkpm87I7CV+pwHid5CKETGADm2mii1FpKNZeopFbZiqkyDO8VDti4XZOOitqY9+7IOVaNzIyI6I9gonbp1AwOEvRPPW4GpqEEKAb+NtRRpjW31oLVXcX7z6W5j0O4FNHOOaDtKJWvwJrsc0FKwLA+I7ooc+eu1Egyq5FUBbHuqdh126uRdC00Y7SefxBzIX6mpvIt0eDaEq+WsUxFR8OGEQ+zto4PsGe3fIz0F5KSKg/HcyXQKRKdiYFgnD2uGUFpLjr/r6xzUJYQT/jXJAQLG6Q1ZPyv01HorBBjrhMJk+WwB9yfxh0nSFbNnXYol/7fMMOXE0OZs2ypFwvzFdtiMqqGJ5h3fjoYZLZjHqzn+8rEoE5wAebOzxq7PkmiOnSqXRtHJTvBHvu6meYg/UQbzMg04hr0AmtL6Zk3wZnANktyrOnt38Fz2kxODyn0DrRMll/FgM6KSxCyH0sC19YsSBiy3ErFOKLF+cVeCJD20sJRfnDf7KRQJtNPSP6LumoMMWMPETRYiswbkogYRr6URfUv9Y65OyBsrQu40dX+VJHx5TS78IMMncVzGqQcovleT8zFQhEwhREna64px4bCx2CdRkbiy34jCInszXO06giixEh5TdHLNBm1yXkQeYck76jSc6/ZNDl2yWRJxqmUprZihbjjCMZXJYRenDtamvTunDk071x0hK1xUg7kGTTEo1kLye379zhQOjCdJFrpXn6T2Aebs1FMlgMdIyDZrOACp7p6tbpBn9A+4CAEe18Z/7RGhMkJUg6CxUfBsFkivXmFuUsZPnoWFsSZ7dfIwVNO+wvA/5EUHxi80uXOQE9SnktHXfdxPho4dpyDNK6KUVkLFOESQRak+RzTfOPAuVqHPKZYDPy19EaqrSWAnOJL/qtj936quU2tLyam1g6YbgYhw8KiZqcWwp9U5hJ+l2zagsg7DSsE49/tN+VUtsn4rZzYbg2o6eh3zkzt090/7IwtfJv+qo2mfnMWnDrJUcvl5tosvy4skXTMpWnBxmkXa3z9FWt8+8XOGTJgF0GHQ4dhVcgaD9C2SeLXBX9JHKZGWNz2PtL174uc/y+zkBcFjJDxVrbhco7ukudgtqJcjGB/ig1th5oYGKGGOY37y5broXHfQd8mYMrVK4qiu2VHs+p7VjiS3T9Sk1+Mzb5XyB1AoH2lnmz3mwlL9xNqVDoq1yLw1tYpjw4PiYrLwFGNtiS3ikN7d8LPoiMyYcCGT4rB7fqeibScEtogODRTODc6+/piYwpEkAy34DBUO9DQuQmQlH7Zgg/j7VdJbfxvvqEm4ZPInLy4QZN+tqH55phmjjYY58O02edPoSLPZ4Rpue/7tptgKM3bCMwnPysb2uHUrtLhBWVnLIgBrW0mMIzmRvVygrotPa6fhSSH+nDgEHZfzowRsVnMDWgtL6/KpNt7ax9rpurWaCaLK5HZ+GoJykgRbM9lnZUO/7tljdPCZPOYY4ja/Jz+rjGiwLKaqTMhswJgvGmAeaYigVQrUozPkkZuyZSPTS2iMguzWfPalTEC+AT2liwZs+dFWwxRTxZkfyMjsyGEdLWwJhd4gBIr1MjlJ+wdIsbUtsdIls2XEwP3aumiwmF52Z+OSNmpAxrk13y+ueJeiudRnLNauW26ZRz5GwV2AZIOmzChFwMoUMEykInefAqxUoJjZm/vCHpn7ye+Oqn5Yo+WzR/jzp7LGq5gIT6TPv6NlOCtLj35j84brPBx0KnxYNHYCcm6bXFL/+u+fv+KxC4aOYuEDnN8p1eiBk5Tww2Mgu+dotZ2opXlmjHoYJi769u3zPzutg0hUO5t2xUiXxSPDqLU31bmLGAoP/+KUcZD/VC0MKt3yM/tg1jGIOQeknJlZQtR6Veg01omxrXnFmMPSGhbiUcWayxcS9VytckK8eVm0oRfNr4xvU0sTaPJT22GdZfTMAs3xgu5zL3oPSmaVQsFr+UMMSwsRUmrudGH5/qTCNHrRRJcOhR9k0/sf1PR/v64R+8+0Y3qF+Pj2ej4hP1TRTSPQBq88mhDtzacQKCvlZALZHUgIxPtYmN4iT4LnynxXgmvCmeC88NgSbBNYAraq0pxgDhyxqyO8Lz/XLT+WBVqulskKaW9owIkCuQIdrut6yrme9va2IaKgwIwQahCXGxTChk4NmeDF7A6DtrQG0zW4/iP/Fk/rOepnN2+EV6TdprpLpLyx2S3suy8arD9BgQ73FLeiwFVYxTv0irhxmPOZ+QY0s9+F5+C8OT5483K88T46jtNi4CUbz/QIJrq5/+ixhBjijqdMxG5IhS/Tfa3RIdoiwo5kgXGJPhBpEBabHO4Y85/b/uzxNDkmw7M8LR8dxGIv6PyX5WSRW0wFza0QIFtyoQVjAk4wLCBoj/9prLV4gSsZluTXLWXZh3S6zd7cX54zu5RQ+CvztngqPLkuKYm7r5/H+41xl94YF1/HKFH2VN4Fu9C/YX7som9tddExlzf/xanhn3OMPJbU3m0u/na03BVxDXGt3GVbubip9t7jB44R/jmOAy5etfpxBhVlZOumaYtjOlvG3IF+B23D4kiRotSgy7Ko4ewp8zyE72HT+6vpnucWTb+/kvuxl6vsimHGeiYjkR1ms0qqxsQEcML87o9MRbrFAqNJyIW/T/K1aB+6qGMGGq/A7kjKqX2NKW51BQZr8ELQBi2zYKegJXJYeJsB9eGYAlfRn/0sG12nGU5uddEwS5t3Dbr9PqFb4Rq/HlEu/jZd7jIcx1583ytGzinghkuE7sVK153zQpJwSiyb/oiAkZq3FNA7a6xLu0k4mKEyBZCaeGq1sT3q16t+6t7HNK93ew2SQvMBSUfVrg6hK1lGpry+MgmpJsA+fFRDRt2G276IJENOmwdzgtWZ13NsfUF+dcHT+ie5Z+1PPzWxVbdvWqZ9s9Hf7qM/i/8KH9tgG0kW2GCa6LOqBdhc+BvtnB8P5HyC/jC7xxRknMpta//8gBvMxT+U5S7Ly+WufxxdxFwMeAaeudZyUDDOsIB3rjXt89lHcEFortUb5/dBJ4e7xHdQNP8iOWL3s/UnHML727gLKxsrTz57+fbBS7eEUFsyDU1OTIj09hUxTkmlhhPOfYyfNFki9i8ZvC9g6OWm+nXS6cTEHJW/M7g8/n90jFXGR6OzI922iAGUCQ49cCDaj6SM2avEypXRLeTtbNcCC0DxqdG/XelNUoL4EQtZFomUlVUcat6PrwNHvuyy/M+e6IWKisD7VvuldPKrRILu/Spp39zuIqaefd9/M6erLsSLuoVReCEjcK+NkygrzjSXFMG0TvXLLlI+Sm7reC3qvGhQxdTTERcfvsQpylPGCeoYbH5GA+Gq02aezDkznlKbmhg+UCc5SwC2ALlKH8qhfuoXHK8/8mdDxy/jY7CxYe/5jvxR78jIUe8G51xDIxwb29zyZyNwLXLWK6nOUdC1QmGzQeoZXq7Y4D7mtIG8i6vqI1c1TWEl6I/2EqR9NouDld2XKraZnYYZUoP7nV8gLlJjqwHir2ezq2lnaxZr0hLOy7Ws9i33gVdp6PeBO468mHyRjF4OtACrgbgizaGUo19LaRjvdHcKvGattXMlM8AqunGSQ++CAkZFQ0SsXqLhhsV/jFYfqS71n7/YPFGCrUgwsxl4dXBmcL3URrSpneczQXXMc97/+ajALDzBzD6sm12ssDgedl7/nvnzxtoiHCUx2hsnKYsAdsbfKb826p7ZJfwyRvXfjd+1UWVSS8U6F6Sjza+NIJ2yT2HDvnOUa6Rmeg/mwvrxsYLsWrlj0hrEi/fhu/R1jTRG9v7/d4VEzL77vZmII0elnx9q9x241Z+udYJtgXx5dsdFhbIMPu9+cVVrqexKMaGc5OCYWFN9hBRMg/W35a7J00a1IFndN8mjQl3uGJvELhgq6WCeuKUc4ofJZcQKVC7Sjo9Ctgcs96ZVll8UWVZzUMYplVUng0QTy91WtVNqsc67i+2r93Vd8iu0gkQI9qK71ofEKqMTEnC3d6jn5qAEMTyWpXJ/MAMNkC2QqsaoxldOV7O22loZz49U1VQpy9nPO9pYW8pqEIQefdaVA1RaVWZzPz+jRwa/6fSsiLdyFZ3PK2s+XsZ5juhSeXFDc734rMxTQrch17xoADtK0EtY57Kst80Ovf/+YJbK2LAEcXOwZ+hurwRMLBWrrA91MquVXc51sJ8ry0N+uor+vBXjp6v/xTPUqDOnfyiC0AcRz+vkPyOqiPHCn17Y9iPkiM2k4CSD4cpPG3WDWpr0BU3ERESvfbT9pPaH6fGiX7aah1hrt367d/vhz0sqyyr3/rh75/4Put40Es5ESMKBIPT+rZbiz8dKiz5vUQcOvmiTa17kWSC/urt96cqj/7+cevT/lbM3KgMKwx1ILT8PsKxgLgQOvwWmOdYy3cU3wzjmzLGmnRY3svbnBdsZ/xIoaG+hRbnQWjIXsdOlPbY2KXFvttKg7gNkQ+DwH/WQS6vYkxe1B5+9zE/rGZOSNkaMNb6i/rtnRwJfrzbz6AVG+2u7fWzBfJ7cfTohuxYPU1vDWMUOBzlxiMXSd9dFxYxmt0x2VKXdSHJsEUC2UBlqVKDFxiqgAhmOJUACGPka1TsDdFK74e9/9lW5Cp2stk4OkaZ/hq2F/b18o9fssJAkSiJASiBAEq25pXVa6qDpbkVZ1DEXpV6FQ7WgugXqGgU1XP5LEJcB9w2QqaZDB+TEWj9uS0m0ahF/4UiydP/a5WnE96xkQKBuqfHdEc/aD4yXVx2c6Y6yFCeOTfCzEoZjU0arEV/eIhVxJYFrfRybK80P30l7fwehR1705CGmlQWftw4cGn3Rnfv5yOE8sNV1mHl7XffZy+tqt1pOlHOedW7d1gYKOZhzpDG4i2Fqp7WLbXVGegKcK/UGyj4mPWXTS0yFpekXU+YL4+Os8dH9TQ2Lw4dYAwOs0AucF1M1MS6XlE64KVZD9bfRVWCTVIbaWqnJ6nVH44puL+w1G3dltzvS/rfoHyZragwqUCNBezeqSo82LqbpfIlrqdoPNLLugCExoN69RbOXbAxMUGd/3mfRyNIzT10r7u6brZQG4KIHg3od9jspqWEpkez0upNRRcVLVHm7RgJLzzD3Sm13I0KZx8f5RXYFVFuOOp5iRuYw+15MgXCUG1/zOPzM8OKG106N935auLgDRmrUERkliU1Dg42JA9Cce0ad7WrIdyTopnxAGZMEzZ68/KPMxMmygszZtN1XCzyzkijtgqsfvgPbigwOaZSTMaFypJTyP/yfosKys4k4iK00dk7th1MQuJl5z3OEgQXuR6fYYf4221LjQwKwW5kql9gnQw5kVEPmTOOjKt8a50lyiYUT9zFrb3LJqT7R1fZYej2Ba/J+yWR5ifdKg3zjiWnC4P30jXwfNdwxzT5QlGQC47NWcybi4s3CTXHC+e3MrHxf/R60fv0AhxxBT7Tzzet3Ec1WdlXbZOwCVo+HbVbjP59fGHG4xVmR6xqt2RHjuXxti1tk/YuWTMB+/AMkQmdvLYGt1w/9EMw/+9UTE/gCEjEi9mrVoNH2czb0o9H2RLk8gLuMKDm0hGgxLm06E0uNr3n7Q2ZwSHQkK6qnFJB0MCTNct3bu0l7a2PARJW2DldVd3xRVNZ6uLK67XAJhPScvQkMKZMVn53OlwGnT/d0V2Bo3/1gqj7i2V0khOxYk6ofHVPac2i7DmxyHN8yKiRQ5wMylpPyS8+k+PKbAQldslZUtFaSW1K09sCu9i9GMVM4IhCMCHOFd+xmCDcm0AyyRG805UbnWF91aQjmaHoCA7+PlyYcHxemicZTkyaEsLzk5o3i8qobZYU3SxjWDbEFm8Op5RkQ/IfOnAkvrUfz41AuJYulxSq5KgcTaVP581dujLqkmfXtCRVGHfofYthOegajdiCh/914u+zeSh7AeJ2HlqrmfPtMSroGr83CWS+AQ+df4teNoUTxJqa8gvpDEZy8E1LRyaxc2YmT4sz8uSz8XtYel/fb8N0zlxv/EZnLqQV1z2pqn9XX1jx/Vg+y0PUTVJO2qFc8e7wDDfVbdYFZEU5e3FPS7LwTMtHJTOnvwfK3/W0U4foab65jZp+USE5mZxtOzdl/ysGW9R+jT7F12ae3BLiha1fSsy/Udnc+HvR0rzGvWyspEk+d4RYVOezeoqKSqpVa8/Ihz77H3bU5F1bTa5hfXJ0bm1xSDg9DnxzLhoO/dsx3d8DRyePJAPvVJTNv9KIu6CE4p2WyB/5Nf/uezxn1U6kDH3XU+0FWK53eziHy6B1tdG58Y+QXJNzrVL9AUnqwvyjoh99to1t5EDbFxzcyIaOllc6MT1TUJiYoFImJCkWCY4E5zaiNja1lZDLu+GcG4y8jPZ5dWsbKJbeYzSorZueayoAVyvFoOj/+fcioB6koRMz+QoEVx5NTWMIOSPTDJyIhPVZRG8Vg1MTG1MT7mjN9Ige6ssptaSBVPbVPbMGLMzMLz6SQQRJCXJCULCvg75YeGK4WVf5CVaWxQvEik+HAve0pnIja6iigk3hCSfOo4XvUUHcydqbR0k6AJifzcJV5SpyRUXQpN1JQVcMLDkxL8w8kJvvfjbHZ/eANdUlgcvI/TnFAJKPhhq+awWhuYYBLwmpl0NuG6GHQGiIO3T+76BYPX1E9VM3/TJusZ7LDe4r2P834vTcMCFSQI0sYiUnNyWhvaAorYvP7qwvkfdX5sbCSa2AgxAqaEhmRJQoyM36vNCVBkJXM48mSBQk5KZw7NCEt3rBTqJDj8zMWoD6esODLpUQFhKWnRfjZZk9drWZhA8B8heR3FoMf3KCweyzvZ6SKRuipJH2kVEsExceZVnItLPlUyU/kiBDwkwIqmKL7ERkbvAr4FfxjA5xcANVydf9JZ0jCuQm7k3DBloKf/2x0iIhVuLaHYTMIkOzcrHJpCs/ijeE7jFwUceGuNT/47KEI47q6QFrE3pZB3iAImBPAjjYX4IKwgnd/NDlS4prhCpZlhi/Xqdnw4qQPm+HTruqqiA13q33ZTIwQxnYNZ1Cqfm/Yyf6ztvnXGrtlI3sJHpzzS8D58Pz84hpOeT88F4fPmJhMoJvqHrpn9OUO5u54rDWEhuv68MsVzA5g3eQ7p0yYZ1JL5W3kLXALFlp5uk6l8+CU32GX3mmO91i1VpiagWXDCG8X0jJAJ21E8XABPTExT2CbFdOoGEMDCxtmwhNF584RJ5yP9CivYdyHEz8zvZc57pdTXZKfDPiJJ/r0zAbexIUZj1x7Ae4FTlkZa96OQc/LREnuCYbd7IzNkUKpd1QkfjYUhuzt0zB0Hjcp8pZCsHph85b4yEjcvDILBb9CPNTZvbhRKarMNc96/cDsAtBoiYXbAP3bEHy+8O+pjwVD9Q7SJbdaHWKfz9WkheIYyIWtI/IVMBQAAgzy2DF1vyFtLQf0MP9/ft9s8k8lp8hYLbkV8MLmsuZYM689TntUSjy24uBGTpJfauXX09VOc5AH60cKh8QovHMHOGcIYih+55xsDGYx8F+ZzPOUC9N7BkQRMU6SS09IFNdZCyWvo4udUN8g22zAkxO7OAld5ko3JSl8Ly6xZf78fjFkudlMwOHKDHZIQzgxoqOjglMu8hvepQwiA5OAM30a630Z2ypVlUnR9vrbvRpn4JlGzfttbgX3MeWCi5fra99iAtmy9BK9q5t+SSY1vasr61IZ9O4u4ISpd3eTlWJz4fLlC37jV68uMuG1PHLGYO8JKLteUrReXFZ6/XpRZK8XFV4vKy5cXy/5+tuDhb+zFoHmlVfwFZIS+wa+QSCnWreSeuZ2FcXr2fT9PDN7avNYX05N7SEPt8Td3B9zc5XryXVNT0RNF/Wr4vV0xHmHT3JyJaPR/Hp2kqK61QXNmfDqPdpVLj/1JBXgFZjHNtd6maqPVN/00lAXHsIRmzA7t6g7TRgKOCe/Hy1zXb5e6vT75CKiU6WK6BYRZjti62ttC7Ohz9tAyMC/pfv8aDS/7Gz+1ChfxGmLyTpgL4/f7TnQ2SYu7z9Qt10+QjD5DNSCYDgGT8B72jhQz6/w431pOl+we8fYGPycBMWTrrbRc4/UQfEZB/s7KJE9cmgD9Fhh8F8YcjUw1GEl8sURV6B/TwZuZ03PwDOmcPuWaqrDKxDghNu+Esc0b76jSxCa8TFdn2gv4QeTCFlLwLO8Hal66bp20kQyCMleIL3+PaCT88vtvrt3OPuGBveBny6wG9IWDVfrU8eShWNpKanj48Lkey45eSwtzePEkzmFGVMZHV0ZEwMMHOUK8hkDp6Sn4bndSLuni8pptotjuAGsIw5T4cVamYyzKnPS8/0XrMKN4dy/GgFB8fCgTu6tm/kGI/vEuiv3dh1buGhaceIBVUWrQffs5EJ5qiLBiM5Bk5pCounFYeQyGgwrKyXHk5p9bCisZqp1VHxmmu/eIN8CVbpGP+3nqfnvEwdG/sxRXuL+UN2S8dOpMz9mNKffJKz0sglNDt4IbDaB6UKeQJxE5wmF/KSMREBHl66FhkbY4dpUYgDFuWfbhef7M2TxWiUZwlmOq5PUxCeyywbv6xdmGmdzcGhOhvJLZTiQrcIq6OFOvM2y3EXkWxoBg/iady1ZN3Xh0sKhmVEOK3LwSrdpHDO60DD4U9BVndfBZryaPzZXG2UrFfPnCWAxg8c2OTku0t9XxDgplRomzmUTJ0yUQO2SnADfYoCO4B0j1FWZilh6JrRcQZtzSFw9ni6KjaTFH/TOxcTfU44TM8QJwpzqOe9EHUExarKcT+bGDXjyTAvRF8gyeaZI1DZHsfIwCy7Gxy3yq6hmhsiTzMfntGvyWHr6fKmk1TUoutIrJiGIoI/UxhE38K1m51+ZFy9m/tXZlbmdcMZQt/X4dlfnEgPn3q06rK4gbxKOZHUgChFtPaTbfMS7g7h4genN8+H0X+ioN27zH1YaOhBlOEG8RWVgOLZ6p6fMi8gIdfj12WMmujks8tGtVFTw6YpN/sQE/3llBX8zYSQrKp8LeZMu/nPMHiCRLpyOqK6OmBYmRxwBBoZ6RB8+kiyMmMZkCZiS2Yz02UxJ+gx1SSb0jJlBz5jFH+r6Hrx9O6CaE+jgHlvDOc6IHy+Z+KoW87+VbYB5LfCtPfFDtJOZk1k04nsaccejMMQjIvmALsyGOw+A8e+P/6FTT2AoO/njzB+7e40VWuOemAmf2PP884+g6fP28FrC+yHMFOH/g4mXJWEcNJ0TUO/xSJ+LS+6TF169JIzP9moIxj5YYSByPtqd0feavvfj/Rb9udCN79jWFv7nk4xTOnzR70/A2bajLfL3BdYOztGMvAS9156jdwwTs9VR/Y1EjcyEOqdGwIlQx0FVkNDGYdWircNFRV3J0W/zWmAb7Oi4PXX7kmZtqsI48+2povU5zTExNXG10DPbbxnbnFM1NPc+NO/gnb9DaQscbrzQ2+0WHVETS/Hfj85lzuXOFc53ne8533d+MPBhBzmGgG8hdJi0VKV5KGh7Kg26MVRgPz32AEZLP8D9+qIqplEOnd4aPD0Qx1XHda1vs3B7SWrnNeqg9QvH7WQbEAzO47N2njbbJsHSBZUA5rs6h39oQmYiSIgfDUfZQFcCsMUZlbvgY7YeykvyKaxYi8hG/eXqL4ZEf0yAbKASIOgHHKgh+y8EHirwHb0r34ncRA0AiwFdG4aji40HU59ccGZLjxcloynZLbERINsaDizAb8SUns6bDTVewJwheD271aDe0n5+bDcUsC3K1wB1olbhCO3GuGXcuBSDZpBimIJRoZOyiuo5DrwDEeR4651Zln79ESpAHvMSpAGqXH+Ccvl9aQJ1L/CATlzrmZc5RUnor6gIHcMdKqIKJ9cSMXzPQguga1BhMFTmn1EVVEiW1IqYSeldu4u3aFLXHCmy8KX2Oz0R1QKIhUtCqOWAUwN4Pd09ZLWssshxng7sUPVAQ1ZO1R6GuWKZkNBaJZiR7meRSZm2IGft8P1FPej1cdnlxgH2AD2sNGkG3vhfiqF1+JtBBFX+Wvr30/G4r8eLBEBAAFWoLAYA1Q8ApJPPTmpFat2UTKRK0cgF8aNK9AVPuueg6lDfq7tqWktZOaxi1lpvmnevl9Lf6Rt6ULsNYB2wF3xG02fhVh67oYew3rB6rAAnk2PprbKv2w8cYZix7+c+i/Ot85Nz3wngQjwDP97f8EU0MZoFmitaHlr7tbW0SdrZ2se1P+603gl3tu9c33lXR1XHTqdAZ1LnlM6Szn2djzrf6/yuK+na6RJ0ybptukt6unp+epl6h/Ue6bP0g/Wb9Lv01wxQAx+DJIPDBt8Z8gwJhhJD2g6FM8ISkZ18C1fk0ifFIsgxqZUHMh838ScK46EoxLYUl2bpL3UlLg3WWfVX3VV3aKRG7ehYV3rUh77pr/ZqnrJarE6tVI/W6S29bWxb28P+rdnyLWDPWnnrt1XaamoFWhn2mvubU8wTzcXmBeZV5u3mB8w/oNSocFQCqgg1gVpALaJWUAMWYgtbC5KFwOILi3sW4xYPLXxoY7QFmopmozPQ2Wg5ugJdj25Fd6MH0V+gJ9Bz6C30FAbF7MTYY4Ix4RgGJgGTjpFhGjBtmMOYqeninlpGWpIs+yzvWNJYNNYR64clYVnNV5IAK8VWYDuxp7GXsfewd63CrUyt0FYeViSrcWtTa7z15F2XjQtTT58617i9cVfjn9cNrpte55dz5HHyRfI1p4+cfun0uSbXIGgAjgIgyrHTCEO5e5sm8DZKFItAhiQSHTQTp74w6vGBWa6gffVFmEJRK+ha6DnJHJ9Wm56w6ohxt1wKn5urb5rJcanUgM0d1P6yi8Q8a36el7smW3Ill35nG+HNE0Lht5WUGz2UnlauS5pXGO/I0zn63I7F6fLAUlcb9auJww2eH2oqUJjUmi1tbaZZh6wSXXsht074DBbF5X5F262tKqyrOkqwj/7UCujPB78XWpmql4nUQ1oUlcAhgJTX7hzDjI/ZroExTrzYUJ6Y4gDK4fl45MEXoTYU9wTa+VRRBiIMEnjKKjqAF359C01azadi8fm5wj9nLqlyDanZrC6FhOVkzalh6nSNnyd2pQRNFxnQTtKrxqqJ57C2vT02nQ6kKSTEg6gYRPyAR/W/CjdlEi/IE0SFJEIpEhW5dr4CheCkfQxcCvXzVyj45Au7DO5BSUUpjeFX1Zs1nbWQH6XwzYb7unViV98LdvDxTaKFzucVHhetL7GDrTlr2ujevhtO7zwnqp0y1npjjnVjzv4a+UiflWh36fGx2jcU8uBnjNZ+klCdchJsvoQcrWa19cpHl7QWData9fy4lSX0+B/L3jkHwZyunKYBM2U6WuTgCCaGOA0PTZX7M65WDzj/P0MJpxhpzZJiBepUAvWI+8TrfnpVPrsnRvbJGAoEABtQwncPGUiOFxLCsmmVKjqw/xqYQLXZPaBKTSQXmZZpjp8jRWkqCvfcEB8jdApmFJz9whgRsDr4OWdPQY2K0W09YkJZeMS9MSV4RYhaDDczhUWBotSYgIXtHlFtDkjK1Ym80kpLvSszowXLk4KWA+UjGi3Wt0WFEKLVFMx/l+8wfcp6IuIzhDQhcp1jC650kIPHA7lCna4JP0h+2TgfOHyBg3+XRVHIoGJRqyVcSDkUH6ht3NEL5mepaBKRsAmGxZfallaIPYYLcVHQKsWIZ7VOLLxteOb91PyIWGdbcpODyhtU5Rf+NKrVe69cRrtPDt1oab7YphcVy/aqGOlb32UCT1rhLh1QfBjM9v0aFtHVXq+ph3wKatOd8njmHMxLRNVhV9+ug80S8zAvP5mn4aHpEicHfr3lV/9y3K8sTFUlcHoxIw744r55FjDY9h6GDl5LHAahsIRWUkT5KZ7dQyTqRkReLNov6M6jox3myRvRN3AZpF+XVKbrYVxW28xCIwVyoW0mTJiMYYu7oFOgjFdpaz9ShpNXiGo8skeQow17UQZa0Q/6bn806Ins8zHtAuNqv6tUGcYacrcYZMaeWNgljmGE6upWFPv6eMbauD47brULlKkyCc5EEkiNuLcqWsBi5mQTseWk9nCxxMFil7EELJCIN2Q0MWlzmK1n7Y4U7w3cbbZJfK5H0TvPrhTr4fEdPO+WwfmrLQxDdc66Jvi4Gg+FG1TaiI72zbd0kAz7vBGe7W9FO6IV2vKBI1RiaFP5BaVR/Zf//V2clr10WUletsaAjoU+Yb64vt8IiXk+vg4js8B2OJztr4msHT0KrY+lkBzPXWuLMzuixa4s278Ow+TmYuHzaCpbpvBU9Zg7Wjt5Ee7sKhjkKYREIxIjhzLZS5Ma+occiiIF1MFs1TKw2/3yD4cPSXDQalSN5Ka2tupe5EP6a42ObrRfqMi9SiWKXUQDNWw7NPb552Qr9FDPsVcHHP9FUERsrvLntX909LF0iR4LfvR+Uo1OOpjN/9Mf9l4UalXLFVgh7PlHy30+zzn/3vQfDMHO7m5dk12v6qhl0bx30sLr3vVMVuJZmQ4Y9ITufzKg8BPlMyqFR3fUZMZC+tFE042LDvtmELzUPT83ygzyqRrMk4+q/FmAAXZr7szlbazmhfzNOCVEVgdo6ZiwDsUpS+LbGPdVT0QEpps0zstNXG4KT8xpE5+jAlO7hOX4dB44Xs+vd5UBBbRmbfZZycdg/DUDhaLGWw6N/VdPwrbn11JhtBRmaeuRHQCeSRstjdlfRuXn4uv30t+C6CCdA5Pd/8taLxYxZQd/6cMUhMQCwkCHM7KPqXrsXr1WnZWVRjRVhVFiiZlri8vVXYGmdW5qSa7SyVCtpe5cKbOeiJvNKCTdakn16HwEKLbEZDH5lTUNAr96h4m59PhsxaFcM5OdaJ/dZg7NoqEOjWK1Q1XJ3CFYBodX1bng4hKjWcglItokTigKIn7UMhmqjdlEwiPnqW5hmjDDQPqJqCZCju1GOzMYD24dlEtmyymhrUuTw2BKNz4sJGEAK9DZx06oFyihieU+TEliMzJa/RpBPULqFpcwIQo2LnHgeffcazvn4x7kUnEjRbzGW9iQEY8n313nM96sosSrFN0aIxo1lM/H/uKdORtl0khmhzwgk1LOfZfb9E190kgvCMZwGPnsxQG16w/3aEVU/PEb0nPw4Vsn+Epg83M/wgCyzZH1ulTIWFQ0XIpiImq+a8Cviz+Gx0z5Dzr4EwV33UjW/L6GNZ9kouLjoXRFHYohLyzcJ3wlDCHvmqE9g14dN6rzotwIv16NQ0QNS90sGwlIoq9KLL8eOyjjJ+/4N4POLXr7vYL6hUZs+l6F/0toa82q/nNuRFqrksV4HI1g4bgMytDb8551DqpRw7k0n8g2mTyQ6/xEQ0oDV1afdGGp5aV0pyO2/68FviRFkVUi/qGAtfqA+tAxbN5mZBIu9pNVX1hYBRLh8MN29Qsr8mxlhXkWzlraH5OyQYDHIvjT3zTqoY5RIHaN+s8pYd7AZ+7Fn+/5EfENSoWskbzxlGih5W8XnzHTDj53VafbSX69o4kGtvDJj4r9zYqF5j2NEqeGcfBzLisn5mG7OYvzMGaRbttWpBQerOY9FaeMDQR8PUQCZdcO7yUCnxSdEtYBt/5jJQzBpRJ9cd6kEPK7J693pbj7Bvh7ubuSQTsH6HTARrojp4aRwJ7j3X95eUptzt97+PqXXz4YPgcEY6J3fONv/xS8Y6iNcdJnegyv+9v29w7PUKVt/9AXB7bzy8JAN5PafqxV5na/iU+afaz4ZkWDxkO2mGitSg7TUXQEP1mueS49Zxg/Hbwf1Go/fQ2MJCYP+uZ8QZv18FxvL/H/iq4t7sT0Cdh+Pfz44XiEJHD44Xyn928djPplx4Cr79aPdZPccgGa0yLq/M/CEjKyK/1PPtron94QlZ6RGdt0xP71Tk9rdAF6b09+jbvxJvYZlhkl0lSFZuWytsyKDrO8xWtisWvy8aXXUVE5ws8/KWHD3vVUGHakK2eCDB20GZZ51xw6pN57HiSy4E7bsQDTRymsVoc+zSw6KLAognVLC7ZIjQxCMHGxeuPm6iubbynNUVjy+fbWrY75oy6+/dFnjjfSlXMcFv62Sd+KFC2qFMSdtRRkzw3wY7pSXwo1cdDAaFo4naNZEw3J+OKmxPA21JrOHpgvy0Jfmz1rINzAdqYKS6NtyXGaomJKihNRm047fZOnFle6Gg7+MM7N++dv3Je2j+58lK481GEwVpkVpJkg8w3e8uA55g59BnWMUR/DMfXe8+QNHOq7UVjCZ4AJiMUzlCk/O9/v/OVyYCaxQMOaVPFPeElUvFsihh+pcffJfvkGnnWjc1C2rvP7aYbW1V+4d9z9tO6ICuvgYB7AUKXyYTDF0LlYYIlVu3pVk7qFqX/+Dm2fxScuS/UZi7f549Ta5fOG+sanDTepm3KjmNPREPP1/JeuUsXoGNXrhbJ05Wwe1X6b5T7T20v0785ZeVHOXfPhC/jQe720R6h5aVQPHBkEFeXQZtlmVS1q/XzbbqQm1s4biSF0pqJdL5XYn701a/3GYm9fuRSgQPd/qaONjXtwg10ulcpRcNZQT9nkqLyX0Xiba42MhzJlBeqQ9r5DMJcwEd7v03SQi+UqPV1qj9weGi+xc5yve4fmvWjmAhL7j5T9h5DtZFEJ/xiiYOxvMvb81L//7mNbgUF7Ub9qrXXbXKPGOnVnp97iwfilBSeilKvj5a0H66WKhta/onyY1ij+/zhaYX7vqB38lVFQe1N3i+klwlyar327J+/KZoZwfTOq11tPxzRLnfNa/Drac+dnOZ/HITlfBthP15lWD08hcPWIU0WcCG5aSyJpC+8J2pzb3L45iaMGesN2HtDzb2ZNiSb3cl5lJS4lZIpVn8+SsDkg3iR1YPKqqucyGe9hXwa9hQdpT20dwKttrSSBYEX5egqz+v5WGQWOED0xoUg4torCAnkqG27bedvSZL7RGUBHrLaUiWldcUF/h4USBcYb7SGz6dpBVvKwOlqGiZbmRNth7JEvZykyis4DlXPehZgaOTXqdNdMzLZC1QpX6KPfpBMaUUyq0yUrE+nfj83IMgr0M1q4IM+AkY2p/GnbQGfa2KYbrGaqTlnxtkQyS5u3rqrhK2PaB7YJY1pLlCJ3ZZcGvswyWagTZGzWsIlBEPqls2VV57u63c74MWaFgHdD2PzSoB7zbBW4v5juC7YVPrDd/epP9fMODXnZ6jNpT7LtBpVGMzOcXRqzpXeaggU1ogj6I4deuhQPirGf+WChfTkuUepKgozNhFQhSo5YM9+wAsCMzN/+o63RnmpQd7bhurah+0VAhG4mlTWf6Wqr1B7V48JsGznOf5ertb7LSD5/UfeoRyG88ht7aEA6kpuVvayY+vGdEWGyKrewQKNSGtAwoUtvhPLbpw2EvbhZlmAkM0iwhEL2wD1b58CBiLvjwvari/DSrY2l2kpOccSdveJ6dQ6UbXLvz7psz3GJOk1gYm46Cf7TY1SMd3bUDjMnPjkQ4AjF4QsLwC1XX+Fa0Hd6BAQ2wbGkDocpNvmIR1kC9ylxmHqHn42VelJkysycgo7ieOJb9d4Z3BfmYnq66Q8JjckgGAbvSiWU2ZAYxG/bzdqHn/1WLTrLT/Q7FmwGqfPfLVAoU2Wjj1x6RKSnZ2kWp8cxZIcdgR69b+vgoLJYPGl3nPg1WXnf9Fpe+Y6y5DEVgb5i2NU39zixNG2mwbHQrTVwCcIsF+1My+DxZVlVJQuMRB5lYsH11gGmrTx5vzjQn2ux71Qy11QHblrjaFddV4ff5p8+bQ/lDgQcPQERe8QR8k3BQVPor1WdbjnSM67ZVgPby4cnGh98GsSTVpTbun6/1pSomenbcnQ+sOaxP11xePuY0p55R+6O6r2ntvu6+fxscrgjpRtb/HXp7vdLV5ee9mBgc1/onyiVW7Ln45Ek5egikR/0NM0+zwLkdz/4/+V7oPKrVR/Y8fU14F72T+P8YxMVLrgKBsC2G9iZkibyrtH858nPzdZVKJ7Xsq/GYMMh8Hy1dN7mU4L99hUNwgp3myuqO/pdNdNhFRy2MxrIyHqry2KTAtkfWnsiNLoSZS4QnagEhYr1VhttjniYPoFsEdG4VUcRK3kfTFpgS+2bukwW7ODrnAUz7UG2Ew+kvKM1X067KfhSUkLrKUN2GJqoBPe4+Q0ZqnFQvzoiDkbKbkHr57V43lpaxQ8ot4C0UOpx5zlPrm92rq4WmmqYFiicEc96d4zoFX+QUqZLK8EcalFDzrXw6roOE4w0HoAbeCQjkz5rBtlo2/VjKax4LoNT9iIlvpc5HlcVuZhoxF48LnhOttERCz1H+wkFSeSD10qNWP/Uzmo9e8HZ+Wy6z4MnytNC/3BMXDCOUB/uCc/9Jzz6995Jp9N9JyggVDKnAuG6sxHWvxXI+0GSPvut+TfnYyRoM7ijpNaa7Bl9BNLsSHfNxJR7yjkz5cW42QFKjAX8LSKvVlr/cmq/n4hAIJMfmFmVlSVq4l7FCaH87uxs9LQceuqHx4gkgrGODiBEaWpoeWCE3D5PWeKZbfOW7ZpsAuXUb9G8S3PuYS+qmq9hq1c/q/74fXdo+JHnMQNaLLaDP7JsTx2ouWar5ys/sl9HFB0F9h9XDRuPalZR3XbEoJTyXfBPnVrPw48zqhY9t7w7A6c2aMPFSSBfYnFfvH0vVT2y2Y9ush/sosDAyUlfX0x/4K1kdfJQXXf+pp1PFf04boz4SmSt3M3v0D2+L9FEk0v+Of/aEF0xnUus6issyK6SZKkg7vN6nyUUPGdVZM6c5umVjUg663ViPk2kEcxt1QhnaEuyfYXH2k3VleEnaLP18NwPYjm7XnzbLGWAepsOGhIBPbfCtSWE9G7RIm4WlDYE+Fj0+Zt3GUs5qtwfchjnx8PoWBiDw2lhJkWtq2FfmeUER+yfyx++hqIkk15p6ObKPcETUdhn5j6sdwhF0ZgqlLCvz3vsInMLsR3KdLTO0lP/OIqz+K83dTaNeMHRoxvj9Sj0RI52epR/7xnqwPNozvmUr9WDY6tAoFRqkSjjM2Pxev/oUo1MGSEOMp53YoBWVUXJqvQF7aUhtN9HHVPWKaf11bB9Ks1hn55PaFS19JnxtjcmNQKd5WNl5CXS/A+W38zbPEPetjdXKN/UC21CxQq5SOjMU6iFVTbXkCaNHIlehlKG3HWnYxnZndeeMbzAWPnGp0lbhiFX9TEBvlr1X5SjuCHkGQhhG7xqscF53cnDOPMMlqeHINjMQMLkvzpcSWNLUN9BplM8ybft13rgHUYkGGOLty9jznLECakpo7bXSeewLkOOQEPDqi4nfG6USKhbkgDk5gahVIC+U0MiGf8Dhr992LRohZKHBF0LZ1vGvDa/d6xlNs45k+VvoYgGLiM31/hdvK5yTFkjcLRNxQftzHBAlrlAbDI9ereIxB9uoBiPKd8em8F9B1duD3+c4joyNOcwOmtv9092VIy7PJJ9EhNU1b1Puj3JNiWIH1eXF7nrMEzgfqjsOMumv3/1UQtP3F1GKRt4JeLgKDNu31pfgAn9b+hm3YwHDv6jPC6x7VWP+wM3E7t7W0d50HHj2sHDjJvgcBMtX21NkDlN/y6aJxD76ThD6Y7Ih5pdXbAcKg4RIKGP6Cp9Tv+kv9HbCnbKO3F0ExES8sWxwfFbIpwCr0eeHD+e4nAN916l3AXnBkZc2OSlQTP9sLxzawgwfZjiEz0WfqIZm05PhU0n2Viz4/XHayb8dpdZTMdfi2gdFba2qfPTgPDnq2t3bTlUqzopEXfFyUH61nHM5+YYWbzTnNBv60f183q9nn2x5/Lkb5ZtcZtPR2Y9cl3YsxMDYw+dEvJh9MrXenF12rJw72378L1xBzs7wXZUbvRTA+cSiwv907VWgNoajkWEmgpwL6fwW1c1osy6IKCK8293w5r+Wn8Chrk70LdVbRLYzX52htpQsFBpxgKKZu9idf5u9JZdAnM6qPLllH3sgs8W8t/zpG4j0DuNadOHKgSM1XRuPRhWA9HHllg3Tejaj7czKv1iqeTsAgyG6HHMaHSQPWBxrnG+8N8AEymWZWhkTovh6LFy1BcTNG50hukkiXrOncf3XTPq8QTOePzunuF7AzW5HDPFksx4a8KmbFDkG0efjFiWSz3ZtQ6TZGcbsOPpJvOk+slIhCI3xDCRpGrZulx2EP99t5Zx9Trvg3IHNuV8JuEdmsDDdV3QIg7tzd5rTDxo/7BA3lcjQy2sWskoh5AeVrGiZ2EoG+4+hTs2qa/TXpzUlfdODhFGs7S8OEUmxgvEjGAhcN3ZNE1kVmj4BMx80ZYLurzWwG8uUBZOprEVYRH8r0Jg7kf5bZmVg0SG+aH+E+dgeUuTBW5paVoqSxIOx/J531QkxniZG9pFM3MQX+roeSaTonE1bgfDmHeTEWRcHGVxN0Ll/Sdg7H1ku2H9nWaGWLbUDmPyoqJqnnejkg82Y0DYo1IslSXEbQHHTncv6rxBSUbRqttUCPip5shwrkKCjHthZd4O76QEhnCGnu+ZKShxXTmeRIRuVh33zHPB1viR51Z8gPaHjjoCh8r7g4TPDoaP0FT6lVzPyXb99Wn0cJXNNg4xFRG19fCfDXRxtqLSPP5gevCk1YLqtKLMkgCzevUv+Um7HCQfeV5JUz5RpqBbQMJIBpKFFCHLZpO1SAoSh3wn38OqSfCzHfI79O/8B2iO35n3QZpDrV2+6LOnkpOQXU/cAWmiX0JlCV37UqaJL9IRHbQHD7+JSnAmCpqsFjoqy+MPVmgPnXWSZMOBxuIYaVwUjkwSMWI9qqVxyW3+VZQNNWfJlc40gwFD3yutjlLJMIZfzdYaDkbw/+Mh8xEERhUE+l9NtHHTlq5Ltn9Ek1HNRwvLv/x03DFnNWYr7DEXgHgLomq+AciZkqsrUgLhXk+Y6U+eaMuecoeVmm4UVIfzrHXubGeRozWX8/2h9IQo7R25qQPdLqDXmCSei3nc9y/lO44Kkk/kt0RBVTV4HiecEuqzecuXF0XQtOk2tnEy6vklL2qweMUYTNgv6OOld5Ceftp1Z/7BmZ+G7t0Z/E6doskixgVz8/Pa6zUDA8/kch5DeXb3uL+OXiAT2Tgr8b6vZ5b23lfswetaf0Zp4X00snm0CjrJ2inC1ttNHbF2lNe7rdTBp7+GhQm5ZYEwBrN5tGsS990N/TI01H8n10TWqDOWyuKlLMlVyNWqNYfdkaC1Fc7MPuLYWkSt5gxfmUclJ+0eP0O2ck/FRD+evioux2IweCCZskruHLKpzMobLGU4DsHM5rS2NZ2wtkhPdBJG3qXZCa+HeFSjtGgzJvkE1NyAU+DONP/5zSqQdvvPAxWw5Gj2qF/a4dFaF4Qs9aK+BsunK78bHEzrk1+6ljyptlpqbUvFxU8iXHOiyhPjq/gAPHyGu6se8H67QJRHj4rZAFPc+dh7lhOQbSCZe9D1oOXlb9yw8rVLW1DQnwxLUZCnWkssi+4kEhNyJNPKNf7j2LVgs5Zt7a8is0oji9dhIesD7vvmu8c00L+6x445GpRinGJkrd3m60wcjLmCwEpTqnqrG+chvF3psEEg5+2KwGcfOL+4fm2S8enBoe1kvVbfFaA93/EfLw2Gw/zJ6pBKGc+C4DexGRza6AwdjFBJWpTViUp7zrfaboCdfT/JUpUodNzERDLLT5l9drA3k0iysK7/6vg5LH+NlQz1S+VKGrpueOz9n4on4/wS4zncCI5ROwssVgrm4mbpPh82Vcnk4KWmR30KmyXIlTWWLNs7O/byc1WKvSkkaVx1YQY+4znGAX+ctuudUvRb7t4Q2t+p3MqOYZ5qH143QTZTEjodn7+2MNEolfWvRKoIEjJPiyoze9+rN0gWFy5XXmlCWh1f78BahrAJrr1JX3LPVVf9vECgC7PgurH823AFDP0h/KvrK+o3R9//5+sWqko0Cc5Ij91V8USgGXWnKVoKqvnybuZjXEoVj6w271dkfkDoLMzeS7cu1/irZPsOUx3bdhNrFEFV+/7xPKJBUiHkzTjPVBF8vlxcDxMtrGyNZVVMTLuSEqA+amfPtW8osxkMCuN4MsWd+/cdqhqsKCG6zdpX2SzvPKvGREOEt1rOig4iTYr6DYlacX/uMm66+eJE4r1qa9yXKwwkQQbATUoefBgCi5CyiL60cHN3BbbMyoNXIsDDDBTMaZ46Qf9d9YkgD4qjWHluv1tnEnhLXdxRHwt22bE2TP9sJpjep4LoYqfwm2djZdZyq3GVYGORHeEvnoPAeNA6ZwKBZAxH0GZN6g3rEP9yMhMOKYk+2LUm97uenoj4mhBcV/WogbIbzE7Y8pmW/stVZiZWh8Ut0SV53Q3nPU2TD5zDFee9TQVuUMV9566q7vcm6yrrLbfKSGJx6W3bG50LNtHJbPbCVPR7IQEo6EHO7zfzcbkNHP5EjP8x588UjNAfPib0HwQFHk+uvnmrcfzaio3+bW3z3Y9bL2qCZBTM/uAJWLV/6vgRa2hYrz+O82yo9Jkz0oGQaL0lmpKetO5xgs0RXEUHJ7aIE325S/1k68mdLo6CH5hWdLm2vvls3NW8Ux6iUsdclZ4KU+jC/hLkbDl8/mydrnsB51LyT+AnUox7N2qIFBAGohoQh1XcFZQ3whIgliYt3lCqbAmIoauiL61iR8MpFN5JYTlRbEiod6AcMYCYnETz+bWeu4wHkxGFlbUoms18Iw/fNTDJ0Yw1NL4Q+p9GWLVDpcm2frex8M5ZegHNNxXzcnSxwKiw9z3si1xeQnC5jYuphX2BpqVnL6U2NQQRYRHl9YgIp1NQccJoS6UhpTD+bZ6Y/OkCIFImnmvGbpwrXKVIIeoT8MT0KHYODu61PAY6r8nrnIAJVeUSIqhuq9ULVZp/zH/P7XHvv4zltlZhq9LJt71e0geiXTDZeCes5CqeHxZs+sF194UkO70hMab6l4Lny84VHokzyogG/FtSiJKabCYFPT7lnwGqurbQjV/4pdOLLHGSnWYBI26wt+C6xt2/eOJ7Iv+kPsNFaJD88gR+VWwmFFvOPlp5K83OjBv+sCOX1Zez5VyfLNdj+I5h0eQcVf7ln5eK/jwLLyD+zVSpICyAFEN28E5aLhau4J1cMY+jIx7u1NpN7RaYzuinELj5Cozv4Xxm9JEnahV7f+fg71P9EVRmqXajXilZUQacZ56fO6wll7z1tK3GLk7vP/gBvetenRl6hcs2Ljzxf1o1wKvbxJbSnsj3QXiU6ChUXUo9zIOumq6bbg+g8/Xo6PyjuAxITQHEpRIRVhhMjpem7VKIf+nBbKiq7CY1Am2pcbO2ysndK9DH3qMmXVbk1WVfatO+K/AuUp/TYTUkVvouXChnYSvHa+3k86OQdbCcYWbjQtFPVUIo/xaHd2Fcy3bH3NkUNiOg7z+H0J5/nzy1NY9K5Hl+pnnJysI1D2cIeUpRtMD74xKWrfXFxJBikqy17cSdk8+9y+YmOqSVKiVdvSHBkfa3w8kneSNp7NXgSwbF4TaPRJ6qVn/JkO668U8f9o9GK0W25AhhPC/Yp+FLgsvOT/IHJPpmDF1Y0CtjeU6fl566htxESJz29GLZKkURz/Rj+eZWbiHUdhEKaYE4lg88xBan6w8jPU04iYeLG0Zw/z/X7CfdXHKCTpefvfrGwS238Z7K4QeRslVNHQ1b2MOCgh3bcPCpS6Lo2o4vx/li8pvMPcF0+Krq6b+fVtikjlsbS+NgjHjHuIgcTNSlkuR0l2DclGRloTEeTBAy7uhDAZ9TS9O/13fk0lvtYVPqRnavsLU5Dk1w5EvU6uXuvJQ6rv2HGyer5ozln3df9A/MQhL9f9P+QWx2hfPOLfE0zUgLVuxISHlsMOQygp/22ad+6uLMjMpNhZ5TTnsploDGXPG1KQpH0Y7OaEVXzl5ScXJwzBuCLMoJd/swSb77o249DgVH7RuW+dvng8M3OYbc2KS4RL56q4478BTRpQ+s9mionEqjvb8eUmiC8TJW9l23z2Fpfjbfl5Qs13fLbKRSBPkNGhyYcmCrBncuiIxWCgZ+q+vq6wc6RmWCIuIjIpx8whji+r1eNOyvZ74A/vWHE2Lthkp5daFom/qkUg9Kc85LOX+Y48StW/b7k08jCXLFiTzXdi16AvbsfISqWFek0ZrS2ctuioYKfW5Q4sRznV0pEa1ULMEapU5MKoK6g6UDj5xgSwdkVZSOFmPAYpdR2uf3UoEibl4etf7Tpq3ssFuzkDiCOhOuCyr+XgaLxe0EEY8qL62VDNr0GxKFrwHHPqP49S2MVTPd1kilFiRQn4l8kikSS6Xx0ow0mVwpRoYime0509fdfVndwqPuaMl229Wggp449VGHKubVyXSZSC5PlZn/xF9H6HRPdI9MEdfWmSvKLHpu0XHFdRZj4Wy5hCPP1pXOWb3mZkbzso3TlIjp+rDWJPd4gbq3ftyEKntc9/dP+FB+E22JemrlfPSPich1mSwxEv1ndkCrzAbQyHoyH2fYU+unfd75eR/mraOfzfutGLRdfR2yG7MDe22ffEhkMLhzTNdY44qKKnJ8nmVHRhVBRq2UDJlH/lW+EIgASlrtcQ6/I3KIReoBfImtFqe77iyWd1L7gPMTf3sJJ9I6E0ByTFpECDfzwyAsEUSKko7e1W6tCyw8AsVIdJFlUFtcHagGOmguepPSBODRDqufJigc0w8RCxBREJlHBcMWPgjQLHoSMujNQAOPmRTsKOeAicE3scl5rAfT49pmVZI8/574cEoS1A1fkN6s5rSVMBjR2FvUXBmY8bF/fpSSfxtCCf5IpGGRmhrJQpKMeUfFve8YVuiMkYNJA8PzPoQI1cL7Zx1AT+YYmn08KDXfdHDd3qaeAWXKtqOWcytk4q0KEHGVDq7KLB1SelkX+2ahrRFh+okCjGsLNM1ntt+DPMFZzgkAXP6YIwCAq6eue7HuYAcNv+KpAmCDAoAAY5sK++4uoIOXR0L9bSzp7JsEWg8JjcuJuTPTDj2cAFHInEMhzI40JbrqYHjYVkbpo/EBLAzGemhUBqLrAKakJj8KOzbWBVV4/86AwFQ34rmpm9cQbccEznBdOZdyf2a+ZcGUzTHbWaY6mZBuTjHf8IGlh9dC0hoCFeEpDcModMujAOi5+C1bOBCbFF99jLTD5duSnpjWVn00k7jS5v41oITVa5XTXQ4CJJTF4gAr/gu6+IBgSxVyqocEq/9udAAIPQ/pg0YyPA1i9w6aTeg1hlXPfHUAZSlpSK5ILIRvuL2Vj3wGuvSiai+R1h6EioYnRQW5xQ3WnuR7qIA35HZJ7fXhgA0azOhcFNF92AxdLEeos8FSrkNFTQBLXU7ljy2lfZp8EE50trhwoq5zsLcvPG0186cowwUb4zSU5TBcNLiT9gps0cLc6XoOLJHQ8S2TL7URxJHVaUGk7gRFe7o+ipBuI1TXVQmSYfHBkdBhSppQoas96xoXP8mQAKBTTutRWDw99qBaWSdgz6DbeSET76h/bZ3pa+JbNtULyWmBdSoQk8wagLcZuqgk8x0gpgYwCceSfCCWWKPCxqqoyPhuCTUNIbeBr1WHVGZ4EO7kWZ94FG0ZdgPnmz4dlJYBYGTTUNEwzEMLiLlU5xqHKioBIl1UAHEh/MpY3ZzX78kuJo57Q3l8LZcNh0mTjPFnkYeGFhJA0sFiBpvFn/doWk+miWhWZbwAS8Ld+RDkctOHwpdtPhZF0tSM2X1sRFKjcLachtvgoxU+2wjgF4U+gcDjU3CZ1HQYP/gMPOw+CwE3fbZSeFT6kiTzWg7pB1+Rqd9XZSnyNWE83ySbv2+WzlpZ4u+GgAyhbPly5ErnJlwJuXxCZDmk0qzWTApzODgZiQ3iIO2KC8nMwFBEUZHG1vkWTyzJbGJyZoKaLrAUaFrf2v4GjvSONDiekcufR3GBVPkkU0XuPO4KFGn65ubIJ+IhHkUs0+npga3l+7JzZMPy5g7P09XKVQMwRYoT1TCd9XTtHOushVo2lMrvlWN58bSHHxUISJ+SRKN1kKmlihRJYZK0nGg2YDkmLFggUyISa6JQCpXUKk2WSE3MklSJNEI3UxZkgxOV8cSfo9enUVkBTruRxwEp5qSa182OvTQOvuYo3XU33eLEmQtXt91x170Rur35e2Twct8DIo/0WHAMzve8x+72xj32hNgGP/4CBPpWkLCNpWXKJjMiHEWOCN+ItOQfSsDIw2PgvrrzHvOEJ/Py+HjfPpB3KHWnyaaaZoqlplvrLj+42z0GWGCgYjNEuWaOCy6spFvMNoPziUWlXXF4y9upt+ANJY9EThjF278N1BMuQvwSkHhJkKBoMWIR4gjFIyUQSSSWRCKZVAqZVHJpFBZJr8JvfveHRAnqy/IxY7lGltljngBbkt4tppRBVRy/IYbpJdJFapk0smQXLKd11isoJFdee+2zwUabbPahj+z0fxZfdFWgUJGl6chTrKTZdnCid3O8HJF4P/rJFtkaauAFhRaaQAoVjdiVqKIpM9jQNF+jNq3a1RH4Kl2J0SlUh6deeua5V8V71dX89KJ0zfVAbTNVChkxOypLGcjKUoZAqtFckrvX1kVC9ZuOxDOUUNehQ5mnL6r+S12VNCtqm076cqS5o2ka336Nb1X1L8VGRXS9yHajrfUS+uXfyDr9Jm9kPeqsL0wos15Bp3LCWc52Pied45TTK1YTVdYzeBPgHBYARMFJ5zjl9H4bfzUO+SluD6O35qZKhbK0nGI9ZPBN3CQZMPqib8HU73dHZUD3h8Ij38yNbjn0tPwE0P+pq18i7h4o1sCA/oasdLkMGszVbPqj2u5r2vZurjj9QMjaSU7zQXF32obB8JmbEql01pSzZyGjzdrNgOHeBAVrpCSCRvPCV8OjkxHU4bqMIFWwQs0Coy1BT9RAfYM5VfAd6TRBiWiCObobVfX3OKBpXjcM5ue8kTv3gfJQNX38h1JfadRtKi7M1VTkCMcLIUHEXsc0ZV5vcOLPujz/2pxflZ7zb+A0AQA="
@@ -7067,7 +8186,7 @@ th{background:var(--surface);font-weight:700}
     <div class="marca"><span class="logo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z"/></svg></span><div><h1>ASTRO</h1><div class="sub">Ciencia: medir con tus fotos</div></div></div>
     <a class="nav volverAstro notr" id="volverLights" href="#" style="display:none"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span class="vtx"><small></small><b></b></span></a>
     <button class="nav on" data-vista="inicio"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
-    <div class="grupo">Los seis bloques</div>
+    <div class="grupo">Los siete bloques</div>
     <div id="navBloques"></div>
     <div class="pieLat">
       <div class="temas" id="temas"><button data-t="dia" title="Aspecto claro, para el día">Día</button><button data-t="noche" title="Aspecto oscuro, para la noche">Noche</button><button data-t="rojo" title="Todo en rojo, para no perder la adaptación a la oscuridad"><i></i>Rojo</button></div>
@@ -7092,7 +8211,7 @@ th{background:var(--surface);font-weight:700}
       </div>
       <div class="regla" style="margin-top:16px"><b>La regla de oro: medir sobre datos lineales, calibrados y con la hora exacta</b>
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
-      <h3 class="seccion">Los seis bloques</h3>
+      <h3 class="seccion">Los siete bloques</h3>
       <div class="bloques" id="bloques"></div>
       <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real).</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Agrupación Astronómica de Miguelturra (C.Real)" title="Agrupación Astronómica de Miguelturra (C.Real)" onerror="this.remove()"></div></div>
     </section>
@@ -7160,6 +8279,41 @@ th{background:var(--surface);font-weight:700}
         </div>
         <h3 class="seccion">Tus tránsitos</h3>
         <div id="xSeries"></div>
+      </div>
+      <div id="herramientaRR" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Máximos de las próximas noches</h3>
+          <div class="note">Las RR Lyrae del VSX cuyo máximo se ve desde tu lugar con hora y media antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.</div>
+          <div class="opciones">
+            <label>Lugar <select id="rLugar"></select></label>
+            <label>Días <select id="rDias"><option value="1">1</option><option value="3" selected>3</option><option value="7">7</option></select></label>
+            <label>Estrellas hasta la magnitud <select id="rVmax"><option value="10">10</option><option value="11">11</option><option value="12" selected>12</option><option value="13">13</option><option value="14">14</option></select></label>
+            <label title="Las que tienen nombre del catálogo general (GCVS), como RR Lyr o XZ Cyg: las más estudiadas, con O−C de muchos años en GEOS."><input type="checkbox" id="rGcvs" checked> Solo las del GCVS</label>
+            <label><input type="checkbox" id="rTodos"> También los que se ven a medias</label>
+            <span style="flex:1"></span>
+            <button class="btn" id="btnRRProximos">Buscar máximos</button>
+          </div>
+          <div id="rProximos" style="margin-top:12px"></div>
+        </div>
+        <div class="caja" style="margin-top:16px">
+          <h3 style="font-size:17px">Medir un máximo</h3>
+          <div class="note">Elige la sesión con las tomas de la estrella (unas tres horas seguidas alrededor del máximo). ASTRO busca sus elementos en el VSX, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el máximo y calcula su O−C.</div>
+          <div id="rSesiones" style="margin-top:12px"></div>
+          <div class="opciones">
+            <label>Estrella <input id="rEstrella" list="rSugerencias" placeholder="p. ej. RR Lyr" autocomplete="off" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"><datalist id="rSugerencias"></datalist></label>
+            <span class="note" id="rEstrellaInfo"></span>
+          </div>
+          <div class="opciones">
+            <label title="Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la amplitud por debajo del pico.">Ventana del ajuste <select id="rFrac"><option value="">automática (30 % de la amplitud)</option><option value="0.2">20 % de la amplitud</option><option value="0.3">30 % de la amplitud</option><option value="0.4">40 % de la amplitud</option><option value="0.5">50 % de la amplitud</option></select></label>
+            <label>Polinomio <select id="rGrado"><option value="">el que mejor encaje (BIC)</option><option value="3">grado 3</option><option value="4">grado 4</option><option value="5">grado 5</option><option value="6">grado 6</option></select></label>
+            <label>Tu nombre para GEOS <input id="rObservador" class="notr" placeholder="T. Moreno" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnRR">Medir el máximo</button>
+          </div>
+          <div class="note" style="margin-top:10px">Hace falta conexión a Internet para el VSX y el catálogo Gaia, y Siril para calibrar y resolver.</div>
+        </div>
+        <h3 class="seccion">Tus máximos</h3>
+        <div id="rSeries"></div>
       </div>
       <div id="herramientaAst" style="display:none">
         <div class="caja">
@@ -7452,7 +8606,7 @@ document.addEventListener("click", () => $("menuLista").classList.remove("show")
 $("btnCarpeta").onclick = () => post("/api/revelar", {});
 
 /* ============ Bloques ============ */
-/* Los seis bloques de Ciencia: su introducción (la historia), qué hace falta, con qué programas y adónde van los datos.
+/* Los siete bloques de Ciencia: su introducción (la historia), qué hace falta, con qué programas y adónde van los datos.
    Van en los dos idiomas porque son textos largos (la traducción automática de la página no los toca). */
 const BLOQUES = [
  {id:"cielo", n:"3", estado:"ya", icono:"cielo",
@@ -7527,6 +8681,36 @@ const BLOQUES = [
    destino:["ExoClock: approved light curves keep Ariel's ephemerides up to date; observers are co-authors of its papers.","Exoplanet Watch (NASA), in the AAVSO exoplanet database.","VarAstro-ETD and, later on, the TESS follow-up programme (TFOP)."],
    hara:["Transits fully visible from your site in the coming days","Gaia comparison stars, chosen and checked","Light curve in BJD_TDB and the night's trend","Transit fit (T₀, depth, duration) with honest errors","O−C against the ExoClock ephemeris","Light curves for ExoClock and VarAstro-ETD, figure and package"]}},
 
+ {id:"rrlyrae", n:"1c", estado:"ya", icono:"rrlyrae",
+  es:{titulo:"RR Lyrae: el máximo", corto:"Cronometra el máximo de una RR Lyrae y mándalo a GEOS.",
+   historia:[
+    "Las RR Lyrae son estrellas viejas, de más de diez mil millones de años, que laten con un ritmo de entre unas cinco horas y un día. Todas tienen casi el mismo brillo real, y por eso sirven de faro para medir distancias: Harlow Shapley las usó en 1918 para situar los cúmulos globulares y descubrir que el Sol no está en el centro de la Galaxia. La que da nombre a la clase, RR de la Lira, la descubrió variable Williamina Fleming en Harvard en 1901.",
+    "En cada ciclo la estrella se hincha y se encoge, y su brillo sube de golpe —en una o dos horas gana casi una magnitud— para después ir apagándose despacio. Esa subida tan rápida deja un instante muy marcado, el máximo, que se puede cronometrar con uno o dos minutos de error. Si el periodo fuera exacto e invariable, cada máximo llegaría a la hora que da una fórmula sencilla: una época de referencia más un número entero de periodos. Comparar año tras año la hora observada (O) con la calculada (C), el diagrama O−C, dice cómo cambia el periodo: una parábola delata que la estrella evoluciona; unas ondas regulares, a veces, una compañera invisible.",
+    "Y luego está el misterio. Cerca de la mitad de las RR Lyrae de tipo ab sufren el efecto Blazhko, descubierto en 1907: la altura y la forma del máximo cambian a lo largo de semanas o meses, y el máximo se adelanta y se retrasa con ellas. Más de un siglo después sigue sin una explicación que acepten todos, y la única manera de estudiarlo es juntar muchos máximos de las mismas estrellas.",
+    "Para eso existe la base de datos de RR Lyrae del GEOS (Groupe Européen d'Observations Stellaires), en Toulouse: reúne más de 50.000 máximos de más de 3.000 estrellas, publicados desde finales del siglo XIX, y sigue creciendo con los que envían los aficionados del GEOS y de la BAV alemana. Desde 2004, los telescopios robóticos TAROT, en Francia y en Chile, intentan medir cada año al menos un máximo de cada RR Lyrae más brillante que la magnitud 12,5, y los aficionados rellenan los huecos. Los instantes se dan en HJD: la hora a la que la luz habría llegado al centro del Sol, para que no dependan de dónde estaba la Tierra."],
+   necesitas:["Un telescopio pequeño basta: muchas de las RR Lyrae más estudiadas brillan entre las magnitudes 9 y 12. Cámara mono o color, mejor con filtro V o sin filtro.",
+    "Unas tres horas seguidas de tomas alrededor del máximo previsto, una cada uno o dos minutos, sin mover el campo ni tocar el enfoque.",
+    "El reloj del ordenador sincronizado al segundo, y Siril para calibrar y resolver las tomas."],
+   programas:[["ASTRO","Prevé los máximos, mide la curva y ajusta el instante"],["Peranso","Periodos, O−C y cálculo de máximos y mínimos"],["MAVKA","Instantes de máximos y mínimos por varios métodos"],["AstroImageJ","Fotometría diferencial de series"],["VStar (AAVSO)","Curvas de luz, periodos y O−C"]],
+   destino:["GEOS: la base de datos de RR Lyrae (rr-lyr.irap.omp.eu) guarda cada máximo en HJD y lo añade al diagrama O−C de la estrella.",
+    "La BAV alemana y la sección de pulsantes de periodo corto de la AAVSO, que publica listas de máximos en su revista, JAAVSO.",
+    "Publicar: una buena serie de máximos de una estrella con efecto Blazhko puede ir al OEJV, a JAAVSO o al BAV Journal."],
+   hara:["Máximos de las próximas noches que se ven enteros desde tu lugar","Elementos del VSX: época, periodo y tipo","Comparaciones de Gaia elegidas y vigiladas","Curva en HJD y BJD_TDB","Ajuste del máximo con polinomios y errores honestos","O−C, archivo para GEOS, figura y paquete"]},
+  en:{titulo:"RR Lyrae: the maximum", corto:"Time the maximum of an RR Lyrae star and send it to GEOS.",
+   historia:[
+    "RR Lyrae stars are old, more than ten billion years old, and pulsate with a rhythm of between about five hours and a day. They all have nearly the same true brightness, which makes them beacons for measuring distances: in 1918 Harlow Shapley used them to place the globular clusters and discover that the Sun is not at the centre of the Galaxy. The star that gives the class its name, RR Lyrae, was found to be variable by Williamina Fleming at Harvard in 1901.",
+    "In every cycle the star swells and shrinks, and its brightness shoots up —in one or two hours it gains almost a magnitude— and then fades slowly. That quick rise leaves a very sharp moment, the maximum, which can be timed to within a minute or two. If the period were exact and unchanging, every maximum would arrive at the time given by a simple formula: a reference epoch plus a whole number of periods. Comparing the observed time (O) with the calculated one (C) year after year, the O−C diagram, shows how the period changes: a parabola reveals that the star is evolving; regular waves, sometimes, an unseen companion.",
+    "And then there is the mystery. About half of the type-ab RR Lyrae stars show the Blazhko effect, discovered in 1907: the height and shape of the maximum change over weeks or months, and the maximum comes earlier and later with them. More than a century later there is still no explanation that everyone accepts, and the only way to study it is to gather many maxima of the same stars.",
+    "That is what the RR Lyrae database of GEOS (Groupe Européen d'Observations Stellaires), in Toulouse, is for: it holds more than 50,000 maxima of over 3,000 stars, published since the end of the 19th century, and keeps growing with those sent by amateurs of GEOS and of the German BAV. Since 2004 the TAROT robotic telescopes, in France and Chile, have tried to measure at least one maximum a year of every RR Lyrae brighter than magnitude 12.5, and amateurs fill the gaps. Times are given in HJD: the moment the light would have reached the centre of the Sun, so that they do not depend on where the Earth was."],
+   necesitas:["A small telescope is enough: many of the best-studied RR Lyrae stars are between magnitudes 9 and 12. Mono or colour camera, ideally with a V filter or no filter.",
+    "About three hours of continuous frames around the predicted maximum, one every minute or two, without moving the field or touching the focus.",
+    "The computer clock synchronised to the second, and Siril to calibrate and plate-solve the frames."],
+   programas:[["ASTRO","Predicts the maxima, measures the light curve and fits the time"],["Peranso","Periods, O−C and timing of maxima and minima"],["MAVKA","Times of maxima and minima by several methods"],["AstroImageJ","Time-series differential photometry"],["VStar (AAVSO)","Light curves, periods and O−C"]],
+   destino:["GEOS: the RR Lyrae database (rr-lyr.irap.omp.eu) stores each maximum in HJD and adds it to the star's O−C diagram.",
+    "The German BAV and the AAVSO Short Period Pulsator section, which publishes lists of maxima in its journal, JAAVSO.",
+    "Publishing: a good series of maxima of a Blazhko star can go to OEJV, JAAVSO or the BAV Journal."],
+   hara:["Maxima in the coming nights fully visible from your site","VSX elements: epoch, period and type","Gaia comparison stars, chosen and checked","Light curve in HJD and BJD_TDB","Fit of the maximum with polynomials and honest errors","O−C, file for GEOS, figure and package"]}},
+
  {id:"astrometria", n:"2", estado:"ya", icono:"astrometria",
   es:{titulo:"Asteroides y cometas", corto:"Mide dónde está un cuerpo que se mueve y ayuda a calcular su órbita.",
    historia:[
@@ -7596,11 +8780,12 @@ const BLOQUES = [
 const BL = id => BLOQUES.find(b => b.id === id);
 const _BLQ_OTRO = IDIOMA === "es" || IDIOMA === "en" ? {} : __BLQ_OTRO__;   // bloques traducidos (idiomas/xx.json)
 const T = b => b[IDIOMA] || _BLQ_OTRO[b.id] || b.en || b.es;
-const ORDEN = ["cielo", "variables", "exoplanetas", "astrometria", "hr", "espectros"];
+const ORDEN = ["cielo", "variables", "exoplanetas", "rrlyrae", "astrometria", "hr", "espectros"];
 const ICONOS = {
   cielo: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><path d="M16 4.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',
   variables: '<path d="M3 12h3l2-6 3 12 3-9 2 3h5"/>',
   exoplanetas: '<circle cx="12" cy="12" r="7"/><circle cx="8.5" cy="10" r="2.2" fill="currentColor"/><path d="M3 20h18"/>',
+  rrlyrae: '<path d="M2.5 18.5L5.2 6.2C7.6 8.4 9.8 13.2 12.4 17.6L15.1 6.2C17.5 8.4 19.7 13.2 21.5 16.6"/>',
   astrometria: '<ellipse cx="12" cy="12" rx="9" ry="4.5" transform="rotate(-25 12 12)"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="8" r="1.4" fill="currentColor"/>',
   hr: '<path d="M4 4v16h16"/><path d="M7 7c3 3 6 6 10 10"/><circle cx="15" cy="7" r="1.2" fill="currentColor"/><circle cx="17" cy="9" r="1.2" fill="currentColor"/><circle cx="8" cy="16" r="1.2" fill="currentColor"/>',
   espectros: '<path d="M3 17l6-10 6 10z"/><path d="M15 12l6-3M15 13.5l6 0M15 15l6 3"/>'};
@@ -7613,12 +8798,23 @@ function pintarNav(){
       <span class="d notr">${esc(T(b).corto)}</span>${b.estado === "ya" ? '<span class="chip ya">Ya disponible</span>' : '<span class="chip">En preparación</span>'}</button>`; }).join("");
   document.querySelectorAll("[data-vista]").forEach(x => x.onclick = () => ir(x.dataset.vista, x.dataset.b));
   document.querySelectorAll(".bloque[data-b]").forEach(x => x.onclick = () => ir("bloque", x.dataset.b));
+  ajustarBloques();
 }
+// siete bloques no llenan las filas: el último se estira hasta el final de la suya, para que no quede suelto
+function ajustarBloques(){
+  const g = $("bloques"); if (!g) return;
+  const cs = [...g.children]; cs.forEach(c => c.style.gridColumn = "");
+  const cols = getComputedStyle(g).gridTemplateColumns.split(" ").filter(x => x && x !== "none").length;
+  const resto = cols ? cs.length % cols : 0;
+  if (cols > 1 && resto) cs[cs.length - 1].style.gridColumn = "span " + (cols - resto + 1);
+}
+window.addEventListener("resize", () => { clearTimeout(ajustarBloques._t); ajustarBloques._t = setTimeout(ajustarBloques, 120); });
 function ir(vista, id){
   document.querySelectorAll(".nav").forEach(n => n.classList.toggle("on", n.dataset.vista === vista && (vista !== "bloque" || n.dataset.b === id)));
   $("vistaInicio").style.display = vista === "inicio" ? "" : "none";
   $("vistaBloque").style.display = vista === "bloque" ? "" : "none";
   if (vista === "bloque") pintarBloque(id);
+  else ajustarBloques();
   history.replaceState(null, "", vista === "inicio" ? "#" : "#" + id);
   window.scrollTo(0, 0);
 }
@@ -7636,6 +8832,7 @@ function pintarBloque(id){
   $("herramientaCielo").style.display = id === "cielo" ? "" : "none";
   $("herramientaVariable").style.display = id === "variables" ? "" : "none";
   $("herramientaExo").style.display = id === "exoplanetas" ? "" : "none";
+  $("herramientaRR").style.display = id === "rrlyrae" ? "" : "none";
   $("herramientaAst").style.display = id === "astrometria" ? "" : "none";
   $("herramientaHR").style.display = id === "hr" ? "" : "none";
   $("herramientaEsp").style.display = id === "espectros" ? "" : "none";
@@ -7643,10 +8840,11 @@ function pintarBloque(id){
   if (id === "cielo") abrirCielo();
   if (id === "variables") abrirVariables();
   if (id === "exoplanetas") abrirExo();
+  if (id === "rrlyrae") abrirRR();
   if (id === "astrometria") abrirAst();
   if (id === "hr") abrirHR();
   if (id === "espectros") abrirEsp();
-  if (!["cielo", "variables", "exoplanetas", "astrometria", "hr", "espectros"].includes(id)) $("trabajo").classList.remove("show");
+  if (!["cielo", "variables", "exoplanetas", "rrlyrae", "astrometria", "hr", "espectros"].includes(id)) $("trabajo").classList.remove("show");
 }
 let BLOQUE_ACTUAL = "";
 
@@ -7741,7 +8939,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", exo: "exoplanetas", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", exo: "exoplanetas", rr: "rrlyrae", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -7751,12 +8949,13 @@ async function sondear(){
     $("tLog").textContent = (e.log || []).join("\n");
     $("btnCancelar").style.display = e.activo ? "" : "none";
   } else caja.classList.remove("show");
-  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnAst").disabled = $("btnHR").disabled = $("btnEsp").disabled = !!e.activo;
+  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnRR").disabled = $("btnAst").disabled = $("btnHR").disabled = $("btnEsp").disabled = !!e.activo;
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
     if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
+    else if (e.tipo === "rr"){ cargarSeriesRR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "rrlyrae") verRR(e.resultados[0]); }
     else if (e.tipo === "astrometria"){ cargarSeriesAst(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "astrometria") verAst(e.resultados[0]); }
     else if (e.tipo === "hr"){ cargarSeriesHR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "hr") verHR(e.resultados[0]); }
     else if (e.tipo === "espectro"){ cargarSeriesEsp(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "espectros") verEsp(e.resultados[0]); }
@@ -8137,7 +9336,7 @@ async function cargarSeriesExo(){
       <td class="num">${numEs(x.profundidad_ppt, 1)}</td><td class="num">${numEs(x.rms_ppt, 1)}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   $("xSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verExo(t.dataset.id));
 }
-function tiempoErr(d){ const s = d * 86400; return s < 120 ? numEs(s, 0) + " s" : numEs(s / 60, 1) + " min"; }
+function tiempoErr(d){ const s = d * 86400; return s < 120 ? numEs(s, 0) + "\u00a0s" : numEs(s / 60, 1) + "\u00a0min"; }
 async function verExo(id, calcNuevo){
   let d; try { d = await (await api("/api/exo/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
   const s = d.serie, c = calcNuevo || d.calculo, pl = s.planeta; EXO.actual = {s, c};
@@ -8241,6 +9440,269 @@ function graficaExo(s, c){
   g2 += `<polyline fill="none" stroke="var(--oro)" stroke-width="2" points="${P.map(p => X(hr(p.bjd)).toFixed(1) + "," + Y2(p.modelo * p.base).toFixed(1)).join(" ")}"/>`;
   g2 += `<text class="tx" x="${(L+W-R)/2}" y="${H2-6}" text-anchor="middle">${esc(tr("hora (aprox. UTC; el eje va en BJD_TDB)"))}</text>`;
   $("gNoche").innerHTML = `<h4>La noche, sin corregir</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H2}" role="img">${g2}</svg></div><div class="pie"><span>Flujo relativo tal como sale, con el modelo por la tendencia elegida</span> (<span>${esc(tr(({lineal: "lineal en el tiempo", cuadratica: "cuadrática en el tiempo", masa_aire: "con la masa de aire"})[c.tendencia]))}</span>). <span>Masa de aire de</span> <span class="notr">${numEs(Math.min(...P.map(p => p.masa_aire)), 2)}</span> <span>a</span> <span class="notr">${numEs(Math.max(...P.map(p => p.masa_aire)), 2)}</span>.</div>`;
+}
+
+/* ============ RR Lyrae: el máximo ============ */
+const RR = {sesiones:null, sel:null, series:[], actual:null, busca:null, nombres:new Set()};
+function tipoRR(t){ return t ? `<span class="chip notr">${esc(t)}</span>` : ""; }
+function chipBlazhko(){ return `<span class="chip notr" title="${esc(tr("Efecto Blazhko: la altura y la forma del máximo cambian en semanas o meses, y el instante baila con ellas."))}">Blazhko</span>`; }
+function isoDeJd(jd){ return new Date((jd - 2440587.5) * 864e5).toISOString(); }
+function sugerenciasRR(){ $("rSugerencias").innerHTML = [...RR.nombres].sort().map(x => `<option value="${esc(x)}">`).join(""); }
+async function abrirRR(){
+  if (!CIELO.estado){ try { CIELO.estado = await (await api("/api/estado")).json(); } catch(_){} }
+  const ls = (CIELO.estado && CIELO.estado.lugares) || [];
+  $("rLugar").innerHTML = ls.length ? ls.map(l => `<option value="${esc(l.id)}" ${l.id === CIELO.estado.lugar_activo ? "selected" : ""}>${esc(l.nombre || "?")}</option>`).join("") : `<option value="">${esc(tr("sin lugares"))}</option>`;
+  if (!RR.cfg){ try { RR.cfg = await (await api("/api/ast/config")).json(); } catch(_){ RR.cfg = {}; }
+    if (!$("rObservador").value.trim()) $("rObservador").value = RR.cfg.observador || ""; }
+  if (!RR.sesiones){ try { RR.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ RR.sesiones = []; } }
+  pintarSesionesRR(); cargarSeriesRR(); sondear();
+}
+$("btnRRProximos").onclick = async () => {
+  const b = $("btnRRProximos"); b.disabled = true;
+  $("rProximos").innerHTML = `<div class="note">${esc(tr("Calculando… La primera vez ASTRO descarga del VSX la lista de RR Lyrae, y puede tardar un par de minutos."))}</div>`;
+  try {
+    const d = await (await api(`/api/rr/proximos?lugar=${encodeURIComponent($("rLugar").value)}&dias=${$("rDias").value}&vmax=${$("rVmax").value}&todos=${$("rTodos").checked ? 1 : 0}&gcvs=${$("rGcvs").checked ? 1 : 0}`)).json();
+    const M = d.maximos;
+    M.forEach(x => RR.nombres.add(x.estrella)); sugerenciasRR();
+    if (!M.length){ $("rProximos").innerHTML = `<div class="vacio"><b>${esc(tr("No hay máximos que se vean enteros"))}</b>${esc(tr("Prueba con más días, estrellas más débiles, no solo las del GCVS o también los que se ven a medias."))}</div>`; return; }
+    $("rProximos").innerHTML = `<div class="tabla" style="max-height:420px"><table><thead><tr><th>Estrella</th><th>Cuándo</th><th class="num">Brillo</th><th class="num">Amplitud</th><th class="num">Periodo</th><th>Altura</th><th>Luna</th><th></th></tr></thead><tbody>${
+      M.map(x => `<tr data-e="${esc(x.estrella)}" style="cursor:pointer"><td><b class="notr">${esc(x.estrella)}</b><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${tipoRR(x.tipo)}${x.blazhko ? chipBlazhko() : ""}</div></td>
+        <td><span class="notr">${esc(horaLocal(x.inicio, true))} – ${esc(horaLocal(x.fin))}</span><div class="note"><span>máximo</span> <span class="notr">${esc(horaLocal(x.maximo))}</span>${x.epoca_anio ? ` · <span>elementos de</span> <span class="notr">${x.epoca_anio}</span>` : ""}</div></td>
+        <td class="num notr">${x.max != null ? numEs(x.max, 1) + (x.banda ? " " + esc(x.banda) : "") : "—"}</td>
+        <td class="num">${x.amplitud != null ? numEs(x.amplitud, 2) + " mag" : "—"}</td>
+        <td class="num">${numEs(x.periodo * 24, 2)} h</td>
+        <td class="notr">${x.alt.map(a => a + "°").join(" → ")}</td><td class="notr">${x.luna_ilum} % · ${x.luna_sep != null ? numEs(x.luna_sep, 0) + "°" : ""}</td>
+        <td>${x.completo ? "" : `<span class="chip warn">${esc(tr("a medias"))}</span>`}</td></tr>`).join("")}</tbody></table></div>
+      <div class="note" style="margin-top:6px"><span>Elementos del</span> <span class="notr">${esc(d.origen)}</span>. <span>La altura es la de la estrella al empezar, en el máximo y al terminar; el brillo, el del máximo según el VSX. Con elementos de hace muchos años el máximo puede llegar bastante antes o después: por eso se deja hora y media a cada lado.</span></div>`;
+    $("rProximos").querySelectorAll("tr[data-e]").forEach(t => t.onclick = () => { $("rEstrella").value = t.dataset.e; buscarRR(); $("rEstrella").scrollIntoView({behavior:"smooth", block:"center"}); });
+  } catch(e){ $("rProximos").innerHTML = `<div class="avisos"><div>${esc(tr(e.message || String(e)))}</div></div>`; }
+  finally { b.disabled = false; }
+};
+function pintarSesionesRR(){
+  const ss = (RR.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.tomas.length >= 15);
+  if (!ss.length){ $("rSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con bastantes tomas</b>Añade en Control de lights las tomas de la noche del máximo (al menos 15 seguidas, todas con el mismo filtro; lo normal son más de cien).</div>`; return; }
+  $("rSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th>De … a (UTC)</th></tr></thead><tbody>${
+    ss.map(([s, i]) => { const f = s.tomas.map(t => t.fecha).filter(Boolean).sort();
+      return `<tr data-i="${i}" class="${RR.sel === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="rSes" ${RR.sel === i ? "checked" : ""}></td><td>${esc(fechaCorta(s.noche))}</td><td class="notr">${esc(s.objeto)}</td>
+      <td class="notr">${esc(s.filtro_original || s.filtro)}</td><td class="notr">${esc(s.cam)}</td><td class="notr">${esc(s.tel)}</td><td class="num">${s.tomas.length}</td>
+      <td class="notr">${f.length ? esc(f[0].slice(11, 16) + " – " + f[f.length - 1].slice(11, 16)) : ""}</td></tr>`; }).join("")}</tbody></table></div>`;
+  $("rSesiones").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
+    RR.sel = +t.dataset.i; const s = RR.sesiones[RR.sel];
+    $("rSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
+    if (s.objeto && s.objeto !== "(sin objeto)" && !$("rEstrella").value.trim()) $("rEstrella").value = s.objeto;
+    buscarRR();
+  });
+}
+let _tBuscaRR = null;
+$("rEstrella").addEventListener("input", () => { clearTimeout(_tBuscaRR); _tBuscaRR = setTimeout(buscarRR, 450); });
+async function buscarRR(){
+  const n = $("rEstrella").value.trim(), info = $("rEstrellaInfo");
+  if (!n){ info.innerHTML = ""; RR.busca = null; return; }
+  const s = RR.sel !== null ? RR.sesiones[RR.sel] : null;
+  const f = s ? s.tomas.map(t => t.fecha).filter(Boolean).sort() : [];
+  const jd = f.length ? (jdDe(f[0]) + jdDe(f[f.length - 1])) / 2 : 2440587.5 + Date.now() / 864e5;
+  try {
+    const d = await (await api(`/api/rr/estrella?nombre=${encodeURIComponent(n)}&jd=${jd}`)).json();
+    if (n !== $("rEstrella").value.trim()) return;
+    if (!d.encontrado){ info.innerHTML = `<span class="chip warn">${esc(tr("No la encuentro en el VSX"))}</span> <span>${esc(tr("Escribe su nombre como allí, por ejemplo RR Lyr o XZ Cyg."))}</span>`; RR.busca = null; return; }
+    RR.busca = d;
+    if (d.observador && !$("rObservador").value.trim()) $("rObservador").value = d.observador;
+    let cubre = "";
+    if (f.length && d.maximo_previsto){ const a = jdDe(f[0]), b = jdDe(f[f.length - 1]), c = jdDe(d.maximo_previsto);
+      if (c < a || c > b) cubre = `<span class="chip bad">${esc(tr("las tomas no llegan al máximo previsto"))}</span>`;
+      else if (c - a < 30 / 1440) cubre = `<span class="chip warn">${esc(tr("poca curva antes del máximo previsto"))}</span>`;
+      else if (b - c < 30 / 1440) cubre = `<span class="chip warn">${esc(tr("poca curva después del máximo previsto"))}</span>`; }
+    const cuando = !d.maximo_previsto ? "" : f.length ? `<span class="notr">${esc(d.maximo_previsto.slice(11, 16))} UTC</span>` : `<span class="notr">${esc(horaLocal(d.maximo_previsto, true))}</span>`;
+    info.innerHTML = `<b class="notr">${esc(d.nombre)}</b> ${tipoRR(d.tipo)} ${d.blazhko ? chipBlazhko() : ""} · <span class="notr">P ${numEs(d.periodo, 6)} d${d.max ? " · " + esc(d.max) + (d.min ? " – " + esc(d.min) : "") : ""}</span>` +
+      (cuando ? ` · <span>máximo previsto</span> ${cuando}` : "") + ` · <span>elementos del</span> <span class="notr">${esc(d.fuente)}</span>` +
+      (!d.rr ? ` <span class="chip warn">${esc(tr("según el VSX no es una RR Lyrae"))}</span>` : "") + (cubre ? " " + cubre : "");
+  } catch(e){ info.innerHTML = `<span class="chip warn">${esc(tr(e.message || String(e)))}</span>`; }
+}
+$("btnRR").onclick = async () => {
+  if (RR.sel === null){ toast("Elige primero la sesión con las tomas de la estrella"); return; }
+  if (!$("rEstrella").value.trim()){ toast("Escribe el nombre de la estrella (por ejemplo, RR Lyr)"); $("rEstrella").focus(); return; }
+  const s = RR.sesiones[RR.sel];
+  try {
+    await post("/api/rr/medir", {ids: s.tomas.map(t => t.id), estrella: $("rEstrella").value.trim(), frac: $("rFrac").value === "" ? null : +$("rFrac").value,
+      grado: $("rGrado").value === "" ? null : +$("rGrado").value, observador: $("rObservador").value.trim(), lugar: $("rLugar").value});
+    sondear();
+  } catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesRR(){
+  try { RR.series = await (await api("/api/rr/series")).json(); } catch(_){ RR.series = []; }
+  const ss = RR.series;
+  ss.forEach(x => RR.nombres.add(x.estrella)); sugerenciasRR();
+  if (!ss.length){ $("rSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ningún máximo</b>Elige arriba una sesión y la estrella, y pulsa «Medir el máximo».</div>`; return; }
+  $("rSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Noche</th><th>Estrella</th><th>Filtro</th><th class="num">Tomas</th><th class="num">Máximo (HJD)</th><th class="num">O−C (min)</th><th class="num">Brillo</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}</td><td class="notr"><b>${esc(x.estrella)}</b></td><td class="notr">${esc(x.filtro || "")}</td>
+      <td class="num">${x.tomas}</td><td class="num"><span class="notr">${x.tmax != null ? x.tmax.toFixed(5) : "—"}</span>${x.tmax_err != null ? " ± " + tiempoErr(x.tmax_err) : ""}${x.fiable === false ? ` <span class="chip warn">${esc(tr("no fiable"))}</span>` : ""}</td>
+      <td class="num">${x.oc_min != null ? (x.oc_min > 0 ? "+" : "") + numEs(x.oc_min, 1) : "—"}</td>
+      <td class="num">${x.mag_max != null ? numEs(x.mag_max, 2) : "—"}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("rSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verRR(t.dataset.id));
+}
+function copiarTexto(txt, el){
+  const sel = () => { if (!el) return; const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+  try { navigator.clipboard.writeText(txt).then(() => toast("Copiado"), () => { sel(); toast("Selecciónalo y cópialo con ⌘C o Ctrl+C"); }); }
+  catch(_){ sel(); toast("Selecciónalo y cópialo con ⌘C o Ctrl+C"); }
+}
+async function verRR(id, calcNuevo){
+  let d; try { d = await (await api("/api/rr/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo, rr = s.estrella; RR.actual = {s, c};
+  if (!c){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  if (!RR.series.length) { try { RR.series = await (await api("/api/rr/series")).json(); } catch(_){} }
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const mas = v => (v > 0 ? "+" : "") + numEs(v, 1);
+  const segs = v => { const x = Math.round(v * 86400); return (x > 0 ? "+" : x < 0 ? "−" : "") + numEs(Math.abs(x), 0) + " s"; };
+  const gradosTxt = Object.keys(c.t_grados || {}).map(g => `${esc(tr("grado"))} <span class="notr">${g}: ${segs(c.t_grados[g] - c.tmax)}${c.pesos_grados && c.pesos_grados[g] != null ? " (" + numEs(100 * c.pesos_grados[g], 0) + " %)" : ""}</span>`).join(" · ");
+  const errAzar = c.err_boot != null ? Math.max(c.err_boot * c.beta, c.err_pb || 0) : null;
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(rr.nombre)}</h2><div class="note" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span>${esc(fechaCorta(s.noche))}</span> · <span class="notr">${esc(s.filtro)} · ${s.n_tomas}</span> <span>tomas</span> · ${tipoRR(rr.tipo)}${rr.blazhko ? chipBlazhko() : ""} · <span class="notr">P ${numEs(rr.periodo, 7)} d</span> · <span>elementos del</span> <span class="notr">${esc(rr.fuente || "VSX")}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(`<span class="notr" style="font-size:22px">${c.tmax.toFixed(5)}</span>`, "", "HJD · " + tr("Instante del máximo") + (c.tmax_err != null ? " · ± " + tiempoErr(c.tmax_err) : "") + " · " + c.tmax_utc.slice(11, 19) + " UTC", true)}
+      ${cifra(mas(c.oc_min), "min", tr("O−C: adelanto (−) o retraso (+) frente a los elementos del VSX") + " · " + tr("ciclo") + " " + c.ciclo)}
+      ${cifra(numEs(c.mag_max, 2), "", tr("Brillo en el máximo (aprox., en la escala G de Gaia)") + " · " + tr("amplitud vista") + " " + numEs(c.amplitud_observada, 2) + " mag")}
+      ${cifra(numEs(c.rms_mmag, 0), "mmag", tr("Dispersión del ajuste") + " · " + tr("polinomio de grado # con # puntos").replace("#", c.grado).replace("#", c.n_ajuste))}</div>
+    ${c.avisos.length ? `<div class="avisos">${c.avisos.map(a => `<div>${esc(tr(a))}</div>`).join("")}</div>` : ""}
+    <div class="graf" id="gRR"></div>
+    <div class="dos"><div class="graf" id="gRRZoom"></div><div class="graf" id="gRROC"></div></div>
+    <div class="dos">
+      <div class="graf"><h4>Estrellas de comparación (Gaia DR3)</h4><div class="tabla" style="max-height:300px"><table><thead><tr><th>Usar</th><th>Gaia DR3</th><th class="num">G</th><th class="num">BP−RP</th><th class="num">Distancia (′)</th><th class="num">SNR</th><th class="num">Medida</th></tr></thead><tbody>${
+        c.tabla.map(x => `<tr><td><input type="checkbox" class="rComp" value="${esc(x.id)}" ${c.comps.includes(x.id) ? "checked" : ""}></td><td class="notr">${esc(x.id)}</td>
+          <td class="num">${numEs(x.g, 2)}</td><td class="num">${x.bp_rp != null ? numEs(x.bp_rp, 2) : "—"}</td><td class="num">${x.dist != null ? numEs(x.dist, 1) : "—"}</td><td class="num">${numEs(x.snr, 0)}</td>
+          <td class="num">${x.saturada > 0.1 ? `<span class="chip warn">saturada</span>` : numEs(100 * x.presente, 0) + " %"}</td></tr>`).join("")}</tbody></table></div>
+        <div class="opciones">
+          <label>Apertura <select id="dApertura"><option value="">${esc(tr("la de menos dispersión"))}</option>${s.factores.map((f, i) => `<option value="${i}" ${c.apertura_elegida && c.apertura === i ? "selected" : ""}>${numEs(f, 1)} × FWHM</option>`).join("")}</select></label>
+          <label>Ventana <select id="dFrac"><option value="">${esc(tr("automática (30 % de la amplitud)"))}</option>${[0.2, 0.3, 0.4, 0.5].map(f => `<option value="${f}" ${c.frac_elegida === f ? "selected" : ""}>${esc(tr("# % de la amplitud").replace("#", numEs(100 * f, 0)))}</option>`).join("")}</select></label>
+          <label>Polinomio <select id="dGrado"><option value="">${esc(tr("el que mejor encaje (BIC)"))}</option>${[3, 4, 5, 6].map(g => `<option value="${g}" ${c.grado_elegido === g ? "selected" : ""}>${esc(tr("grado"))} ${g}</option>`).join("")}</select></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="pie">ASTRO elige la apertura con menos dispersión y quita las comparaciones que bailan más de lo que explica su ruido o cambian despacio (variables). Puedes marcar las tuyas, cambiar la ventana del ajuste o el grado del polinomio, y recalcular.</div></div>
+      <div class="graf"><h4>Para GEOS</h4>
+        <div class="acciones" style="flex-wrap:wrap"><a class="btn small primary" href="/api/rr/archivo?tipo=geos&id=${encodeURIComponent(s.id)}" download>Máximo para GEOS</a>
+          <a class="btn small" href="/api/rr/archivo?tipo=csv&id=${encodeURIComponent(s.id)}" download>Curva (CSV)</a>
+          <a class="btn small" href="/api/rr/archivo?tipo=svg&id=${encodeURIComponent(s.id)}" download>Figura (SVG)</a></div>
+        <div class="opciones"><label>Tu nombre <input id="dObservador" class="notr" value="${esc(s.observador || "")}" placeholder="T. Moreno" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label><button class="btn small" id="dGuardarObs">Guardar</button></div>
+        <pre class="notr" id="dGeos" style="margin-top:10px;max-height:170px;overflow:auto;font-size:11.5px;line-height:1.45;background:var(--surface2);border-radius:10px;padding:10px 12px;white-space:pre"></pre>
+        <div class="acciones" style="margin-top:6px"><button class="btn small" id="dCopiarGeos">Copiar</button><a class="btn small" href="https://rr-lyr.irap.omp.eu/dbrr/" target="_blank" rel="noopener">Abrir la base de datos de GEOS</a></div>
+        <div class="pie">GEOS guarda cada máximo con la estrella, el instante en HJD y su error, el filtro, el método y el observador. El archivo lleva todo eso, además del O−C, el BJD_TDB y cómo se ha medido.</div></div>
+    </div>
+    <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
+      <dt>Elementos</dt><dd><span class="notr">${esc(rr.fuente || "VSX")} · E₀ ${rr.epoca.toFixed(5)} HJD · P ${rr.periodo.toFixed(7)} d · ${esc(rr.tipo || "?")}</span>${rr.subida ? ` · <span>subida</span> <span class="notr">${numEs(rr.subida, 0)} %</span> <span>del periodo</span>` : ""}</dd>
+      <dt>Máximo previsto</dt><dd><span class="notr">HJD ${c.c_hjd.toFixed(5)} · ${isoDeJd(c.c_jd).slice(11, 19)} UTC</span> · <span>ciclo</span> <span class="notr">${c.ciclo}</span></dd>
+      <dt>O−C</dt><dd><span class="notr">${(c.oc > 0 ? "+" : "") + c.oc.toFixed(5)} d · ${mas(c.oc_min)} min · ${(c.oc_fase > 0 ? "+" : "") + numEs(c.oc_fase, 3)} P</span></dd>
+      <dt>BJD_TDB</dt><dd class="notr">${c.tmax_bjd != null ? c.tmax_bjd.toFixed(5) : "—"}</dd>
+      <dt>Ajuste</dt><dd><span>polinomio de grado</span> <span class="notr">${c.grado}</span> · <span class="notr">${c.n_ajuste}</span> <span>puntos, hasta el</span> <span class="notr">${numEs(100 * c.frac, 0)} %</span> <span>de la amplitud</span> (<span class="notr">${numEs(c.amplitud, 2)} mag</span>) <span>por debajo del pico</span></dd>
+      ${gradosTxt ? `<dt>Instante con cada grado</dt><dd>${gradosTxt}</dd>` : ""}
+      <dt>Error del instante</dt><dd>${errAzar != null ? `<span>el mayor entre el remuestreo por bloques de</span> <span class="notr">${c.bloque}</span> <span>puntos (por β</span> <span class="notr">${numEs(c.beta, 2)}</span><span>) y las «cuentas de rosario»:</span> <span class="notr">${tiempoErr(c.err_boot * c.beta)} · ${c.err_pb != null ? tiempoErr(c.err_pb) : "—"}</span>; <span>con la diferencia entre grados</span> (<span class="notr">${tiempoErr(c.err_grado)}</span>), <span class="notr">± ${tiempoErr(c.tmax_err)}</span>` : esc(tr("no se puede calcular: la serie no ve el máximo entero"))}</dd>
+      <dt>Curva</dt><dd><span class="notr">${c.n}</span> <span>tomas medidas, una cada</span> <span class="notr">${numEs(c.cadencia_min, 1)} min</span> · <span class="notr">${numEs(c.antes_min, 0)}</span> <span>min antes y</span> <span class="notr">${numEs(c.despues_min, 0)}</span> <span>después del máximo</span> · <span>dispersión frente a lo que explica el ruido:</span> <span class="notr">× ${numEs(c.escala_err, 1)}</span></dd>
+      <dt>Apertura</dt><dd class="notr">${numEs(c.factor_apertura, 1)} × FWHM</dd>
+      <dt>Comparación</dt><dd><span class="notr">${c.comps.length}</span> <span>estrellas de Gaia DR3, sumadas</span> · <span>β de las comparaciones</span> <span class="notr">${numEs(c.beta_comps, 2)}</span></dd>
+      <dt>Calibración</dt><dd>${(s.calibracion || []).length ? s.calibracion.map(x => `<div class="notr">${esc(x)}</div>`).join("") : esc(tr("sin calibrar"))}</dd>
+      <dt>Lugar</dt><dd class="notr">${esc((s.lugar || {}).nombre || "")}</dd>
+      <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
+    </dl></div>
+    <div class="acciones"><a class="btn small" href="/api/rr/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar esta medida</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "rr"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar esta medida?")) return; await post("/api/rr/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesRR(); };
+  const verGeos = async () => { try { $("dGeos").textContent = await (await api(`/api/rr/archivo?tipo=geos&id=${encodeURIComponent(s.id)}`)).text(); } catch(_){ $("dGeos").textContent = ""; } };
+  verGeos();
+  $("dCopiarGeos").onclick = () => copiarTexto($("dGeos").textContent, $("dGeos"));
+  $("dGuardarObs").onclick = async () => {
+    try { await post("/api/rr/observador", {id: s.id, observador: $("dObservador").value.trim()}); $("rObservador").value = $("dObservador").value.trim(); s.observador = $("dObservador").value.trim(); verGeos(); toast("Guardado"); }
+    catch(e){ toast(e.message || e); }
+  };
+  $("dRecalcular").onclick = async () => {
+    const comps = [...document.querySelectorAll(".rComp:checked")].map(x => x.value);
+    if (comps.length < 1){ toast("Marca al menos una estrella de comparación"); return; }
+    const b = $("dRecalcular"); b.disabled = true; b.textContent = tr("Calculando…");
+    try {
+      const auto = comps.length === c.comps.length && comps.every(x => c.comps.includes(x)) && !c.comps_elegidas;
+      const nuevo = await (await post("/api/rr/recalcular", {id: s.id, comps: auto ? [] : comps, apertura: $("dApertura").value === "" ? null : +$("dApertura").value,
+        frac: $("dFrac").value === "" ? null : +$("dFrac").value, grado: $("dGrado").value === "" ? null : +$("dGrado").value})).json();
+      await cargarSeriesRR(); verRR(s.id, nuevo); toast("Recalculado");
+    } catch(e){ toast(e.message || e); b.disabled = false; b.textContent = tr("Recalcular"); }
+  };
+  graficaRR(s, c);
+}
+function graficaRR(s, c){
+  const P = c.puntos; if (!P.length) return;
+  // la noche entera
+  const W = 1000, H = 380, L = 64, R = 16, Tp = 22, B = 40;
+  const t0 = P[0].jd, span = (P[P.length - 1].jd - t0) * 24, pad = Math.max(span * 0.02, 0.02);
+  const hx = t => (t - t0) * 24;
+  const X = v => L + (v + pad) / (span + 2 * pad) * (W - L - R);
+  const ms = P.map(p => p.mag); let y0 = Math.min(...ms), y1 = Math.max(...ms); const py = (y1 - y0) * 0.08 || 0.05; y0 -= py; y1 += py;
+  const Y = v => Tp + (v - y0) / (y1 - y0) * (H - Tp - B);
+  const pasoM = (y1 - y0) > 1.2 ? 0.2 : (y1 - y0) > 0.5 ? 0.1 : (y1 - y0) > 0.2 ? 0.05 : 0.02;
+  let g = "";
+  for (let m = Math.ceil(y0 / pasoM) * pasoM; m <= y1 + 1e-9; m += pasoM) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m).toFixed(1)}" y2="${Y(m).toFixed(1)}"/><text class="tx" x="${L-6}" y="${(Y(m)+4).toFixed(1)}" text-anchor="end">${numEs(m, pasoM < 0.1 ? 2 : 1)}</text>`;
+  const pasoX = span > 8 ? 2 : span > 3 ? 1 : span > 1.5 ? 0.5 : 0.25;
+  const hIni = new Date((t0 - 2440587.5) * 864e5), hh = hIni.getUTCHours() + hIni.getUTCMinutes() / 60 + hIni.getUTCSeconds() / 3600;
+  for (let h = Math.ceil(hh / pasoX) * pasoX - hh; h <= span + 1e-9; h += pasoX){ const d = new Date(hIni.getTime() + h * 36e5 + 30e3);
+    g += `<line class="rej" x1="${X(h).toFixed(1)}" x2="${X(h).toFixed(1)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(h).toFixed(1)}" y="${H-B+16}" text-anchor="middle">${d.toISOString().slice(11, 16)}</text>`; }
+  const va = X(hx(c.ventana_jd[0])), vb = X(hx(c.ventana_jd[1]));
+  g += `<rect x="${va.toFixed(1)}" y="${Tp}" width="${Math.max(1, vb - va).toFixed(1)}" height="${H - Tp - B}" fill="var(--accent-soft)" opacity=".7"/>`;
+  if (c.tmax_err != null){ const ea = X(hx(c.tmax_jd - c.tmax_err)), eb = X(hx(c.tmax_jd + c.tmax_err));
+    g += `<rect x="${ea.toFixed(1)}" y="${Tp}" width="${Math.max(1.5, eb - ea).toFixed(1)}" height="${H - Tp - B}" fill="var(--oro)" opacity=".22"/>`; }
+  const xc = hx(c.c_jd);
+  if (xc >= -pad && xc <= span + pad) g += `<line x1="${X(xc).toFixed(1)}" x2="${X(xc).toFixed(1)}" y1="${Tp}" y2="${H-B}" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 4"/><text class="tx" x="${(X(xc) + 4).toFixed(1)}" y="${H-B-6}">${esc(tr("previsto"))}</text>`;
+  g += P.map(p => `<circle cx="${X(hx(p.jd)).toFixed(1)}" cy="${Y(p.mag).toFixed(1)}" r="${p.ajuste ? 2.6 : 2}" fill="var(--accent)" opacity="${p.ajuste ? .9 : .35}"><title>${esc(p.archivo)} · ${numEs(p.mag, 3)} ± ${numEs(p.err, 3)}</title></circle>`).join("");
+  g += `<polyline fill="none" stroke="var(--oro)" stroke-width="2.4" points="${c.modelo.map(q => X(hx(q[0])).toFixed(1) + "," + Y(q[1]).toFixed(1)).join(" ")}"/>`;
+  const xm = X(hx(c.tmax_jd));
+  g += `<line x1="${xm.toFixed(1)}" x2="${xm.toFixed(1)}" y1="${Tp}" y2="${H-B}" stroke="var(--oro)" stroke-width="1.6" stroke-dasharray="5 3"/>`;
+  g += `<text class="tx f" x="${Math.min(W - R - 4, xm + 6).toFixed(1)}" y="${Tp + 12}" text-anchor="${xm > W - 220 ? "end" : "start"}">${esc(tr("máximo"))} ${c.tmax_utc.slice(11, 19)} UTC</text>`;
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("hora UTC"))} · JD ${t0.toFixed(4)}</text>`;
+  $("gRR").innerHTML = `<h4>La curva de la noche</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("Magnitud aproximada en la escala G de Gaia (arriba, más brillante). En morado oscuro, los puntos del ajuste, dentro de la franja; en dorado, el polinomio y el instante del máximo, con su margen de error. La línea de puntos gris es el máximo previsto por los elementos del VSX."))}</div>`;
+  // el máximo de cerca, con los residuos
+  const mod = t => { const M = c.modelo; if (t <= M[0][0]) return M[0][1]; if (t >= M[M.length - 1][0]) return M[M.length - 1][1];
+    let i = 1; while (i < M.length - 1 && M[i][0] < t) i++; const a = M[i - 1], b = M[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); };
+  const mn = t => (t - c.tmax_jd) * 1440;
+  const wa = mn(c.ventana_jd[0]), wb = mn(c.ventana_jd[1]), extra = (wb - wa) * 0.12, za = wa - extra, zb = wb + extra;
+  const Q = P.filter(p => mn(p.jd) >= za && mn(p.jd) <= zb);
+  const W2 = 620, H2 = 400, L2 = 60, R2 = 12, T2 = 14, h2 = 270, B2 = 36;
+  const X2 = v => L2 + (v - za) / (zb - za) * (W2 - L2 - R2);
+  const qm = Q.map(p => p.mag).concat(c.modelo.map(q => q[1])); let a0 = Math.min(...qm), a1 = Math.max(...qm); const pa = (a1 - a0) * 0.08 || 0.02; a0 -= pa; a1 += pa;
+  const Y2 = v => T2 + (v - a0) / (a1 - a0) * (h2 - T2);
+  const F = Q.filter(p => p.ajuste), res = F.map(p => p.mag - mod(p.jd));
+  const rr_ = Math.max(0.005, ...res.map(Math.abs)) * 1.1;
+  const Yr = v => h2 + 30 + (v + rr_) / (2 * rr_) * (H2 - B2 - h2 - 30);
+  let g2 = "";
+  const pasoZ = (a1 - a0) > 0.5 ? 0.1 : (a1 - a0) > 0.2 ? 0.05 : (a1 - a0) > 0.08 ? 0.02 : 0.01;
+  for (let m = Math.ceil(a0 / pasoZ) * pasoZ; m <= a1 + 1e-9; m += pasoZ) g2 += `<line class="rej" x1="${L2}" x2="${W2-R2}" y1="${Y2(m).toFixed(1)}" y2="${Y2(m).toFixed(1)}"/><text class="tx" x="${L2-6}" y="${(Y2(m)+4).toFixed(1)}" text-anchor="end">${numEs(m, 2)}</text>`;
+  const pasoT = (zb - za) > 150 ? 30 : (zb - za) > 60 ? 15 : 10;
+  for (let m = Math.ceil(za / pasoT) * pasoT; m <= zb; m += pasoT) g2 += `<line class="rej" x1="${X2(m).toFixed(1)}" x2="${X2(m).toFixed(1)}" y1="${T2}" y2="${H2-B2}"/><text class="tx" x="${X2(m).toFixed(1)}" y="${H2-B2+15}" text-anchor="middle">${(m > 0 ? "+" : "") + m}</text>`;
+  if (c.tmax_err != null){ const e = c.tmax_err * 1440; g2 += `<rect x="${X2(-e).toFixed(1)}" y="${T2}" width="${Math.max(1.5, X2(e) - X2(-e)).toFixed(1)}" height="${h2 - T2}" fill="var(--oro)" opacity=".22"/>`; }
+  g2 += Q.map(p => `<circle cx="${X2(mn(p.jd)).toFixed(1)}" cy="${Y2(p.mag).toFixed(1)}" r="${p.ajuste ? 2.8 : 2.2}" fill="var(--accent)" opacity="${p.ajuste ? .85 : .3}"><title>${esc(p.archivo)}</title></circle>`).join("");
+  g2 += `<polyline fill="none" stroke="var(--oro)" stroke-width="2.4" points="${c.modelo.map(q => X2(mn(q[0])).toFixed(1) + "," + Y2(q[1]).toFixed(1)).join(" ")}"/>`;
+  g2 += `<line x1="${X2(0).toFixed(1)}" x2="${X2(0).toFixed(1)}" y1="${T2}" y2="${h2}" stroke="var(--oro)" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+  g2 += `<line class="rej" x1="${L2}" x2="${W2-R2}" y1="${Yr(0).toFixed(1)}" y2="${Yr(0).toFixed(1)}" style="stroke-dasharray:4 3"/>`;
+  g2 += `<text class="tx" x="${L2}" y="${h2 + 22}">${esc(tr("Residuos"))} · RMS ${numEs(c.rms_mmag, 0)} mmag</text>`;
+  g2 += F.map((p, i) => `<circle cx="${X2(mn(p.jd)).toFixed(1)}" cy="${Yr(res[i]).toFixed(1)}" r="1.8" fill="var(--accent)" opacity=".55"/>`).join("");
+  g2 += `<text class="tx" x="${(L2+W2-R2)/2}" y="${H2-6}" text-anchor="middle">${esc(tr("minutos desde el máximo"))}</text>`;
+  $("gRRZoom").innerHTML = `<h4>El máximo de cerca</h4><div class="lienzo"><svg viewBox="0 0 ${W2} ${H2}" role="img" style="min-width:0">${g2}</svg></div><div class="pie">${esc(tr("Los puntos que entran en el ajuste y el polinomio. Abajo, lo que queda al quitarlo: si hace ondas, prueba otro grado u otra ventana."))}</div>`;
+  // O−C de esta estrella, con todos tus máximos
+  const mios = (RR.series || []).filter(x => x.estrella === s.estrella.nombre && x.tmax != null && x.oc_min != null).sort((a, b) => a.tmax - b.tmax);
+  if (!mios.some(x => x.id === s.id)) mios.push({id: s.id, tmax: c.tmax, tmax_err: c.tmax_err, oc_min: c.oc_min, noche: s.noche, fiable: c.fiable});
+  const W3 = 620, H3 = 400, L3 = 60, R3 = 16, T3 = 16, B3 = 40;
+  const ta = Math.min(...mios.map(x => x.tmax)), tb = Math.max(...mios.map(x => x.tmax)), pt = Math.max(8, (tb - ta) * 0.08);
+  const X3 = v => L3 + (v - ta + pt) / (tb - ta + 2 * pt) * (W3 - L3 - R3);
+  const oe = mios.map(x => [x.oc_min - (x.tmax_err || 0) * 1440, x.oc_min + (x.tmax_err || 0) * 1440]).flat().concat([0]);
+  let o0 = Math.min(...oe), o1 = Math.max(...oe); const po = Math.max(2, (o1 - o0) * 0.12); o0 -= po; o1 += po;
+  const Y3 = v => T3 + (o1 - v) / (o1 - o0) * (H3 - T3 - B3);
+  let g3 = "";
+  const pasoO = (o1 - o0) > 120 ? 30 : (o1 - o0) > 50 ? 10 : (o1 - o0) > 20 ? 5 : 2;
+  for (let v = Math.ceil(o0 / pasoO) * pasoO; v <= o1; v += pasoO) g3 += `<line class="rej" x1="${L3}" x2="${W3-R3}" y1="${Y3(v).toFixed(1)}" y2="${Y3(v).toFixed(1)}"${v === 0 ? ' style="stroke:var(--muted);stroke-dasharray:4 3"' : ""}/><text class="tx" x="${L3-6}" y="${(Y3(v)+4).toFixed(1)}" text-anchor="end">${(v > 0 ? "+" : "") + v}</text>`;
+  const nt = 4; for (let k = 0; k <= nt; k++){ const t = ta - pt + (tb - ta + 2 * pt) * k / nt;
+    const lab = new Date((t - 2440587.5) * 864e5).toLocaleDateString(LOCALE, {day:"numeric", month:"short", year: (tb - ta) > 200 ? "2-digit" : undefined});
+    g3 += `<text class="tx" x="${X3(t).toFixed(1)}" y="${H3-B3+16}" text-anchor="${k === 0 ? "start" : k === nt ? "end" : "middle"}">${esc(lab)}</text>`; }
+  g3 += mios.map(x => { const e = (x.tmax_err || 0) * 1440, yo = x.id === s.id, cx = X3(x.tmax).toFixed(1);
+    return (e ? `<line x1="${cx}" x2="${cx}" y1="${Y3(x.oc_min + e).toFixed(1)}" y2="${Y3(x.oc_min - e).toFixed(1)}" stroke="${yo ? "var(--oro)" : "var(--accent)"}" stroke-width="1.4"/>` : "") +
+      `<circle cx="${cx}" cy="${Y3(x.oc_min).toFixed(1)}" r="${yo ? 5 : 4}" fill="${yo ? "var(--oro)" : "var(--accent)"}" ${x.fiable === false ? 'fill-opacity=".35"' : ""}><title>${esc(fechaCorta(x.noche))} · O−C ${(x.oc_min > 0 ? "+" : "") + numEs(x.oc_min, 1)} min</title></circle>`; }).join("");
+  g3 += `<text class="tx" x="${(L3+W3-R3)/2}" y="${H3-6}" text-anchor="middle">${esc(tr("O−C en minutos, frente a los elementos del VSX"))}</text>`;
+  $("gRROC").innerHTML = `<h4>Tus máximos de esta estrella</h4><div class="lienzo"><svg viewBox="0 0 ${W3} ${H3}" role="img" style="min-width:0">${g3}</svg></div><div class="pie">${esc(tr(mios.length < 2
+    ? "De momento, solo este. Con más máximos de la misma estrella verás aquí cómo cambia su periodo: una recta inclinada si los elementos no son buenos, una curva si el periodo cambia, y saltos de semanas si tiene efecto Blazhko."
+    : "Cada punto es uno de tus máximos (en dorado, este). Una recta inclinada dice que el periodo del VSX no es del todo bueno; una curva, que el periodo cambia; los saltos de unas semanas a otras, el efecto Blazhko."))}</div>`;
 }
 
 /* ============ Asteroides y cometas ============ */

@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.26",
+  "es": [
+   "RR Lyrae: el máximo, un bloque nuevo en Ciencia. ASTRO te dice qué máximos de RR Lyrae se ven desde tu lugar las próximas noches; con las tomas de la noche mide la curva, ajusta el máximo y da su instante en HJD con su error y el O−C frente a los elementos del VSX, con el archivo para la base de datos de RR Lyrae del GEOS.",
+   "Cada estrella guarda el O−C de todos tus máximos, para ver con los años cómo cambia su periodo y el efecto Blazhko."
+  ],
+  "en": [
+   "RR Lyrae: the maximum, a new Science block. ASTRO tells you which RR Lyrae maxima you can see from your site in the coming nights; with the night's frames it measures the light curve, fits the maximum and gives its time in HJD with its error and the O−C against the VSX elements, with the file for the GEOS RR Lyrae database.",
+   "Each star keeps the O−C of all your maxima, so that over the years you can see how its period changes and the Blazhko effect."
+  ],
+  "fr": [
+   "RR Lyrae : le maximum, un nouveau bloc dans Science. ASTRO vous dit quels maxima de RR Lyrae sont visibles depuis votre site les prochaines nuits ; avec les poses de la nuit, il mesure la courbe, ajuste le maximum et donne son instant en HJD avec son erreur et l'O−C par rapport aux éléments du VSX, avec le fichier pour la base de données RR Lyrae du GEOS.",
+   "Chaque étoile conserve l'O−C de tous vos maxima, pour voir au fil des années comment change sa période et l'effet Blazhko."
+  ],
+  "de": [
+   "RR Lyrae: das Maximum, ein neuer Bereich in Wissenschaft. ASTRO sagt dir, welche Maxima von RR-Lyrae-Sternen in den nächsten Nächten von deinem Ort aus zu sehen sind; mit den Aufnahmen der Nacht misst es die Lichtkurve, passt das Maximum an und gibt seinen Zeitpunkt in HJD mit Fehler und dem O−C gegenüber den VSX-Elementen an, mit der Datei für die RR-Lyrae-Datenbank von GEOS.",
+   "Jeder Stern bewahrt das O−C all deiner Maxima auf, damit du über die Jahre siehst, wie sich seine Periode ändert, und den Blazhko-Effekt."
+  ],
+  "it": [
+   "RR Lyrae: il massimo, un nuovo blocco in Scienza. ASTRO ti dice quali massimi di RR Lyrae si vedono dal tuo luogo nelle prossime notti; con le pose della notte misura la curva, adatta il massimo e ne dà l'istante in HJD con il suo errore e l'O−C rispetto agli elementi del VSX, con il file per il database delle RR Lyrae del GEOS.",
+   "Ogni stella conserva l'O−C di tutti i tuoi massimi, per vedere negli anni come cambia il suo periodo e l'effetto Blazhko."
+  ],
+  "pt": [
+   "RR Lyrae: o máximo, um bloco novo em Ciência. O ASTRO indica que máximos de RR Lyrae são visíveis do seu local nas próximas noites; com as exposições da noite mede a curva, ajusta o máximo e dá o seu instante em HJD com o seu erro e o O−C face aos elementos do VSX, com o ficheiro para a base de dados de RR Lyrae do GEOS.",
+   "Cada estrela guarda o O−C de todos os seus máximos, para ver ao longo dos anos como muda o seu período e o efeito Blazhko."
+  ]
+ },
+ {
   "version": "0.25.1",
   "es": [
    "Ventana: si la última vez cerraste ASTRO en una pantalla más grande (un monitor externo, por ejemplo), en el portátil se abría más ancha que la pantalla y todo salía desplazado y cortado. Ahora, si la ventana guardada no cabe en las pantallas conectadas, se abre ocupando la pantalla; en el Mac, solo la parte útil, sin la barra de menús ni el Dock.",
