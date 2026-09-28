@@ -943,14 +943,34 @@ th{background:var(--surface);font-weight:700}
 .arcCarpeta{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
 .arcRuta{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%}
 .arcVacio{text-align:center;padding:36px 20px;color:var(--muted);line-height:1.5} .arcVacio b{display:block;font-size:18px;color:var(--text);margin-bottom:6px} .arcVacio span{display:block;max-width:560px;margin:0 auto}
-.counts.arcCifras{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.counts.arcCifras{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))!important}
+.arcEst{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.arcEst.e-en_curso{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.arcEst.e-apilado{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.arcEst.e-apilado_nuevas{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.arcEst.e-terminado{background:var(--ok);color:#fff;border-color:transparent}
+.arcEst.e-pausa{background:transparent;border-style:dashed}
+.arcEstados{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;align-items:center} .arcEstados .spacer{flex:1}
+.arcEstados select{padding:6px 9px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
+.arcH .note{margin-left:8px;font-weight:500}
+.arcEstados button{border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 11px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.arcEstados button b{font-weight:800} .arcEstados button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.arcEstados button .dotE{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.arcEstados .dotE.e-en_curso{background:var(--accent)} .arcEstados .dotE.e-apilado,.arcEstados .dotE.e-terminado{background:var(--ok)} .arcEstados .dotE.e-apilado_nuevas{background:var(--warn)}
+.arcEstBarra{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-radius:14px;box-shadow:var(--sombra);padding:12px 16px;margin:0 0 14px}
+.arcEstBarra .arcEstTxt{color:var(--muted);line-height:1.45;flex:1;min-width:240px} .arcEstBarra select{padding:6px 9px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
+table.arcSes{min-width:900px} table.arcSes td{vertical-align:top}
+tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowrap}
+.arcSesObj{margin:0 0 4px} .arcSesObj .chips{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle} .arcSesObj a{font-weight:700;color:var(--text)}
+.arcH{margin:22px 0 8px;font-size:17px}
+table.arcEqT{min-width:900px} tr[data-arc-eq]{cursor:pointer} tr[data-arc-eq]:hover td{background:var(--surface2)}
 .arcBarra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
 .arcBarra input[type=search],.arcBarra select{padding:7px 10px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
-.arcBarra input[type=search]{width:190px}
+.arcBarra input[type=search]{width:170px} .arcBarra select{max-width:230px}
 .arcPest{display:inline-flex;background:var(--surface2);border-radius:10px;padding:3px}
 .arcPest button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font:inherit;font-weight:650;font-size:13.5px;color:var(--muted);cursor:pointer}
 .arcPest button.on{background:var(--surface);color:var(--text);box-shadow:var(--sombra)}
-table.arcTabla{min-width:980px} table.arcTabla td{vertical-align:middle}
+table.arcTabla{min-width:980px} table.arcTabla td{vertical-align:middle} table.arcTabla td:nth-child(4){min-width:170px} table.arcTabla td:nth-child(9){max-width:180px}
 tr[data-arc-proy]{cursor:pointer} tr[data-arc-proy]:hover td{background:var(--surface2)}
 .arcAnios{display:flex;align-items:flex-end;gap:2px;height:24px} .arcAnios i{display:block;width:8px;background:var(--accent);border-radius:2px 2px 0 0}
 .arcEje{display:flex;justify-content:space-between;gap:8px;font-weight:500;font-size:10.5px;color:var(--faint)}
@@ -2169,7 +2189,7 @@ function renderSessions(soloRepintar){
         ${etiqueta?`<span class="fecha">${esc(etiqueta)}</span>`:""}<div class="nom"><h3 class="notr">${esc(obj)}</h3>${sub?`<span>${esc(sub)}</span>`:""}</div></div>
       <div class="cuerpo">
         <div class="fila">${pct!==null ? anilloSVG(pct) : ""}<div class="horas"><b>${fmtH(h)}</b>${meta>0?` <span class="dato">de ${fmtH(meta)}</span>`:` <span class="dato">útiles</span>`}
-          <div class="dato"><span>${noches.length} noche${noches.length!==1?"s":""} · ${fl.length} toma${fl.length!==1?"s":""}</span>${pct>=100?'<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>':""}${meta>0?"":'<span> · </span><a href="#" data-resumen="'+esc(obj)+'">poner objetivo</a>'}</div></div></div>
+          <div class="dato"><span>${noches.length} noche${noches.length!==1?"s":""} · ${fl.length} toma${fl.length!==1?"s":""}</span>${pct>=100?'<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>':""}${estadoManual(obj) ? '<span> · </span>' + chipEstado(estadoManual(obj)) : ""}${meta>0?"":'<span> · </span><a href="#" data-resumen="'+esc(obj)+'">poner objetivo</a>'}</div></div></div>
         ${barras?`<div class="fbars">${barras}</div>`:""}
         <div class="prox" data-prox="${esc(obj)}">${PROX[obj]||""}</div>
         ${(OBJETIVOS[obj]||{}).proyecto && (OBJETIVOS[obj].proyecto.montaje_nombre) ? `<div class="dato" style="margin-top:4px"><span>Proyecto con</span> <span class="notr">${esc(OBJETIVOS[obj].proyecto.montaje_nombre)}</span></div>` : ""}
@@ -2502,6 +2522,7 @@ $("btnDiscSel").onclick = () => { const l = visible().filter(f=>checked.has(f.id
 $("btnFinder").onclick = () => api("/api/finder", {method:"POST"}).catch(()=>toast(/Win/i.test(navigator.platform||navigator.userAgent||"") ? "No se pudo abrir el Explorador de archivos" : "No se pudo abrir el Finder"));
 if (/Win/i.test(navigator.platform||navigator.userAgent||"")) $("btnFinder").textContent = "Abrir la carpeta en el Explorador de archivos";
 (async function init(){ try { OBJETIVOS = await (await api("/api/objetivos")).json(); } catch(_){}
+  arcCargarProyectos(true);
   try { const pr = await (await api("/api/pref")).json(); EXIGENCIA = +pr.exigencia || 0; PREF_INICIO = pr.inicio || ""; } catch(_){}
   await loadDb(); conciliarProyectos(); render(); window._dbListo = true;
   if (!location.hash && PREF_INICIO === "archivo") mostrarVista("archivo");
@@ -2532,7 +2553,8 @@ window.addEventListener("hashchange", abrirDesdeEnlace);
 
 /* ============ Archivo: años de tomas indexadas leyendo solo la cabecera; se analizan y depuran dentro de cada proyecto ============ */
 const ARC = {q:"", anio:"", mes:"", equipo:"", pendientes:false, orden:"horas", pestana:"proyectos", cal:null, calPedida:0, carpetas:null,
-             indexando:null, ultimo:null, analizando:null, parar:false, proyecto:"", apilados:{}};
+             indexando:null, ultimo:null, analizando:null, parar:false, proyecto:"", apilados:{},
+             estados:{}, apil:null, apilPedida:0, estado:"", sesMax:150, sesProy:40};
 // «Archivo» ya está en el diccionario como «archivo de ordenador» (fichier, Datei…): el apartado tiene su propia clave
 const ARCHIVO_TXT = () => IDIOMA === "es" ? "Archivo" : IDIOMA === "en" ? "Archive" : (DIC["Archivo (apartado)"] ?? "Archive");
 if ($("navArchivo")) $("navArchivo").textContent = ARCHIVO_TXT();
@@ -2644,6 +2666,140 @@ function arcPintarProgreso(){
   el.style.display = "none";
 }
 
+/* --- estado de cada proyecto: el que sale de sus tomas y sus apilados, o el que pone el usuario (terminado, en pausa) --- */
+async function arcCargarProyectos(forzar){
+  if (ARC.apilCargando || (!forzar && ARC.apil && Date.now() - ARC.apilPedida < 30000)) return;
+  ARC.apilPedida = Date.now(); ARC.apilCargando = true;
+  try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.estados = r.estados || {}; ARC.apil = r.apilados || {}; }
+  catch(_){ ARC.apil = ARC.apil || {}; }
+  finally { ARC.apilCargando = false; }
+  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto();
+}
+function estadoManual(obj){ try { return ((ARC.estados || {})[obj] || {}).estado || ""; } catch(_){ return ""; } }
+async function arcPonerEstado(obj, estado){
+  try {
+    const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, estado})})).json();
+    ARC.estados = r.estados || {}; ARC.apil = r.apilados || ARC.apil;
+  } catch(e){ return toast(tr(String(e.message || e))); }
+  toast(estado === "terminado" ? trLT("Proyecto terminado: ya no sale en lo que falta ni en los planes de la noche", "Project finished: it no longer shows up in what's left or in the night plans")
+      : estado === "pausa" ? trLT("Proyecto en pausa: no sale en los planes de la noche hasta que lo retomes", "Project on hold: it won't show up in the night plans until you pick it up again")
+      : trLT("Proyecto en curso otra vez", "Project in progress again"));
+  render();
+}
+function textoEstado(k){
+  // «Apilado» ya está en el diccionario como nombre (empilement, Stack…): el estado tiene su propia clave
+  const apilado = IDIOMA === "es" ? "Apilado" : IDIOMA === "en" ? "Stacked" : (DIC["Apilado (estado del proyecto)"] ?? "Stacked");
+  return ({sin_analizar:trLT("Por analizar", "To analyse"), en_curso:trLT("En curso", "In progress"), apilado,
+           apilado_nuevas:trLT("Por volver a apilar", "Needs restacking"), terminado:trLT("Terminado", "Finished"), pausa:trLT("En pausa", "On hold")})[k] || k;
+}
+const ORDEN_ESTADOS = ["sin_analizar", "en_curso", "apilado_nuevas", "apilado", "terminado", "pausa"];
+function estadoProyecto(obj, p, util){
+  // p: el proyecto con todas sus tomas; util: sus tomas útiles (las que entran en el apilado)
+  const man = estadoManual(obj), ap = ARC.apil ? ARC.apil[obj] : null;
+  let nuevas = 0;
+  if (ap){ const dia = String(ap.fecha || "").slice(0, 10); nuevas = (util || []).filter(f => (f.night || "") >= dia).length; }
+  const k = man === "terminado" || man === "pausa" ? man : p && p.n && p.sinAnalizar >= p.n ? "sin_analizar" : ap ? (nuevas ? "apilado_nuevas" : "apilado") : "en_curso";
+  return {k, man, ap, nuevas};
+}
+function chipEstado(k){ return `<span class="arcEst e-${k}">${esc(textoEstado(k))}</span>`; }
+/* calidad de un grupo de tomas ya analizadas: qué parte vale para apilar y la FWHM mediana (en ″ si la cabecera trae la escala) */
+function calNueva(){ return {an:0, util:0, fw:[], fwa:[]}; }
+function calSumar(c, f){
+  if (!f.status || f.status === "na") return;
+  c.an++; if (f.status === "bad") return;
+  c.util++;
+  if (f.fwhm > 0 && c.fw.length < 3000){ c.fw.push(f.fwhm); const e = escalaToma(f); if (e) c.fwa.push(f.fwhm * e); }
+}
+function calResumen(c){
+  if (!c || !c.an) return null;
+  return {n:c.an, pct:c.util / c.an, fwhm:c.fw.length ? medianaF(c.fw) : null, fwhmArc:c.fwa.length && c.fwa.length >= c.fw.length / 2 ? medianaF(c.fwa) : null};
+}
+function txtFwhm(q){ return !q ? "" : q.fwhmArc ? numEs(q.fwhmArc, 1) + "″" : q.fwhm ? numEs(q.fwhm, 1) + " px" : ""; }
+function txtCalidad(q){
+  if (!q) return "";
+  const cls = q.pct >= 0.8 ? "arcOk" : q.pct >= 0.5 ? "arcAviso" : "arcMal", fw = txtFwhm(q);
+  return `<span class="${cls}" title="${esc(trLT("De {1} tomas analizadas", "Out of {1} analysed frames", nfmt(q.n)))}">${esc(trLT("{1} % útiles", "{1}% usable", Math.round(100 * q.pct)))}</span>${fw ? `<div class="note">FWHM ${esc(fw)}</div>` : ""}`;
+}
+function nNoches(n){ return n === 1 ? trLT("1 noche", "1 night") : trLT("{1} noches", "{1} nights", nfmt(n)); }
+function fechaDia(d){ return d ? tr(fechaCorta(d)) + " " + String(d).slice(0, 4) : ""; }
+function diaSemana(d){ try { return new Date(d + "T12:00:00").toLocaleDateString(LOCALE, {weekday:"long"}); } catch(_){ return ""; } }
+function calNocheDe(o, noche){ const c = ARC.cal && ARC.cal[o]; return c && c.por_noche ? c.por_noche[noche] || null : null; }
+function txtCalNoche(objs, noche){
+  // calibración de una sesión: si alguna toma de esa noche se queda sin dark o sin flat en la biblioteca
+  if (!ARC.cal) return `<span class="note">…</span>`;
+  let sd = 0, sf = 0;
+  for (const o of objs){ const v = calNocheDe(o, noche); if (v){ sd += v[0]; sf += v[1]; } }
+  if (!sd && !sf) return `<span class="arcOk">✓</span>`;
+  return `<span class="arcAviso" title="${esc(trLT("Sin darks: {1} tomas · sin flats: {2} tomas", "No darks: {1} frames · no flats: {2} frames", nfmt(sd), nfmt(sf)))}">${esc([sd ? trLT("sin darks", "no darks") : "", sf ? trLT("sin flats", "no flats") : ""].filter(Boolean).join(" · "))}</span>`;
+}
+
+/* --- sesiones: cada noche → los equipos que se usaron → los proyectos que se hicieron con cada uno --- */
+function arcAgruparSesiones(lista){
+  const noches = new Map();
+  for (const f of lista){
+    if (!f.night) continue;
+    let n = noches.get(f.night); if (!n){ n = new Map(); noches.set(f.night, n); }
+    const e = equipoDe(f); let x = n.get(e);
+    if (!x){ x = {n:0, util:0, seg:0, objs:new Map(), cal:calNueva()}; n.set(e, x); }
+    x.n++; calSumar(x.cal, f);
+    const o = (f.object || "").trim() || "—";
+    let po = x.objs.get(o); if (!po){ po = {seg:0, n:0, filtros:new Map()}; x.objs.set(o, po); }
+    po.n++;
+    if (esUtil(f)){ const sg = f.exp || 0; x.util++; x.seg += sg; po.seg += sg; const fi = nomFiltro(f.filter); po.filtros.set(fi, (po.filtros.get(fi) || 0) + sg); }
+  }
+  return noches;
+}
+function chipsFiltros(m){ return [...m].sort((a, b) => b[1] - a[1]).map(([fi, sg]) => `<span class="fchip" style="--c:${COLOR_FILTRO(fi)}">${esc(fi)} ${esc(fmtH(sg / 3600))}</span>`).join(""); }
+function arcSesiones(lista){
+  const noches = arcAgruparSesiones(lista), q = ARC.q.trim().toLowerCase();
+  let ks = [...noches.keys()].sort().reverse();
+  if (q) ks = ks.filter(k => [...noches.get(k).values()].some(x => [...x.objs.keys()].some(o => o.toLowerCase().includes(q))));
+  const vis = ks.slice(0, ARC.sesMax);
+  let filas = "";
+  for (const k of vis){
+    const eqs = [...noches.get(k)].sort((a, b) => b[1].seg - a[1].seg);
+    eqs.forEach(([e, x], i) => {
+      const objs = [...x.objs].sort((a, b) => b[1].seg - a[1].seg);
+      filas += `<tr class="${i ? "" : "arcSesPri"}">
+        ${i ? "" : `<td rowspan="${eqs.length}" class="arcSesNoche"><b>${esc(fechaDia(k))}</b><div class="note">${esc(diaSemana(k))}</div></td>`}
+        <td class="notr">${esc(e)}</td>
+        <td>${objs.map(([o, po]) => `<div class="arcSesObj">${o === "—" ? `<span class="note">${esc(trLT("sin objeto", "no target"))}</span>` : `<a href="#" data-arc-ir="${esc(o)}" class="notr">${esc(o)}</a>`} <span class="chips">${chipsFiltros(po.filtros)}</span></div>`).join("")}</td>
+        <td class="num">${nfmt(x.n)}${x.util !== x.n ? `<div class="note">${esc(trLT("{1} útiles", "{1} usable", nfmt(x.util)))}</div>` : ""}</td>
+        <td class="num"><b>${esc(fmtH(x.seg / 3600))}</b></td>
+        <td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td>
+        <td>${txtCalNoche(objs.map(([o]) => o), k)}</td></tr>`;
+    });
+  }
+  return `<div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Proyectos", "Projects"))}</th>
+      <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th></tr></thead>
+      <tbody>${filas}</tbody></table>${ks.length ? "" : `<div class="empty" style="display:block">${esc(trLT("Ninguna sesión con esos filtros", "No sessions with those filters"))}</div>`}</div>
+    <div class="note" style="margin-top:8px">${esc(trLT("{1} noches. Cada noche, los equipos que usaste y lo que hiciste con cada uno.", "{1} nights. For each night, the setups you used and what you shot with each one.", nfmt(ks.length)))}
+      ${ks.length > vis.length ? ` <button class="btn small" id="arcSesMas">${esc(trLT("Ver más noches", "Show more nights"))}</button>` : ""}</div>`;
+}
+
+/* --- equipos: cada combinación de telescopio y cámara, con sus noches y sus proyectos --- */
+function arcEquiposVista(lista){
+  const m = new Map();
+  for (const f of lista){
+    const e = equipoDe(f); let x = m.get(e);
+    if (!x){ x = {n:0, seg:0, noches:new Set(), objs:new Map(), cal:calNueva(), esc:[], primera:"", ultima:""}; m.set(e, x); }
+    x.n++; calSumar(x.cal, f);
+    if (f.night){ x.noches.add(f.night); if (f.night > x.ultima) x.ultima = f.night; if (!x.primera || f.night < x.primera) x.primera = f.night; }
+    if (x.esc.length < 500){ const es = escalaToma(f); if (es) x.esc.push(es); }
+    if (esUtil(f)){ const sg = f.exp || 0; x.seg += sg; const o = (f.object || "").trim(); if (o) x.objs.set(o, (x.objs.get(o) || 0) + sg); }
+  }
+  const filas = [...m].sort((a, b) => b[1].seg - a[1].seg).map(([e, x]) => {
+    const objs = [...x.objs].sort((a, b) => b[1] - a[1]), escala = x.esc.length ? medianaF(x.esc) : null;
+    return `<tr data-arc-eq="${esc(e)}" tabindex="0"><td><b class="notr">${esc(e)}</b>${escala ? `<div class="note">${esc(numEs(escala, 2))}″/px</div>` : ""}</td>
+      <td class="num">${nfmt(x.noches.size)}</td><td class="num"><b>${esc(fmtH(x.seg / 3600))}</b></td>
+      <td>${objs.slice(0, 5).map(([o, sg]) => `<span class="notr">${esc(o)}</span> <span class="note">${esc(fmtH(sg / 3600))}</span>`).join(" · ")}${objs.length > 5 ? ` <span class="note">+${objs.length - 5}</span>` : ""}</td>
+      <td>${x.primera ? esc(fechaDia(x.primera)) + (x.ultima !== x.primera ? " – " + esc(fechaDia(x.ultima)) : "") : "—"}</td>
+      <td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td></tr>`; }).join("");
+  return `<div class="tablewrap"><table class="arcEqT"><thead><tr><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th>
+      <th>${esc(trLT("Proyectos", "Projects"))}</th><th>${esc(trLT("Desde – hasta", "From – to"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th></tr></thead><tbody>${filas}</tbody></table></div>
+    <div class="note" style="margin-top:8px">${esc(trLT("Pulsa un equipo para ver sus noches. El nombre sale de la cabecera (TELESCOP e INSTRUME); si un mismo equipo aparece con dos nombres, unifícalos en «Mi equipo».", "Click a setup to see its nights. The name comes from the header (TELESCOP and INSTRUME); if one setup shows up under two names, merge them in “My equipment”."))}</div>`;
+}
+
 /* --- inventario: un proyecto por objeto --- */
 function arcTomas(){
   // las tomas que cuentan en el archivo, con el año, el mes y el equipo elegidos
@@ -2655,8 +2811,8 @@ function arcProyectos(lista){
   for (const f of lista){
     const o = (f.object || "").trim(); if (!o) continue;
     let p = m.get(o);
-    if (!p){ p = {obj:o, n:0, util:0, seg:0, sinAnalizar:0, bad:0, filtros:new Map(), anios:new Map(), noches:new Set(), equipos:new Set(), ultima:"", primera:""}; m.set(o, p); }
-    p.n++;
+    if (!p){ p = {obj:o, n:0, util:0, seg:0, sinAnalizar:0, bad:0, filtros:new Map(), anios:new Map(), noches:new Set(), equipos:new Set(), ultima:"", primera:"", cal:calNueva()}; m.set(o, p); }
+    p.n++; calSumar(p.cal, f);
     if (f.status === "na") p.sinAnalizar++;
     if (f.status === "bad") p.bad++;
     if (esUtil(f)){
@@ -2703,11 +2859,16 @@ function arcCal(obj){
 function renderArchivo(){
   const el = $("vistaArchivo"); if (!el || VISTA_ACTUAL !== "archivo") return;
   if (ARC.carpetas === null){ ARC.carpetas = []; arcCargarCarpetas(); }
-  arcCalibracion();
+  arcCalibracion(); arcCargarProyectos();
   const anios = arcAnios(), lista = arcTomas(), todos = arcProyectos(lista);
   const q = ARC.q.trim().toLowerCase();
-  let ps = todos.filter(p => (!q || p.obj.toLowerCase().includes(q)) && (!ARC.pendientes || p.sinAnalizar > 0));
   const util = arcUtilPorObjeto();
+  // el estado es del proyecto entero, aunque se esté mirando un año o un equipo
+  const enteros = ARC.anio || ARC.mes || ARC.equipo ? new Map(arcProyectos(frames.filter(f => !f.discarded)).map(p => [p.obj, p])) : null;
+  for (const p of todos) p.est = estadoProyecto(p.obj, enteros ? enteros.get(p.obj) : p, util.get(p.obj));
+  const porEstado = new Map(); for (const p of todos) porEstado.set(p.est.k, (porEstado.get(p.est.k) || 0) + 1);
+  if (ARC.estado && !porEstado.get(ARC.estado)) ARC.estado = "";
+  let ps = todos.filter(p => (!q || p.obj.toLowerCase().includes(q)) && (!ARC.pendientes || p.sinAnalizar > 0) && (!ARC.estado || p.est.k === ARC.estado));
   ps = arcOrdenar(ps, util);
   const sinObj = lista.filter(f => !(f.object || "").trim()).length;
   const totSeg = todos.reduce((a, p) => a + p.seg, 0), totNa = lista.filter(f => f.status === "na").length;
@@ -2755,31 +2916,36 @@ function renderArchivo(){
   // pestañas y filtros
   const opt = (v, t, sel) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(t)}</option>`;
   h += `<div class="arcBarra">
-    <div class="arcPest"><button class="${ARC.pestana === "proyectos" ? "on" : ""}" data-arc-pest="proyectos">${esc(trLT("Proyectos", "Projects"))}</button><button class="${ARC.pestana === "calendario" ? "on" : ""}" data-arc-pest="calendario">${esc(trLT("Calendario", "Calendar"))}</button></div>
-    <input type="search" id="arcQ" value="${esc(ARC.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">
+    <div class="arcPest">${[["proyectos", trLT("Proyectos", "Projects")], ["sesiones", trLT("Sesiones", "Sessions")], ["equipos", trLT("Equipos", "Setups")], ["calendario", trLT("Calendario", "Calendar")]]
+      .map(([k, t]) => `<button class="${ARC.pestana === k ? "on" : ""}" data-arc-pest="${k}">${esc(t)}</button>`).join("")}</div>
+    ${ARC.pestana === "equipos" ? "" : `<input type="search" id="arcQ" value="${esc(ARC.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">`}
     <select id="arcAnio">${opt("", trLT("Todos los años", "All years"), ARC.anio)}${anios.map(a => opt(a, a, ARC.anio)).join("")}</select>
     ${ARC.mes ? `<button class="btn small" id="arcMesQuitar">${esc(arcNombreMes(ARC.mes))} ✕</button>` : ""}
     <select id="arcEquipo">${opt("", trLT("Todos los equipos", "All setups"), ARC.equipo)}${equipos.map(e => opt(e, e, ARC.equipo)).join("")}</select>
-    <label class="note"><input type="checkbox" id="arcPend" ${ARC.pendientes ? "checked" : ""}> ${esc(trLT("Con tomas sin analizar", "With frames not analysed"))}</label>
-    <span class="spacer"></span>
-    <select id="arcOrden">${opt("horas", trLT("Más horas primero", "Most hours first"), ARC.orden)}${opt("ultima", trLT("Última noche", "Latest night"), ARC.orden)}${opt("objetivo", trLT("Más cerca del objetivo", "Closest to the goal"), ARC.orden)}${opt("pendientes", trLT("Más por analizar", "Most to analyse"), ARC.orden)}${opt("nombre", trLT("Nombre", "Name"), ARC.orden)}</select></div>`;
+    </div>`;
   if (ARC.pestana === "calendario") h += arcCalendario(anios);
+  else if (ARC.pestana === "sesiones") h += arcSesiones(lista);
+  else if (ARC.pestana === "equipos") h += arcEquiposVista(lista);
   else {
+    h += `<div class="arcEstados"><button class="${ARC.estado ? "" : "on"}" data-arc-est="">${esc(trLT("Todos", "All"))} <b>${nfmt(todos.length)}</b></button>${ORDEN_ESTADOS.filter(k => porEstado.get(k))
+      .map(k => `<button class="${ARC.estado === k ? "on" : ""}" data-arc-est="${k}"><i class="dotE e-${k}"></i>${esc(textoEstado(k))} <b>${nfmt(porEstado.get(k))}</b></button>`).join("")}
+      <span class="spacer"></span><label class="note"><input type="checkbox" id="arcPend" ${ARC.pendientes ? "checked" : ""}> ${esc(trLT("Con tomas sin analizar", "With frames not analysed"))}</label><select id="arcOrden2">${opt("horas", trLT("Más horas primero", "Most hours first"), ARC.orden)}${opt("ultima", trLT("Última noche", "Latest night"), ARC.orden)}${opt("objetivo", trLT("Más cerca del objetivo", "Closest to the goal"), ARC.orden)}${opt("pendientes", trLT("Más por analizar", "Most to analyse"), ARC.orden)}${opt("nombre", trLT("Nombre", "Name"), ARC.orden)}</select></div>`;
     const vis = ps.slice(0, 400);
     h += `<div class="tablewrap"><table class="arcTabla"><thead><tr>
-      <th>${esc(trLT("Proyecto", "Project"))}</th><th>${esc(trLT("Horas", "Hours"))}</th><th>${esc(trLT("Por filtro", "By filter"))}</th>
+      <th>${esc(trLT("Proyecto", "Project"))}</th><th>${esc(trLT("Estado", "Status"))}</th><th>${esc(trLT("Horas", "Hours"))}</th><th>${esc(trLT("Por filtro", "By filter"))}</th>
       <th title="${esc(anios.join(" · "))}">${esc(trLT("Temporadas", "Seasons"))}${anios.length ? `<div class="arcEje"><span>${esc(anios[0])}</span><span>${esc(anios[anios.length - 1])}</span></div>` : ""}</th>
-      <th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Última noche", "Latest night"))}</th><th>${esc(trLT("Analizadas", "Analysed"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th></tr></thead><tbody>
+      <th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Última noche", "Latest night"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th></tr></thead><tbody>
       ${vis.map(p => { const mt = metaDe(p.obj, util.get(p.obj) || []);
         const pc = Math.round(100 * (p.n - p.sinAnalizar) / Math.max(1, p.n));
         return `<tr data-arc-proy="${esc(p.obj)}" tabindex="0">
           <td><b>${esc(p.obj)}</b><div class="note">${esc(p.equipos.size === 1 ? [...p.equipos][0] : trLT("{1} equipos", "{1} setups", p.equipos.size))}</div></td>
+          <td>${chipEstado(p.est.k)}${p.est.k === "apilado_nuevas" ? `<div class="note">${esc(trLT("{1} tomas nuevas", "{1} new frames", nfmt(p.est.nuevas)))}</div>` : ""}</td>
           <td class="num"><b>${esc(fmtH(p.seg / 3600))}</b>${mt.meta ? `<div class="note">${esc(trLT("{1} % del objetivo", "{1}% of the goal", Math.round(100 * mt.cons / mt.meta)))}</div>` : ""}</td>
           <td><div class="chips">${arcChipsFiltro(p)}</div></td>
           <td>${arcBarras(p, anios)}</td>
           <td class="num">${nfmt(p.noches.size)}</td>
           <td>${p.ultima ? esc(tr(fechaCorta(p.ultima)) + " " + p.ultima.slice(0, 4)) : "—"}</td>
-          <td>${p.sinAnalizar ? `<div class="arcMini"><i style="width:${pc}%"></i></div><span class="note">${esc(trLT("faltan {1}", "{1} to go", nfmt(p.sinAnalizar)))}</span>` : `<span class="arcOk">✓ ${esc(trLT("Todas", "All"))}</span>`}</td>
+          <td>${txtCalidad(calResumen(p.cal))}${p.sinAnalizar ? `<div><div class="arcMini"><i style="width:${pc}%"></i></div><span class="note">${esc(trLT("faltan {1} por analizar", "{1} still to analyse", nfmt(p.sinAnalizar)))}</span></div>` : ""}</td>
           <td>${arcCal(p.obj)}</td></tr>`; }).join("")}
       </tbody></table>${ps.length ? "" : `<div class="empty" style="display:block">${esc(trLT("Ningún proyecto con esos filtros", "No projects with those filters"))}</div>`}</div>
       ${ps.length > vis.length ? `<div class="note" style="margin-top:8px">${esc(trLT("Se ven los primeros {1} de {2}: busca un objeto para ver otros.", "Showing the first {1} of {2}: search a target to see others.", vis.length, nfmt(ps.length)))}</div>` : ""}
@@ -2815,6 +2981,11 @@ function arcEnlazar(){
   const el = $("vistaArchivo");
   el.querySelectorAll("[data-arc-proy]").forEach(tr_ => { tr_.onclick = () => abrirProyecto(tr_.dataset.arcProy); tr_.onkeydown = ev => { if (ev.key === "Enter") abrirProyecto(tr_.dataset.arcProy); }; });
   el.querySelectorAll("[data-arc-pest]").forEach(b => b.onclick = () => { ARC.pestana = b.dataset.arcPest; renderArchivo(); });
+  el.querySelectorAll("[data-arc-est]").forEach(b => b.onclick = () => { ARC.estado = b.dataset.arcEst; renderArchivo(); });
+  el.querySelectorAll("[data-arc-ir]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrirProyecto(a.dataset.arcIr); });
+  el.querySelectorAll("[data-arc-eq]").forEach(tr_ => { const ir = () => { ARC.equipo = tr_.dataset.arcEq; ARC.pestana = "sesiones"; renderArchivo(); window.scrollTo({top:0}); };
+    tr_.onclick = ir; tr_.onkeydown = ev => { if (ev.key === "Enter") ir(); }; });
+  if ($("arcSesMas")) $("arcSesMas").onclick = () => { ARC.sesMax += 150; renderArchivo(); };
   el.querySelectorAll("[data-arc-mes]").forEach(td => td.onclick = () => { ARC.mes = td.dataset.arcMes; ARC.anio = ""; ARC.pestana = "proyectos"; renderArchivo(); });
   el.querySelectorAll("[data-arc-reindexar]").forEach(b => b.onclick = () => arcIndexar(b.dataset.arcReindexar));
   el.querySelectorAll("[data-arc-vigilar]").forEach(b => b.onclick = async () => {
@@ -2825,7 +2996,7 @@ function arcEnlazar(){
   const q = $("arcQ"); if (q){ q.oninput = () => { ARC.q = q.value; clearTimeout(q._t); q._t = setTimeout(() => { const pos = q.selectionStart; renderArchivo(); const n = $("arcQ"); if (n){ n.focus(); try { n.setSelectionRange(pos, pos); } catch(_){} } }, 250); }; }
   if ($("arcAnio")) $("arcAnio").onchange = e => { ARC.anio = e.target.value; ARC.mes = ""; renderArchivo(); };
   if ($("arcEquipo")) $("arcEquipo").onchange = e => { ARC.equipo = e.target.value; renderArchivo(); };
-  if ($("arcOrden")) $("arcOrden").onchange = e => { ARC.orden = e.target.value; renderArchivo(); };
+  if ($("arcOrden2")) $("arcOrden2").onchange = e => { ARC.orden = e.target.value; renderArchivo(); };
   if ($("arcPend")) $("arcPend").onchange = e => { ARC.pendientes = e.target.checked; renderArchivo(); };
   if ($("arcMesQuitar")) $("arcMesQuitar").onclick = () => { ARC.mes = ""; renderArchivo(); };
   if ($("arcAbrirAqui")) $("arcAbrirAqui").onchange = e => guardarInicio(e.target.checked ? "archivo" : "");
@@ -2840,18 +3011,19 @@ async function guardarInicio(v){
 
 /* --- página de un proyecto: analizar → depurar → calibración → apilar → continuar --- */
 function abrirProyecto(obj){
-  ARC.proyecto = obj; mostrarVista("proyecto");
+  ARC.proyecto = obj; ARC.sesProy = 40; mostrarVista("proyecto");
   if (!ARC.apilados[obj]) fetch("/api/apilado/lista?objeto=" + encodeURIComponent(obj)).then(r => r.json()).then(l => { ARC.apilados[obj] = l || []; if (VISTA_ACTUAL === "proyecto") renderProyecto(); }).catch(() => {});
   window.scrollTo({top:0});
 }
 function renderProyecto(){
   const el = $("vistaProyecto"), obj = ARC.proyecto; if (!el || VISTA_ACTUAL !== "proyecto" || !obj) return;
-  arcCalibracion();
+  arcCalibracion(); arcCargarProyectos();
   const todas = frames.filter(f => (f.object || "").trim() === obj), fl = todas.filter(f => !f.discarded);
   const p = arcProyectos(fl)[0];
   $("tituloVista").textContent = obj;
   if (!p){ el.innerHTML = `<a href="#" class="arcVolver" onclick="mostrarVista('archivo');return false">← ${esc(ARCHIVO_TXT())}</a><div class="empty" style="display:block">${esc(trLT("Este proyecto ya no tiene tomas.", "This project has no frames any more."))}</div>`; return; }
-  $("subVista").textContent = trLT("{1} noches entre {2} y {3}", "{1} nights between {2} and {3}", nfmt(p.noches.size), tr(fechaCorta(p.primera)) + " " + p.primera.slice(0, 4), tr(fechaCorta(p.ultima)) + " " + p.ultima.slice(0, 4));
+  $("subVista").textContent = p.noches.size === 1 ? trLT("1 noche, el {1}", "1 night, on {1}", fechaDia(p.primera))
+    : trLT("{1} noches entre {2} y {3}", "{1} nights between {2} and {3}", nfmt(p.noches.size), tr(fechaCorta(p.primera)) + " " + p.primera.slice(0, 4), tr(fechaCorta(p.ultima)) + " " + p.ultima.slice(0, 4));
   const anios = [...p.anios.keys()].sort(), ok = fl.filter(esUtil), mt = metaDe(obj, ok);
   const c = {ok:0, warn:0, bad:0, na:0}; fl.forEach(f => { if (c[f.status] !== undefined) c[f.status]++; });
   const fuera = fl.filter(f => f.fuera).length, disc = todas.length - fl.length;
@@ -2863,13 +3035,30 @@ function renderProyecto(){
   const celda = (fi, a) => { const s = ok.filter(f => nomFiltro(f.filter) === fi && anioDe(f) === a).reduce((x, f) => x + (f.exp || 0), 0); return s ? esc(fmtH(s / 3600)) : `<span class="note">·</span>`; };
   const paso = (n, estado, titulo, cuerpo) => `<div class="arcPaso ${estado}"><div class="arcNum">${estado === "hecho" ? "✓" : n}</div><div class="arcPasoTxt"><h4>${esc(titulo)}</h4>${cuerpo}</div></div>`;
   const btn = (txt, acc, prim) => `<button class="btn small ${prim ? "primary" : ""}" data-arc-acc="${acc}">${esc(txt)}</button>`;
+  const est = estadoProyecto(obj, p, ok), calq = calResumen(p.cal), fechaMan = (ARC.estados[obj] || {}).fecha || "";
   let h = `<a href="#" class="arcVolver" onclick="mostrarVista('archivo');return false">← ${esc(ARCHIVO_TXT())}</a>`;
+  const expl = {
+    sin_analizar: trLT("Indexado: todavía no se ha analizado ninguna toma.", "Indexed: no frame has been analysed yet."),
+    en_curso: mt.meta && mt.cons >= mt.meta - 0.01 ? trLT("Ya has llegado al objetivo de horas y aún no está apilado.", "You've reached the goal in hours and it isn't stacked yet.")
+              : trLT("Aún sin apilar.", "Not stacked yet."),
+    apilado: est.ap ? trLT("Apilado el {1} con {2} ({3} tomas). No hay tomas nuevas desde entonces.", "Stacked on {1} with {2} ({3} frames). No new frames since then.",
+                       fechaDia(String(est.ap.fecha).slice(0, 10)), (est.ap.filtros || []).map(nomFiltro).join(", "), nfmt(est.ap.tomas)) : "",
+    apilado_nuevas: est.ap ? trLT("Apilado el {1}, pero desde entonces hay {2} tomas útiles nuevas: conviene volver a apilar.", "Stacked on {1}, but there are {2} new usable frames since then: worth stacking again.",
+                       fechaDia(String(est.ap.fecha).slice(0, 10)), nfmt(est.nuevas)) : "",
+    terminado: trLT("Lo diste por terminado el {1}. No sale en lo que falta ni en los planes de la noche.", "You marked it finished on {1}. It doesn't show up in what's left or in the night plans.", fechaDia(fechaMan)),
+    pausa: trLT("En pausa desde el {1}: no sale en los planes de la noche hasta que lo retomes.", "On hold since {1}: it won't show up in the night plans until you pick it up again.", fechaDia(fechaMan))}[est.k];
+  h += `<div class="arcEstBarra">${chipEstado(est.k)}<span class="arcEstTxt">${esc(expl || "")}</span>
+    <label class="note">${esc(trLT("Estado", "Status"))} <select id="arcEstSel">
+      <option value="" ${est.man ? "" : "selected"}>${esc(trLT("En curso (automático)", "In progress (automatic)"))}</option>
+      <option value="terminado" ${est.man === "terminado" ? "selected" : ""}>${esc(textoEstado("terminado"))}</option>
+      <option value="pausa" ${est.man === "pausa" ? "selected" : ""}>${esc(textoEstado("pausa"))}</option></select></label></div>`;
   h += `<div class="counts arcCifras">
     <div class="tile dest"><b>${esc(fmtH(p.seg / 3600))}</b><span>${esc(trLT("útiles", "usable"))}${mt.meta ? " · " + esc(trLT("{1} % del objetivo", "{1}% of the goal", Math.round(100 * mt.cons / mt.meta))) : ""}</span></div>
     <div class="tile"><b>${nfmt(fl.length)}</b><span>${esc(trLT("tomas", "frames"))}</span></div>
     <div class="tile"><b>${nfmt(p.noches.size)}</b><span>${esc(trLT("noches", "nights"))}</span></div>
     <div class="tile"><b>${esc(anios.length ? anios[0] + (anios.length > 1 ? "–" + anios[anios.length - 1] : "") : "—")}</b><span>${esc(trLT("temporadas", "seasons"))}</span></div>
-    <div class="tile"><b>${nfmt(p.equipos.size)}</b><span>${esc(p.equipos.size === 1 ? [...p.equipos][0] : trLT("equipos", "setups"))}</span></div></div>`;
+    <div class="tile"><b>${nfmt(p.equipos.size)}</b><span>${esc(p.equipos.size === 1 ? [...p.equipos][0] : trLT("equipos", "setups"))}</span></div>
+    <div class="tile"><b>${calq ? esc(Math.round(100 * calq.pct) + " %") : "—"}</b><span>${calq ? esc(trLT("útiles de las analizadas", "of analysed frames usable")) + (txtFwhm(calq) ? " · FWHM " + esc(txtFwhm(calq)) : "") : esc(trLT("sin analizar", "not analysed"))}</span></div></div>`;
   h += `<div class="arcDos"><div class="tablewrap"><table class="arcFxA"><thead><tr><th>${esc(trLT("Filtro", "Filter"))}</th>${anios.map(a => `<th>${esc(a)}</th>`).join("")}<th>${esc(trLT("Total", "Total"))}</th></tr></thead><tbody>
     ${filtros.map(fi => `<tr><td><span class="fchip" style="--c:${COLOR_FILTRO(fi)}">${esc(fi)}</span></td>${anios.map(a => `<td class="num">${celda(fi, a)}</td>`).join("")}<td class="num"><b>${esc(fmtH(p.filtros.get(fi) / 3600))}</b></td></tr>`).join("")}
     </tbody></table></div>
@@ -2896,19 +3085,44 @@ function renderProyecto(){
       : esc(trLT("Sin darks: {1} tomas · sin flats: {2} tomas, en {3} noches.", "No darks: {1} frames · no flats: {2} frames, on {3} nights.", nfmt(cal.sin_dark), nfmt(cal.sin_flat), nfmt(cal.noches_sin)))}</p>
      ${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}`);
   // 4. apilar
-  h += paso(4, ap.length ? "hecho" : "", trLT("Apilar", "Stack"),
-    `<p>${ap.length ? esc(trLT("Último apilado: {1} ({2}).", "Latest stack: {1} ({2}).", fechaApilado(ap[0].fecha), (ap[0].filtros || []).map(nomFiltro).join(", "))) + (ap.length > 1 ? " " + esc(trLT("{1} apilados en total.", "{1} stacks in total.", ap.length)) : "")
+  h += paso(4, ap.length ? (est.nuevas ? "" : "hecho") : "", trLT("Apilar", "Stack"),
+    `<p>${ap.length ? esc(trLT("Último apilado: {1} ({2}).", "Latest stack: {1} ({2}).", fechaDia(String(ap[0].fecha).slice(0, 10)), (ap[0].filtros || []).map(nomFiltro).join(", "))) + (ap.length > 1 ? " " + esc(trLT("{1} apilados en total.", "{1} stacks in total.", ap.length)) : "")
+        + (est.nuevas ? " " + esc(trLT("Desde entonces hay {1} tomas útiles nuevas.", "There are {1} new usable frames since then.", nfmt(est.nuevas))) : "")
       : esc(trLT("Con Siril, cada filtro con la calibración que le toca y, si hay varios equipos, cada uno por su lado antes de combinarlos.", "With Siril, each filter with its calibration and, with several setups, each one on its own before combining them."))}</p>
-     ${btn(trLT("Apilar con Siril", "Stack with Siril"), "apilar", !c.na)}${ap.length ? btn(trLT("Ver el resultado", "See the result"), "resumen") : ""}`);
+     ${btn(ap.length && est.nuevas ? trLT("Volver a apilar con Siril", "Stack again with Siril") : trLT("Apilar con Siril", "Stack with Siril"), "apilar", !c.na)}${ap.length ? btn(trLT("Ver el resultado", "See the result"), "resumen") : ""}`);
   // 5. continuar
   const pend = pendientesDe(obj);
-  h += paso(5, "", trLT("Continuar", "Carry on"),
+  h += est.man ? paso(5, est.man === "terminado" ? "hecho" : "", trLT("Continuar", "Carry on"),
+      `<p>${esc(est.man === "terminado" ? trLT("Proyecto terminado. Si vuelves a él, retómalo y ASTRO te dirá otra vez qué falta y qué noches te convienen.", "Project finished. If you come back to it, pick it up again and ASTRO will tell you once more what's left and which nights suit you.")
+          : trLT("Proyecto en pausa. Cuando quieras seguir, retómalo.", "Project on hold. Pick it up again whenever you want to carry on."))}</p>${btn(trLT("Retomar el proyecto", "Pick the project up again"), "retomar", true)}${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen")}`)
+    : paso(5, "", trLT("Continuar", "Carry on"),
     `<p>${mt.meta ? esc(trLT("Llevas {1} de {2} del objetivo.", "You have {1} of the {2} goal.", fmtH(mt.cons), fmtH(mt.meta))) + (pend && pend.length ? " " + esc(trLT("Falta: {1}.", "Still to do: {1}.", pend.map(x => nomFiltro(x.fi) + " " + fmtH(x.falta)).join(", "))) : "")
       : esc(trLT("Ponle un objetivo de horas por filtro y ASTRO te dirá cuánto falta y qué noches te convienen.", "Give it a goal in hours per filter and ASTRO will tell you how much is left and which nights suit you."))}</p>
-     ${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen", true)}${btn(trLT("Próximas noches", "Upcoming nights"), "noches")}`);
+     ${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen", true)}${btn(trLT("Próximas noches", "Upcoming nights"), "noches")}${mt.meta && mt.cons >= mt.meta - 0.01 ? btn(trLT("Darlo por terminado", "Mark it finished"), "terminar") : ""}`);
   h += `</div>`;
+  // sesiones del proyecto: cada noche, con qué equipo, cuánto de cada filtro y cómo salió
+  const ses = arcAgruparSesiones(fl), ksS = [...ses.keys()].sort().reverse(), visS = ksS.slice(0, ARC.sesProy);
+  let filasS = "";
+  for (const k of visS){
+    const eqs = [...ses.get(k)].sort((a, b) => b[1].seg - a[1].seg);
+    eqs.forEach(([e, x], i) => { const po = x.objs.get(obj) || {filtros:new Map()};
+      filasS += `<tr class="${i ? "" : "arcSesPri"}">${i ? "" : `<td rowspan="${eqs.length}" class="arcSesNoche"><b>${esc(fechaDia(k))}</b><div class="note">${esc(diaSemana(k))}</div></td>`}
+        <td class="notr">${esc(e)}</td><td><span class="chips">${chipsFiltros(po.filtros)}</span></td>
+        <td class="num">${nfmt(x.n)}${x.util !== x.n ? `<div class="note">${esc(trLT("{1} útiles", "{1} usable", nfmt(x.util)))}</div>` : ""}</td>
+        <td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td>
+        <td>${txtCalNoche([obj], k)}</td>
+        <td><button class="btn small" data-arc-noche="${esc(k)}">${esc(trLT("Ver tomas", "See frames"))}</button></td></tr>`; });
+  }
+  h += `<h3 class="arcH">${esc(trLT("Sesiones", "Sessions"))} <span class="note">${esc(nNoches(ksS.length))}</span></h3>
+    <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Filtros", "Filters"))}</th>
+      <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th><th></th></tr></thead><tbody>${filasS}</tbody></table></div>
+    ${ksS.length > visS.length ? `<div style="margin-top:8px"><button class="btn small" id="arcSesProyMas">${esc(trLT("Ver todas las noches", "Show all nights"))}</button></div>` : ""}`;
   el.innerHTML = h;
   el.querySelectorAll("[data-arc-acc]").forEach(b => b.onclick = () => arcAccion(b.dataset.arcAcc, obj));
+  el.querySelectorAll("[data-arc-noche]").forEach(b => b.onclick = () => { const n = b.dataset.arcNoche;
+    filters.object = new Set([obj]); filters.filter = new Set(); filters.q = n; $("q").value = n; mostrarVista("tomas"); renderFilters(); renderTable(); });
+  if ($("arcSesProyMas")) $("arcSesProyMas").onclick = () => { ARC.sesProy = 100000; renderProyecto(); };
+  if ($("arcEstSel")) $("arcEstSel").onchange = e => arcPonerEstado(obj, e.target.value);
 }
 function arcAccion(a, obj){
   if (a === "analizar") return analizarProyecto(obj);
@@ -2918,6 +3132,8 @@ function arcAccion(a, obj){
   if (a === "resumen") return resumenObjeto(obj);
   if (a === "apilar"){ STK_PREF = obj; return stkOpen(); }
   if (a === "noches") return abrirNoches();
+  if (a === "retomar") return arcPonerEstado(obj, "");
+  if (a === "terminar") return arcPonerEstado(obj, "terminado");
 }
 async function analizarProyecto(obj){
   if (ARC.analizando) return toast(trLT("Ya se está analizando otro proyecto", "Another project is being analysed"));
@@ -3134,6 +3350,7 @@ const CLASE_TXT = {ancha:"banda ancha", ha:"Hα / SII", oiii:"OIII y doble banda
 function nomFi(fi){ return Object.values(CLASE_TXT).includes(fi) ? tr(fi) : nomFiltro(fi); }
 function pendientesDe(obj){   // filtros con objetivo y horas que faltan
   const o = OBJETIVOS[obj]; if (!o) return [];
+  if (estadoManual(obj)) return [];          // terminado o en pausa: nada pendiente
   if (!Object.values(o.filtros||{}).some(v=>+v>0) && +o.total > 0){
     const falta = +o.total - horasDe(frames.filter(f=>(f.object||"")===obj && esUtil(f))), p = o.proyecto || {};
     return falta > 0.01 ? [{fi: p.filtro_nombre || CLASE_TXT[p.clase||"ancha"], clase: p.clase || "ancha", falta}] : [];
@@ -3392,7 +3609,7 @@ async function abrirNoches(){
   $("nochesBox").classList.add("show"); $("nochesBody").innerHTML = `<div class="note">Calculando…</div>`;
   const c = await cfgPlan(), dias = +($("nochesDias").value||14);
   if (!c.lugar){ $("nochesBody").innerHTML = formLugarHTML(c); activarLugar($("nochesBody"), abrirNoches); return; }
-  const nombres = [...new Set(frames.filter(f=>(f.object||"").trim()).map(f=>f.object.trim()))];
+  const nombres = [...new Set(frames.filter(f=>(f.object||"").trim()).map(f=>f.object.trim()))].filter(n => !estadoManual(n));   // sin los terminados ni los que están en pausa
   const objs = [], sinCoord = [];
   for (const n of nombres){ const k = coordsObjeto(n); if (k) objs.push({nombre:n, ra:k.ra, dec:k.dec}); else sinCoord.push(n); }
   let ns; try { ns = await calcularNoches(objs, dias); } catch(e){ $("nochesBody").innerHTML = `<div class="status bad">${esc(e.message)}</div>`; return; }
@@ -11905,7 +12122,7 @@ def archivo_calibracion():
             except Exception:
                 cache[k] = (True, True)
         tiene_d, tiene_f = cache[k]
-        x = res.setdefault(o, {"n": 0, "sin_dark": 0, "sin_flat": 0, "noches_sin": set()})
+        x = res.setdefault(o, {"n": 0, "sin_dark": 0, "sin_flat": 0, "noches_sin": set(), "por_noche": {}})
         x["n"] += 1
         if not tiene_d:
             x["sin_dark"] += 1
@@ -11913,10 +12130,72 @@ def archivo_calibracion():
             x["sin_flat"] += 1
         if not (tiene_d and tiene_f):
             x["noches_sin"].add(r.get("night") or "?")
+            pn = x["por_noche"].setdefault(r.get("night") or "?", [0, 0])     # tomas de esa noche sin dark y sin flat
+            pn[0] += 0 if tiene_d else 1
+            pn[1] += 0 if tiene_f else 1
     for x in res.values():
         x["noches_sin"] = len(x["noches_sin"])
     _ARC_CAL.update(clave=clave, res=res)
     return res
+
+_ARC_APIL = {"clave": None, "t": 0, "res": {}}
+
+
+def archivo_apilados():
+    """El último apilado de cada objeto (fecha, filtros y tomas): con él, el Archivo sabe qué proyectos están
+    apilados y si han llegado tomas nuevas desde entonces."""
+    try:
+        clave = (os.path.getmtime(DB), os.path.getmtime(APIL_ROOT) if os.path.isdir(APIL_ROOT) else 0)
+    except OSError:
+        clave = None
+    if clave == _ARC_APIL["clave"] and time.time() - _ARC_APIL["t"] < 30:
+        return _ARC_APIL["res"]
+    objs = {}
+    for r in leer_json(DB, {"frames": []}).get("frames", []):
+        o = (r.get("object") or "").strip()
+        if o:
+            objs.setdefault(seguro(o), o)
+    res = {}
+    try:
+        nombres = os.listdir(APIL_ROOT)
+    except Exception:
+        nombres = []
+    for d in nombres:
+        if d.startswith("_") or d not in objs:
+            continue
+        base = os.path.join(APIL_ROOT, d)
+        try:
+            subs = sorted((x for x in os.listdir(base) if not x.startswith("_") and os.path.isdir(os.path.join(base, x))), reverse=True)
+        except Exception:
+            continue
+        for x in subs[:10]:
+            inf, lst = masters_apilado(os.path.join(base, x))
+            if lst:
+                res[objs[d]] = {"fecha": x, "filtros": sorted({f for f, _ in lst}),
+                                "tomas": sum(int(f.get("tomas") or 0) for f in (inf.get("filtros") or []) if isinstance(f, dict)),
+                                "total": len(subs)}
+                break
+    _ARC_APIL.update(clave=clave, t=time.time(), res=res)
+    return res
+
+
+ESTADOS_PROYECTO = ("terminado", "pausa")
+
+
+def archivo_proyectos(d=None):
+    """Estados de los proyectos (los que pone el usuario: terminado o en pausa) y sus apilados."""
+    v = leer_archivo_cfg()
+    est = v.get("estados") if isinstance(v.get("estados"), dict) else {}
+    if d:
+        obj = str(d.get("objeto") or "").strip()
+        if obj:
+            if d.get("estado") in ESTADOS_PROYECTO:
+                est[obj] = {"estado": d["estado"], "fecha": time.strftime("%Y-%m-%d")}
+            else:
+                est.pop(obj, None)
+            v["estados"] = est
+            guardar_archivo_cfg(v)
+    return {"estados": est, "apilados": archivo_apilados()}
 
 # ── carpetas vigiladas: ASTRO las revisa al abrirse y cada rato, y añade solo las tomas nuevas ──
 VIGILADAS_CFG = os.path.join(ROOT, "vigiladas.json")
@@ -12996,6 +13275,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(archivo_carpetas({}), ensure_ascii=False))
         if p.path == "/api/archivo/calibracion":
             return self._send(200, json.dumps(archivo_calibracion(), ensure_ascii=False))
+        if p.path == "/api/archivo/proyectos":
+            return self._send(200, json.dumps(archivo_proyectos(), ensure_ascii=False))
         if p.path == "/api/importar/estado":
             with _IMP_LOCK:
                 d = {k: v for k, v in _IMP.items() if k != "items"}
@@ -13230,6 +13511,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/archivo/carpetas":
                 return self._send(200, json.dumps(archivo_carpetas(json.loads(self._body() or b"{}")), ensure_ascii=False))
+            if p.path == "/api/archivo/proyectos":
+                return self._send(200, json.dumps(archivo_proyectos(json.loads(self._body() or b"{}")), ensure_ascii=False))
             if p.path == "/api/importar/elegir":
                 d_el = json.loads(self._body() or b"{}") if self.headers.get("Content-Length") else {}
                 ruta, fallo = elegir_carpeta(_txt_elegir_archivo() if d_el.get("archivo") else _txt_elegir_importar(), con_fallo=True)
