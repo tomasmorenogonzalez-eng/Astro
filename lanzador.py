@@ -1812,11 +1812,15 @@ def prueba_de_arranque(salida):
     # aplicación. Si no cargan, ASTRO sigue funcionando en el navegador, así que es un aviso, no un fallo.
     if ES_MAC or ES_WIN:
         try:
+            import importlib
             import webview
-            from webview import guilib
-            g = guilib.initialize("edgechromium" if ES_WIN else None)
+            g = importlib.import_module("webview.guilib").initialize("edgechromium" if ES_WIN else None)
             motor = getattr(g, "renderer", "?")
-            print("Ventana propia: pywebview %s, motor %s%s" % (getattr(webview, "__version__", "?"), motor,
+            try:
+                from webview._version import __version__ as vw
+            except Exception:
+                vw = "?"
+            print("Ventana propia: pywebview %s, motor %s%s" % (vw, motor,
                   "" if not ES_WIN else (", WebView2 instalado" if _hay_webview2() else ", SIN WebView2")))
             if ES_WIN and motor != "edgechromium":
                 print("AVISO: en Windows la ventana propia no usaría WebView2 (se abriría el navegador).")
