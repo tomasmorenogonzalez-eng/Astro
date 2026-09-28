@@ -3001,7 +3001,17 @@
 "para resolver tomas XISF hace falta Siril 1.4 o posterior": "per risolvere pose XISF serve Siril 1.4 o successivo",
 "Ya se están resolviendo otras tomas.": "Si stanno già risolvendo altre pose.",
 "No hay tomas que resolver.": "Non ci sono pose da risolvere.",
-"ángulo {1}° / {2}°": "angolo {1}° / {2}°"
+"ángulo {1}° / {2}°": "angolo {1}° / {2}°",
+"Mapa del cielo": "Mappa del cielo",
+"Acercar": "Ingrandisci",
+"Alejar": "Riduci",
+"Todo el cielo": "Tutto il cielo",
+"Recuadro: su campo (a trazos si no se sabe su ángulo: resuélvelo con Siril en su Encuadre)": "Riquadro: il suo campo (tratteggiato se non se ne conosce l'angolo: risolvilo con Siril nella sua Inquadratura)",
+"{1} proyectos no salen: sus tomas no dicen dónde apuntan y su nombre no está en el catálogo.": "{1} progetti non compaiono: le loro pose non dicono dove puntano e il loro nome non è nel catalogo.",
+"Rueda o botones para acercar, arrastra para moverte y pulsa un proyecto para abrirlo.": "Rotellina o pulsanti per ingrandire, trascina per spostarti e clicca un progetto per aprirlo.",
+"Con astrometría": "Con astrometria",
+"Por las coordenadas de sus tomas": "Dalle coordinate delle sue pose",
+"Por el catálogo": "Dal catalogo"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",

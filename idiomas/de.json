@@ -3001,7 +3001,17 @@
 "para resolver tomas XISF hace falta Siril 1.4 o posterior": "zum Lösen von XISF-Aufnahmen braucht es Siril 1.4 oder neuer",
 "Ya se están resolviendo otras tomas.": "Es werden bereits andere Aufnahmen gelöst.",
 "No hay tomas que resolver.": "Keine Aufnahmen zum Lösen.",
-"ángulo {1}° / {2}°": "Winkel {1}° / {2}°"
+"ángulo {1}° / {2}°": "Winkel {1}° / {2}°",
+"Mapa del cielo": "Himmelskarte",
+"Acercar": "Vergrößern",
+"Alejar": "Verkleinern",
+"Todo el cielo": "Ganzer Himmel",
+"Recuadro: su campo (a trazos si no se sabe su ángulo: resuélvelo con Siril en su Encuadre)": "Rahmen: sein Feld (gestrichelt, wenn sein Winkel unbekannt ist: löse es mit Siril in seinem Bildausschnitt)",
+"{1} proyectos no salen: sus tomas no dicen dónde apuntan y su nombre no está en el catálogo.": "{1} Projekte werden nicht gezeigt: Ihre Aufnahmen sagen nicht, wohin sie zeigen, und ihr Name steht nicht im Katalog.",
+"Rueda o botones para acercar, arrastra para moverte y pulsa un proyecto para abrirlo.": "Mausrad oder Tasten zum Zoomen, ziehen zum Verschieben und ein Projekt anklicken, um es zu öffnen.",
+"Con astrometría": "Mit Astrometrie",
+"Por las coordenadas de sus tomas": "Nach den Koordinaten seiner Aufnahmen",
+"Por el catálogo": "Nach dem Katalog"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

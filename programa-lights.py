@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.23"
+VERSION_PROG = "2026.09.29.24"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -965,7 +965,14 @@ th{background:var(--surface);font-weight:700}
 table.arcSes{min-width:900px} table.arcSes td{vertical-align:top}
 tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowrap}
 .arcSesObj{margin:0 0 4px} .arcSesObj .chips{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle} .arcSesObj a{font-weight:700;color:var(--text)}
-.arcH{margin:22px 0 8px;font-size:17px} .arcSubH{margin:14px 0 6px;font-size:14.5px}
+.arcH{margin:22px 0 8px;font-size:17px}
+.mapaCaja{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--surface);margin-top:10px}
+#mapaCanvas{display:block;width:100%;touch-action:none;cursor:grab}
+.mapaCtl{position:absolute;right:10px;top:10px;display:flex;gap:6px;z-index:2}
+.mapaTip{position:absolute;display:none;pointer-events:none;background:rgba(20,16,34,.94);color:#F2EEFF;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.45;max-width:260px;z-index:3}
+.mapaTip .note{color:#B8B0D0}
+.mapaLeyenda{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;margin:8px 0 4px;font-size:12.5px}
+.mapaLeyenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px} .arcSubH{margin:14px 0 6px;font-size:14.5px}
 .hist{position:relative;margin:4px 0 10px}
 .hist::before{content:"";position:absolute;left:115px;top:10px;bottom:10px;width:2px;background:var(--line2)}
 .histI{display:grid;grid-template-columns:100px 12px 1fr;gap:10px;align-items:start;padding:5px 0}
@@ -4080,7 +4087,7 @@ function renderArchivo(){
   // pestañas y filtros
   const opt = (v, t, sel) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(t)}</option>`;
   h += `<div class="arcBarra">
-    <div class="arcPest">${[["proyectos", trLT("Proyectos", "Projects")], ["sesiones", trLT("Sesiones", "Sessions")], ["equipos", trLT("Equipos", "Setups")], ["calendario", trLT("Calendario", "Calendar")]]
+    <div class="arcPest">${[["proyectos", trLT("Proyectos", "Projects")], ["mapa", trLT("Mapa del cielo", "Sky map")], ["sesiones", trLT("Sesiones", "Sessions")], ["equipos", trLT("Equipos", "Setups")], ["calendario", trLT("Calendario", "Calendar")]]
       .map(([k, t]) => `<button class="${ARC.pestana === k ? "on" : ""}" data-arc-pest="${k}">${esc(t)}</button>`).join("")}</div>
     ${ARC.pestana === "equipos" ? "" : `<input type="search" id="arcQ" value="${esc(ARC.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">`}
     <select id="arcAnio">${opt("", trLT("Todos los años", "All years"), ARC.anio)}${anios.map(a => opt(a, a, ARC.anio)).join("")}</select>
@@ -4094,6 +4101,8 @@ function renderArchivo(){
     h += `<div class="arcEstados"><button class="${ARC.estado ? "" : "on"}" data-arc-est="">${esc(trLT("Todos", "All"))} <b>${nfmt(todos.length)}</b></button>${ORDEN_ESTADOS.filter(k => porEstado.get(k))
       .map(k => `<button class="${ARC.estado === k ? "on" : ""}" data-arc-est="${k}"><i class="dotE e-${k}"></i>${esc(textoEstado(k))} <b>${nfmt(porEstado.get(k))}</b></button>`).join("")}
       <span class="spacer"></span><label class="note"><input type="checkbox" id="arcPend" ${ARC.pendientes ? "checked" : ""}> ${esc(trLT("Con tomas sin analizar", "With frames not analysed"))}</label><select id="arcOrden2">${opt("horas", trLT("Más horas primero", "Most hours first"), ARC.orden)}${opt("ultima", trLT("Última noche", "Latest night"), ARC.orden)}${opt("objetivo", trLT("Más cerca del objetivo", "Closest to the goal"), ARC.orden)}${opt("pendientes", trLT("Más por analizar", "Most to analyse"), ARC.orden)}${opt("nombre", trLT("Nombre", "Name"), ARC.orden)}</select></div>`;
+    if (ARC.pestana === "mapa") h += htmlMapaCielo(ps);
+    else {
     const vis = ps.slice(0, 400);
     h += `<div class="tablewrap"><table class="arcTabla"><thead><tr>
       <th>${esc(trLT("Proyecto", "Project"))}</th><th>${esc(trLT("Estado", "Status"))}</th><th>${esc(trLT("Horas", "Hours"))}</th><th>${esc(trLT("Por filtro", "By filter"))}</th>
@@ -4115,9 +4124,191 @@ function renderArchivo(){
       ${ps.length > vis.length ? `<div class="note" style="margin-top:8px">${esc(trLT("Se ven los primeros {1} de {2}: busca un objeto para ver otros.", "Showing the first {1} of {2}: search a target to see others.", vis.length, nfmt(ps.length)))}</div>` : ""}
       ${sinObj ? `<div class="note" style="margin-top:8px">${esc(trLT("{1} tomas sin objeto no entran en ningún proyecto.", "{1} frames without a target are not in any project.", nfmt(sinObj)))} <a href="#" onclick="$('btnNombres').click();return false">${esc(trLT("Asignarles el objeto", "Set their target"))}</a></div>` : ""}`;
   }
+  }
   h += `<label class="note arcInicio"><input type="checkbox" id="arcAbrirAqui" ${PREF_INICIO === "archivo" ? "checked" : ""}> ${esc(trLT("Abrir ASTRO directamente en el Archivo", "Open ASTRO straight in the Archive"))}</label>`;
   el.innerHTML = h; arcPintarProgreso(); arcEnlazar();
+  if (ARC.pestana === "mapa") enlazarMapa();
 }
+/* ============ Mapa del cielo: los proyectos sobre el cielo, cada uno con su campo ============ */
+// Proyección de Hammer, con el este a la izquierda (como se ve el cielo). El centro del mapa se elige para que la costura
+// (el borde) caiga en el mayor hueco entre proyectos. El campo de cada proyecto: el de su astrometría (con su ángulo) o, si
+// no la tiene, el de la escala y el tamaño de sus tomas, sin ángulo (a trazos).
+const MAPA = {zoom:1, px:0, py:0, ra0:0, datos:[], puntos:[], arr:null, clave:""};
+const COLOR_MAPA = {sin_analizar:"#8C84A8", en_curso:"#B98CFF", apilado_nuevas:"#E8B84A", apilado:"#5FCF95", terminado:"#5FCF95", pausa:"#9C93B8"};
+function galAEcu(l, b){
+  const r = Math.PI / 180, aN = 192.85948 * r, dN = 27.12825 * r, lN = 122.93192 * r; l *= r; b *= r;
+  const sd = Math.sin(dN) * Math.sin(b) + Math.cos(dN) * Math.cos(b) * Math.cos(lN - l);
+  const a = aN + Math.atan2(Math.cos(b) * Math.sin(lN - l), Math.cos(dN) * Math.sin(b) - Math.sin(dN) * Math.cos(b) * Math.cos(lN - l));
+  return {ra: ((a / r) % 360 + 360) % 360, dec: Math.asin(sd) / r};
+}
+function eclAEcu(lam){
+  const r = Math.PI / 180, e = 23.4393 * r; lam *= r;
+  return {ra: ((Math.atan2(Math.sin(lam) * Math.cos(e), Math.cos(lam)) / r) + 360) % 360, dec: Math.asin(Math.sin(e) * Math.sin(lam)) / r};
+}
+function hammer(ra, dec){
+  const r = Math.PI / 180, l = (((ra - MAPA.ra0) % 360 + 540) % 360 - 180) * r, p = dec * r, d = Math.sqrt(1 + Math.cos(p) * Math.cos(l / 2));
+  return [-(2 * Math.SQRT2 * Math.cos(p) * Math.sin(l / 2)) / d, (Math.SQRT2 * Math.sin(p)) / d];
+}
+function desdeTangente(c, E, N){      // E, N en grados sobre el plano tangente en c → ra, dec
+  const r = Math.PI / 180, x = E * r, y = N * r, d0 = c.dec * r, den = Math.cos(d0) - y * Math.sin(d0);
+  return {ra: ((c.ra + Math.atan2(x, den) / r) % 360 + 360) % 360, dec: Math.atan2(Math.sin(d0) + y * Math.cos(d0), Math.hypot(x, den)) / r};
+}
+function contornoCampo(d){
+  // las cuatro esquinas (y puntos intermedios) del campo: «arriba» hacia el ángulo de posición; sin ángulo, con el norte arriba
+  const r = Math.PI / 180, pa = (d.pa || 0) * r, up = [Math.sin(pa), Math.cos(pa)], der = d.espejo ? [Math.cos(pa), -Math.sin(pa)] : [-Math.cos(pa), Math.sin(pa)];
+  const [W, H] = d.campo, pts = [], n = 6;
+  const lado = (a0, b0, a1, b1) => { for (let i = 0; i < n; i++){ const t = i / n, a = a0 + (a1 - a0) * t, b = b0 + (b1 - b0) * t;
+    pts.push(desdeTangente(d.c, a * der[0] + b * up[0], a * der[1] + b * up[1])); } };
+  lado(-W/2, H/2, W/2, H/2); lado(W/2, H/2, W/2, -H/2); lado(W/2, -H/2, -W/2, -H/2); lado(-W/2, -H/2, -W/2, H/2);
+  return pts;
+}
+function datosMapa(ps){
+  const porObj = groupBy(frames.filter(f => !f.discarded && (f.object || "").trim()), f => f.object.trim()), out = [];
+  for (const p of ps){
+    const l = porObj.get(p.obj) || [], as = l.filter(f => f.astro);
+    let c = null, pa = null, campo = null, espejo = false, de = "";
+    if (as.length){
+      c = {ra: medianaAng(as.map(f => f.astro.ra)), dec: med(as.map(f => f.astro.dec))};
+      pa = medianaAng(as.map(f => (2 * f.astro.pa) % 360)) / 2;             // un giro de meridiano no cambia el recuadro
+      campo = [med(as.map(f => f.astro.campo && f.astro.campo[0])), med(as.map(f => f.astro.campo && f.astro.campo[1]))];
+      espejo = as.filter(f => f.astro.espejo).length > as.length / 2; de = "astro";
+    } else {
+      const cs = l.map(coordsTomaC).filter(Boolean), k = CATALOGO ? catDe(p.obj) : null;
+      if (cs.length){ c = {ra: medianaAng(cs.map(x => x.ra)), dec: med(cs.map(x => x.dec))}; de = "cabecera"; }
+      if (k && (!c || sepGrados(c, {ra: k[1], dec: k[2]}) > 2)){ c = {ra: k[1], dec: k[2]}; de = "catalogo"; }
+      const cp = l.map(f => { const e = escalaToma(f); return e && f.w && f.h ? [f.w * e / 3600, f.h * e / 3600] : null; }).filter(Boolean);
+      if (cp.length) campo = [med(cp.map(x => x[0])), med(cp.map(x => x[1]))];
+    }
+    if (c && (campo && !(campo[0] > 0 && campo[1] > 0))) campo = null;
+    if (c) out.push({p, c, pa, campo, espejo, de});
+  }
+  return out;
+}
+function centroMapa(datos){
+  // la costura del mapa, en medio del mayor hueco entre proyectos
+  const ras = datos.map(d => d.c.ra).sort((a, b) => a - b);
+  if (!ras.length) return 0;
+  let mejor = 360 - ras[ras.length - 1] + ras[0], mitad = (ras[ras.length - 1] + mejor / 2) % 360;
+  for (let i = 1; i < ras.length; i++){ const g = ras[i] - ras[i - 1]; if (g > mejor){ mejor = g; mitad = ras[i - 1] + g / 2; } }
+  return (mitad + 180) % 360;
+}
+function htmlMapaCielo(ps){
+  MAPA.datos = datosMapa(ps);
+  const clave = MAPA.datos.map(d => d.p.obj).join("|");
+  if (clave !== MAPA.clave){ MAPA.clave = clave; MAPA.ra0 = centroMapa(MAPA.datos); }
+  const sinPos = ps.length - MAPA.datos.length;
+  const ley = ["en_curso", "apilado_nuevas", "apilado", "sin_analizar", "pausa"].map(k => `<span><i style="background:${COLOR_MAPA[k]}"></i>${esc(textoEstado(k))}</span>`).join("");
+  return `<div class="mapaCaja"><div class="mapaCtl"><button class="btn small" data-mapa="mas" title="${esc(trLT("Acercar", "Zoom in"))}">+</button><button class="btn small" data-mapa="menos" title="${esc(trLT("Alejar", "Zoom out"))}">−</button>
+      <button class="btn small" data-mapa="todo">${esc(trLT("Todo el cielo", "Whole sky"))}</button></div>
+    <canvas id="mapaCanvas"></canvas><div class="mapaTip" id="mapaTip"></div></div>
+    <div class="mapaLeyenda">${ley}<span class="note">${esc(trLT("Recuadro: su campo (a trazos si no se sabe su ángulo: resuélvelo con Siril en su Encuadre)", "Box: its field (dashed if its angle isn't known: solve it with Siril in its Framing)"))}</span></div>
+    ${sinPos ? `<div class="note">${esc(trLT("{1} proyectos no salen: sus tomas no dicen dónde apuntan y su nombre no está en el catálogo.", "{1} projects aren't shown: their frames don't say where they point and their name isn't in the catalogue.", nfmt(sinPos)))}</div>` : ""}
+    <div class="note">${esc(trLT("Rueda o botones para acercar, arrastra para moverte y pulsa un proyecto para abrirlo.", "Scroll wheel or buttons to zoom, drag to move and click a project to open it."))}</div>`;
+}
+function pintarMapaCielo(){
+  const cv = $("mapaCanvas"); if (!cv) return;
+  const W = cv.clientWidth || 800, H = Math.round(Math.min(680, Math.max(200, W * 0.54))), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + "px"; }
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const s0 = Math.min(W / (4 * Math.SQRT2 * 1.03), H / (2 * Math.SQRT2 * 1.06)) * MAPA.zoom;
+  const P = (ra, dec) => { const [x, y] = hammer(ra, dec); return [W / 2 + x * s0 + MAPA.px, H / 2 - y * s0 + MAPA.py]; };
+  const linea = (pts, cerrar) => { ctx.beginPath(); let prev = null;
+    for (const q of pts){ const [x, y] = P(q.ra, q.dec);
+      if (prev && Math.abs(x - prev[0]) > W * 0.5 * MAPA.zoom * 0.5) ctx.moveTo(x, y); else if (!prev) ctx.moveTo(x, y); else ctx.lineTo(x, y); prev = [x, y]; }
+    if (cerrar) ctx.closePath(); };
+  // el cielo: la elipse
+  const css = getComputedStyle(document.documentElement), fondo = css.getPropertyValue("--surface").trim() || "#fff";
+  ctx.fillStyle = fondo; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.beginPath(); ctx.ellipse(W / 2 + MAPA.px, H / 2 + MAPA.py, 2 * Math.SQRT2 * s0, Math.SQRT2 * s0, 0, 0, 2 * Math.PI);
+  ctx.fillStyle = "#0B0A1A"; ctx.fill(); ctx.clip();
+  // la Vía Láctea: una banda de ±10° alrededor del plano de la galaxia
+  for (let l = 0; l < 360; l += 3){
+    const q = [galAEcu(l, -10), galAEcu(l + 3, -10), galAEcu(l + 3, 10), galAEcu(l, 10)].map(x => P(x.ra, x.dec));
+    if (Math.max(...q.map(v => v[0])) - Math.min(...q.map(v => v[0])) > W * 0.25 * MAPA.zoom) continue;
+    ctx.beginPath(); q.forEach((v, i) => i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1])); ctx.closePath();
+    ctx.fillStyle = "rgba(190,180,255,0.07)"; ctx.fill();
+  }
+  // la rejilla: meridianos cada 2 h (1 h de cerca) y paralelos cada 30° (10° de cerca)
+  const pasoRA = MAPA.zoom >= 3 ? 15 : 30, pasoDec = MAPA.zoom >= 3 ? 10 : 30;
+  ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1;
+  for (let a = 0; a < 360; a += pasoRA){ const pts = []; for (let d = -90; d <= 90; d += 2) pts.push({ra: a, dec: d}); linea(pts); ctx.stroke(); }
+  for (let d = -90 + pasoDec; d < 90; d += pasoDec){ const pts = []; for (let k = 0; k <= 180; k++) pts.push({ra: MAPA.ra0 - 180 + 0.001 + k * 2 * 0.99999, dec: d}); ctx.strokeStyle = d === 0 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.10)"; linea(pts); ctx.stroke(); }
+  // la eclíptica, a trazos
+  ctx.setLineDash([5, 5]); ctx.strokeStyle = "rgba(240,200,120,0.35)"; const ec = []; for (let k = 0; k <= 360; k += 2) ec.push(eclAEcu(k)); linea(ec); ctx.stroke(); ctx.setLineDash([]);
+  // las constelaciones, donde caen de media sus objetos del catálogo: para orientarse
+  if (CATALOGO){
+    if (!MAPA.const){ MAPA.const = [...groupBy(CATALOGO.filter(o => o[7]), o => o[7])].filter(([, l]) => l.length >= 2)
+      .map(([k, l]) => ({k, ra: medianaAng(l.map(o => o[1])), dec: med(l.map(o => o[2]))})); }
+    ctx.fillStyle = "rgba(200,190,255,0.28)"; ctx.font = (MAPA.zoom >= 3 ? "13px" : "11px") + " system-ui, sans-serif"; ctx.textAlign = "center";
+    for (const c of MAPA.const){ const [x, y] = P(c.ra, c.dec); ctx.fillText(c.k, x, y); }
+  }
+  // las horas de ascensión recta, sobre el ecuador
+  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "center";
+  for (let a = 0; a < 360; a += pasoRA){ const [x, y] = P(a, 0); ctx.fillText(Math.round(a / 15) + "h", x, y - 4); }
+  // los proyectos
+  MAPA.puntos = []; const cajas = [];
+  const orden = MAPA.datos.slice().sort((a, b) => b.p.seg - a.p.seg);
+  for (const d of orden){
+    const col = COLOR_MAPA[d.p.est ? d.p.est.k : "en_curso"] || "#B98CFF", [x, y] = P(d.c.ra, d.c.dec);
+    if (d.campo){
+      const pts = contornoCampo(d), q = pts.map(v => P(v.ra, v.dec)), tam = Math.max(...q.map(v => v[0])) - Math.min(...q.map(v => v[0]));
+      if (tam > 5 && tam < W){
+        ctx.beginPath(); q.forEach((v, i) => i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1])); ctx.closePath();
+        ctx.fillStyle = col + "22"; ctx.fill(); ctx.setLineDash(d.de === "astro" ? [] : [4, 3]); ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+    const rad = Math.min(11, 3 + 1.6 * Math.sqrt(d.p.seg / 3600));
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, 2 * Math.PI); ctx.fillStyle = col + "CC"; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.stroke();
+    MAPA.puntos.push({x, y, r: Math.max(rad, 7), d});
+    // el nombre, si no pisa otro
+    ctx.font = "12px system-ui, sans-serif"; const tw = ctx.measureText(d.p.obj).width, bx = [x + rad + 4, y - 7, tw, 14];
+    if (!cajas.some(c => bx[0] < c[0] + c[2] && c[0] < bx[0] + bx[2] && bx[1] < c[1] + c[3] && c[1] < bx[1] + bx[3])){
+      cajas.push(bx); ctx.textAlign = "left"; ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillText(d.p.obj, bx[0] + 1, y + 5); ctx.fillStyle = "#F2EEFF"; ctx.fillText(d.p.obj, bx[0], y + 4);
+    }
+  }
+  ctx.restore();
+}
+function tipMapa(ev){
+  const cv = $("mapaCanvas"), tip = $("mapaTip"); if (!cv || !tip) return null;
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  let mejor = null, dm = 1e9;
+  for (const p of MAPA.puntos){ const dd = Math.hypot(p.x - x, p.y - y); if (dd < p.r + 4 && dd < dm){ dm = dd; mejor = p; } }
+  if (!mejor){ tip.style.display = "none"; cv.style.cursor = MAPA.arr ? "grabbing" : "grab"; return null; }
+  const d = mejor.d, p = d.p;
+  tip.innerHTML = `<b class="notr">${esc(p.obj)}</b><div>${esc(textoEstado(p.est ? p.est.k : ""))} · ${esc(fmtH(p.seg / 3600))} · ${esc(nNoches(p.noches.size))}</div>` +
+    (d.campo ? `<div>${esc(trLT("Campo", "Field"))} ${esc(fmtCampo(d.campo[0], d.campo[1]))}${d.de === "astro" ? " · " + esc(trLT("ángulo {1}°", "angle {1}°", numEs(d.pa, 1))) : ""}</div>` : "") +
+    `<div class="note">${esc(d.de === "astro" ? trLT("Con astrometría", "With astrometry") : d.de === "cabecera" ? trLT("Por las coordenadas de sus tomas", "From its frames' coordinates") : trLT("Por el catálogo", "From the catalogue"))}</div>`;
+  tip.style.display = "block";
+  tip.style.left = Math.min(r.width - tip.offsetWidth - 6, mejor.x + 12) + "px"; tip.style.top = Math.max(4, mejor.y - tip.offsetHeight - 8) + "px";
+  cv.style.cursor = "pointer";
+  return mejor;
+}
+function enlazarMapa(){
+  const cv = $("mapaCanvas"); if (!cv) return;
+  pintarMapaCielo();
+  const zoomEn = (f, x, y) => {
+    const W = cv.clientWidth, H = cv.clientHeight, z = Math.max(1, Math.min(60, MAPA.zoom * f)), k = z / MAPA.zoom;
+    if (x == null){ x = W / 2; y = H / 2; }
+    MAPA.px = (MAPA.px + W / 2 - x) * k - W / 2 + x; MAPA.py = (MAPA.py + H / 2 - y) * k - H / 2 + y; MAPA.zoom = z;
+    if (z === 1){ MAPA.px = 0; MAPA.py = 0; }
+    pintarMapaCielo();
+  };
+  document.querySelectorAll("[data-mapa]").forEach(b => b.onclick = () => { const a = b.dataset.mapa;
+    if (a === "todo"){ MAPA.zoom = 1; MAPA.px = MAPA.py = 0; pintarMapaCielo(); } else zoomEn(a === "mas" ? 1.6 : 1 / 1.6); });
+  cv.addEventListener("wheel", ev => { ev.preventDefault(); const r = cv.getBoundingClientRect(); zoomEn(ev.deltaY < 0 ? 1.25 : 0.8, ev.clientX - r.left, ev.clientY - r.top); }, {passive:false});
+  cv.addEventListener("pointerdown", ev => { MAPA.arr = {x: ev.clientX, y: ev.clientY, px: MAPA.px, py: MAPA.py, movido: false}; cv.setPointerCapture(ev.pointerId); });
+  cv.addEventListener("pointermove", ev => {
+    if (MAPA.arr){ const dx = ev.clientX - MAPA.arr.x, dy = ev.clientY - MAPA.arr.y;
+      if (Math.abs(dx) + Math.abs(dy) > 3) MAPA.arr.movido = true;
+      if (MAPA.arr.movido){ MAPA.px = MAPA.arr.px + dx; MAPA.py = MAPA.arr.py + dy; pintarMapaCielo(); $("mapaTip").style.display = "none"; return; } }
+    tipMapa(ev);
+  });
+  cv.addEventListener("pointerup", ev => { const a = MAPA.arr; MAPA.arr = null; if (a && !a.movido){ const p = tipMapa(ev); if (p) abrirProyecto(p.d.p.obj); } });
+  cv.addEventListener("pointerleave", () => { if (!MAPA.arr) $("mapaTip").style.display = "none"; });
+  cv.addEventListener("dblclick", ev => { const r = cv.getBoundingClientRect(); zoomEn(2, ev.clientX - r.left, ev.clientY - r.top); });
+}
+window.addEventListener("resize", () => { if ($("mapaCanvas")) pintarMapaCielo(); });
 function arcNombreMes(ym){
   const [y, m] = ym.split("-");
   return new Date(+y, +m - 1, 1).toLocaleDateString(LOCALE, {month:"long", year:"numeric"});
