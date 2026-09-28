@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.28.10"
+VERSION_PROG = "2026.09.28.11"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")

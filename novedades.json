@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.24",
+  "es": [
+   "Archivo: los darks, flats y bias que aparecen entre tus tomas al indexar pasan con un botón a la biblioteca de calibración, que clasifica cada uno por su cabecera (tipo, cámara, exposición, temperatura y gain).",
+   "Encuadre: cada proyecto compara cada toma con una de referencia por la posición de sus estrellas: giro de la cámara, escala, cuánto se aparta el centro, cuánto se desplaza durante la noche y qué parte del campo comparten. Avisa si una temporada tenía la cámara girada o el encuadre movido."
+  ],
+  "en": [
+   "Archive: the darks, flats and bias found among your frames while indexing go into the calibration library with one click, sorted by their headers (type, camera, exposure, temperature and gain).",
+   "Framing: each project compares every frame with a reference by the position of its stars: camera rotation, scale, centre offset, drift over the night and shared field. It warns if a season had the camera rotated or the framing shifted."
+  ],
+  "fr": [
+   "Archives : les darks, flats et bias trouvés parmi vos poses à l'indexation passent en un clic dans la bibliothèque de calibration, qui classe chacun d'après son en-tête (type, caméra, exposition, température et gain).",
+   "Cadrage : chaque projet compare chaque pose à une pose de référence par la position de ses étoiles : rotation de la caméra, échelle, décalage du centre, dérive au cours de la nuit et part de champ commune. Il avertit si, une saison, la caméra était tournée ou le cadrage décalé."
+  ],
+  "de": [
+   "Archiv: Die Darks, Flats und Bias, die beim Indexieren zwischen deinen Aufnahmen auftauchen, kommen mit einem Klick in die Kalibrierbibliothek, die jede nach ihrem Header einsortiert (Typ, Kamera, Belichtung, Temperatur und Gain).",
+   "Bildausschnitt: Jedes Projekt vergleicht jede Aufnahme anhand der Position ihrer Sterne mit einer Referenz: Drehung der Kamera, Maßstab, Verschiebung der Mitte, Drift im Lauf der Nacht und gemeinsamer Feldanteil. Es warnt, wenn in einer Saison die Kamera gedreht oder der Ausschnitt verschoben war."
+  ],
+  "it": [
+   "Archivio: i dark, flat e bias che compaiono tra le tue pose durante l'indicizzazione passano con un clic nella libreria di calibrazione, che classifica ciascuno in base all'intestazione (tipo, camera, esposizione, temperatura e gain).",
+   "Inquadratura: ogni progetto confronta ogni posa con una di riferimento per la posizione delle sue stelle: rotazione della camera, scala, spostamento del centro, deriva durante la notte e parte di campo in comune. Avvisa se in una stagione la camera era ruotata o l'inquadratura spostata."
+  ],
+  "pt": [
+   "Arquivo: os darks, flats e bias que aparecem entre as suas exposições ao indexar passam com um clique para a biblioteca de calibração, que classifica cada um pelo cabeçalho (tipo, câmara, exposição, temperatura e gain).",
+   "Enquadramento: cada projeto compara cada exposição com uma de referência pela posição das suas estrelas: rotação da câmara, escala, quanto se afasta o centro, quanto se desloca durante a noite e que parte do campo partilham. Avisa se numa temporada a câmara estava rodada ou o enquadramento deslocado."
+  ]
+ },
+ {
   "version": "0.23",
   "es": [
    "Archivo: cada proyecto tiene su estado (por analizar, en curso, apilado o por volver a apilar si hay tomas nuevas) y puedes darlo por terminado o dejarlo en pausa: así deja de salir en los planes de la noche.",

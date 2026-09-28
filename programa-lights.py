@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.15"
+VERSION_PROG = "2026.09.28.16"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1612,6 +1612,8 @@ function analyzeLight(p){
   return {
     bin, bw, bh, full, bg, sigma, bgPct: bg/full*100, gradient,
     ruido: ruidoB*bin/full*65535, snr,
+    // las 24 estrellas más brillantes sin saturar, en píxeles de la imagen original: con ellas se mide el encuadre
+    estrellas: good.slice(0, 24).map(s => [Math.round((s.mx + 0.5)*bin - 0.5), Math.round((s.my + 0.5)*bin - 0.5)]),
     starCount: stars.length, satStars: stars.filter(s=>s.sat).length,
     fwhm, ecc, eccCenter, eccCorners, coherence,
     trailCount, trailLen: trailLen/diag,
@@ -1724,7 +1726,7 @@ function addLog(t, cls){ const d=document.createElement("div"); d.className=cls|
 
 /* Tomas de una carpeta del disco: ASTRO la recorre (siguiendo los enlaces) y el navegador lee cada
    toma por trozos a través del programa, sin cargarla entera en memoria. */
-const CAMPOS_MEDIDA = ["fwhm","ecc","eccCenter","eccCorners","coherence","starCount","satStars","trailCount","trailLen","trails","bgPct","gradient","ruido","snr"];
+const CAMPOS_MEDIDA = ["fwhm","ecc","eccCenter","eccCorners","coherence","starCount","satStars","trailCount","trailLen","trails","bgPct","gradient","ruido","snr","estrellas"];
 class ArchivoDisco {
   // una toma leída del disco a trozos: de su carpeta (ruta) o de la biblioteca de ASTRO (url)
   constructor(it){ this.ruta = it.ruta; this.url = it.url || ("/api/importar/archivo?ruta="+encodeURIComponent(it.ruta)); this.name = it.nombre; this.size = it.size; this.lastModified = it.mtime; }
@@ -1909,7 +1911,7 @@ async function analyzeFile(file, batch){
     parsed.bayer = !!(parsed.header.BAYERPAT || parsed.header.COLORTYP || /MC\b/i.test(rec.cam));
     const a = analyzeLight(parsed);
     Object.assign(rec, { fwhm:a.fwhm, ecc:a.ecc, eccCenter:a.eccCenter, eccCorners:a.eccCorners, coherence:a.coherence, starCount:a.starCount, satStars:a.satStars,
-      trailCount:a.trailCount, trailLen:a.trailLen, trails:a.trails, bgPct:a.bgPct, gradient:a.gradient, ruido:a.ruido, snr:a.snr });
+      trailCount:a.trailCount, trailLen:a.trailLen, trails:a.trails, bgPct:a.bgPct, gradient:a.gradient, ruido:a.ruido, snr:a.snr, estrellas:a.estrellas });
     if (!batch.sinMiniatura) try { rec.thumb = await makeThumb(rec, a); } catch(e){ console.warn("miniatura", e); }
   }
   evaluate(rec, null);
@@ -2202,6 +2204,180 @@ function bloqueCalidad(f){
     <div style="margin-top:8px"><button class="btn small" id="pIndic">${esc(trLT("Ver la sesión en gráficas", "See the session as charts"))}</button></div></div>`;
 }
 
+/* ============ Encuadre: giro, escala y desplazamiento de cada toma respecto a una de referencia ============ */
+// Se comparan las posiciones de las estrellas más brillantes de las dos tomas. Primero se buscan la escala y el giro que
+// más parejas de estrellas explican (votando con las distancias y los ángulos entre parejas), después el desplazamiento,
+// y al final se ajusta por mínimos cuadrados con las estrellas que casan. No hace falta resolver la placa.
+function ajusteSemejanza(pares){
+  let ax=0, ay=0, bx=0, by=0; for (const [p, q] of pares){ ax+=p[0]; ay+=p[1]; bx+=q[0]; by+=q[1]; }
+  const n = pares.length; ax/=n; ay/=n; bx/=n; by/=n;
+  let a=0, b=0, den=0; for (const [p, q] of pares){ const px=p[0]-ax, py=p[1]-ay, qx=q[0]-bx, qy=q[1]-by; a += px*qx + py*qy; b += px*qy - py*qx; den += px*px + py*py; }
+  if (!den) return null;
+  const c = a/den, sn = b/den;
+  return {c, sn, tx: bx - (c*ax - sn*ay), ty: by - (sn*ax + c*ay)};
+}
+function transformacionEstrellas(A, B){
+  // B ≈ s·R(θ)·A + t. Devuelve {s, rot (grados), tx, ty, n (estrellas que casan), rms (px)} o null
+  if (!A || !B || A.length < 5 || B.length < 5) return null;
+  const a = A.slice(0, 14), b = B.slice(0, 14);
+  const pares = P => { const o = []; for (let i=0;i<P.length;i++) for (let j=i+1;j<P.length;j++){ const dx=P[j][0]-P[i][0], dy=P[j][1]-P[i][1], d=Math.hypot(dx,dy); if (d > 25) o.push([d, Math.atan2(dy,dx), i, j]); } return o; };
+  const pa = pares(a), pb = pares(b), NS = 70, NA = 180, s0 = Math.log(0.5), s1 = Math.log(2), votos = new Float32Array(NS*NA);
+  const casilla = (x, y, inv) => {
+    const ls = Math.log(y[0]/x[0]); if (ls <= s0 || ls >= s1) return -1;
+    let d = y[1] + inv - x[1]; d = Math.atan2(Math.sin(d), Math.cos(d));
+    return Math.floor((ls - s0)/(s1 - s0)*NS)*NA + (Math.floor((d + Math.PI)/(2*Math.PI)*NA) % NA);
+  };
+  const K = new Int32Array(pa.length*pb.length*2);          // la casilla de cada combinación, para no calcularla dos veces
+  { let n = 0; for (const x of pa) for (const y of pb) for (const inv of [0, Math.PI]){ const k = casilla(x, y, inv); K[n++] = k; if (k >= 0) votos[k]++; } }
+  // las casillas con más votos (sumando las vecinas)
+  const cand = [];
+  for (let i=0;i<NS;i++) for (let j=0;j<NA;j++){
+    let v = 0; for (let di=-1; di<=1; di++) for (let dj=-1; dj<=1; dj++){ const I=i+di; if (I<0||I>=NS) continue; v += votos[I*NA + ((j+dj+NA)%NA)]; }
+    if (v >= 6) cand.push([v, i, j]);
+  }
+  cand.sort((x, y) => y[0] - x[0]);
+  let mejor = null;
+  for (const [, ci, cj] of cand.slice(0, 6)){
+    // qué estrella de A corresponde a cuál de B: votan las parejas que caen en esta casilla o sus vecinas
+    const M = new Float32Array(a.length*b.length);
+    let n = 0;
+    for (const x of pa) for (const y of pb) for (let inv = 0; inv < 2; inv++){
+      const k = K[n++]; if (k < 0) continue;
+      const i = Math.floor(k/NA), j = k % NA, dj = Math.min(Math.abs(j - cj), NA - Math.abs(j - cj));
+      if (Math.abs(i - ci) > 1 || dj > 1) continue;
+      if (inv === 0){ M[x[2]*b.length + y[2]]++; M[x[3]*b.length + y[3]]++; }
+      else { M[x[2]*b.length + y[3]]++; M[x[3]*b.length + y[2]]++; }
+    }
+    const usadas = new Set(), pr = [];
+    const orden = []; for (let i=0;i<a.length;i++) for (let k=0;k<b.length;k++) if (M[i*b.length+k] >= 2) orden.push([M[i*b.length+k], i, k]);
+    orden.sort((x, y) => y[0] - x[0]);
+    const usA = new Set();
+    for (const [, i, k] of orden){ if (usA.has(i) || usadas.has(k)) continue; usA.add(i); usadas.add(k); pr.push([a[i], b[k]]); }
+    if (pr.length < 4) continue;
+    let T = ajusteSemejanza(pr); if (!T) continue;
+    let prs = pr;
+    for (let it = 0; it < 3; it++){
+      const lim = it === 0 ? 10 : 4, nuevas = [], vistas = new Set();
+      for (const p of A){ const X = T.c*p[0] - T.sn*p[1] + T.tx, Y = T.sn*p[0] + T.c*p[1] + T.ty;
+        let bq = null, bd = lim; for (const q of B){ const d = Math.hypot(q[0]-X, q[1]-Y); if (d < bd){ bd = d; bq = q; } }
+        if (bq && !vistas.has(bq)){ vistas.add(bq); nuevas.push([p, bq]); } }
+      if (nuevas.length < 4) break;
+      const T2 = ajusteSemejanza(nuevas); if (!T2) break; T = T2; prs = nuevas;
+    }
+    if (prs.length < 5) continue;
+    let e = 0; for (const [p, q] of prs){ e += (T.c*p[0] - T.sn*p[1] + T.tx - q[0])**2 + (T.sn*p[0] + T.c*p[1] + T.ty - q[1])**2; }
+    const r = {s: Math.hypot(T.c, T.sn), rot: Math.atan2(T.sn, T.c)*180/Math.PI, tx: T.tx, ty: T.ty, c: T.c, sn: T.sn, n: prs.length, rms: Math.sqrt(e/prs.length)};
+    if (r.rms > 6) continue;
+    if (!mejor || r.n > mejor.n || (r.n === mejor.n && r.rms < mejor.rms)) mejor = r;
+    if (mejor.n >= 12 && mejor.rms < 2.5) break;            // ya está claro: no hace falta probar más casillas
+  }
+  return mejor;
+}
+function giroEncuadre(rot){
+  // el mismo encuadre tras un giro de meridiano sale girado 180°: para el encuadre cuenta lo que se aparta de 0° o de 180°
+  const r = ((rot % 360) + 540) % 360 - 180;
+  return {r, volteo: Math.abs(r) > 90, dif: Math.abs(r) > 90 ? 180 - Math.abs(r) : Math.abs(r)};
+}
+function encuadreToma(f, ref, T){
+  // dónde cae el centro de la referencia en esta toma, y qué parte del campo de la referencia sale en ella
+  const cx = (ref.w || 0)/2, cy = (ref.h || 0)/2, X = T.c*cx - T.sn*cy + T.tx, Y = T.sn*cx + T.c*cy + T.ty;
+  const dx = X - (f.w || 0)/2, dy = Y - (f.h || 0)/2;
+  let dentro = 0, tot = 0;
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++){
+    const x = (i + 0.5)/12*(ref.w || 1), y = (j + 0.5)/12*(ref.h || 1), u = T.c*x - T.sn*y + T.tx, v = T.sn*x + T.c*y + T.ty;
+    tot++; if (u >= 0 && v >= 0 && u < (f.w || 1) && v < (f.h || 1)) dentro++;
+  }
+  return {dx, dy, d: Math.hypot(dx, dy), comun: dentro/tot};
+}
+function refEncuadre(lista){
+  // la toma de referencia de un proyecto: la de más estrellas medidas de la sesión con más tomas útiles
+  const con = lista.filter(f => f.estrellas && f.estrellas.length >= 8 && !f.discarded && f.w);
+  if (!con.length) return null;
+  const ses = groupBy(con, f => sessionKey(f));
+  const mayor = [...ses.values()].sort((x, y) => y.filter(esUtil).length - x.filter(esUtil).length)[0];
+  return mayor.slice().sort((x, y) => (y.starCount || 0) - (x.starCount || 0) || (x.fwhm || 99) - (y.fwhm || 99))[0];
+}
+const ENCUADRE_CACHE = new Map(), ENCUADRE_EN_MARCHA = new Set();
+function encuadreProyecto(obj){
+  // se calcula a trozos (unos milisegundos por toma) y se guarda; mientras, devuelve {calculando}
+  const lista = frames.filter(f => (f.object || "").trim() === obj && !f.discarded);
+  const ref = refEncuadre(lista), sinMedir = lista.filter(f => f.starCount != null && !f.estrellas && (f.path || f.origen)).length;
+  if (!ref) return {ref:null, tomas:[], sinMedir};
+  const clave = ref.id + "|" + lista.length + "|" + lista.filter(f => f.estrellas).length;
+  const c = ENCUADRE_CACHE.get(obj); if (c && c.clave === clave) return c.res;
+  if (!ENCUADRE_EN_MARCHA.has(obj)){
+    ENCUADRE_EN_MARCHA.add(obj);
+    (async () => {
+      const tomas = [], con = lista.filter(f => f.estrellas && f.estrellas.length >= 5);
+      for (let i = 0; i < con.length; i++){
+        const f = con[i];
+        const T = f === ref ? {s:1, rot:0, tx:0, ty:0, c:1, sn:0, n:f.estrellas.length, rms:0} : transformacionEstrellas(ref.estrellas, f.estrellas);
+        tomas.push(T ? {f, T, e: encuadreToma(f, ref, T), g: giroEncuadre(T.rot)} : {f, T:null});
+        if (i % 40 === 39) await esperar(0);
+      }
+      ENCUADRE_CACHE.set(obj, {clave, res: {ref, tomas, sinMedir}});
+      ENCUADRE_EN_MARCHA.delete(obj);
+      if (VISTA_ACTUAL === "proyecto" && ARC.proyecto === obj) renderProyecto();
+    })();
+  }
+  return {ref, tomas:[], sinMedir, calculando:true};
+}
+function angCabecera(f){
+  // ángulo que dicen las cabeceras: el del rotador o el de la astrometría (si la toma se resolvió al capturarla)
+  const h = f.header || {};
+  for (const k of ["ROTATANG", "ROTATOR", "ROTANGLE", "POSANGLE", "ROTPA"]) if (h[k] != null && isFinite(+h[k])) return {v: ((+h[k] % 360) + 360) % 360, de: "rotador"};
+  if (h.CROTA2 != null && isFinite(+h.CROTA2)) return {v: ((+h.CROTA2 % 360) + 360) % 360, de: "astrometria"};
+  if (h.CD1_1 != null && h.CD2_1 != null && isFinite(+h.CD1_1)) return {v: ((Math.atan2(+h.CD2_1, +h.CD1_1)*180/Math.PI % 360) + 360) % 360, de: "astrometria"};
+  return null;
+}
+function htmlEncuadre(obj){
+  const E = encuadreProyecto(obj);
+  let h = `<h3 class="arcH">${esc(trLT("Encuadre", "Framing"))}</h3>`;
+  if (!E.ref){
+    return h + `<div class="note" style="margin-bottom:8px">${esc(trLT("Para medir el encuadre hacen falta tomas analizadas con esta versión: ASTRO guarda dónde caen sus estrellas más brillantes.", "Measuring the framing needs frames analysed with this version: ASTRO stores where their brightest stars fall."))}</div>` +
+      (E.sinMedir ? `<button class="btn small primary" data-arc-acc="medirencuadre">${esc(trLT("Medir el encuadre de {1} tomas", "Measure the framing of {1} frames", nfmt(E.sinMedir)))}</button>` : "");
+  }
+  if (E.calculando) return h + `<div class="note">${esc(trLT("Comparando el encuadre de cada toma con la de referencia…", "Comparing each frame's framing with the reference…"))}</div>`;
+  const ref = E.ref, escRef = escalaToma(ref), ang = angCabecera(ref);
+  // por sesión (noche y equipo)
+  const ses = new Map();
+  for (const t of E.tomas){ const k = (t.f.night || "?") + "|" + equipoDe(t.f); if (!ses.has(k)) ses.set(k, []); ses.get(k).push(t); }
+  const filas = [], avisos = [];
+  for (const [k, l] of [...ses].sort((x, y) => y[0].localeCompare(x[0]))){
+    const ok = l.filter(t => t.T), [noche, eq] = k.split("|");
+    if (!ok.length){ filas.push(`<tr><td><b>${esc(fechaDia(noche))}</b></td><td class="notr">${esc(eq)}</td><td colspan="5" class="note">${esc(trLT("No se ha podido comparar con la referencia (campo distinto o muy pocas estrellas)", "Could not be compared with the reference (different field or too few stars)"))}</td></tr>`); continue; }
+    const m = a => medianaF(a), gir = m(ok.map(t => t.g.dif)), volt = ok.filter(t => t.g.volteo).length, sc = m(ok.map(t => t.T.s));
+    const off = m(ok.map(t => t.e.d)), comun = m(ok.map(t => t.e.comun)), escS = escalaToma(ok[0].f);
+    // deriva: dónde está el centro al principio y al final de la noche (lo que no es dither)
+    const ord = ok.slice().sort((x, y) => (x.f.dateObs || "").localeCompare(y.f.dateObs || "")), q = Math.max(1, Math.floor(ord.length/5));
+    const ini = ord.slice(0, q), fin = ord.slice(-q), mx = a => m(a.map(t => t.e.dx)), my = a => m(a.map(t => t.e.dy));
+    const deriva = ord.length >= 6 ? Math.hypot(mx(fin) - mx(ini), my(fin) - my(ini)) : null;
+    const arc = px => escS ? " · " + numEs(px*escS/60, 1) + "′" : "";
+    filas.push(`<tr><td><b>${esc(fechaDia(noche))}</b><div class="note">${esc(trLT("{1} de {2} tomas", "{1} of {2} frames", ok.length, l.length))}</div></td><td class="notr">${esc(eq)}</td>
+      <td class="num">${escS ? esc(numEs(escS, 2)) + "″/px" : "—"}${Math.abs(sc - 1) > 0.02 ? `<div class="note">×${esc(numEs(sc, 2))}</div>` : ""}</td>
+      <td class="num">${esc(numEs(gir, 1))}°${volt ? `<div class="note">${esc(volt === ok.length ? trLT("volteada (giro de meridiano)", "flipped (meridian flip)") : trLT("{1} volteadas", "{1} flipped", volt))}</div>` : ""}</td>
+      <td class="num">${esc(Math.round(off))} px${esc(arc(off))}</td>
+      <td class="num">${deriva != null ? esc(Math.round(deriva)) + " px" + esc(arc(deriva)) : "—"}</td>
+      <td class="num"><span class="${comun >= 0.9 ? "arcOk" : comun >= 0.75 ? "arcAviso" : "arcMal"}">${esc(Math.round(100*comun))} %</span></td></tr>`);
+    if (gir > 3) avisos.push(trLT("El {1} la cámara estaba girada {2}° respecto a la referencia: al apilar se pierden las esquinas. Para seguir el proyecto, vuelve a girarla como en la toma de referencia.", "On {1} the camera was rotated {2}° from the reference: stacking loses the corners. To carry on the project, rotate it back as in the reference frame.", fechaDia(noche), numEs(gir, 0)));
+    else if (comun < 0.85) avisos.push(trLT("El {1} el encuadre estaba desplazado: solo el {2} % del campo de la referencia sale en esas tomas.", "On {1} the framing was shifted: only {2}% of the reference field appears in those frames.", fechaDia(noche), Math.round(100*comun)));
+    if (deriva != null && escS && deriva*escS > 60) avisos.push(trLT("El {1} el campo se fue desplazando {2}′ a lo largo de la noche: revisa el guiado o la flexión del tubo guía.", "On {1} the field drifted {2}′ during the night: check guiding or guide-scope flexure.", fechaDia(noche), numEs(deriva*escS/60, 1)));
+    if (Math.abs(sc - 1) > 0.05) avisos.push(trLT("El {1} la escala era distinta (×{2}): otro telescopio, reductor o cámara. ASTRO lo apila por separado y lo combina a la escala común.", "On {1} the scale was different (×{2}): another telescope, reducer or camera. ASTRO stacks it separately and combines it at a common scale.", fechaDia(noche), numEs(sc, 2)));
+  }
+  const fallan = E.tomas.filter(t => !t.T).length;
+  h += `<div class="note" style="margin-bottom:8px;line-height:1.5">${esc(trLT("Referencia: {1}, del {2} ({3}). Cada toma se compara con ella por la posición de sus estrellas más brillantes, sin resolver la placa: giro, escala, cuánto se aparta el centro y qué parte del campo comparten.",
+      "Reference: {1}, from {2} ({3}). Each frame is compared with it by the position of its brightest stars, without plate solving: rotation, scale, how far the centre moves and how much of the field they share.",
+      ref.name, fechaDia(ref.night), equipoDe(ref)))}${escRef ? " " + esc(trLT("Escala de la referencia: {1}″/px.", "Reference scale: {1}″/px.", numEs(escRef, 2))) : ""}${ang ? " " + esc(ang.de === "rotador" ? trLT("Rotador de la referencia: {1}°.", "Reference rotator: {1}°.", numEs(ang.v, 1)) : trLT("Ángulo de la referencia según su astrometría: {1}°.", "Reference angle from its astrometry: {1}°.", numEs(ang.v, 1))) : ""}</div>`;
+  h += `<div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Escala", "Scale"))}</th><th>${esc(trLT("Giro", "Rotation"))}</th>
+    <th>${esc(trLT("Centro desplazado", "Centre offset"))}</th><th>${esc(trLT("Deriva en la noche", "Drift over the night"))}</th><th>${esc(trLT("Campo común", "Shared field"))}</th></tr></thead><tbody>${filas.join("")}</tbody></table></div>`;
+  if (avisos.length) h += `<ul class="reasons" style="margin-top:8px">${avisos.slice(0, 8).map(t => `<li class="warn">${esc(t)}</li>`).join("")}</ul>`;
+  const extra = [E.sinMedir ? trLT("{1} tomas analizadas con una versión anterior aún no tienen el encuadre medido.", "{1} frames analysed with an earlier version don't have their framing measured yet.", nfmt(E.sinMedir)) : "",
+                 fallan ? trLT("{1} tomas no se han podido comparar (nubes, muy pocas estrellas u otro campo).", "{1} frames could not be compared (clouds, too few stars or another field).", nfmt(fallan)) : ""].filter(Boolean);
+  if (extra.length) h += `<div class="note" style="margin-top:6px">${esc(extra.join(" "))}</div>`;
+  if (E.sinMedir) h += `<button class="btn small" style="margin-top:6px" data-arc-acc="medirencuadre">${esc(trLT("Medir el encuadre de {1} tomas", "Measure the framing of {1} frames", nfmt(E.sinMedir)))}</button>`;
+  return h;
+}
+
 /* --- gráficas de una sesión, toma a toma (como SubframeSelector de PixInsight) --- */
 const IND = {obj:"", ses:"", remedir:null};
 function sesionesDeObjeto(obj){
@@ -2261,8 +2437,8 @@ function pintarIndicadores(){
   const lista = ses.find(x => x.k === IND.ses).l.slice().sort((a, b) => (a.dateObs || "").localeCompare(b.dateObs || ""));
   const ref = REF_SESION.get(lista[0]) || null, c = {ok:0, warn:0, bad:0, disc:0};
   lista.forEach(f => { const st = shownStatus(f); if (c[st] !== undefined) c[st]++; });
-  const faltan = lista.filter(f => f.snr == null && f.starCount != null && (f.path || f.origen));
-  const objFaltan = frames.filter(f => (f.object || "") === IND.obj && f.snr == null && f.starCount != null && (f.path || f.origen));
+  const faltan = lista.filter(f => (f.snr == null || !f.estrellas) && f.starCount != null && (f.path || f.origen));
+  const objFaltan = frames.filter(f => (f.object || "") === IND.obj && (f.snr == null || !f.estrellas) && f.starCount != null && (f.path || f.origen));
   let h = `<div class="indLeyenda"><span><i style="background:var(--ok)"></i>${esc(trLT("{1} válidas", "{1} valid", c.ok))}</span><span><i style="background:var(--warn)"></i>${esc(trLT("{1} con avisos", "{1} with warnings", c.warn))}</span>
     <span><i style="background:var(--bad)"></i>${esc(trLT("{1} rechazables", "{1} rejected", c.bad))}</span>${c.disc ? `<span><i style="border:1.5px solid var(--faint)"></i>${esc(trLT("{1} descartadas", "{1} discarded", c.disc))}</span>` : ""}
     <span>— <span style="color:var(--accent)">${esc(trLT("mediana", "median"))}</span> · <span style="color:var(--warn)">${esc(trLT("aviso", "warning"))}</span> · <span style="color:var(--bad)">${esc(trLT("rechazo", "rejection"))}</span></span></div>`;
@@ -2288,6 +2464,7 @@ async function remedirTomas(lista){
   if (IND.remedir) return;
   IND.remedir = {total:lista.length, hechas:0, errores:0, parar:false};
   pintarIndicadores();
+  const pintarProy = () => { if (VISTA_ACTUAL === "proyecto") renderProyecto(); };
   let ultimo = Date.now();
   for (const f of lista){
     if (IND.remedir.parar) break;
@@ -2299,7 +2476,7 @@ async function remedirTomas(lista){
       for (const k of CAMPOS_MEDIDA) f[k] = r[k];
       IND.remedir.hechas++;
     } catch(e){ IND.remedir.errores++; }
-    if (Date.now() - ultimo > 1200){ ultimo = Date.now(); pintarIndicadores(); }
+    if (Date.now() - ultimo > 1200){ ultimo = Date.now(); pintarIndicadores(); if (IND.remedir.hechas % 20 === 0) pintarProy(); }
     await esperar(0);
   }
   const x = IND.remedir; IND.remedir = null;
@@ -2564,6 +2741,9 @@ function renderPanel(f){
       <dt>Estrellas</dt><dd>${f.starCount??"—"}${f.satStars?" · <span>"+f.satStars+" saturadas</span>":""}</dd>
       <dt>Trazas</dt><dd>${f.trailCount||0}${f.trailLen?" · <span>longitud "+f.trailLen.toFixed(2)+" diagonales</span>":""}</dd>
       <dt>Gradiente</dt><dd>${f.gradient!=null?numEs(f.gradient, 2):"—"}</dd>
+      ${(() => { if (!f.estrellas || !(f.object||"").trim()) return ""; try { const E = encuadreProyecto(f.object.trim()), t = E.tomas.find(x => x.f === f);
+        if (!t || !t.T || t.f === E.ref) return t && t.f === E.ref ? `<dt>${esc(trLT("Encuadre", "Framing"))}</dt><dd>${esc(trLT("Es la toma de referencia del proyecto", "It is the project's reference frame"))}</dd>` : "";
+        return `<dt>${esc(trLT("Encuadre", "Framing"))}</dt><dd>${esc(trLT("Respecto a la referencia: giro {1}°, centro desplazado {2} px, {3} % del campo en común", "From the reference: rotation {1}°, centre offset {2} px, {3}% of the field shared", numEs(t.g.r, 1), Math.round(t.e.d), Math.round(100*t.e.comun)))}</dd>`; } catch(_){ return ""; } })()}
     </dl></details>
     <div id="pReg"></div>
     <div class="edit">
@@ -3368,6 +3548,7 @@ function renderProyecto(){
     <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Filtros", "Filters"))}</th>
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th><th></th></tr></thead><tbody>${filasS}</tbody></table></div>
     ${ksS.length > visS.length ? `<div style="margin-top:8px"><button class="btn small" id="arcSesProyMas">${esc(trLT("Ver todas las noches", "Show all nights"))}</button></div>` : ""}`;
+  try { h += htmlEncuadre(obj); } catch(e){ console.error(e); }
   el.innerHTML = h;
   el.querySelectorAll("[data-arc-acc]").forEach(b => b.onclick = () => arcAccion(b.dataset.arcAcc, obj));
   el.querySelectorAll("[data-arc-noche]").forEach(b => b.onclick = () => { const n = b.dataset.arcNoche;
@@ -3382,6 +3563,12 @@ function arcAccion(a, obj){
   if (a === "criterio") return abrirCriterio(obj);
   if (a === "indicadores") return abrirIndicadores(obj);
   if (a === "calenviar") return arcEnviarCalibracion();
+  if (a === "medirencuadre"){
+    const l = frames.filter(f => (f.object || "").trim() === obj && !f.discarded && f.starCount != null && !f.estrellas && (f.path || f.origen));
+    if (l.length) remedirTomas(l).then(() => { ENCUADRE_CACHE.delete(obj); if (VISTA_ACTUAL === "proyecto") renderProyecto(); });
+    toast(trLT("Midiendo el encuadre de {1} tomas…", "Measuring the framing of {1} frames…", l.length));
+    return;
+  }
   if (a === "carpeta" || a === "vista"){
     const u = (ARC.apilados[obj] || [])[0]; if (!u) return;
     if (a === "carpeta") return fetch("/api/apilado/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})});
