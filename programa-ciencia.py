@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.8"
+VERSION_PROG = "2026.09.28.9"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -6861,7 +6861,7 @@ td.num{text-align:right}
 .acciones{display:flex;gap:8px;flex-wrap:wrap}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
 .toast.show{opacity:1}
-.autor{margin:30px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center} .autor b{color:var(--text)}.escudos{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 2px}.escudos:empty{display:none}.escudos img{height:46px;width:auto;max-width:130px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-shadow:0 0 0 1px var(--line)}.escudos.grandes img{height:62px;max-width:160px}
+.autor{margin:30px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center} .autor b{color:var(--text)}.escudos{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 2px}.escudos:empty{display:none}.escudos img{height:50px;width:auto;max-width:150px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}.escudos.grandes img{height:64px;max-width:180px}.escudos img.alto{height:75px}.escudos.grandes img.alto{height:96px}
 @media (max-width:860px){
   .app{grid-template-columns:1fr;background:none}
   .lat{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:4px;background:var(--bg2);border-bottom:1px solid var(--line);padding:12px}
@@ -6905,7 +6905,7 @@ td.num{text-align:right}
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
       <h3 class="seccion">Los cinco bloques</h3>
       <div class="bloques" id="bloques"></div>
-      <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
+      <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
     </section>
 
     <section id="vistaBloque" style="display:none">
@@ -8349,7 +8349,7 @@ function acercaDe(){
     <h2>ASTRO</h2><div class="note">${tr("Ciencia: medir con tus fotos")} · ${tr("versión")} <span class="notr">${VERSION_ACTUAL}</span></div>
     <p>${tr("Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila con Siril y mide con tus fotos.")}</p>
     <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;width:100%"><div class="note">${tr("Programa creado por")}</div><b style="font-size:16px">Tomás Moreno González</b>
-      <div style="font-size:13.5px">${tr("Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.")}</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
+      <div style="font-size:13.5px">${tr("Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.")}</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
     <button class="btn primary" onclick="this.closest('.modal').remove()">${tr("Cerrar")}</button></div>`;
   d.onclick = e => { if (e.target === d) d.remove(); };
   document.body.appendChild(d);

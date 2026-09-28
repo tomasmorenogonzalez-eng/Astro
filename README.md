@@ -72,6 +72,12 @@ Si vas a probarlo, echa un vistazo a la **[guía para probadores](GUIA-BETA.md)*
 
 ASTRO lo ha creado **Tomás Moreno González**, astrofotógrafo y divulgador, miembro de **Astrocitas**, la **Asociación Astronómica Azarquiel (Piedrabuena, C.Real)** y la **Asociación Astronómica de Miguelturra**.
 
+<p align="center">
+  <img src="imagenes/web/escudo-astrocitas.png" height="80" alt="Astrocitas">&nbsp;&nbsp;&nbsp;
+  <img src="imagenes/web/escudo-azarquiel.png" height="118" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
+  <img src="imagenes/web/escudo-miguelturra.png" height="80" alt="Asociación Astronómica de Miguelturra">
+</p>
+
 Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más tiempo mirando el cielo.
 
 ¿Quieres saber más sobre cómo está hecho o cómo publicar versiones nuevas? Lo tienes en **[LEEME.md](LEEME.md)**.

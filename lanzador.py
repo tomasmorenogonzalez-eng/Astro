@@ -240,9 +240,10 @@ def _imagen(nombre):
 
 
 def _pantalla_baja(w):
-    """Pantallas de poca altura (portátiles de 13"): cabecera más baja y tarjetas sin descripción."""
+    """Pantallas de poca altura (portátiles de 13"): cabecera más baja y tarjetas sin descripción
+    (la ventana completa, con los escudos del pie, mide unos 970 px)."""
     try:
-        return w.winfo_screenheight() < 940
+        return w.winfo_screenheight() < 1000
     except Exception:
         return False
 
@@ -294,16 +295,18 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
         if ES_BETA:
             tk.Label(cab, text=" BETA ", bg="#F2C14E", fg="#3A2A00", font=("Helvetica", 11, "bold")).pack(side="right", padx=16)
     pie = tk.Frame(w, bg="#ECE8F5"); pie.pack(fill="x", side="bottom")
-    tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=(7, 4 if grande else 7))
-    if grande:                            # los escudos de las tres asociaciones (los que estén en «imagenes»)
-        fila = tk.Frame(pie, bg="#ECE8F5")
-        for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png"):
-            im = _imagen(n)
-            if im is not None:
-                w._imgs.append(im)
-                tk.Label(fila, image=im, bg="#ECE8F5", bd=0).pack(side="left", padx=9)
-        if fila.winfo_children():
-            fila.pack(pady=(0, 8))
+    # en las ventanas grandes, los escudos de las tres asociaciones a la derecha del nombre (los que estén en «imagenes»)
+    escudos = [im for im in (_imagen(n) for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png")) if im is not None] if grande else []
+    if escudos:
+        fila = tk.Frame(pie, bg="#ECE8F5"); fila.pack(side="right", padx=(4, 18), pady=5)
+        for im in escudos:
+            w._imgs.append(im)
+            tk.Label(fila, image=im, bg="#ECE8F5", bd=0).pack(side="left", padx=5)
+        ancho_esc = sum(im.width() + 10 for im in escudos) + 22
+        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 40 - ancho_esc,
+                 justify="left", anchor="w").pack(side="left", fill="x", expand=True, padx=(22, 8), pady=7)
+    else:
+        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#ECE8F5", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=7)
     cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=28 if grande else 24, pady=(18, 22))
     return w, cuerpo
 

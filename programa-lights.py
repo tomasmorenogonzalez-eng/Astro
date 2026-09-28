@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.2"
+VERSION_PROG = "2026.09.28.3"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -545,7 +545,7 @@ td.chk,th.chk{width:30px; cursor:default}
 #addBox .drop{display:flex!important;flex-direction:column;align-items:center;gap:16px;text-align:center;padding:34px 20px;border-radius:16px}#addBox .actions{justify-content:center}
 .opciones summary{cursor:pointer;color:var(--muted);font-size:14px;margin:4px 0}
 body.arrastrando::after{content:"Suelta para añadir la sesión";position:fixed;inset:12px;border:3px dashed var(--accent);border-radius:20px;background:rgba(91,44,135,.12);display:grid;place-items:center;font-size:26px;font-weight:700;color:var(--accent);z-index:90;pointer-events:none}
-.autor{margin:18px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center}.autor b{color:var(--text)}.escudos{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 2px}.escudos:empty{display:none}.escudos img{height:46px;width:auto;max-width:130px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;box-shadow:0 0 0 1px var(--line)}.escudos.grandes img{height:62px;max-width:160px}
+.autor{margin:18px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center}.autor b{color:var(--text)}.escudos{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 2px}.escudos:empty{display:none}.escudos img{height:50px;width:auto;max-width:150px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2))}.escudos.grandes img{height:64px;max-width:180px}.escudos img.alto{height:75px}.escudos.grandes img.alto{height:96px}
 .betaTag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:7px;background:#F2C14E;color:#3A2A00;font-size:11.5px;font-weight:800;letter-spacing:.06em;vertical-align:4px;cursor:help}
 /* ===== ASTRO 0.9.7 · aspecto nuevo: barra lateral, «Esta noche» y tarjetas con la imagen ===== */
 body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:14.5px;-webkit-font-smoothing:antialiased}
@@ -804,7 +804,7 @@ th{background:var(--surface2)}
     </div>
   </section>
   <div class="foot" id="storeInfo"></div>
-  <div class="autor">✦ ASTRO · <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
+  <div class="autor">✦ ASTRO · <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
 </main>
 </div>
 
@@ -1047,7 +1047,7 @@ function acercaDe(){
     <div style="color:var(--muted);font-size:13px"><span>versión</span> <span class="notr">${VERSION_ACTUAL}</span></div>
     <p style="margin:10px 0 4px">Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, y apila con Siril.</p>
     <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;margin-top:6px"><div style="color:var(--muted);font-size:13px">Programa creado por</div>
-      <b style="font-size:16px">Tomás Moreno González</b><div style="font-size:13.5px;margin-top:2px">Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
+      <b style="font-size:16px">Tomás Moreno González</b><div style="font-size:13.5px;margin-top:2px">Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Asociación Astronómica de Miguelturra.</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Asociación Astronómica de Miguelturra" title="Asociación Astronómica de Miguelturra" onerror="this.remove()"></div></div>
     <div><button class="btn primary" onclick="this.closest('.modal').remove()">${tr("Cerrar")}</button></div></div>`;
   d.onclick = e => { if (e.target === d) d.remove(); };
   document.body.appendChild(d);
