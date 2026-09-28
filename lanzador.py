@@ -605,27 +605,51 @@ def _curl():
     return c
 
 
+def _pedir_json(url):
+    cab = {"User-Agent": "ASTRO", "Accept": "application/vnd.github+json"}
+    try:
+        with _abrir(url, 6, cab) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        if not (_es_error_ssl(e) and _curl()):
+            raise
+        # último recurso: curl usa los certificados del sistema (llavero del Mac, almacén de Windows)
+        out = subprocess.run([_curl(), "-sfL", "--max-time", "10", "-H", "Accept: application/vnd.github+json",
+                              "-A", "ASTRO", url], capture_output=True, **_sin_consola())
+        return json.loads(out.stdout.decode("utf-8"))
+
+
+def _paquete_de(rel):
+    for a in (rel or {}).get("assets") or []:
+        if a.get("name") == nombre_paquete():
+            return a.get("browser_download_url")
+    return None
+
+
 def buscar_version_nueva():
     if not (EMPAQUETADO and URL_ACTUALIZACION) or os.environ.get("ASTRO_NO_ACTUALIZAR") == "1":
         return None
     try:
-        cab = {"User-Agent": "ASTRO", "Accept": "application/vnd.github+json"}
-        try:
-            with _abrir(URL_ACTUALIZACION, 6, cab) as r:
-                d = json.loads(r.read().decode("utf-8"))
-        except Exception as e:
-            if not (_es_error_ssl(e) and _curl()):
-                raise
-            # último recurso: curl usa los certificados del sistema (llavero del Mac, almacén de Windows)
-            out = subprocess.run([_curl(), "-sfL", "--max-time", "10", "-H", "Accept: application/vnd.github+json",
-                                  "-A", "ASTRO", URL_ACTUALIZACION], capture_output=True, **_sin_consola())
-            d = json.loads(out.stdout.decode("utf-8"))
+        d = _pedir_json(URL_ACTUALIZACION)
         tag = str(d.get("tag_name") or "").lstrip("vV")
         if not tag or _v(tag) <= _v(VERSION_APP):
             return None
-        for a in d.get("assets") or []:
-            if a.get("name") == nombre_paquete():
-                return tag, a.get("browser_download_url")
+        url = _paquete_de(d)
+        if url:
+            return tag, url
+        # la última versión aún se está fabricando (todavía no tiene el archivo de este ordenador):
+        # se instala la más reciente que ya lo tenga, en vez de quedarse en la de ahora
+        lista = _pedir_json(URL_ACTUALIZACION.replace("/releases/latest", "/releases?per_page=10"))
+        cands = []
+        for r in lista if isinstance(lista, list) else []:
+            t = str(r.get("tag_name") or "").lstrip("vV")
+            u = _paquete_de(r)
+            if t and u and not r.get("draft") and not r.get("prerelease") and _v(t) > _v(VERSION_APP):
+                cands.append((_v(t), t, u))
+        if cands:
+            _, t, u = max(cands)
+            print("La versión %s aún no tiene descarga; se instala la %s" % (tag, t))
+            return t, u
     except Exception as e:
         print("Sin comprobación de versión:", e)
     return None

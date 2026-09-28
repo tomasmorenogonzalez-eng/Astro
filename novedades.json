@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.21.1",
+  "es": [
+   "Trazas: el borde recto de una nebulosa ya no se confunde con una traza de satélite o de avión (una toma buena ya no se marca como rechazable por eso).",
+   "Actualizaciones: si la versión nueva aún se está preparando, ASTRO instala la anterior que ya esté lista en vez de quedarse como estaba."
+  ],
+  "en": [
+   "Trails: the straight edge of a nebula is no longer mistaken for a satellite or aircraft trail (a good frame is no longer rejected because of it).",
+   "Updates: if the new version is still being prepared, ASTRO installs the previous one that is ready instead of staying where it was."
+  ],
+  "fr": [
+   "Traînées : le bord rectiligne d'une nébuleuse n'est plus confondu avec une traînée de satellite ou d'avion (une bonne pose n'est plus rejetée pour cette raison).",
+   "Mises à jour : si la nouvelle version est encore en préparation, ASTRO installe la précédente déjà prête au lieu de rester tel quel."
+  ],
+  "de": [
+   "Spuren: Der gerade Rand eines Nebels wird nicht mehr mit einer Satelliten- oder Flugzeugspur verwechselt (eine gute Aufnahme wird deshalb nicht mehr aussortiert).",
+   "Updates: Wenn die neue Version noch vorbereitet wird, installiert ASTRO die vorherige, die schon bereit ist, statt beim alten Stand zu bleiben."
+  ],
+  "it": [
+   "Scie: il bordo rettilineo di una nebulosa non viene più scambiato per la scia di un satellite o di un aereo (una buona posa non viene più scartata per questo).",
+   "Aggiornamenti: se la nuova versione è ancora in preparazione, ASTRO installa quella precedente già pronta invece di restare com'era."
+  ],
+  "pt": [
+   "Rastos: o bordo reto de uma nebulosa já não se confunde com o rasto de um satélite ou de um avião (uma boa exposição já não é rejeitada por isso).",
+   "Atualizações: se a versão nova ainda está a ser preparada, o ASTRO instala a anterior que já esteja pronta em vez de ficar como estava."
+  ]
+ },
+ {
   "version": "0.21",
   "es": [
    "Nuevo apartado «Archivo», para quien llega con años de fotos: indexa tus carpetas leyendo solo las cabeceras (miles de tomas en unos minutos, sin copiar nada) y verás cada proyecto con sus horas por filtro, sus temporadas y un calendario de noches.",

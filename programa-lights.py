@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.12"
+VERSION_PROG = "2026.09.28.13"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1388,6 +1388,26 @@ function analyzeLight(p){
   }
   const tMin = Math.min(...tiles), tMax = Math.max(...tiles);
   const gradient = (tMax - tMin) / Math.max(sigma*4, bg);   // relativo al fondo
+  // fondo local a gran escala (nebulosas, gradientes, halos): las trazas se buscan en lo que sobresale de él.
+  // Sin esto, el borde recto de una nebulosa difusa se confundía con una traza de satélite.
+  const TB = 48, gx = Math.max(1, Math.ceil(bw/TB)), gy = Math.max(1, Math.ceil(bh/TB));
+  const bgT = new Float32Array(gx*gy), bgL = new Float32Array(gx*gy);
+  for (let ty=0; ty<gy; ty++) for (let tx=0; tx<gx; tx++){
+    const v = [], x0 = tx*TB, y0 = ty*TB, x1 = Math.min(bw, x0+TB), y1 = Math.min(bh, y0+TB);
+    for (let y=y0; y<y1; y+=2) for (let x=x0; x<x1; x+=2) v.push(img[y*bw+x]);
+    v.sort((a,b)=>a-b); bgT[ty*gx+tx] = v.length ? v[Math.floor(v.length*0.4)] : bg;     // un poco por debajo de la mediana: las estrellas no lo suben
+  }
+  for (let ty=0; ty<gy; ty++) for (let tx=0; tx<gx; tx++){          // mediana 3×3 de baldosas
+    const v = []; for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++){ const X = tx+dx, Y = ty+dy; if (X>=0 && Y>=0 && X<gx && Y<gy) v.push(bgT[Y*gx+X]); }
+    v.sort((a,b)=>a-b); bgL[ty*gx+tx] = v[v.length>>1];
+  }
+  const fondoEn = (x, y) => {                                       // interpolación bilineal entre los centros de las baldosas
+    const fx = Math.min(gx-1, Math.max(0, x/TB - 0.5)), fy = Math.min(gy-1, Math.max(0, y/TB - 0.5));
+    const X = Math.min(gx-2, Math.floor(fx)), Y = Math.min(gy-2, Math.floor(fy));
+    if (gx < 2 || gy < 2) return bgL[0];
+    const ax = fx - X, ay = fy - Y;
+    return (bgL[Y*gx+X]*(1-ax) + bgL[Y*gx+X+1]*ax)*(1-ay) + (bgL[(Y+1)*gx+X]*(1-ax) + bgL[(Y+1)*gx+X+1]*ax)*ay;
+  };
 
   // --- etiquetado de componentes sobre un umbral ---
   function components(thr, src, maxComp){
@@ -1426,7 +1446,24 @@ function analyzeLight(p){
   const stars = [], trails = [];
   const thin = c => c.B/c.n > 0.55;                                   // casi todos los píxeles son de borde: estructura lineal
   const lineLen = c => c.n / Math.max(1.5, 2*c.n/Math.max(1,c.B));      // longitud de línea ≈ área / anchura
-  const isTrail = c => { const L = Math.hypot(c.maxx-c.minx, c.maxy-c.miny); return L >= 50 && c.n/L < 12 && thin(c) && (c.ecc > 0.9 || lineLen(c) > 1.5*L); };
+  // una traza es una cresta: más brillante que el cielo a ambos lados. El borde de una nebulosa es un escalón
+  // (claro a un lado, oscuro al otro) y no pasa esta prueba.
+  function esCresta(c, src, sig){
+    const L = Math.hypot(c.maxx-c.minx, c.maxy-c.miny), ct = Math.cos(c.angle), st = Math.sin(c.angle), nx = -st, ny = ct;
+    const ancho = c.n / Math.max(1, L), d = Math.max(4, Math.round(1.5*ancho + 3));
+    const val = (x, y) => { const X = Math.round(x), Y = Math.round(y); return (X<0 || Y<0 || X>=bw || Y>=bh) ? NaN : src[Y*bw+X]; };
+    const a0 = [], a1 = [], a2 = [];
+    for (let t = -L/2; t <= L/2; t += 1){
+      const x = c.mx + t*ct, y = c.my + t*st;
+      const v0 = Math.max(val(x, y), val(x+nx, y+ny), val(x-nx, y-ny)), v1 = val(x + d*nx, y + d*ny), v2 = val(x - d*nx, y - d*ny);
+      if (!isNaN(v0) && !isNaN(v1) && !isNaN(v2)){ a0.push(v0); a1.push(v1); a2.push(v2); }
+    }
+    if (a0.length < 20) return false;
+    const med = a => { a.sort((p,q)=>p-q); return a[a.length>>1]; };
+    const m0 = med(a0), m1 = med(a1), m2 = med(a2);
+    return m0 - Math.max(m1, m2) > sig;
+  }
+  const isTrail = c => { const L = Math.hypot(c.maxx-c.minx, c.maxy-c.miny); return L >= 50 && c.n/L < 12 && thin(c) && (c.ecc > 0.9 || lineLen(c) > 1.5*L) && esCresta(c, img, 1.5*sigma); };
   for (const c of comps){
     if (isTrail(c)){ trails.push(c); continue; }
     if (c.big || c.n < 3 || c.n > 400 || (c.maxx-c.minx) > 40 || (c.maxy-c.miny) > 40) continue;
@@ -1436,12 +1473,13 @@ function analyzeLight(p){
   // --- trazas débiles: imagen suavizada 3x3 y umbral bajo ---
   const sm = new Float32Array(bw*bh);
   for (let y=1; y<bh-1; y++) for (let x=1; x<bw-1; x++){
-    const i = y*bw+x; sm[i] = (img[i-bw-1]+img[i-bw]+img[i-bw+1]+img[i-1]+img[i]+img[i+1]+img[i+bw-1]+img[i+bw]+img[i+bw+1])/9;
+    const i = y*bw+x; sm[i] = (img[i-bw-1]+img[i-bw]+img[i-bw+1]+img[i-1]+img[i]+img[i+1]+img[i+bw-1]+img[i+bw]+img[i+bw+1])/9 - fondoEn(x, y) + bg;
   }
   for (const c of components(bg + 1.6*sigma, sm, 60000)){
     if (c.big) continue;
     const L = Math.hypot(c.maxx-c.minx, c.maxy-c.miny);
-    if (L >= 90 && c.n/L < 14 && thin(c) && (c.ecc > 0.97 || lineLen(c) > 1.5*L) && !trails.some(t => t.minx<=c.maxx && t.maxx>=c.minx && t.miny<=c.maxy && t.maxy>=c.miny)) trails.push(c);
+    if (L >= 90 && c.n/L < 14 && thin(c) && (c.ecc > 0.97 || lineLen(c) > 1.5*L) && esCresta(c, sm, 0.5*sigma) &&
+        !trails.some(t => t.minx<=c.maxx && t.maxx>=c.minx && t.miny<=c.maxy && t.maxy>=c.miny)) trails.push(c);
   }
   // --- estadísticas de estrellas (las 300 más brillantes no saturadas) ---
   const good = stars.filter(s=>!s.sat).sort((a,b)=>b.flux-a.flux).slice(0, 300);
