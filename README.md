@@ -52,7 +52,7 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
    - Windows 10 u 11: **ASTRO-Windows.exe**
 2. **Haz doble clic.** ASTRO se instala solo y, a partir de ahí, se actualiza solo (y te cuenta las novedades de cada versión).
 3. Elige el idioma y la carpeta donde quieres guardar tus fotos. Puede estar en un disco externo. ¿Prefieres verlo antes? Pulsa **«Ver con datos de ejemplo»** y explóralo con fotos y medidas de ejemplo, sin tocar nada tuyo.
-4. En la **ventana de inicio** elige por dónde empezar: cada apartado (Añadir tomas, Mis objetos, Archivo, Varios equipos, Apilar con Siril, Próximas noches, ¿Qué fotografío?, Sesión en directo, Calibración y Ciencia) tiene su dibujo y se abre en tu navegador. Arrastra la carpeta de una noche de fotos y deja que ASTRO haga el resto.
+4. En la **ventana de inicio** elige por dónde empezar: cada apartado (Añadir tomas, Mis objetos, Archivo, Varios equipos, Apilar con Siril, Próximas noches, ¿Qué fotografío?, Sesión en directo, Calibración y Ciencia) tiene su dibujo y se abre en la misma ventana de ASTRO, sin navegador; «Todos los apartados», arriba a la izquierda, te devuelve al inicio. Arrastra la carpeta de una noche de fotos y deja que ASTRO haga el resto.
 
 En **Mac**, ASTRO está firmado y aprobado por Apple: se abre con doble clic, sin avisos.
 

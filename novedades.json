@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.22",
+  "es": [
+   "ASTRO se abre en su propia ventana, a pantalla completa y sin navegador: el inicio, las tomas, la biblioteca de calibración y Ciencia van todos en la misma ventana.",
+   "Desde cualquier apartado, «Todos los apartados» (arriba a la izquierda) te devuelve al inicio.",
+   "Las ventanas para elegir una carpeta o un archivo salen delante de ASTRO. Si prefieres el navegador de antes, abajo en el inicio tienes «Usar el navegador en lugar de esta ventana»."
+  ],
+  "en": [
+   "ASTRO opens in its own window, full screen and without a browser: the start page, your frames, the calibration library and Science all live in the same window.",
+   "From any section, “All sections” (top left) takes you back to the start.",
+   "The windows for choosing a folder or a file now appear in front of ASTRO. If you prefer the browser, as before, use “Use the browser instead of this window” at the bottom of the start page."
+  ],
+  "fr": [
+   "ASTRO s'ouvre dans sa propre fenêtre, en plein écran et sans navigateur : l'accueil, vos poses, la bibliothèque de calibration et Science sont tous dans la même fenêtre.",
+   "Depuis n'importe quelle section, « Toutes les sections » (en haut à gauche) vous ramène à l'accueil.",
+   "Les fenêtres pour choisir un dossier ou un fichier s'affichent devant ASTRO. Si vous préférez le navigateur, comme avant, utilisez « Utiliser le navigateur au lieu de cette fenêtre » en bas de l'accueil."
+  ],
+  "de": [
+   "ASTRO öffnet sich in einem eigenen Fenster, im Vollbild und ohne Browser: Start, Aufnahmen, Kalibrierbibliothek und Wissenschaft sind alle im selben Fenster.",
+   "Aus jedem Bereich bringt dich „Alle Bereiche“ (oben links) zurück zum Start.",
+   "Die Fenster zum Auswählen eines Ordners oder einer Datei erscheinen vor ASTRO. Wenn du lieber wie früher den Browser nutzt, findest du unten im Start „Browser statt dieses Fensters verwenden“."
+  ],
+  "it": [
+   "ASTRO si apre nella sua finestra, a schermo intero e senza browser: l'inizio, le tue pose, la libreria di calibrazione e Scienza sono tutti nella stessa finestra.",
+   "Da qualsiasi sezione, «Tutte le sezioni» (in alto a sinistra) ti riporta all'inizio.",
+   "Le finestre per scegliere una cartella o un file compaiono davanti ad ASTRO. Se preferisci il browser, come prima, in basso nell'inizio c'è «Usa il browser invece di questa finestra»."
+  ],
+  "pt": [
+   "O ASTRO abre-se na sua própria janela, em ecrã inteiro e sem navegador: o início, as suas exposições, a biblioteca de calibração e a Ciência estão todos na mesma janela.",
+   "A partir de qualquer secção, «Todas as secções» (em cima à esquerda) leva-o de volta ao início.",
+   "As janelas para escolher uma pasta ou um ficheiro aparecem à frente do ASTRO. Se preferir o navegador, como antes, em baixo no início tem «Usar o navegador em vez desta janela»."
+  ]
+ },
+ {
   "version": "0.21.1",
   "es": [
    "Trazas: el borde recto de una nebulosa ya no se confunde con una traza de satélite o de avión (una toma buena ya no se marca como rechazable por eso).",

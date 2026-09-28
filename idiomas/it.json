@@ -2585,7 +2585,9 @@
 "Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "I tuoi progetti di tutti gli anni: quante ore hai, cosa manca e come continuare",
 "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "I tuoi progetti di tutti gli anni: indicizza le cartelle, guarda come procedono e analizza, screma e impila ognuno",
 "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indicizzata dall'Archivio: non ancora analizzata. Analizzala dal suo progetto, nell'Archivio.",
-"Ya se está indexando otra carpeta.": "Si sta già indicizzando un'altra cartella."
+"Ya se está indexando otra carpeta.": "Si sta già indicizzando un'altra cartella.",
+"Todos los apartados": "Tutte le sezioni",
+"No hay archivos FITS, XISF o RAW en esa carpeta": "In questa cartella non ci sono file FITS, XISF o RAW"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",
@@ -3015,7 +3017,10 @@
 "%s · medido": "%s · misurato",
 "Longitud de onda (Å)": "Lunghezza d'onda (Å)",
 "Residuos · RMS %.2f ppt": "Residui · RMS %.2f ppt",
-"ASTRO-calidad-del-cielo.csv": "ASTRO-qualita-del-cielo.csv"
+"ASTRO-calidad-del-cielo.csv": "ASTRO-qualita-del-cielo.csv",
+"Carpeta con tus darks, flats o bias": "Cartella con i tuoi dark, flat o bias",
+"Carpeta raíz de tu archivo (por ejemplo, la que tiene una carpeta por año)": "Cartella principale del tuo archivio (per esempio, quella con una cartella per anno)",
+"Carpeta con las tomas de la sesión": "Cartella con gli scatti della sessione"
 },
 "bloques": {
 "cielo": {

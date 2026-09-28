@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.13"
+VERSION_PROG = "2026.09.28.14"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -25,7 +25,14 @@ def abrir_sistema(ruta, revelar=False):
     try:
         if ES_MAC:
             subprocess.Popen(["open", "-R", ruta] if revelar else ["open", ruta])
+            if revelar:          # el Finder, delante de ASTRO
+                subprocess.Popen(["osascript", "-e", 'tell application "Finder" to activate'])
         elif ES_WIN:
+            try:                 # que el Explorador pueda ponerse delante de la ventana de ASTRO
+                import ctypes
+                ctypes.windll.user32.AllowSetForegroundWindow(-1)
+            except Exception:
+                pass
             if revelar:
                 subprocess.Popen(["explorer", "/select,", os.path.normpath(ruta)])
             else:
@@ -34,6 +41,19 @@ def abrir_sistema(ruta, revelar=False):
             subprocess.Popen(["xdg-open", os.path.dirname(ruta) if revelar else ruta])
     except Exception:
         pass
+
+def _dialogo_ventana(tipo, *args):
+    """Dentro de la ventana de ASTRO, sus diálogos (pegados a ella y siempre delante); si no, None."""
+    import builtins
+    d = getattr(builtins, "ASTRO_DIALOGOS", None)
+    if not d or tipo not in d:
+        return None
+    try:
+        return d[tipo](*args) or ""
+    except Exception as e:
+        print("Diálogo de la ventana:", e)
+        return None
+
 
 
 def conectar_red(ip):
@@ -667,6 +687,7 @@ a{color:var(--accent)}
 .grupo{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px;font-weight:700}
 .nav{display:flex;align-items:center;gap:11px;width:100%;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;text-align:left;text-decoration:none;cursor:pointer}
 .nav:hover{background:var(--surface2);color:var(--text)}
+.navInicio{margin:0 0 8px;border:1px solid var(--line);color:var(--text);text-decoration:none} .navInicio svg{color:var(--accent)}
 .nav.on{background:var(--accent-soft);color:var(--text)} .nav.on svg{color:var(--accent)}
 .nav .cnt{margin-left:auto;font-size:12px;color:var(--faint);font-weight:600}
 #btnDirecto .punto{display:none;width:8px;height:8px;margin:0 0 0 auto;border-radius:50%}
@@ -1202,6 +1223,34 @@ table.arcFxA{min-width:0} table.arcFxA td,table.arcFxA th{text-align:right} tabl
 const VERSION_ACTUAL = "__VERSION__";
 const IDIOMAS_ASTRO = {es:"Español", en:"English", fr:"Français", de:"Deutsch", it:"Italiano", pt:"Português"};
 const IDIOMA = (v => IDIOMAS_ASTRO[v] ? v : (l => IDIOMAS_ASTRO[l] ? l : "en")((navigator.language||"es").slice(0,2).toLowerCase()))("__IDIOMA__");
+
+// ── dentro de la ventana de ASTRO (sin navegador): enlace a todos los apartados, ventanas nuevas y correo ──
+function abrirExterno(u){
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.abrir_url){ api.abrir_url(new URL(u, location.href).href); return; }
+  location.href = u;
+}
+(() => {
+  const _open = window.open;
+  window.open = function(u){
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.abrir_url && u){ api.abrir_url(new URL(u, location.href).href); return null; }
+    return _open.apply(window, arguments);
+  };
+  const ir = async () => {
+    try {
+      const e = await (await fetch("/api/enlaces")).json();
+      if (!e.inicio || document.getElementById("navInicio")) return;
+      const lat = document.querySelector(".lat"), marca = lat && lat.querySelector(".marca"); if (!marca) return;
+      const a = document.createElement("a"); a.id = "navInicio"; a.className = "nav navInicio notr";
+      a.href = `http://127.0.0.1:${e.inicio}/inicio`;
+      a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span></span>';
+      a.querySelector("span").textContent = trLT("Todos los apartados", "All sections");
+      marca.after(a); marca.style.cursor = "pointer"; marca.title = a.querySelector("span").textContent; marca.onclick = () => { location.href = a.href; };
+    } catch(_){}
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ir); else setTimeout(ir, 0);
+})();
 const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemplo
 (function(){
   if (!EJEMPLO_ASTRO) return;
@@ -6145,7 +6194,7 @@ function informarProblema(){
     if (vacio()) return;
     const asunto = tr("Informe de problema de ASTRO") + " · " + tr(DIAG.version_app || DIAG.version_programa);
     let cuerpo = informe(true); if (cuerpo.length > 1700) cuerpo = cuerpo.slice(0, 1700) + "\n…";
-    location.href = "mailto:" + encodeURIComponent(DIAG.contacto) + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(cuerpo);
+    abrirExterno("mailto:" + encodeURIComponent(DIAG.contacto) + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(cuerpo));
   };
   setTimeout(()=> $("infTexto").focus(), 50);
 }
@@ -9917,6 +9966,9 @@ def elegir_carpeta(texto=None, con_fallo=False):
     """Ventana del sistema para elegir una carpeta; devuelve la ruta o "" si se cancela.
     Con con_fallo=True devuelve (ruta, fallo): fallo es True si la ventana no se ha podido abrir."""
     texto = (texto or _txt_elegir()).replace('"', "'").replace("'", "’")
+    r = _dialogo_ventana("carpeta", texto)
+    if r is not None:
+        return (r, False) if con_fallo else r
     ruta, fallo = "", True
     try:
         if ES_MAC:
@@ -11624,14 +11676,14 @@ def _txt_elegir_registros():
 
 def _txt_elegir_archivo():
     try:
-        return "Root folder of your archive (for example, the one with a folder per year)" if idioma_actual() == "en" else "Carpeta raíz de tu archivo (por ejemplo, la que tiene una carpeta por año)"
+        return _L("Carpeta raíz de tu archivo (por ejemplo, la que tiene una carpeta por año)", "Root folder of your archive (for example, the one with a folder per year)")
     except Exception:
         return "Carpeta raíz de tu archivo"
 
 
 def _txt_elegir_importar():
     try:
-        return "Folder with the session frames" if idioma_actual() == "en" else "Carpeta con las tomas de la sesión"
+        return _L("Carpeta con las tomas de la sesión", "Folder with the session frames")
     except Exception:
         return "Carpeta con las tomas de la sesión"
 
@@ -12518,6 +12570,9 @@ def trabajo_exportar(objeto, opc, extra):
 def elegir_archivo_proyecto():
     """Ventana del sistema para elegir el ZIP (o proyecto.json) de un proyecto; devuelve (ruta, fallo)."""
     texto = _L("Elige el proyecto de ASTRO (.zip o proyecto.json)", "Choose the ASTRO project (.zip or proyecto.json)")
+    r = _dialogo_ventana("archivo", texto, ("ASTRO (*.zip;*.json)",))
+    if r is not None:
+        return r, False
     ruta, fallo = "", True
     try:
         if ES_MAC:
@@ -12850,7 +12905,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(diagnostico(), ensure_ascii=False))
         if p.path == "/api/enlaces":
             return self._send(200, json.dumps({"integrado": INTEGRADO, "version": VERSION_PROG,
-                "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0)}))
+                "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0),
+                "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
         if p.path == "/api/ping":
             return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG}))
         q = urllib.parse.parse_qs(p.query)

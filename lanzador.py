@@ -120,6 +120,21 @@ def url(puerto):
 
 
 def reiniciar():
+    """Vuelve a abrir ASTRO. Con la ventana propia, primero se cierra la ventana (sin preguntar) y main_ventana
+    hace el resto cuando la ventana ya no está: así no quedan dos ventanas ni dos motores web a la vez."""
+    app = globals().get("VENTANA_APP") or {}
+    if app.get("w") is not None and not app.get("reiniciar"):
+        app["reiniciar"] = True
+        try:
+            app["w"].confirm_close = False
+            app["w"].destroy()
+            return
+        except Exception:
+            pass
+    _reiniciar_ya()
+
+
+def _reiniciar_ya():
     if getattr(sys, "frozen", False):
         os.execv(sys.executable, [sys.executable])
     os.execv(sys.executable, [sys.executable, os.path.abspath(__file__)])
@@ -835,7 +850,7 @@ def _datos_ejemplo():
     except Exception as e:
         print("Datos de ejemplo:", e)
         c = leer_config(); c.pop("ejemplo", None); guardar_config(c)
-        if TK:
+        if TK and not VENTANA_APP.get("w"):
             r = tk.Tk(); r.withdraw(); messagebox.showerror("ASTRO", T("ejemplo_error") % e); r.destroy()
         return None
 
@@ -956,6 +971,14 @@ def carpeta_datos():
 
 def ya_abierto():
     c = leer_config()
+    pi = (c.get("puertos") or {}).get("inicio")
+    if pi and (ping(pi) or {}).get("programa") == "inicio":
+        # ASTRO ya está abierto en su ventana: se trae delante
+        try:
+            urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:%d/api/mostrar" % pi, data=b"{}", method="POST"), timeout=3).read()
+        except Exception:
+            pass
+        return True
     p = (c.get("puertos") or {}).get("lights")
     if p and (ping(p) or {}).get("programa") == "lights":
         webbrowser.open(url(p))
@@ -1072,11 +1095,651 @@ def _ventana_inicio(datos, puertos):
         _enlace(enl, "✦ " + T("novedades"), lambda: ventana_novedades(w, novedades_para(maximo=3))).pack(side="left")
     if not MODO["ejemplo"] and os.path.exists(os.path.join(recursos(), "demo", "astro-ejemplo.zip")):
         _enlace(enl, T("ejemplo_ver"), entrar_ejemplo).pack(side="left", padx=(20, 0))
+    if hay_ventana_propia():
+        def a_ventana():
+            cc = leer_config(); cc.pop("ventana", None); guardar_config(cc); reiniciar()
+        _enlace(enl, T("app_ventana"), a_ventana).pack(side="left", padx=(20, 0))
     tk.Label(izq, text=T("datos_en") + (T("ejemplo_carpeta") if MODO["ejemplo"] else datos), bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=520,
              justify="left").pack(fill="x", anchor="w", pady=(2, 0))
     w.protocol("WM_DELETE_WINDOW", lambda: os._exit(0) if messagebox.askyesno("ASTRO", T("cerrar_q")) else None)
     w.mainloop()
     return estado["cambio"]
+
+
+# ─────────────── ventana única: todo ASTRO dentro de su propia ventana, sin el navegador ───────────────
+# Se usa el motor web que ya trae el sistema (pywebview): en Windows, Edge WebView2 (Chromium); en el Mac, el de
+# Safari. El lanzador sirve sus propias páginas (inicio, bienvenida y espera) y los tres programas se abren
+# dentro de la misma ventana. Si la ventana no se puede abrir, ASTRO sigue como antes, con el navegador.
+VENTANA_APP = {"webview": None, "w": None, "puerto": 0, "evento": threading.Event(), "eleccion": None,
+               "puertos": {}, "datos": "", "max": False}
+ESTADO_APP = {"fase": "abriendo", "p": 0.0, "version": "", "mensaje": "", "error": ""}
+
+TXT_APP = {
+    "es": {"app_elige": "Elige por dónde empezar.", "app_abriendo": "Abriendo ASTRO…", "app_buscando": "Comprobando si hay una versión nueva…",
+           "app_arrancando": "Preparando tus datos…", "app_error": "ASTRO no ha podido arrancar",
+           "app_navegador": "Usar el navegador en lugar de esta ventana", "app_ventana": "Abrir ASTRO en su propia ventana",
+           "app_cancelar": "Cancelar", "app_reiniciar": "Reiniciar ASTRO", "app_cambiar_q": "ASTRO se reiniciará con esta carpeta de datos:",
+           "app_cambiar_nota": "Los datos de la carpeta anterior no se mueven.", "app_registro": "Registro:"},
+    "en": {"app_elige": "Choose where to start.", "app_abriendo": "Opening ASTRO…", "app_buscando": "Checking for a new version…",
+           "app_arrancando": "Getting your data ready…", "app_error": "ASTRO could not start",
+           "app_navegador": "Use the browser instead of this window", "app_ventana": "Open ASTRO in its own window",
+           "app_cancelar": "Cancel", "app_reiniciar": "Restart ASTRO", "app_cambiar_q": "ASTRO will restart with this data folder:",
+           "app_cambiar_nota": "Data in the previous folder is not moved.", "app_registro": "Log:"},
+    "fr": {"app_elige": "Choisissez par où commencer.", "app_abriendo": "Ouverture d'ASTRO…", "app_buscando": "Recherche d'une nouvelle version…",
+           "app_arrancando": "Préparation de vos données…", "app_error": "ASTRO n'a pas pu démarrer",
+           "app_navegador": "Utiliser le navigateur au lieu de cette fenêtre", "app_ventana": "Ouvrir ASTRO dans sa propre fenêtre",
+           "app_cancelar": "Annuler", "app_reiniciar": "Redémarrer ASTRO", "app_cambiar_q": "ASTRO va redémarrer avec ce dossier de données :",
+           "app_cambiar_nota": "Les données du dossier précédent ne sont pas déplacées.", "app_registro": "Journal :"},
+    "de": {"app_elige": "Wähle, womit du anfangen willst.", "app_abriendo": "ASTRO wird geöffnet…", "app_buscando": "Suche nach einer neuen Version…",
+           "app_arrancando": "Deine Daten werden vorbereitet…", "app_error": "ASTRO konnte nicht starten",
+           "app_navegador": "Browser statt dieses Fensters verwenden", "app_ventana": "ASTRO in einem eigenen Fenster öffnen",
+           "app_cancelar": "Abbrechen", "app_reiniciar": "ASTRO neu starten", "app_cambiar_q": "ASTRO startet mit diesem Datenordner neu:",
+           "app_cambiar_nota": "Die Daten im bisherigen Ordner werden nicht verschoben.", "app_registro": "Protokoll:"},
+    "it": {"app_elige": "Scegli da dove cominciare.", "app_abriendo": "Apertura di ASTRO…", "app_buscando": "Controllo se c'è una nuova versione…",
+           "app_arrancando": "Preparazione dei tuoi dati…", "app_error": "ASTRO non è riuscito ad avviarsi",
+           "app_navegador": "Usa il browser invece di questa finestra", "app_ventana": "Apri ASTRO nella sua finestra",
+           "app_cancelar": "Annulla", "app_reiniciar": "Riavvia ASTRO", "app_cambiar_q": "ASTRO si riavvierà con questa cartella dati:",
+           "app_cambiar_nota": "I dati della cartella precedente non vengono spostati.", "app_registro": "Registro:"},
+    "pt": {"app_elige": "Escolha por onde começar.", "app_abriendo": "A abrir o ASTRO…", "app_buscando": "A verificar se há uma versão nova…",
+           "app_arrancando": "A preparar os seus dados…", "app_error": "O ASTRO não conseguiu arrancar",
+           "app_navegador": "Usar o navegador em vez desta janela", "app_ventana": "Abrir o ASTRO na sua própria janela",
+           "app_cancelar": "Cancelar", "app_reiniciar": "Reiniciar o ASTRO", "app_cambiar_q": "O ASTRO vai reiniciar com esta pasta de dados:",
+           "app_cambiar_nota": "Os dados da pasta anterior não são movidos.", "app_registro": "Registo:"},
+}
+for _l, _d in TXT_APP.items():
+    TXT[_l].update(_d)
+
+
+def cargar_webview():
+    """pywebview, si esta instalación puede abrir la ventana propia; None para seguir con el navegador."""
+    if os.environ.get("ASTRO_SIN_VENTANA") == "1" or os.environ.get("ASTRO_NAVEGADOR") == "1":
+        return None
+    if leer_config().get("ventana") == "navegador":
+        return None
+    if not (ES_MAC or ES_WIN or os.environ.get("ASTRO_VENTANA_LINUX") == "1"):
+        return None
+    if ES_WIN and not _hay_webview2():
+        print("Sin ventana propia: falta el motor WebView2 de Microsoft (se usa el navegador)")
+        return None
+    try:
+        import webview
+        return webview
+    except Exception as e:
+        print("Sin ventana propia (se usa el navegador):", e)
+        return None
+
+
+def _hay_webview2():
+    """Windows: ¿está el motor WebView2 de Microsoft? (viene con Windows 11 y con Edge en Windows 10). Sin él,
+    pywebview usaría el viejo Internet Explorer, que no sabe mostrar ASTRO: mejor el navegador."""
+    if not ES_WIN:
+        return False
+    try:
+        import winreg
+    except Exception:
+        return False
+    claves = ("{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", "{2CD8A007-E189-409D-A2C8-9AF4EF3C72AA}",
+              "{0D50BFEC-CD6A-4F9A-964C-C7416E3ACB10}", "{65C35B14-6C1D-4122-AC46-7148CC9D6497}")
+    for clave in claves:
+        for raiz, ruta in ((winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\%s"),
+                           (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\EdgeUpdate\Clients\%s"),
+                           (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\EdgeUpdate\Clients\%s")):
+            try:
+                with winreg.OpenKey(raiz, ruta % clave) as k:
+                    v = str(winreg.QueryValueEx(k, "pv")[0])
+                if v and int(v.split(".")[0]) >= 86:
+                    return True
+            except Exception:
+                pass
+    return False
+
+
+def hay_ventana_propia():
+    try:
+        import importlib.util
+        if ES_WIN and not _hay_webview2():
+            return False
+        return importlib.util.find_spec("webview") is not None and (ES_MAC or ES_WIN or os.environ.get("ASTRO_VENTANA_LINUX") == "1")
+    except Exception:
+        return False
+
+
+def url_app(ruta="/"):
+    return "http://127.0.0.1:%d%s" % (VENTANA_APP["puerto"], ruta)
+
+
+def _fuente_manrope():
+    """La letra de los programas (va dentro de programa-lights.py), para que el inicio se vea igual."""
+    if "manrope" not in VENTANA_APP:
+        try:
+            with open(os.path.join(recursos(), "programa-lights.py"), "r", encoding="utf-8") as f:
+                m = re.search(r'^MANROPE_WOFF2 = "([A-Za-z0-9+/=]+)"', f.read(), re.M)
+            VENTANA_APP["manrope"] = m.group(1) if m else ""
+        except Exception:
+            VENTANA_APP["manrope"] = ""
+    return VENTANA_APP["manrope"]
+
+
+def _tema(datos):
+    try:
+        with open(os.path.join(datos, ".astro-config.json"), "r", encoding="utf-8") as f:
+            t = (json.load(f) or {}).get("tema") or ""
+    except Exception:
+        t = ""
+    return t if t in ("dia", "noche", "rojo") else "dia"
+
+
+def _h(t):
+    return (str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;"))
+
+
+CSS_APP = """
+@font-face{font-family:Manrope;src:url(data:font/woff2;base64,__MANROPE__) format("woff2");font-weight:200 800;font-display:swap}
+:root{--bg:#F5F4F7;--surface:#FFFFFF;--surface2:#F3F1F6;--line:#E8E4ED;--line2:#D5CFDE;--text:#19141F;--muted:#665E72;--faint:#9790A3;
+  --accent:#5B2C87;--accent2:#6C3A9E;--accent-soft:#F1EAF8;--on-accent:#FFFFFF;--aviso-bg:#FBF1D6;--aviso-borde:#EBC96B;--aviso:#5C4300;
+  --sombra:0 1px 2px rgba(25,20,31,.06),0 2px 8px rgba(25,20,31,.04);color-scheme:light}
+:root[data-tema="noche"],:root[data-tema="rojo"]{--bg:#0C0A10;--surface:#16131B;--surface2:#1C1823;--line:#28222F;--line2:#393243;--text:#EEEAF3;
+  --muted:#A098AC;--faint:#6D6580;--accent:#B993E8;--accent2:#A47CD9;--accent-soft:rgba(185,147,232,.13);--on-accent:#1B0F28;
+  --aviso-bg:rgba(232,189,80,.10);--aviso-borde:rgba(232,189,80,.35);--aviso:#E8BD50;--sombra:none;color-scheme:dark}
+:root[data-tema="rojo"]{filter:url(#filtroRojo);background:#000}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font:15px/1.45 Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+.cab{position:relative;background:#140C2C url(/img/cabecera.jpg) center 70%/cover;color:#fff;padding:26px 36px 28px}
+.cab h1{margin:0;font-size:40px;font-weight:800;letter-spacing:-.01em;line-height:1.05}
+.cab p{margin:6px 0 0 3px;font-size:16px;color:#E8DDF5}
+.beta{position:absolute;right:28px;top:22px;background:#F2C14E;color:#3A2A00;font-weight:800;font-size:12.5px;padding:4px 11px;border-radius:6px}
+.cuerpo{max-width:1240px;margin:0 auto;padding:22px 28px 10px}
+.fila{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.spacer{flex:1}
+.idiomas{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.idiomas span{color:var(--muted);font-size:13.5px;margin-right:2px}
+.btn{font:inherit;font-weight:700;font-size:14px;border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:10px;padding:8px 15px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.prim{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.chico{font-size:13px;padding:5px 11px;border-radius:8px}
+.btn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.enl{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.aviso{display:flex;gap:14px;align-items:center;background:var(--aviso-bg);border:1px solid var(--aviso-borde);color:var(--aviso);border-radius:12px;padding:10px 14px;margin:14px 0 4px}
+.aviso p{margin:0;flex:1}
+.rejilla{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin:16px 0 8px}
+@media (max-width:1150px){.rejilla{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:920px){.rejilla{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:680px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}.cab h1{font-size:32px}}
+.tarj{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:var(--text);box-shadow:var(--sombra);transition:border-color .12s,transform .12s}
+.tarj:hover{border-color:var(--accent);transform:translateY(-1px)}
+.tarj img{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;background:#140C2C}
+.tarj b{display:block;font-size:15.5px;margin:10px 12px 2px;line-height:1.25}
+.tarj span{display:block;font-size:13px;color:var(--muted);margin:0 12px 12px;line-height:1.4}
+.pie{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:10px 0 6px}
+.pie .datos{color:var(--muted);font-size:13px;word-break:break-all}
+.autor{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding:14px 28px 18px;color:var(--muted);font-size:12.5px;background:var(--surface)}
+.autor .escudos{display:flex;gap:12px;align-items:center}.autor .escudos img{height:44px;width:auto}
+.modal{position:fixed;inset:0;background:rgba(12,8,20,.45);display:none;align-items:flex-start;justify-content:center;padding:60px 20px;z-index:10;overflow:auto}
+.modal.show{display:flex}
+.caja{background:var(--surface);color:var(--text);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:24px 28px;max-width:640px;width:100%}
+.caja h2{margin:0 0 8px;font-size:21px}.caja h3{margin:18px 0 6px;font-size:15px;color:var(--muted)}
+.caja ul{margin:0;padding:0;list-style:none}.caja li{display:flex;gap:10px;margin:6px 0;line-height:1.45}.caja li:before{content:"✦";color:var(--accent2);flex:none}
+.caja .botones{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.ruta{background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-weight:600;word-break:break-all}
+.nota{color:var(--muted);font-size:13px}
+.espera{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;text-align:center}
+.estrella{font-size:46px;color:var(--accent);animation:gira 2.4s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+.barra{width:min(420px,80vw);height:10px;border-radius:6px;background:var(--line);overflow:hidden}.barra i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+"""
+
+FILTRO_ROJO = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="filtroRojo" color-interpolation-filters="sRGB">'
+               '<feColorMatrix type="matrix" values="0.24 0.46 0.09 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter></svg>')
+
+
+def _pagina(titulo, cuerpo, js="", tema="dia", cabecera=True):
+    beta = ('<div class="beta">BETA · v%s</div>' % _h(re.sub(r"[-\s]*beta", "", VERSION_APP, flags=re.I))) if ES_BETA else ""
+    cab = ('<header class="cab"><h1>✦ ASTRO</h1><p>%s</p>%s</header>' % (_h(T("lema_largo")), beta)) if cabecera else ""
+    return ('<!DOCTYPE html><html lang="%s" data-tema="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>%s</title><style>%s</style></head><body>%s%s%s<script>%s</script></body></html>') % (
+        IDIOMA["v"], tema, _h(titulo), CSS_APP.replace("__MANROPE__", _fuente_manrope()), FILTRO_ROJO, cab, cuerpo, JS_APP_COMUN + js)
+
+
+JS_APP_COMUN = r"""
+const $ = id => document.getElementById(id);
+async function post(ruta, datos){ const r = await fetch(ruta, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos||{})}); return r.json(); }
+function modal(html){ let m = $("modal"); if (!m){ m = document.createElement("div"); m.id = "modal"; m.className = "modal"; document.body.append(m);
+  m.addEventListener("click", e => { if (e.target === m) m.classList.remove("show"); }); }
+  m.innerHTML = '<div class="caja">' + html + '</div>'; m.classList.add("show"); return m; }
+function cerrarModal(){ const m = $("modal"); if (m) m.classList.remove("show"); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarModal(); });
+document.querySelectorAll("[data-idioma]").forEach(b => b.onclick = async () => { await post("/api/idioma", {idioma:b.dataset.idioma}); location.reload(); });
+"""
+
+
+def _selector_idioma_html():
+    return '<div class="idiomas"><span>%s</span>%s</div>' % (_h(T("idioma")), "".join(
+        '<button class="btn chico%s" data-idioma="%s">%s</button>' % (" on" if cod == IDIOMA["v"] else "", cod, nom) for cod, nom in IDIOMAS_LANZ))
+
+
+def _autor_html():
+    esc = "".join('<img src="/img/%s" alt="">' % n for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png")
+                  if os.path.exists(os.path.join(recursos(), "imagenes", "web", n)) or os.path.exists(os.path.join(recursos(), "imagenes", n)))
+    return '<footer class="autor"><span>%s</span><span class="escudos">%s</span></footer>' % (_h(AUTOR[IDIOMA["v"]]), esc)
+
+
+def pagina_espera():
+    cuerpo = ('<div class="espera"><div class="estrella">✦</div><h2 id="txt" style="margin:0">%s</h2><div class="barra" id="barra" hidden><i></i></div>'
+              '<div id="err" class="nota" hidden></div></div>') % _h(T("app_abriendo"))
+    js = r"""
+const TXT = %s;
+async function mirar(){
+  let e; try { e = await (await fetch("/api/estado")).json(); } catch(_){ return setTimeout(mirar, 600); }
+  if (e.fase === "listo") return location.replace("/inicio");
+  if (e.fase === "bienvenida") return location.replace("/bienvenida");
+  $("txt").textContent = e.fase === "actualizando" ? TXT.actualizando.replace("%%s", e.version) : e.fase === "error" ? TXT.error : TXT[e.fase] || TXT.abriendo;
+  $("barra").hidden = e.fase !== "actualizando"; $("barra").firstChild.style.width = Math.round(100*(e.p||0)) + "%%";
+  if (e.fase === "error"){ $("err").hidden = false; $("err").innerHTML = e.error.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>") + '<p><button class="btn" onclick="post(\'/api/salir\')">' + TXT.salir + '</button></p>';
+    document.querySelector(".estrella").style.animation = "none"; return; }
+  setTimeout(mirar, 400);
+}
+mirar();""" % json.dumps({"abriendo": T("app_abriendo"), "comprobando": T("app_buscando"), "arrancando": T("app_arrancando"),
+                          "actualizando": T("actualizando"), "error": T("app_error"), "salir": T("salir")}, ensure_ascii=False)
+    return _pagina("ASTRO", cuerpo, js, _tema(VENTANA_APP["datos"]) if VENTANA_APP["datos"] else "dia", cabecera=False)
+
+
+def pagina_bienvenida():
+    propuesta = ESTADO_APP.get("propuesta") or leer_config().get("datos") or carpeta_por_defecto()
+    beta = ('<div class="aviso"><p><b>BETA</b> · %s</p></div>' % _h(T("beta"))) if ES_BETA else ""
+    hay_ejemplo = os.path.exists(os.path.join(recursos(), "demo", "astro-ejemplo.zip"))
+    cuerpo = ('<main class="cuerpo" style="max-width:820px">%s%s<h2 style="margin:18px 0 6px;font-size:26px">%s</h2>'
+              '<p class="nota" style="font-size:15px;white-space:pre-line">%s</p>'
+              '<div class="ruta" id="ruta">%s</div><div id="rutaErr" class="nota" style="color:#BA3A2E;margin-top:6px"></div>'
+              '<div class="fila" style="margin-top:16px"><button class="btn" id="otra">%s</button><span class="spacer"></span>'
+              '<button class="btn prim" id="empezar">%s</button></div>%s</main>%s') % (
+        _selector_idioma_html(), beta, _h(ESTADO_APP.get("mensaje") or T("bienvenido")), _h(T("intro")), _h(propuesta),
+        _h(T("otra")), _h(T("empezar")),
+        ('<p class="nota" style="margin-top:22px">%s <button class="enl" id="ejemplo">%s</button></p>' % (_h(T("ejemplo_bienv")), _h(T("ejemplo_ver"))))
+        if hay_ejemplo else "", _autor_html())
+    js = r"""
+$("otra").onclick = async () => { const r = await post("/api/bienvenida", {accion:"elegir", actual:$("ruta").textContent}); if (r.ruta){ $("ruta").textContent = r.ruta; $("rutaErr").textContent = ""; } };
+$("empezar").onclick = async () => { const r = await post("/api/bienvenida", {accion:"usar", ruta:$("ruta").textContent});
+  if (r.error){ $("rutaErr").textContent = r.error; return; } location.replace("/espera"); };
+if ($("ejemplo")) $("ejemplo").onclick = async () => { await post("/api/bienvenida", {accion:"ejemplo"}); location.replace("/espera"); };"""
+    return _pagina(T("titulo_bienv"), cuerpo, js)
+
+
+def _apartados_app():
+    P = VENTANA_APP["puertos"]
+    L, C, S = url(P["lights"]), url(P["calibracion"]), url(P["ciencia"])
+    return [("anadir", "t_anadir", "d_anadir", L + "#anadir"), ("objetos", "t_objetos", "d_objetos", L + "#objetos"),
+            ("archivo", "t_archivo", "d_archivo", L + "#archivo"), ("varios", "t_varios", "d_varios", L + "#varios"),
+            ("apilar", "t_apilar", "d_apilar", L + "#apilar"), ("noches", "t_noches", "d_noches", L + "#noches"),
+            ("quefotografio", "t_quefoto", "d_quefoto", L + "#quefotografio"), ("directo", "t_directo", "d_directo", L + "#directo"),
+            ("calibracion", "t_calib", "d_calib", C), ("ciencia", "t_ciencia", "d_ciencia", S)]
+
+
+def pagina_inicio():
+    datos = VENTANA_APP["datos"]
+    real = leer_config().get("datos")
+    aviso = ""
+    if MODO["ejemplo"]:
+        aviso = '<div class="aviso"><p>%s</p><button class="btn prim" id="salirEjemplo">%s</button></div>' % (
+            _h(T("ejemplo_aviso")), _h(T("ejemplo_volver") if real and os.path.isdir(real) else T("ejemplo_empezar")))
+    tarjetas = "".join('<a class="tarj" href="%s"><img src="/img/dibujo-%s.jpg" alt=""><b>%s</b><span>%s</span></a>' % (_h(u), d, _h(T(t)), _h(T(x)))
+                       for d, t, x, u in _apartados_app())
+    enlaces = []
+    if cargar_novedades():
+        enlaces.append('<button class="enl" id="novedades">✦ %s</button>' % _h(T("novedades")))
+    if not MODO["ejemplo"] and os.path.exists(os.path.join(recursos(), "demo", "astro-ejemplo.zip")):
+        enlaces.append('<button class="enl" id="entrarEjemplo">%s</button>' % _h(T("ejemplo_ver")))
+    pendientes = NOVEDADES["pendientes"] if not NOVEDADES["mostradas"] else []
+    NOVEDADES["mostradas"] = True
+    cuerpo = ('<main class="cuerpo"><div class="fila"><h2 style="margin:0;font-size:19px">%s</h2><span class="spacer"></span>%s</div>%s'
+              '<nav class="rejilla">%s</nav>'
+              '<div class="pie"><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:260px"><div class="fila" style="gap:20px">%s</div>'
+              '<div class="datos">%s%s</div></div><button class="btn" id="cambiar">%s</button><button class="btn" id="salir">%s</button></div>'
+              '<p class="nota" style="margin:8px 0 0"><button class="enl" id="navegador" style="font-weight:600;color:var(--muted)">%s</button></p></main>%s') % (
+        _h(T("app_elige")), _selector_idioma_html(), aviso, tarjetas, "".join(enlaces),
+        _h(T("datos_en")), _h(T("ejemplo_carpeta") if MODO["ejemplo"] else datos), _h(T("cambiar")), _h(T("salir")),
+        _h(T("app_navegador")), _autor_html())
+    js = r"""
+const TXT = %s, PENDIENTES = %s;
+function verNovedades(lista){
+  if (!lista.length) return;
+  modal(lista.map((n, i) => '<' + (i ? 'h3' : 'h2') + '>' + TXT.titulo.replace("%%s", n.version) + '</' + (i ? 'h3' : 'h2') + '><ul>' +
+    n.textos.map(t => '<li><span>' + t.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</span></li>').join("") + '</ul>').join("") +
+    '<div class="botones"><button class="btn prim" onclick="cerrarModal()">' + TXT.entendido + '</button></div>');
+}
+if ($("novedades")) $("novedades").onclick = async () => verNovedades(await (await fetch("/api/novedades")).json());
+if (PENDIENTES.length) setTimeout(() => verNovedades(PENDIENTES), 500);
+if ($("entrarEjemplo")) $("entrarEjemplo").onclick = () => post("/api/ejemplo", {accion:"entrar"});
+if ($("salirEjemplo")) $("salirEjemplo").onclick = () => post("/api/ejemplo", {accion:"salir"});
+$("salir").onclick = () => post("/api/salir");
+$("navegador").onclick = () => post("/api/modo", {ventana:"navegador"});
+$("cambiar").onclick = async () => {
+  const r = await post("/api/carpeta", {accion:"elegir"}); if (!r.ruta) return;
+  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  modal('<h2>' + TXT.cambiar + '</h2><p>' + TXT.cambiar_q + '</p><div class="ruta">' + esc(r.ruta) + '</div><p class="nota">' + TXT.nota + '</p>' +
+    '<div class="botones"><button class="btn" onclick="cerrarModal()">' + TXT.cancelar + '</button><button class="btn prim" id="okCambiar">' + TXT.reiniciar + '</button></div>');
+  $("okCambiar").onclick = () => post("/api/carpeta", {accion:"usar", ruta:r.ruta});
+};""" % (json.dumps({"titulo": T("novedades_titulo"), "entendido": T("entendido"), "cambiar": T("cambiar").rstrip("…."),
+                     "cambiar_q": T("app_cambiar_q"), "nota": T("app_cambiar_nota"), "cancelar": T("app_cancelar"),
+                     "reiniciar": T("app_reiniciar")}, ensure_ascii=False),
+         json.dumps([_novedad_publica(n) for n in pendientes], ensure_ascii=False))
+    return _pagina("ASTRO", cuerpo, js, _tema(datos))
+
+
+def _novedad_publica(n):
+    return {"version": n.get("version", ""), "textos": n.get(IDIOMA["v"]) or n.get("en") or n.get("es") or []}
+
+
+# ── diálogos del sistema, pegados a la ventana de ASTRO (siempre delante) ──
+def _dlg_carpeta(titulo="", inicial=""):
+    w, wv = VENTANA_APP["w"], VENTANA_APP["webview"]
+    r = w.create_file_dialog(wv.FileDialog.FOLDER, directory=inicial if inicial and os.path.isdir(inicial) else "")
+    if isinstance(r, (list, tuple)):
+        r = r[0] if r else ""
+    return r or ""
+
+
+def _dlg_archivo(titulo="", tipos=()):
+    w, wv = VENTANA_APP["w"], VENTANA_APP["webview"]
+    r = w.create_file_dialog(wv.FileDialog.OPEN, allow_multiple=False, file_types=tuple(tipos or ()))
+    if isinstance(r, (list, tuple)):
+        r = r[0] if r else ""
+    return r or ""
+
+
+def _validar_carpeta(ruta):
+    """Normaliza la carpeta de datos elegida y comprueba que se puede usar; devuelve (ruta, error)."""
+    ruta = normalizar_datos((ruta or "").strip())
+    try:
+        os.makedirs(ruta, exist_ok=True)
+        prueba = os.path.join(ruta, ".astro-prueba")
+        with open(prueba, "w") as f:
+            f.write("ok")
+        os.remove(prueba)
+        return ruta, ""
+    except Exception as e:
+        return ruta, T("no_usar") % e
+
+
+class _PaginasApp(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def _enviar(self, codigo, cuerpo, tipo="text/html; charset=utf-8"):
+        b = cuerpo if isinstance(cuerpo, bytes) else cuerpo.encode("utf-8")
+        self.send_response(codigo)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store" if not tipo.startswith("image/") else "max-age=86400")
+        self.end_headers()
+        self.wfile.write(b)
+
+    def _json(self, d, codigo=200):
+        self._enviar(codigo, json.dumps(d, ensure_ascii=False), "application/json; charset=utf-8")
+
+    def do_GET(self):
+        p = urllib.parse.urlparse(self.path).path
+        if p == "/api/ping":
+            return self._json({"programa": "inicio", "version": VERSION_APP})
+        if p == "/api/estado":
+            return self._json({k: v for k, v in ESTADO_APP.items()})
+        if p == "/api/novedades":
+            return self._json([_novedad_publica(n) for n in novedades_para(maximo=3)])
+        if p.startswith("/img/"):
+            n = os.path.basename(p)
+            if re.match(r"^[\w-]+\.(png|jpg)$", n):
+                for d in (os.path.join(recursos(), "imagenes", "web"), os.path.join(recursos(), "imagenes")):
+                    r = os.path.join(d, n)
+                    if os.path.isfile(r):
+                        with open(r, "rb") as f:
+                            return self._enviar(200, f.read(), "image/png" if n.endswith(".png") else "image/jpeg")
+            return self._enviar(404, "")
+        fase = ESTADO_APP["fase"]
+        if p == "/inicio" and fase == "listo":
+            return self._enviar(200, pagina_inicio())
+        if p == "/bienvenida" and fase == "bienvenida":
+            return self._enviar(200, pagina_bienvenida())
+        if p in ("/", "/inicio", "/bienvenida", "/espera"):
+            if p == "/" and fase in ("listo", "bienvenida"):
+                return self._enviar(200, pagina_inicio() if fase == "listo" else pagina_bienvenida())
+            return self._enviar(200, pagina_espera())
+        return self._enviar(404, "")
+
+    def do_POST(self):
+        p = urllib.parse.urlparse(self.path).path
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            d = json.loads(self.rfile.read(n) or b"{}") if n else {}
+        except Exception:
+            d = {}
+        if p == "/api/idioma":
+            cod = d.get("idioma")
+            if cod in TXT:
+                poner_idioma_app(cod, VENTANA_APP["datos"] or None)
+            return self._json({"ok": True})
+        if p == "/api/bienvenida":
+            acc = d.get("accion")
+            if acc == "elegir":
+                r = _dlg_carpeta(T("carpeta_titulo"), os.path.dirname(d.get("actual") or "") or os.path.expanduser("~"))
+                return self._json({"ruta": normalizar_datos(r) if r else ""})
+            if acc == "usar":
+                ruta, err = _validar_carpeta(d.get("ruta"))
+                if err:
+                    return self._json({"error": err})
+                VENTANA_APP["eleccion"] = ruta
+            elif acc == "ejemplo":
+                VENTANA_APP["eleccion"] = EJEMPLO
+            else:
+                return self._json({"ok": False})
+            ESTADO_APP["fase"] = "arrancando"
+            VENTANA_APP["evento"].set()
+            return self._json({"ok": True})
+        if p == "/api/carpeta":
+            if d.get("accion") == "elegir":
+                r = _dlg_carpeta(T("nueva_carpeta"), VENTANA_APP["datos"])
+                return self._json({"ruta": normalizar_datos(r) if r else ""})
+            if d.get("accion") == "usar":
+                ruta, err = _validar_carpeta(d.get("ruta"))
+                if err:
+                    return self._json({"error": err})
+                c = leer_config(); c["datos"] = ruta; c.pop("ejemplo", None); guardar_config(c)
+                self._json({"ok": True})
+                threading.Timer(0.3, reiniciar).start()
+                return
+        if p == "/api/ejemplo":
+            self._json({"ok": True})
+            threading.Timer(0.3, entrar_ejemplo if d.get("accion") == "entrar" else salir_ejemplo).start()
+            return
+        if p == "/api/modo":
+            c = leer_config()
+            if d.get("ventana") == "navegador":
+                c["ventana"] = "navegador"
+            else:
+                c.pop("ventana", None)
+            guardar_config(c)
+            self._json({"ok": True})
+            threading.Timer(0.3, reiniciar).start()
+            return
+        if p == "/api/mostrar":
+            w = VENTANA_APP["w"]
+            try:
+                w.restore(); w.show()
+                w.on_top = True
+                threading.Timer(0.6, lambda: setattr(w, "on_top", False)).start()
+            except Exception:
+                pass
+            return self._json({"ok": True})
+        if p == "/api/salir":
+            self._json({"ok": True})
+            threading.Timer(0.2, lambda: os._exit(0)).start()
+            return
+        return self._json({"error": "no"}, 404)
+
+
+class _ServidorApp(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = os.name != "nt"
+
+
+def servir_paginas_app():
+    puerto = puerto_libre(8755)
+    srv = _ServidorApp(("127.0.0.1", puerto), _PaginasApp)
+    threading.Thread(target=srv.serve_forever, daemon=True, name="inicio").start()
+    VENTANA_APP["puerto"] = puerto
+    os.environ["ASTRO_PUERTO_INICIO"] = str(puerto)
+    return puerto
+
+
+def _abrir_url_externa(u):
+    """window.open y los enlaces de correo, desde dentro de la ventana: al navegador o al programa de correo."""
+    try:
+        webbrowser.open(str(u))
+    except Exception:
+        pass
+    return True
+
+
+class ApiVentana:
+    """Lo que las páginas pueden pedir a la ventana (window.pywebview.api.…)."""
+    def abrir_url(self, u):
+        return _abrir_url_externa(u)
+
+
+def _intento_actualizacion(tag):
+    """Cuenta los intentos: si una versión ya falló dos veces hoy, no se vuelve a probar."""
+    c = leer_config(); intento = c.get("intento_actualizacion") or {}
+    if time.time() - intento.get("cuando", 0) > 86400:
+        intento = {}
+    if intento.get("version") == tag and intento.get("veces", 0) >= 2:
+        print("La actualización a la versión %s ya falló dos veces; se sigue con la %s" % (tag, VERSION_APP))
+        return False
+    c["intento_actualizacion"] = {"version": tag, "cuando": intento.get("cuando") or time.time(),
+                                  "veces": (intento.get("veces", 0) + 1) if intento.get("version") == tag else 1}
+    guardar_config(c)
+    return True
+
+
+def _pedir_bienvenida(mensaje=None):
+    ESTADO_APP.update(fase="bienvenida", mensaje=mensaje or "")
+    BIENVENIDA["vista"] = True
+    VENTANA_APP["evento"].clear()
+    try:
+        VENTANA_APP["w"].load_url(url_app("/bienvenida"))
+    except Exception:
+        pass
+    VENTANA_APP["evento"].wait()
+    return VENTANA_APP["eleccion"]
+
+
+def carpeta_datos_app():
+    c = leer_config()
+    if c.get("ejemplo"):
+        d = _datos_ejemplo()
+        if d:
+            return d
+    datos = c.get("datos")
+    if datos and os.path.isdir(datos):
+        return datos
+    while True:
+        eleccion = _pedir_bienvenida(T("no_encuentro") % datos if datos and not os.path.isdir(datos) else None)
+        if eleccion != EJEMPLO:
+            break
+        c = leer_config(); c["ejemplo"] = True; guardar_config(c)
+        d = _datos_ejemplo()
+        if d:
+            return d
+        datos = None
+    c = leer_config(); c["datos"] = eleccion; c["idioma"] = IDIOMA["v"]; guardar_config(c)
+    return eleccion
+
+
+def arranque_app():
+    """Lo que antes hacían las ventanas del lanzador, ahora dentro de la ventana: actualizar, elegir la carpeta de datos y arrancar."""
+    w = VENTANA_APP["w"]
+    try:
+        ESTADO_APP["fase"] = "comprobando"
+        nueva = buscar_version_nueva()
+        if nueva and _intento_actualizacion(nueva[0]):
+            ESTADO_APP.update(fase="actualizando", version=nueva[0], p=0.0)
+            try:
+                actualizar(nueva[0], nueva[1], lambda p: ESTADO_APP.__setitem__("p", p))
+            except Exception as e:
+                print("No se pudo actualizar:", e)
+        ESTADO_APP["fase"] = "arrancando"
+        datos = carpeta_datos_app()
+        ESTADO_APP["fase"] = "arrancando"
+        VENTANA_APP["datos"] = datos
+        preparar_novedades()
+        if not BIENVENIDA["vista"] and not MODO["ejemplo"]:
+            v = idioma_de_datos(datos)
+            if v and v != IDIOMA["v"]:
+                poner_idioma_app(v)
+        compartir_idioma(datos)
+        puertos, faltan = arrancar(datos)
+        VENTANA_APP["puertos"] = puertos
+        c = leer_config(); c.setdefault("puertos", {}); c["puertos"]["inicio"] = VENTANA_APP["puerto"]; guardar_config(c)
+        if faltan:
+            texto = T("no_arranca") % (", ".join({"lights": T("lights"), "calibracion": T("biblio")}.get(f, T("ciencia")) for f in faltan), REGISTRO)
+            print(texto)
+            ESTADO_APP.update(fase="error", error=texto)
+            return
+        ESTADO_APP["fase"] = "listo"
+        w.load_url(url_app("/inicio"))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        ESTADO_APP.update(fase="error", error="%s\n%s %s" % (e, T("app_registro"), REGISTRO))
+
+
+def _guardar_geometria():
+    try:
+        w = VENTANA_APP["w"]
+        c = leer_config()
+        g = c.get("ventana_geo") or {}
+        g["max"] = bool(VENTANA_APP.get("max"))
+        if not g["max"] and w.width > 400 and w.height > 300:
+            g.update(w=int(w.width), h=int(w.height), x=int(w.x), y=int(w.y))
+        c["ventana_geo"] = g
+        guardar_config(c)
+    except Exception:
+        pass
+
+
+def main_ventana(webview):
+    """ASTRO en su propia ventana. Solo vuelve si la ventana no ha podido abrirse (para seguir con el navegador)."""
+    VENTANA_APP["webview"] = webview
+    servir_paginas_app()
+    import builtins
+    builtins.ASTRO_DIALOGOS = {"carpeta": _dlg_carpeta, "archivo": _dlg_archivo, "abrir_url": _abrir_url_externa}
+    geo = leer_config().get("ventana_geo") or {}
+    maxim = geo.get("max", True) if geo else True           # la primera vez, a toda la pantalla
+    VENTANA_APP["max"] = maxim
+    opciones = dict(width=int(geo.get("w") or 1280), height=int(geo.get("h") or 860), min_size=(900, 620),
+                    background_color="#F5F4F7", text_select=True, maximized=maxim, confirm_close=True, js_api=ApiVentana())
+    if geo.get("x") is not None and not maxim:
+        opciones.update(x=int(geo["x"]), y=int(geo["y"]))
+    w = webview.create_window("ASTRO", url_app("/espera"), **opciones)
+    VENTANA_APP["w"] = w
+
+    def maximizada():
+        VENTANA_APP["max"] = True
+
+    def restaurada():
+        VENTANA_APP["max"] = False
+    try:
+        w.events.maximized += maximizada
+        w.events.restored += restaurada
+        w.events.closing += _guardar_geometria
+    except Exception:
+        pass
+    gui = "edgechromium" if ES_WIN else ("qt" if not ES_MAC else None)
+    textos = {"global.quitConfirmation": T("cerrar_q"), "global.quit": T("salir"), "global.cancel": T("app_cancelar")}
+    webview.start(arranque_app, private_mode=False, storage_path=os.path.join(carpeta_config(), "ventana"),
+                  gui=gui, localization=textos)
+    if VENTANA_APP.get("reiniciar"):
+        _reiniciar_ya()
+    os._exit(0)
 
 
 def prueba_de_arranque(salida):
@@ -1120,6 +1783,20 @@ def prueba_de_arranque(salida):
         traceback.print_exc()
         print("Error en la prueba:", e)
         codigo = 1
+    # la ventana propia: que pywebview y su motor (WebKit en el Mac, WebView2 en Windows) carguen dentro de la
+    # aplicación. Si no cargan, ASTRO sigue funcionando en el navegador, así que es un aviso, no un fallo.
+    if ES_MAC or ES_WIN:
+        try:
+            import webview
+            from webview import guilib
+            g = guilib.initialize("edgechromium" if ES_WIN else None)
+            motor = getattr(g, "renderer", "?")
+            print("Ventana propia: pywebview %s, motor %s%s" % (getattr(webview, "__version__", "?"), motor,
+                  "" if not ES_WIN else (", WebView2 instalado" if _hay_webview2() else ", SIN WebView2")))
+            if ES_WIN and motor != "edgechromium":
+                print("AVISO: en Windows la ventana propia no usaría WebView2 (se abriría el navegador).")
+        except Exception as e:
+            print("AVISO: la ventana propia no carga (%s: %s); ASTRO se abriría en el navegador." % (type(e).__name__, e))
     try:
         sys.stdout.flush()
     except Exception:
@@ -1142,6 +1819,15 @@ def main():
     if ya_abierto():
         return
     instalar_si_hace_falta()
+    wv = cargar_webview()
+    if wv:
+        try:
+            main_ventana(wv)            # no vuelve: al cerrar la ventana se cierra ASTRO
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print("La ventana propia no se ha podido abrir; se sigue con el navegador:", e)
+            VENTANA_APP["w"] = None
     comprobar_actualizacion()
     datos = carpeta_datos()
     preparar_novedades()

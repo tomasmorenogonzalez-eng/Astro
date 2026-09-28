@@ -24,11 +24,25 @@ def _importados(archivo):
 PROGRAMAS = ["programa-lights.py", "programa-calibracion.py", "programa-ciencia.py"]
 DE_LOS_PROGRAMAS = sorted(m for p in PROGRAMAS for m in _importados(p) if m.split(".")[0] not in EXCLUIDOS)
 
+# La ventana propia (pywebview): en el Mac usa WebKit (pyobjc) y en Windows WebView2 (pythonnet). Los demás
+# motores que pywebview sabe usar (Qt, GTK, CEF) no hacen falta y no se meten aunque estén instalados.
+VENTANA = []
+if sys.platform == "darwin":
+    VENTANA = ["webview", "webview.platforms.cocoa"]
+elif sys.platform.startswith("win"):
+    VENTANA = ["webview", "webview.platforms.winforms", "webview.platforms.edgechromium", "clr"]
+SIN_VENTANA = ["webview.platforms.qt", "webview.platforms.gtk", "webview.platforms.cef", "webview.platforms.android",
+               "qtpy", "PyQt5", "PyQt6", "PySide2", "PySide6", "gi", "cefpython3"]
+try:
+    import webview  # noqa: F401  (si no está instalado, ASTRO se abre en el navegador, como antes)
+except Exception:
+    VENTANA = []
+
 a = Analysis(
     ["lanzador.py"],
     datas=[(p, ".") for p in PROGRAMAS] + [("icono.png", "."), ("imagenes", "imagenes"), ("idiomas", "idiomas"), ("demo", "demo"), ("novedades.json", ".")] + extras,
-    hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"] + DE_LOS_PROGRAMAS,
-    excludes=EXCLUIDOS,
+    hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"] + DE_LOS_PROGRAMAS + VENTANA,
+    excludes=EXCLUIDOS + SIN_VENTANA,
 )
 pyz = PYZ(a.pure)
 

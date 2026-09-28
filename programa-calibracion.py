@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.28.9"
+VERSION_PROG = "2026.09.28.10"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -27,7 +27,14 @@ def abrir_sistema(ruta, revelar=False):
     try:
         if ES_MAC:
             subprocess.Popen(["open", "-R", ruta] if revelar else ["open", ruta])
+            if revelar:          # el Finder, delante de ASTRO
+                subprocess.Popen(["osascript", "-e", 'tell application "Finder" to activate'])
         elif ES_WIN:
+            try:                 # que el Explorador pueda ponerse delante de la ventana de ASTRO
+                import ctypes
+                ctypes.windll.user32.AllowSetForegroundWindow(-1)
+            except Exception:
+                pass
             if revelar:
                 subprocess.Popen(["explorer", "/select,", os.path.normpath(ruta)])
             else:
@@ -36,6 +43,19 @@ def abrir_sistema(ruta, revelar=False):
             subprocess.Popen(["xdg-open", os.path.dirname(ruta) if revelar else ruta])
     except Exception:
         pass
+
+def _dialogo_ventana(tipo, *args):
+    """Dentro de la ventana de ASTRO, sus diálogos (pegados a ella y siempre delante); si no, None."""
+    import builtins
+    d = getattr(builtins, "ASTRO_DIALOGOS", None)
+    if not d or tipo not in d:
+        return None
+    try:
+        return d[tipo](*args) or ""
+    except Exception as e:
+        print("Diálogo de la ventana:", e)
+        return None
+
 
 
 def conectar_red(ip):
@@ -436,6 +456,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .grupo{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px;font-weight:700}
 .nav{display:flex;align-items:center;gap:11px;width:100%;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;text-align:left;text-decoration:none;cursor:pointer}
 .nav:hover{background:var(--surface2);color:var(--text)}
+.navInicio{margin:0 0 8px;border:1px solid var(--line);color:var(--text);text-decoration:none} .navInicio svg{color:var(--accent)}
 .volverAstro{margin:0 0 10px;border:1px solid var(--line);color:var(--text);text-decoration:none} .volverAstro svg{color:var(--accent)} .volverAstro .vtx{display:flex;flex-direction:column;line-height:1.2;min-width:0} .volverAstro small{font-size:11px;font-weight:600;color:var(--muted)} .volverAstro b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav.on{background:var(--accent-soft);color:var(--text)} .nav.on svg{color:var(--accent)}
 .nav .cnt{margin-left:auto;font-size:12px;color:var(--faint);font-weight:600}
@@ -709,6 +730,34 @@ function ponerVolverAstro(p){
   a.title = trLT("Control de lights", "Light frame checker");
   a.style.display = "";
 }
+
+// ── dentro de la ventana de ASTRO (sin navegador): enlace a todos los apartados, ventanas nuevas y correo ──
+function abrirExterno(u){
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.abrir_url){ api.abrir_url(new URL(u, location.href).href); return; }
+  location.href = u;
+}
+(() => {
+  const _open = window.open;
+  window.open = function(u){
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.abrir_url && u){ api.abrir_url(new URL(u, location.href).href); return null; }
+    return _open.apply(window, arguments);
+  };
+  const ir = async () => {
+    try {
+      const e = await (await fetch("/api/enlaces")).json();
+      if (!e.inicio || document.getElementById("navInicio")) return;
+      const lat = document.querySelector(".lat"), marca = lat && lat.querySelector(".marca"); if (!marca) return;
+      const a = document.createElement("a"); a.id = "navInicio"; a.className = "nav navInicio notr";
+      a.href = `http://127.0.0.1:${e.inicio}/inicio`;
+      a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span></span>';
+      a.querySelector("span").textContent = trLT("Todos los apartados", "All sections");
+      marca.after(a); marca.style.cursor = "pointer"; marca.title = a.querySelector("span").textContent; marca.onclick = () => { location.href = a.href; };
+    } catch(_){}
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ir); else setTimeout(ir, 0);
+})();
 const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemplo
 (function(){
   if (!EJEMPLO_ASTRO) return;
@@ -914,8 +963,36 @@ function groupDir(f){
 }
 async function copyIntoLibrary(file, rec){
   const rel = [safe(rec.cam||"Sin_camara"), TYPE_DIR[rec.type]||TYPE_DIR.unknown, groupDir(rec), file.name].join("/");
-  const r = await api("/api/upload?path="+encodeURIComponent(rel), {method:"POST", body:file});
+  const r = file instanceof ArchivoDisco
+    ? await api("/api/disco/copiar", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ruta:file.ruta, path:rel})})
+    : await api("/api/upload?path="+encodeURIComponent(rel), {method:"POST", body:file});
   rec.path = (await r.json()).path;
+}
+/* Tomas de una carpeta del disco: ASTRO la recorre y el navegador lee cada toma por trozos a través del programa
+   (sin subirla entera); al copiarla a la biblioteca, la copia la hace el programa. */
+class ArchivoDisco {
+  constructor(it){ this.ruta = it.ruta; this.name = it.nombre; this.size = it.size; this.lastModified = it.mtime; }
+  slice(a, b){
+    const ruta = this.ruta, size = this.size;
+    a = Math.max(0, a||0); b = Math.min(size, b===undefined ? size : b);
+    return { arrayBuffer: async () => {
+      if (b <= a) return new ArrayBuffer(0);
+      const r = await api("/api/disco/archivo?ruta="+encodeURIComponent(ruta), {headers:{Range:`bytes=${a}-${b-1}`}});
+      const buf = await r.arrayBuffer();
+      return r.status === 206 ? buf : buf.slice(a, b);
+    }};
+  }
+}
+async function elegirCarpetaDisco(){
+  let r = {};
+  try { r = await (await api("/api/disco/elegir", {method:"POST"})).json(); } catch(_){ r = {fallo:true}; }
+  if (r.fallo){ $("dirInput").click(); return; }
+  if (!r.ruta) return;
+  try {
+    const l = await (await api("/api/disco/listar", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({carpeta:r.ruta})})).json();
+    if (!l.items.length){ toast("No hay archivos FITS, XISF o RAW en esa carpeta"); return; }
+    await ingest(l.items.map(it => new ArchivoDisco(it)));
+  } catch(e){ toast(String(e.message||e)); }
 }
 async function deleteFromDisk(rec){
   if (!rec.path) return false;
@@ -1586,7 +1663,7 @@ const drop = $("drop");
 document.addEventListener("dragover", e => e.preventDefault()); document.addEventListener("drop", e => e.preventDefault());
 drop.addEventListener("drop", async e => { ingest(await collectDropped(e.dataTransfer)); });
 $("pickFiles").onclick = () => $("fileInput").click();
-$("pickDir").onclick = () => $("dirInput").click();
+$("pickDir").onclick = elegirCarpetaDisco;
 $("fileInput").onchange = e => { ingest(Array.from(e.target.files)); e.target.value=""; };
 $("dirInput").onchange = e => { ingest(Array.from(e.target.files)); e.target.value=""; };
 $("q").oninput = e => { filters.q = e.target.value; renderTable(); };
@@ -2245,7 +2322,7 @@ function informarProblema(){
     if (vacio()) return;
     const asunto = tr("Informe de problema de ASTRO") + " · " + tr(DIAG.version_app || DIAG.version_programa);
     let cuerpo = informe(true); if (cuerpo.length > 1700) cuerpo = cuerpo.slice(0, 1700) + "\n…";
-    location.href = "mailto:" + encodeURIComponent(DIAG.contacto) + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(cuerpo);
+    abrirExterno("mailto:" + encodeURIComponent(DIAG.contacto) + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(cuerpo));
   };
   setTimeout(()=> $("infTexto").focus(), 50);
 }
@@ -3115,6 +3192,66 @@ def mover_fuera(rels, destino):
     return {"movidos": movidos, "errores": errores, "carpeta": base_dest}
 
 
+
+# ── tomas de calibración desde una carpeta del disco: se leen donde están (por trozos) y se copian a la biblioteca ──
+_DISCO_OK = set()          # rutas que el navegador puede leer: solo las que ha encontrado ASTRO al recorrer la carpeta
+EXT_DISCO = (".fit", ".fits", ".fts", ".xisf", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".pef", ".raf", ".orf", ".rw2")
+
+
+def elegir_carpeta_cal():
+    """Ventana para elegir una carpeta de darks, flats o bias: (ruta, fallo)."""
+    texto = _L("Carpeta con tus darks, flats o bias", "Folder with your darks, flats or bias")
+    r = _dialogo_ventana("carpeta", texto)
+    if r is not None:
+        return r, False
+    ruta, fallo = "", True
+    try:
+        if ES_MAC:
+            r = subprocess.run(["osascript", "-e", "activate", "-e", 'POSIX path of (choose folder with prompt "%s")' % texto],
+                               capture_output=True, text=True, timeout=600)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0 and not re.search(r"cancel|-128", r.stderr or "", re.I)
+        elif ES_WIN:
+            ps = ("Add-Type -AssemblyName System.Windows.Forms;$f=New-Object System.Windows.Forms.FolderBrowserDialog;"
+                  "$f.Description='" + texto + "';$f.ShowNewFolderButton=$false;"
+                  "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
+                  "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.SelectedPath}")
+            r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
+                               timeout=600, encoding="utf-8", errors="replace", **SIN_VENTANA)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0
+    except Exception:
+        pass
+    return ruta, fallo
+
+
+def listar_disco(carpeta, maximo=20000):
+    """Archivos de calibración de una carpeta (y sus subcarpetas, siguiendo los enlaces sin repetir)."""
+    carpeta = os.path.abspath(carpeta)
+    if not os.path.isdir(carpeta):
+        raise RuntimeError("No encuentro esa carpeta. ¿Está conectada?")
+    items, vistas = [], set()
+    for raiz, dirs, archivos in os.walk(carpeta, followlinks=True):
+        real = os.path.realpath(raiz)
+        if real in vistas or raiz[len(carpeta):].count(os.sep) > 10:
+            dirs[:] = []; continue
+        vistas.add(real)
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for n in sorted(archivos):
+            if n.startswith(".") or not n.lower().endswith(EXT_DISCO):
+                continue
+            ruta = os.path.join(raiz, n)
+            try:
+                st = os.stat(ruta)
+            except OSError:
+                continue
+            if st.st_size < 2880:
+                continue
+            items.append({"ruta": ruta, "nombre": n, "size": st.st_size, "mtime": int(st.st_mtime * 1000)})
+            if len(items) >= maximo:
+                return items, True
+    return items, False
+
 def dentro(rel):
     rel = urllib.parse.unquote(rel or "").replace("\\", "/").strip("/")
     if not rel or ".." in rel.split("/"):
@@ -3161,13 +3298,56 @@ class H(BaseHTTPRequestHandler):
                 f.write(chunk); left -= len(chunk)
         os.replace(tmp, dest)
 
+    def _servir_archivo(self, ruta):
+        """Envía un archivo (o el trozo pedido con «Range: bytes=a-b») por bloques, sin cargarlo entero en memoria."""
+        try:
+            fh = open(ruta, "rb")
+            size = os.fstat(fh.fileno()).st_size
+        except OSError:
+            return self._send(404, "no encontrado", "text/plain; charset=utf-8")
+        with fh:
+            a, b, parcial = 0, size - 1, False
+            m = re.match(r"^bytes=(\d+)-(\d*)$", (self.headers.get("Range") or "").strip())
+            if m:
+                a = int(m.group(1))
+                b = min(size - 1, int(m.group(2))) if m.group(2) else size - 1
+                if a >= size or a > b:
+                    self.send_response(416)
+                    self.send_header("Content-Range", "bytes */%d" % size)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                parcial = True
+            n = b - a + 1 if size else 0
+            self.send_response(206 if parcial else 200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(n))
+            self.send_header("Accept-Ranges", "bytes")
+            if parcial:
+                self.send_header("Content-Range", "bytes %d-%d/%d" % (a, b, size))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            fh.seek(a)
+            enviado = 0
+            while enviado < n:
+                blq = fh.read(min(1 << 20, n - enviado))
+                if not blq:
+                    break
+                self.wfile.write(blq); enviado += len(blq)
+
     def do_GET(self):
         p = urllib.parse.urlparse(self.path)
+        if p.path == "/api/disco/archivo":
+            ruta = urllib.parse.parse_qs(p.query).get("ruta", [""])[0]
+            if ruta not in _DISCO_OK or not os.path.isfile(ruta):
+                return self._send(404, "no encontrado", "text/plain; charset=utf-8")
+            return self._servir_archivo(ruta)
         if p.path == "/api/diagnostico":
             return self._send(200, json.dumps(diagnostico(), ensure_ascii=False))
         if p.path == "/api/enlaces":
             return self._send(200, json.dumps({"integrado": INTEGRADO, "version": VERSION_PROG,
-                "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0)}))
+                "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0),
+                "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
         if p.path == "/api/ping":
             return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG}))
         if p.path == "/":
@@ -3253,6 +3433,25 @@ class H(BaseHTTPRequestHandler):
                 with open(tmp, "wb") as f: f.write(data)
                 os.replace(tmp, DB)
                 return self._send(200, '{"ok":true}')
+            if p.path == "/api/disco/elegir":
+                ruta, fallo = elegir_carpeta_cal()
+                return self._send(200, json.dumps({"ruta": ruta, "fallo": fallo}, ensure_ascii=False))
+            if p.path == "/api/disco/listar":
+                try:
+                    items, corto = listar_disco(json.loads(self._body() or b"{}").get("carpeta", ""))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                _DISCO_OK.update(x["ruta"] for x in items)
+                return self._send(200, json.dumps({"items": items, "corto": corto}, ensure_ascii=False))
+            if p.path == "/api/disco/copiar":
+                d = json.loads(self._body() or b"{}")
+                src, dest = d.get("ruta", ""), dentro(d.get("path", ""))
+                if src not in _DISCO_OK or not os.path.isfile(src) or not dest:
+                    return self._send(400, "ruta no válida", "text/plain; charset=utf-8")
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                dest = nombre_libre(dest)
+                shutil.copy2(src, dest + ".parcial"); os.replace(dest + ".parcial", dest)
+                return self._send(200, json.dumps({"path": os.path.relpath(dest, ROOT)}))
             if p.path == "/api/upload":
                 dest = dentro(q.get("path", [""])[0])
                 if not dest: return self._send(400, "ruta no válida", "text/plain; charset=utf-8")

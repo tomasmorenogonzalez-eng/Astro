@@ -2585,7 +2585,9 @@
 "Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "Os seus projetos de todos os anos: quantas horas tem, o que falta e como continuar",
 "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "Os seus projetos de todos os anos: indexe as pastas, veja como vão e analise, depure e empilhe cada um",
 "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indexada a partir do Arquivo: ainda por analisar. Analise-a no seu projeto, no Arquivo.",
-"Ya se está indexando otra carpeta.": "Já se está a indexar outra pasta."
+"Ya se está indexando otra carpeta.": "Já se está a indexar outra pasta.",
+"Todos los apartados": "Todas as secções",
+"No hay archivos FITS, XISF o RAW en esa carpeta": "Não há ficheiros FITS, XISF ou RAW nessa pasta"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",
@@ -3015,7 +3017,10 @@
 "%s · medido": "%s · medido",
 "Longitud de onda (Å)": "Comprimento de onda (Å)",
 "Residuos · RMS %.2f ppt": "Resíduos · RMS %.2f ppt",
-"ASTRO-calidad-del-cielo.csv": "ASTRO-qualidade-do-ceu.csv"
+"ASTRO-calidad-del-cielo.csv": "ASTRO-qualidade-do-ceu.csv",
+"Carpeta con tus darks, flats o bias": "Pasta com os seus darks, flats ou bias",
+"Carpeta raíz de tu archivo (por ejemplo, la que tiene una carpeta por año)": "Pasta principal do seu arquivo (por exemplo, a que tem uma pasta por ano)",
+"Carpeta con las tomas de la sesión": "Pasta com as exposições da sessão"
 },
 "bloques": {
 "cielo": {

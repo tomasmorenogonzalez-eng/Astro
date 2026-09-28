@@ -2585,7 +2585,9 @@
 "Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "Tous vos projets au fil des ans : vos heures, ce qui manque et comment continuer",
 "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "Tous vos projets au fil des ans : indexez les dossiers, suivez leur avancement, puis analysez, triez et empilez chacun",
 "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indexée depuis les Archives : pas encore analysée. Analysez-la depuis son projet, dans les Archives.",
-"Ya se está indexando otra carpeta.": "Un autre dossier est déjà en cours d'indexation."
+"Ya se está indexando otra carpeta.": "Un autre dossier est déjà en cours d'indexation.",
+"Todos los apartados": "Toutes les sections",
+"No hay archivos FITS, XISF o RAW en esa carpeta": "Aucun fichier FITS, XISF ou RAW dans ce dossier"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",
@@ -3015,7 +3017,10 @@
 "%s · medido": "%s · mesuré",
 "Longitud de onda (Å)": "Longueur d'onde (Å)",
 "Residuos · RMS %.2f ppt": "Résidus · RMS %.2f ppt",
-"ASTRO-calidad-del-cielo.csv": "ASTRO-qualite-du-ciel.csv"
+"ASTRO-calidad-del-cielo.csv": "ASTRO-qualite-du-ciel.csv",
+"Carpeta con tus darks, flats o bias": "Dossier avec vos darks, flats ou bias",
+"Carpeta raíz de tu archivo (por ejemplo, la que tiene una carpeta por año)": "Dossier racine de vos archives (par exemple, celui qui contient un dossier par année)",
+"Carpeta con las tomas de la sesión": "Dossier avec les poses de la session"
 },
 "bloques": {
 "cielo": {

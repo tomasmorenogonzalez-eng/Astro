@@ -44,7 +44,8 @@ Usa ASTRO con **tus datos reales**, como lo harías normalmente. Si te sobra tie
 17. **El aspecto nuevo**: prueba los modos Día, Noche y Rojo (abajo a la izquierda). ¿Se lee bien todo? ¿Te molesta algo del modo Rojo de noche?
 18. **Archivo**: si tienes años de fotos en carpetas, pulsa «Indexar una carpeta» y elige la carpeta raíz. ¿Cuánto tarda? ¿Salen bien tus proyectos, sus horas por filtro y sus temporadas? Entra en uno y sigue los pasos (analizar, depurar, calibración y apilar). ¿Echas algo en falta para llevar tus proyectos año tras año?
 19. **Datos de ejemplo y novedades**: prueba «Ver con datos de ejemplo» (en la ventana de inicio) y date una vuelta por todos los apartados. ¿Se entiende qué hace cada uno? ¿Vuelves bien a tus datos con «Volver a mis datos»? Y cuando ASTRO se ha actualizado, ¿te ha salido la ventana de «Novedades»?
-20. En general: ¿qué te resulta confuso, lento o echas en falta?
+20. **La ventana de ASTRO**: ahora todo se abre en su propia ventana, sin navegador. Pasa de un apartado a otro y vuelve con «Todos los apartados» (arriba a la izquierda). ¿Te resulta más cómodo? ¿Echas algo en falta del navegador? Si algo no se ve o no responde, prueba «Usar el navegador en lugar de esta ventana» y cuéntame qué pasaba.
+21. En general: ¿qué te resulta confuso, lento o echas en falta?
 
 ## Cómo contarme lo que encuentres
 En ASTRO: **menú «Más» → «Informar de un problema o sugerencia»**. Escribe qué pasó con tus palabras; el programa añade solo los datos técnicos (versión, sistema y registro). **No envía tus fotos ni datos personales.** Si puedes, adjunta una captura de pantalla.

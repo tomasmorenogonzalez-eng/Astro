@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.16"
+VERSION_PROG = "2026.09.28.17"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -39,7 +39,14 @@ def abrir_sistema(ruta, revelar=False):
     try:
         if ES_MAC:
             subprocess.Popen(["open", "-R", ruta] if revelar else ["open", ruta])
+            if revelar:          # el Finder, delante de ASTRO
+                subprocess.Popen(["osascript", "-e", 'tell application "Finder" to activate'])
         elif ES_WIN:
+            try:                 # que el Explorador pueda ponerse delante de la ventana de ASTRO
+                import ctypes
+                ctypes.windll.user32.AllowSetForegroundWindow(-1)
+            except Exception:
+                pass
             if revelar:
                 subprocess.Popen(["explorer", "/select,", os.path.normpath(ruta)])
             else:
@@ -48,6 +55,19 @@ def abrir_sistema(ruta, revelar=False):
             subprocess.Popen(["xdg-open", os.path.dirname(ruta) if revelar else ruta])
     except Exception:
         pass
+
+def _dialogo_ventana(tipo, *args):
+    """Dentro de la ventana de ASTRO, sus diálogos (pegados a ella y siempre delante); si no, None."""
+    import builtins
+    d = getattr(builtins, "ASTRO_DIALOGOS", None)
+    if not d or tipo not in d:
+        return None
+    try:
+        return d[tipo](*args) or ""
+    except Exception as e:
+        print("Diálogo de la ventana:", e)
+        return None
+
 
 
 def _en_ingles():
@@ -5812,6 +5832,9 @@ def zip_medida(mid, en=False):
 def elegir_archivo():
     """Ventana del sistema para elegir un FITS; devuelve (ruta, fallo)."""
     texto = _L("Elige una imagen FITS", "Choose a FITS image")
+    r = _dialogo_ventana("archivo", texto, ("FITS (*.fit;*.fits;*.fts)",))
+    if r is not None:
+        return r, False
     ruta, fallo = "", True
     try:
         if ES_MAC:
@@ -5907,7 +5930,8 @@ class H(BaseHTTPRequestHandler):
                         return self._send(200, f.read(), "image/png" if n.endswith(".png") else "image/jpeg", {"Cache-Control": "max-age=86400"})
                 return self._send(404, "", "text/plain")
             if p.path == "/api/enlaces":
-                return self._json({"integrado": INTEGRADO, "lights": (puerto_lights() or 0) if INTEGRADO else 0})
+                return self._json({"integrado": INTEGRADO, "lights": (puerto_lights() or 0) if INTEGRADO else 0,
+                                   "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)})
             if p.path == "/api/diagnostico":
                 return self._json(diagnostico())
             if p.path == "/api/prueba/medir":
@@ -6851,6 +6875,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .grupo{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px;font-weight:700}
 .nav{display:flex;align-items:center;gap:11px;width:100%;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:14px;text-align:left;cursor:pointer}
 .nav:hover{background:var(--surface2);color:var(--text)}
+.navInicio{margin:0 0 8px;border:1px solid var(--line);color:var(--text);text-decoration:none} .navInicio svg{color:var(--accent)}
 .volverAstro{margin:0 0 10px;border:1px solid var(--line);color:var(--text);text-decoration:none} .volverAstro svg{color:var(--accent)} .volverAstro .vtx{display:flex;flex-direction:column;line-height:1.2;min-width:0} .volverAstro small{font-size:11px;font-weight:600;color:var(--muted)} .volverAstro b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav.on{background:var(--accent-soft);color:var(--text)} .nav.on svg{color:var(--accent)}
 .nav .ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block}
@@ -7262,6 +7287,34 @@ function ponerVolverAstro(p){
 }
 (() => {
   const ir = async () => { try { const e = await (await fetch("/api/enlaces")).json(); if (e.integrado && e.lights) ponerVolverAstro(e.lights); } catch(_){} };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ir); else setTimeout(ir, 0);
+})();
+
+// ── dentro de la ventana de ASTRO (sin navegador): enlace a todos los apartados, ventanas nuevas y correo ──
+function abrirExterno(u){
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.abrir_url){ api.abrir_url(new URL(u, location.href).href); return; }
+  location.href = u;
+}
+(() => {
+  const _open = window.open;
+  window.open = function(u){
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.abrir_url && u){ api.abrir_url(new URL(u, location.href).href); return null; }
+    return _open.apply(window, arguments);
+  };
+  const ir = async () => {
+    try {
+      const e = await (await fetch("/api/enlaces")).json();
+      if (!e.inicio || document.getElementById("navInicio")) return;
+      const lat = document.querySelector(".lat"), marca = lat && lat.querySelector(".marca"); if (!marca) return;
+      const a = document.createElement("a"); a.id = "navInicio"; a.className = "nav navInicio notr";
+      a.href = `http://127.0.0.1:${e.inicio}/inicio`;
+      a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span></span>';
+      a.querySelector("span").textContent = trLT("Todos los apartados", "All sections");
+      marca.after(a); marca.style.cursor = "pointer"; marca.title = a.querySelector("span").textContent; marca.onclick = () => { location.href = a.href; };
+    } catch(_){}
+  };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ir); else setTimeout(ir, 0);
 })();
 const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemplo
@@ -8565,7 +8618,7 @@ function informarProblema(){
   d.querySelector("#infCopiar").onclick = async () => { try { await navigator.clipboard.writeText(informe()); toast("Informe copiado. Pégalo en un correo o mensaje."); } catch(_){ toast("No se pudo copiar"); } };
   if (hayCorreo) d.querySelector("#infCorreo").onclick = () => {
     let cuerpo = informe(); if (cuerpo.length > 1700) cuerpo = cuerpo.slice(0, 1700) + "\n…";
-    location.href = "mailto:" + encodeURIComponent(DIAG.contacto) + "?subject=" + encodeURIComponent(tr("Informe de problema de ASTRO") + " · Ciencia") + "&body=" + encodeURIComponent(cuerpo);
+    abrirExterno("mailto:" + encodeURIComponent(DIAG.contacto) + "?subject=" + encodeURIComponent(tr("Informe de problema de ASTRO") + " · Ciencia") + "&body=" + encodeURIComponent(cuerpo));
   };
 }
 function acercaDe(){

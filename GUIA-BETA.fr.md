@@ -44,7 +44,8 @@ Utilisez ASTRO avec **vos vraies données**, comme vous le feriez normalement. S
 17. **Le nouveau look** : essayez les modes Jour, Nuit et Rouge (en bas à gauche). Tout se lit-il bien ? Quelque chose vous gêne-t-il dans le mode Rouge, la nuit ?
 18. **Archives** : si vous avez des années de photos dans des dossiers, cliquez sur « Indexer un dossier » et choisissez le dossier racine. Combien de temps cela prend-il ? Vos projets, leurs heures par filtre et leurs saisons sont-ils corrects ? Entrez dans un projet et suivez les étapes (analyser, faire le tri, calibration et empiler). Vous manque-t-il quelque chose pour suivre vos projets d'année en année ?
 19. **Données d'exemple et nouveautés** : essayez « Essayer avec des données d'exemple » (dans la fenêtre d'accueil) et faites le tour de toutes les sections. Comprend-on ce que fait chacune ? Revenez-vous bien à vos données avec « Revenir à mes données » ? Et quand ASTRO s'est mis à jour, la fenêtre « Nouveautés » est-elle apparue ?
-20. En général : qu'est-ce qui vous semble confus ou lent, et qu'est-ce qui vous manque ?
+20. **La fenêtre d'ASTRO** : tout s'ouvre maintenant dans sa propre fenêtre, sans navigateur. Passez d'une section à l'autre et revenez avec « Toutes les sections » (en haut à gauche). Est-ce plus pratique ? Quelque chose du navigateur vous manque-t-il ? Si quelque chose ne s'affiche pas ou ne répond pas, essayez « Utiliser le navigateur au lieu de cette fenêtre » et racontez-moi ce qui se passait.
+21. En général : qu'est-ce qui vous semble confus ou lent, et qu'est-ce qui vous manque ?
 
 ## Comment me signaler ce que vous trouvez
 Dans ASTRO : **menu « Plus » → « Signaler un problème ou faire une suggestion »**. Décrivez ce qui s'est passé avec vos mots ; le logiciel ajoute tout seul les données techniques (version, système et journal). **Il n'envoie ni vos photos ni vos données personnelles.** Si possible, joignez une capture d'écran.

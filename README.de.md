@@ -52,7 +52,7 @@ ASTRO nimmt dir diese Arbeit ab. Es ist kostenlos, läuft auf **Mac** und **Wind
    - Windows 10 oder 11: **ASTRO-Windows.exe**
 2. **Doppelklicke darauf.** ASTRO installiert sich selbst und aktualisiert sich ab dann auch selbst (und zeigt dir die Neuigkeiten jeder Version).
 3. Wähle die Sprache und den Ordner, in dem du deine Bilder speichern willst. Er kann auf einer externen Festplatte liegen. Willst du es dir erst ansehen? Klicke auf **„Mit Beispieldaten ansehen“** und erkunde es mit Beispielaufnahmen und -messungen, ohne deine eigenen Daten anzurühren.
-4. Im **Startfenster** wählst du, womit du anfangen willst: Jeder Bereich (Aufnahmen hinzufügen, Meine Objekte, Archiv, Mehrere Setups, Mit Siril stacken, Kommende Nächte, Was fotografiere ich?, Live-Sitzung, Kalibrierung und Wissenschaft) hat sein eigenes Bild und öffnet sich in deinem Browser. Zieh den Ordner einer Aufnahmenacht hinein und lass ASTRO den Rest machen.
+4. Im **Startfenster** wählst du, womit du anfangen willst: Jeder Bereich (Aufnahmen hinzufügen, Meine Objekte, Archiv, Mehrere Setups, Mit Siril stacken, Kommende Nächte, Was fotografiere ich?, Live-Sitzung, Kalibrierung und Wissenschaft) hat sein eigenes Bild und öffnet sich im selben ASTRO-Fenster, ohne Browser; „Alle Bereiche“ oben links bringt dich zurück zum Start. Zieh den Ordner einer Aufnahmenacht hinein und lass ASTRO den Rest machen.
 
 Auf dem **Mac** ist ASTRO signiert und von Apple geprüft: Es öffnet sich per Doppelklick, ohne Warnung.
 

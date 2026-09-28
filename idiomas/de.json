@@ -2585,7 +2585,9 @@
 "Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "Alle deine Projekte über die Jahre: wie viele Stunden du hast, was fehlt und wie es weitergeht",
 "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "Alle deine Projekte über die Jahre: Ordner indexieren, Fortschritt sehen und jedes analysieren, aussortieren und stacken",
 "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Aus dem Archiv indexiert: noch nicht analysiert. Analysiere sie in ihrem Projekt im Archiv.",
-"Ya se está indexando otra carpeta.": "Es wird schon ein anderer Ordner indexiert."
+"Ya se está indexando otra carpeta.": "Es wird schon ein anderer Ordner indexiert.",
+"Todos los apartados": "Alle Bereiche",
+"No hay archivos FITS, XISF o RAW en esa carpeta": "In diesem Ordner gibt es keine FITS-, XISF- oder RAW-Dateien"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",
@@ -3015,7 +3017,10 @@
 "%s · medido": "%s · gemessen",
 "Longitud de onda (Å)": "Wellenlänge (Å)",
 "Residuos · RMS %.2f ppt": "Residuen · RMS %.2f ppt",
-"ASTRO-calidad-del-cielo.csv": "ASTRO-Himmelsqualitaet.csv"
+"ASTRO-calidad-del-cielo.csv": "ASTRO-Himmelsqualitaet.csv",
+"Carpeta con tus darks, flats o bias": "Ordner mit deinen Darks, Flats oder Bias",
+"Carpeta raíz de tu archivo (por ejemplo, la que tiene una carpeta por año)": "Hauptordner deines Archivs (zum Beispiel der mit einem Ordner pro Jahr)",
+"Carpeta con las tomas de la sesión": "Ordner mit den Aufnahmen der Sitzung"
 },
 "bloques": {
 "cielo": {

@@ -44,7 +44,8 @@ Nutze ASTRO mit **deinen echten Daten**, so wie du es normalerweise tun würdest
 17. **Das neue Design**: Probier die Modi Tag, Nacht und Rot aus (unten links). Ist alles gut lesbar? Stört dich nachts etwas am Rotmodus?
 18. **Archiv**: Wenn du Fotos aus vielen Jahren in Ordnern hast, klicke auf „Ordner indexieren“ und wähle den Hauptordner. Wie lange dauert es? Stimmen deine Projekte, ihre Stunden pro Filter und ihre Saisons? Öffne ein Projekt und folge den Schritten (analysieren, aussortieren, Kalibrierung und stacken). Fehlt dir etwas, um deine Projekte Jahr für Jahr weiterzuführen?
 19. **Beispieldaten und Neuigkeiten**: Probier „Mit Beispieldaten ansehen“ (im Startfenster) und schau dir alle Bereiche an. Versteht man, was jeder Bereich macht? Kommst du mit „Zurück zu meinen Daten“ gut zu deinen Daten zurück? Und ist nach dem Update von ASTRO das Fenster „Neuigkeiten“ erschienen?
-20. Allgemein: Was findest du verwirrend oder langsam, oder was fehlt dir?
+20. **Das ASTRO-Fenster**: Jetzt öffnet sich alles in einem eigenen Fenster, ohne Browser. Wechsle zwischen den Bereichen und kehre mit „Alle Bereiche“ (oben links) zurück. Ist das bequemer? Fehlt dir etwas vom Browser? Wenn etwas nicht angezeigt wird oder nicht reagiert, probier „Browser statt dieses Fensters verwenden“ und erzähl mir, was passiert ist.
+21. Allgemein: Was findest du verwirrend oder langsam, oder was fehlt dir?
 
 ## So meldest du mir, was du findest
 In ASTRO: **Menü „Mehr“ → „Problem oder Vorschlag melden“**. Beschreib mit deinen Worten, was passiert ist; das Programm fügt die technischen Daten (Version, System und Log) selbst hinzu. **Es sendet weder deine Bilder noch persönliche Daten.** Wenn du kannst, häng einen Screenshot an.
