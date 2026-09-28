@@ -30,18 +30,15 @@ En la página **Releases** de este repositorio, descarga el archivo de tu ordena
 
 Después ábrela siempre desde Aplicaciones (Mac) o desde su acceso directo (Windows). El archivo descargado ya se puede borrar.
 
-**Se actualiza sola:** cada vez que se abre comprueba si hay una versión nueva y, si la hay, se actualiza en unos segundos sin preguntar nada.
+**Se actualiza sola:** cada vez que se abre comprueba si hay una versión nueva y, si la hay, se actualiza en unos segundos sin preguntar nada. Después te enseña las **novedades** de esa versión (puedes volver a verlas en **«✦ Novedades»**, en la ventana de inicio).
 
-### Solo la primera vez: el aviso de seguridad
-Mientras ASTRO no esté firmado por Apple o Microsoft, el sistema avisa la primera vez que lo abres:
-- **Mac:** si dice que no se puede abrir, pulsa **Aceptar**, ve a **Ajustes del Sistema → Privacidad y seguridad**, baja hasta el final y pulsa **«Abrir igualmente»**. (En macOS 14 o anterior basta con clic derecho sobre ASTRO → **Abrir**.)
-- **Windows:** si aparece «Windows protegió su PC», pulsa **Más información → Ejecutar de todas formas**.
-
-No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
+### El aviso de seguridad (solo en Windows)
+- **Mac:** ASTRO está firmado y aprobado por Apple, así que se abre sin avisos. (Si alguna vez el Mac dijera que no se puede abrir, ve a **Ajustes del Sistema → Privacidad y seguridad**, baja hasta el final y pulsa **«Abrir igualmente»**.)
+- **Windows:** mientras ASTRO no esté firmado por Microsoft, la primera vez que lo abres puede aparecer «Windows protegió su PC»: pulsa **Más información → Ejecutar de todas formas**. No vuelve a aparecer: ni al abrirlo después ni en las actualizaciones.
 
 ## 2. Primer uso
 
-1. Abre ASTRO. Te preguntará **dónde guardar tus datos**. Puede ser una carpeta de tu ordenador o de un disco externo (recomendable: las fotos ocupan mucho).
+1. Abre ASTRO. Te preguntará **dónde guardar tus datos**. Puede ser una carpeta de tu ordenador o de un disco externo (recomendable: las fotos ocupan mucho). Si antes prefieres verlo funcionar, pulsa **«Ver con datos de ejemplo»**: ASTRO se abre con tomas, calibración, apilados y medidas de Ciencia de ejemplo, sin tocar tus datos. Para salir, pulsa **«Volver a mis datos»** (o «Empezar con mis datos») en la ventana de inicio.
 2. Aparece la **ventana de inicio** de ASTRO, con un apartado y su dibujo para cada cosa que puedes hacer: **Añadir tomas**, **Mis objetos**, **Varios equipos**, **Próximas noches**, **Sesión en directo**, **Apilar con Siril**, **Calibración** y **Ciencia**. Pulsa el que quieras y se abre en tu **navegador**, ya en ese apartado. Deja la ventana abierta (puedes minimizarla) mientras uses ASTRO; para cerrarlo, pulsa **Salir** en ella o en **Más opciones**.
 3. En **Control de lights**, pulsa **«＋ Añadir sesión»** o arrastra la carpeta de una noche de fotos. Arriba eliges si **copiarlas a ASTRO** (se guardan ordenadas por objeto, noche y filtro, sin tocar los originales, y así las puedes apilar) o **solo analizarlas** (se quedan donde están y ASTRO solo guarda su valoración). ASTRO recuerda lo que elegiste.
    - **Criterio de calidad** (en Herramientas, en el resumen de cada objeto o desde «Apilar…»): un control deslizante hace la valoración **más permisiva o más estricta** para todas tus tomas, por si tu equipo o tu cielo no dan para los umbrales de siempre; mientras lo mueves ves cuántas quedan válidas, con avisos y rechazables, las horas útiles y **la primera toma que se rechaza** junto a la que pasa más justa. Otro control, para cada objeto, te deja **quedarte con las mejores**: quita el peor X % de cada filtro (y de cada equipo), comparado con su propia sesión, y te enseña la primera que se queda fuera. Nada se borra: las que quitas quedan fuera del apilado y puedes volver a incluirlas.
@@ -178,7 +175,7 @@ Para una versión nueva: sustituye `programa-lights.py`, `programa-calibracion.p
 Con una cuenta del **Apple Developer Program** (99 € al año), la fábrica firma y certifica ASTRO sola y el Mac deja de mostrar el aviso. En el repositorio, **Settings → Secrets and variables → Actions**, añade:
 - `MAC_CERT_P12`: tu certificado «Developer ID Application» exportado como .p12 y convertido a base64 (`base64 -i certificado.p12 | pbcopy`).
 - `MAC_CERT_PASSWORD`: la contraseña de ese .p12.
-- `APPLE_ID`, `APPLE_TEAM_ID` y `APPLE_APP_PASSWORD` (una contraseña específica de app creada en appleid.apple.com).
+- `APPLE_ID` y `APPLE_APP_PASSWORD` (una contraseña específica de app creada en appleid.apple.com). `APPLE_TEAM_ID` es opcional: si falta, se toma del certificado.
 
 Sin estos datos todo funciona igual; solo se mantiene el aviso de la primera vez. En Windows, el aviso de SmartScreen desaparece con un certificado de firma de código (por ejemplo Azure Trusted Signing) o cuando el programa acumula descargas.
 
@@ -212,9 +209,9 @@ También se puede fabricar en tu propio ordenador (con Python de python.org inst
 
 **Author:** Tomás Moreno González. Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real).
 
-1. Download the file for your computer from **Releases** (Apple Silicon Mac, Intel Mac or Windows) and **double-click it**. ASTRO installs itself (Applications on Mac; Desktop and Start menu shortcuts on Windows) and **updates itself** whenever a new version is published.
-2. Only the first time, the system may warn that the app is unsigned. **Mac:** *System Settings → Privacy & Security → Open Anyway* (or right-click → Open on macOS 14 and earlier). **Windows:** *More info → Run anyway*.
-3. On first launch, choose your **language** and the **folder** where ASTRO will keep your data. Then ASTRO's **start window** shows one illustrated section for each thing you can do (Add frames, My targets, Multiple setups, Upcoming nights, Live session, Stack with Siril, Calibration library, Science); click one and it opens in your browser at that section. Keep the window open (you can minimise it) while you use ASTRO.
+1. Download the file for your computer from **Releases** (Apple Silicon Mac, Intel Mac or Windows) and **double-click it**. ASTRO installs itself (Applications on Mac; Desktop and Start menu shortcuts on Windows) and **updates itself** whenever a new version is published (then shows you what's new).
+2. On **Mac**, ASTRO is signed and approved by Apple, so it opens without warnings (if the Mac ever complains: *System Settings → Privacy & Security → Open Anyway*). On **Windows**, only the first time, the system may warn that the app is unsigned: *More info → Run anyway*.
+3. On first launch, choose your **language** and the **folder** where ASTRO will keep your data. Then ASTRO's **start window** shows one illustrated section for each thing you can do (Add frames, My targets, Multiple setups, Upcoming nights, Live session, Stack with Siril, Calibration library, Science); click one and it opens in your browser at that section. Keep the window open (you can minimise it) while you use ASTRO. Want to see it working first? Click **«Try it with example data»**: ASTRO opens with example frames, calibration, stacks and Science measurements, without touching your data; «Back to my data» in the start window takes you back.
 4. **«Upcoming nights»** shows which target and filter suit each night (Moon, darkness, altitude and the Open-Meteo cloud forecast for the next 7 days; your observing location can be taken from your own frames).
 5. Install **Siril** (free, https://siril.org) to stack and create masters. After stacking, ASTRO creates a **ready-developed preview** (edges cropped, gradient removed, colour balanced, stretched, plus RGB/LRGB/SHO/HOO combinations when you have the filters) as JPG and 16-bit TIFF, and **«Open in…»** sends it to GIMP, Photoshop, PixInsight, Affinity Photo or Siril.
    - **Quality criteria** (in Tools, in each target's summary or from «Stack…»): a slider makes the rating **more lenient or stricter** for all your frames, in case your equipment or sky can't reach the usual thresholds; as you move it you see how many frames end up valid, with warnings or rejected, the usable hours and **the first frame to be rejected** next to the one that only just passes. Another slider, per target, lets you **keep only the best**: it removes the worst X % of each filter (and setup), compared with its own session, and shows you the first one left out. Nothing is deleted: removed frames are left out of the stack and can be included again.

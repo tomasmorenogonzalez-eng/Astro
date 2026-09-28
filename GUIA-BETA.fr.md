@@ -16,10 +16,11 @@ Il fonctionne sur **Mac** et **Windows**, en espagnol, anglais, français, allem
 ## Installation (2 minutes)
 1. Téléchargez le fichier correspondant à votre ordinateur depuis la page de téléchargement (**Releases**).
 2. **Double-cliquez.** ASTRO s'installe tout seul et se mettra à jour tout seul quand il y aura de nouvelles versions.
-3. La première fois seulement, le système vous avertit que le logiciel n'est pas signé :
-   - **Mac :** *Réglages Système → Confidentialité et sécurité → « Ouvrir quand même »* (sous macOS 14 ou antérieur : clic droit → Ouvrir).
-   - **Windows :** *Informations complémentaires → Exécuter quand même*.
-4. Installez **Siril** depuis siril.org si vous voulez empiler.
+3. L'avertissement de sécurité :
+   - **Mac :** aucun : ASTRO est signé et approuvé par Apple. (Si le Mac vous avertit malgré tout : *Réglages Système → Confidentialité et sécurité → « Ouvrir quand même »*.)
+   - **Windows :** la première fois seulement, le système vous avertit que le logiciel n'est pas signé : *Informations complémentaires → Exécuter quand même*.
+4. Envie de jeter un œil avant d'utiliser vos photos ? Dans la première fenêtre, cliquez sur **« Essayer avec des données d'exemple »**.
+5. Installez **Siril** depuis siril.org si vous voulez empiler.
 
 ## Ce que je vous demande de tester
 Utilisez ASTRO avec **vos vraies données**, comme vous le feriez normalement. S'il vous reste du temps, voici les parties que je tiens le plus à vérifier :
@@ -41,7 +42,8 @@ Utilisez ASTRO avec **vos vraies données**, comme vous le feriez normalement. S
 15. **Science → Diagrammes H-R** : si vous avez des empilements d'un amas ouvert dans deux filtres (ou en couleur), mesurez-le. La distance et le rougissement ressemblent-ils aux valeurs publiées (par exemple dans WEBDA ou dans Cantat-Gaudin 2020) ?
 16. **Science → Spectroscopie** : si vous avez un Star Analyser, mesurez le spectre d'une étoile brillante (Véga est idéale). Trouve-t-il l'étoile et le spectre ? Les raies de Balmer tombent-elles au bon endroit ? Si vous mesurez une autre étoile la même nuit, essayez d'utiliser Véga comme référence.
 17. **Le nouveau look** : essayez les modes Jour, Nuit et Rouge (en bas à gauche). Tout se lit-il bien ? Quelque chose vous gêne-t-il dans le mode Rouge, la nuit ?
-18. En général : qu'est-ce qui vous semble confus ou lent, et qu'est-ce qui vous manque ?
+18. **Données d'exemple et nouveautés** : essayez « Essayer avec des données d'exemple » (dans la fenêtre d'accueil) et faites le tour de toutes les sections. Comprend-on ce que fait chacune ? Revenez-vous bien à vos données avec « Revenir à mes données » ? Et quand ASTRO s'est mis à jour, la fenêtre « Nouveautés » est-elle apparue ?
+19. En général : qu'est-ce qui vous semble confus ou lent, et qu'est-ce qui vous manque ?
 
 ## Comment me signaler ce que vous trouvez
 Dans ASTRO : **menu « Plus » → « Signaler un problème ou faire une suggestion »**. Décrivez ce qui s'est passé avec vos mots ; le logiciel ajoute tout seul les données techniques (version, système et journal). **Il n'envoie ni vos photos ni vos données personnelles.** Si possible, joignez une capture d'écran.

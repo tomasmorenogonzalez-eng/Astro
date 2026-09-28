@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.9"
+VERSION_PROG = "2026.09.28.10"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -190,6 +190,11 @@ def guardar_idioma(idioma):
 _HTML_IDI = {}
 
 
+def es_ejemplo():
+    """ASTRO está abierto con la carpeta de datos de ejemplo (el lanzador la prepara)."""
+    return os.environ.get("ASTRO_EJEMPLO") == "1" or os.path.exists(os.path.join(DISCO, ".astro-ejemplo"))
+
+
 def html_idioma(html, idi):
     """La página con el idioma y su traducción (diccionario, patrones y meses) ya puestos."""
     idi = idioma_valido(idi) or "es"
@@ -197,7 +202,7 @@ def html_idioma(html, idi):
     if clave not in _HTML_IDI:
         d = datos_idioma(idi)
         js = lambda o: json.dumps(o, ensure_ascii=True).replace("</", "<\\/")
-        _HTML_IDI[clave] = (html.replace("__IDIOMA__", idi).replace("__DIC_OTRO__", js(d.get("dic") or {}))
+        _HTML_IDI[clave] = (html.replace("__IDIOMA__", idi).replace("__EJEMPLO__", "true" if es_ejemplo() else "false").replace("__DIC_OTRO__", js(d.get("dic") or {}))
                             .replace("__PAT_OTRO__", js(d.get("patrones") or {})).replace("__MESES_OTRO__", js(d.get("meses") or {})))
     return _HTML_IDI[clave]
 
@@ -1151,6 +1156,20 @@ th{background:var(--surface);font-weight:700}
 const VERSION_ACTUAL = "__VERSION__";
 const IDIOMAS_ASTRO = {es:"Español", en:"English", fr:"Français", de:"Deutsch", it:"Italiano", pt:"Português"};
 const IDIOMA = (v => IDIOMAS_ASTRO[v] ? v : (l => IDIOMAS_ASTRO[l] ? l : "en")((navigator.language||"es").slice(0,2).toLowerCase()))("__IDIOMA__");
+const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemplo
+(function(){
+  if (!EJEMPLO_ASTRO) return;
+  const poner = () => {
+    const lat = document.querySelector(".lat");
+    if (!lat || document.getElementById("avisoEjemplo")) return;
+    const d = document.createElement("div"); d.id = "avisoEjemplo"; d.className = "notr";
+    d.style.cssText = "margin:10px 4px 12px;padding:10px 12px;border-radius:10px;background:rgba(242,193,78,.16);border:1px solid rgba(242,193,78,.6);font-size:12.5px;line-height:1.4";
+    d.innerHTML = "<b style='display:block;margin-bottom:2px'>" + trLT("Datos de ejemplo", "Example data") + "</b>" +
+      trLT("Fotos y medidas inventadas para que explores ASTRO. Para usar las tuyas, pulsa «Volver a mis datos» en la ventana de inicio.", "Made-up frames and measurements for you to explore ASTRO. To use yours, click “Back to my data” in the start window.");
+    lat.insertBefore(d, lat.children[1] || null);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", poner); else setTimeout(poner, 0);
+})();
 const DIC_EN = __DIC_EN__;
 const DIC = IDIOMA === "en" ? DIC_EN : __DIC_OTRO__;       // el del idioma elegido; lo que aún falte sale en inglés
 const _PAT_TR = IDIOMA === "en" ? {} : __PAT_OTRO__;

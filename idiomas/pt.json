@@ -2481,7 +2481,9 @@
 "formato completo": "formato completo",
 "Mostrar el archivo": "Mostrar o ficheiro",
 "Criterios: se rechazan los bias con exposición superior a 0,01 s, nivel superior al 25% o saturación; los darks con nivel superior al 25% o saturación superior al 2%; los flats con mediana inferior al 10% o superior al 88% (lo ideal es 30–60%), además de valorar el viñeteo y el gradiente lateral; y los archivos calibrados con más del 5% de píxeles a cero. Se avisa de los masters con menos de 10 tomas y de los darks y bias de más de un año. Las estadísticas se calculan sobre una muestra de unos 400 000 píxeles.": "Critérios: são rejeitados os bias com exposição superior a 0,01 s, nível superior a 25% ou saturação; os darks com nível superior a 25% ou saturação superior a 2%; os flats com mediana inferior a 10% ou superior a 88% (o ideal é 30–60%), avaliando-se também a vinhetagem e o gradiente lateral; e os ficheiros calibrados com mais de 5% de píxeis a zero. É dado um aviso para os masters com menos de 10 exposições e para os darks e bias com mais de um ano. As estatísticas são calculadas sobre uma amostra de cerca de 400 000 píxeis.",
-"Calibraciones pendientes": "Calibrações pendentes"
+"Calibraciones pendientes": "Calibrações pendentes",
+"Datos de ejemplo": "Dados de exemplo",
+"Fotos y medidas inventadas para que explores ASTRO. Para usar las tuyas, pulsa «Volver a mis datos» en la ventana de inicio.": "Exposições e medidas fictícias para explorar o ASTRO. Para usar as suas, clique em «Voltar aos meus dados» na janela inicial."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",

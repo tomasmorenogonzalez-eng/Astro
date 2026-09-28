@@ -48,15 +48,13 @@ ASTRO hace ese trabajo por ti. Es gratuito, funciona en **Mac** y en **Windows**
    - Mac con chip Apple (M1, M2, M3, M4…): **ASTRO-Mac-AppleSilicon.zip**
    - Mac con procesador Intel: **ASTRO-Mac-Intel.zip**
    - Windows 10 u 11: **ASTRO-Windows.exe**
-2. **Haz doble clic.** ASTRO se instala solo y, a partir de ahí, se actualiza solo.
-3. Elige el idioma y la carpeta donde quieres guardar tus fotos. Puede estar en un disco externo.
+2. **Haz doble clic.** ASTRO se instala solo y, a partir de ahí, se actualiza solo (y te cuenta las novedades de cada versión).
+3. Elige el idioma y la carpeta donde quieres guardar tus fotos. Puede estar en un disco externo. ¿Prefieres verlo antes? Pulsa **«Ver con datos de ejemplo»** y explóralo con fotos y medidas de ejemplo, sin tocar nada tuyo.
 4. En la **ventana de inicio** elige por dónde empezar: cada apartado (Añadir tomas, Mis objetos, Varios equipos, Próximas noches, Sesión en directo, Apilar con Siril, Calibración y Ciencia) tiene su dibujo y se abre en tu navegador. Arrastra la carpeta de una noche de fotos y deja que ASTRO haga el resto.
 
-**La primera vez**, tu ordenador te avisará de que el programa no está firmado. Es normal en programas gratuitos hechos por aficionados:
-- En **Mac**: ve a *Ajustes del Sistema → Privacidad y seguridad* y pulsa **«Abrir igualmente»**.
-- En **Windows**: pulsa *Más información → Ejecutar de todas formas*.
+En **Mac**, ASTRO está firmado y aprobado por Apple: se abre con doble clic, sin avisos.
 
-No vuelve a salir.
+En **Windows**, la primera vez tu ordenador te avisará de que el programa no está firmado (es normal en programas gratuitos hechos por aficionados): pulsa *Más información → Ejecutar de todas formas*. No vuelve a salir.
 
 ---
 
@@ -96,7 +94,7 @@ Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más 
 
 The **Science** section turns your frames into measurements: your **sky brightness** in magnitudes per square arcsecond, the **limiting magnitude** of each frame or stack, star size and transparency, calibrated against the **Gaia** catalogue, with a night-by-night series and a **traceability package** for each measurement. It also measures **variable stars** for the **AAVSO**: it downloads the official comparison sequence, measures every frame, draws the light curve and writes the AAVSO Extended report ready for WebObs. And it measures **exoplanet transits** for **ExoClock**: which transits you can see in the coming nights, Gaia comparison stars, the transit fit and the mid-transit time in BJD_TDB with its error and O−C, with the light curve ready to upload. And it does **asteroid and comet astrometry**: it asks JPL which objects are in your field, measures their positions with the Gaia stars, compares them with the ephemeris and writes the **ADES** report for the Minor Planet Center. And it plots the **H-R diagram of a cluster**: with two stacks (blue and green) it measures every star, finds the members with Gaia and computes their distance and reddening. And it does **spectroscopy** with a grating in front of the camera (Star Analyser type): it extracts the spectrum, calibrates it with the hydrogen and telluric lines, measures the lines and saves it as FITS for ISIS or VSpec.
 
-Each target can be exported as a project in a ZIP with open formats (JSON and CSV), including every frame's rating and the calibration it needs, and optionally the frames, calibration files and stacks, so your data never gets locked in. It speaks Spanish, English, French, German, Italian and Portuguese, and has three looks (Day, Night and Red, the last one for use at the telescope). Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself, and its start window shows an illustrated section for each thing you can do. Everything stays on your computer.
+Each target can be exported as a project in a ZIP with open formats (JSON and CSV), including every frame's rating and the calibration it needs, and optionally the frames, calibration files and stacks, so your data never gets locked in. It speaks Spanish, English, French, German, Italian and Portuguese, and has three looks (Day, Night and Red, the last one for use at the telescope). Download it from **[Releases](../../releases/latest)**, double-click and you're done: it installs and updates itself (and tells you what's new each time), on the Mac it's signed and approved by Apple, and its start window shows an illustrated section for each thing you can do. Want a look first? **«Try it with example data»** opens it with example frames and measurements. Everything stays on your computer.
 
 It's a beta: if something doesn't work, use **More options → Report a problem or suggestion** inside the app.
 

@@ -48,15 +48,13 @@ ASTRO nimmt dir diese Arbeit ab. Es ist kostenlos, läuft auf **Mac** und **Wind
    - Mac mit Apple-Chip (M1, M2, M3, M4…): **ASTRO-Mac-AppleSilicon.zip**
    - Mac mit Intel-Prozessor: **ASTRO-Mac-Intel.zip**
    - Windows 10 oder 11: **ASTRO-Windows.exe**
-2. **Doppelklicke darauf.** ASTRO installiert sich selbst und aktualisiert sich ab dann auch selbst.
-3. Wähle die Sprache und den Ordner, in dem du deine Bilder speichern willst. Er kann auf einer externen Festplatte liegen.
+2. **Doppelklicke darauf.** ASTRO installiert sich selbst und aktualisiert sich ab dann auch selbst (und zeigt dir die Neuigkeiten jeder Version).
+3. Wähle die Sprache und den Ordner, in dem du deine Bilder speichern willst. Er kann auf einer externen Festplatte liegen. Willst du es dir erst ansehen? Klicke auf **„Mit Beispieldaten ansehen“** und erkunde es mit Beispielaufnahmen und -messungen, ohne deine eigenen Daten anzurühren.
 4. Im **Startfenster** wählst du, womit du anfangen willst: Jeder Bereich (Aufnahmen hinzufügen, Meine Objekte, Mehrere Setups, Kommende Nächte, Live-Sitzung, Mit Siril stacken, Kalibrierung und Wissenschaft) hat sein eigenes Bild und öffnet sich in deinem Browser. Zieh den Ordner einer Aufnahmenacht hinein und lass ASTRO den Rest machen.
 
-**Beim ersten Mal** warnt dich dein Computer, dass das Programm nicht signiert ist. Das ist bei kostenlosen Programmen von Hobbyentwicklern normal:
-- Auf dem **Mac**: Geh zu *Systemeinstellungen → Datenschutz & Sicherheit* und klicke auf **„Dennoch öffnen“**.
-- Unter **Windows**: Klicke auf *Weitere Informationen → Trotzdem ausführen*.
+Auf dem **Mac** ist ASTRO signiert und von Apple geprüft: Es öffnet sich per Doppelklick, ohne Warnung.
 
-Danach kommt die Meldung nicht mehr.
+Unter **Windows** warnt dich dein Computer beim ersten Mal, dass das Programm nicht signiert ist (das ist bei kostenlosen Programmen von Hobbyentwicklern normal): Klicke auf *Weitere Informationen → Trotzdem ausführen*. Danach kommt die Meldung nicht mehr.
 
 ---
 

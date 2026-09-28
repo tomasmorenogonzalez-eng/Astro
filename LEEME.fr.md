@@ -30,18 +30,15 @@ Quel Mac ai-je ? Menu  → *À propos de ce Mac* : s'il est écrit « Puce Ap
 
 Ensuite, ouvrez-le toujours depuis Applications (Mac) ou depuis son raccourci (Windows). Le fichier téléchargé peut alors être supprimé.
 
-**Il se met à jour tout seul :** à chaque ouverture, il vérifie s'il existe une nouvelle version et, si c'est le cas, se met à jour en quelques secondes sans rien demander.
+**Il se met à jour tout seul :** à chaque ouverture, il vérifie s'il existe une nouvelle version et, si c'est le cas, se met à jour en quelques secondes sans rien demander. Ensuite, il vous présente les **nouveautés** de cette version (vous pouvez les revoir dans **« ✦ Nouveautés »**, dans la fenêtre d'accueil).
 
-### La première fois seulement : l'avertissement de sécurité
-Tant qu'ASTRO n'est pas signé par Apple ou Microsoft, le système affiche un avertissement la première fois que vous l'ouvrez :
-- **Mac :** s'il indique qu'il est impossible de l'ouvrir, cliquez sur **OK**, allez dans **Réglages Système → Confidentialité et sécurité**, descendez tout en bas et cliquez sur **« Ouvrir quand même »**. (Sous macOS 14 ou antérieur, il suffit de faire un clic droit sur ASTRO → **Ouvrir**.)
-- **Windows :** si le message « Windows a protégé votre ordinateur » apparaît, cliquez sur **Informations complémentaires → Exécuter quand même**.
-
-Il ne réapparaît plus : ni aux ouvertures suivantes, ni lors des mises à jour.
+### L'avertissement de sécurité (sur Windows uniquement)
+- **Mac :** ASTRO est signé et approuvé par Apple, il s'ouvre donc sans avertissement. (Si un jour le Mac indiquait qu'il est impossible de l'ouvrir, allez dans **Réglages Système → Confidentialité et sécurité**, descendez tout en bas et cliquez sur **« Ouvrir quand même »**.)
+- **Windows :** tant qu'ASTRO n'est pas signé par Microsoft, le message « Windows a protégé votre ordinateur » peut apparaître la première fois que vous l'ouvrez : cliquez sur **Informations complémentaires → Exécuter quand même**. Il ne réapparaît plus : ni aux ouvertures suivantes, ni lors des mises à jour.
 
 ## 2. Première utilisation
 
-1. Ouvrez ASTRO. Il vous demandera **où enregistrer vos données**. Ce peut être un dossier de votre ordinateur ou d'un disque externe (recommandé : les photos prennent beaucoup de place).
+1. Ouvrez ASTRO. Il vous demandera **où enregistrer vos données**. Ce peut être un dossier de votre ordinateur ou d'un disque externe (recommandé : les photos prennent beaucoup de place). Si vous préférez d'abord le voir fonctionner, cliquez sur **« Essayer avec des données d'exemple »** : ASTRO s'ouvre avec des poses, une calibration, des empilements et des mesures de Science d'exemple, sans toucher à vos données. Pour en sortir, cliquez sur **« Revenir à mes données »** (ou « Commencer avec mes données ») dans la fenêtre d'accueil.
 2. La **fenêtre d'accueil** d'ASTRO s'affiche, avec une section et son illustration pour chaque chose que vous pouvez faire : **Ajouter des poses**, **Mes objets**, **Plusieurs équipements**, **Prochaines nuits**, **Session en direct**, **Empiler avec Siril**, **Calibration** et **Science**. Cliquez sur celle que vous voulez et elle s'ouvre dans votre **navigateur**, directement dans cette section. Laissez la fenêtre ouverte (vous pouvez la réduire) tant que vous utilisez ASTRO ; pour le fermer, cliquez sur **Quitter** dans cette fenêtre ou dans **Plus d'options**.
 3. Dans **Contrôle des lights**, cliquez sur **« ＋ Ajouter une session »** ou faites glisser le dossier d'une nuit de photos. En haut, vous choisissez de **les copier dans ASTRO** (elles sont rangées par objet, nuit et filtre, sans toucher aux originaux, et vous pouvez ainsi les empiler) ou de **les analyser seulement** (elles restent où elles sont et ASTRO ne garde que leur évaluation). ASTRO se souvient de votre choix.
    - **Critères de qualité** (dans Outils, dans le résumé de chaque objet ou depuis « Empiler… ») : un curseur rend l'évaluation **plus permissive ou plus stricte** pour toutes vos poses, au cas où votre équipement ou votre ciel ne permettraient pas d'atteindre les seuils habituels ; pendant que vous le déplacez, vous voyez combien de poses restent valides, avec avertissements et à rejeter, les heures utiles et **la première pose rejetée** à côté de celle qui passe le plus juste. Un autre curseur, propre à chaque objet, vous permet de **ne garder que les meilleures** : il retire les X % les moins bonnes de chaque filtre (et de chaque équipement), comparées à leur propre session, et vous montre la première qui est exclue. Rien n'est supprimé : les poses retirées sont exclues de l'empilement et vous pouvez les réintégrer.

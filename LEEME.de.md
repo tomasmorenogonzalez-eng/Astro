@@ -30,18 +30,15 @@ Welchen Mac habe ich? Menü  → *Über diesen Mac*: Steht dort „Chip Apple M�
 
 Öffne es danach immer über Programme (Mac) oder über seine Verknüpfung (Windows). Die heruntergeladene Datei kannst du dann löschen.
 
-**Es aktualisiert sich selbst:** Bei jedem Start prüft es, ob es eine neue Version gibt, und wenn ja, aktualisiert es sich in wenigen Sekunden, ohne nachzufragen.
+**Es aktualisiert sich selbst:** Bei jedem Start prüft es, ob es eine neue Version gibt, und wenn ja, aktualisiert es sich in wenigen Sekunden, ohne nachzufragen. Danach zeigt es dir die **Neuigkeiten** dieser Version (du kannst sie unter **„✦ Neuigkeiten“** im Startfenster jederzeit wieder ansehen).
 
-### Nur beim ersten Mal: die Sicherheitswarnung
-Solange ASTRO nicht von Apple oder Microsoft signiert ist, warnt das System beim ersten Öffnen:
-- **Mac:** Wenn es heißt, dass sich die App nicht öffnen lässt, klicke auf **OK**, geh zu **Systemeinstellungen → Datenschutz & Sicherheit**, scroll ganz nach unten und klicke auf **„Dennoch öffnen“**. (Unter macOS 14 oder älter genügt ein Rechtsklick auf ASTRO → **Öffnen**.)
-- **Windows:** Wenn „Der Computer wurde durch Windows geschützt“ erscheint, klicke auf **Weitere Informationen → Trotzdem ausführen**.
-
-Die Warnung erscheint danach nicht mehr: weder beim späteren Öffnen noch bei Updates.
+### Die Sicherheitswarnung (nur unter Windows)
+- **Mac:** ASTRO ist signiert und von Apple geprüft und öffnet sich daher ohne Warnung. (Sollte der Mac doch einmal melden, dass sich die App nicht öffnen lässt, geh zu **Systemeinstellungen → Datenschutz & Sicherheit**, scroll ganz nach unten und klicke auf **„Dennoch öffnen“**.)
+- **Windows:** Solange ASTRO nicht von Microsoft signiert ist, kann beim ersten Öffnen „Der Computer wurde durch Windows geschützt“ erscheinen: Klicke auf **Weitere Informationen → Trotzdem ausführen**. Die Warnung erscheint danach nicht mehr: weder beim späteren Öffnen noch bei Updates.
 
 ## 2. Erste Schritte
 
-1. Öffne ASTRO. Es fragt dich, **wo deine Daten gespeichert werden sollen**. Das kann ein Ordner auf deinem Computer oder auf einer externen Festplatte sein (empfehlenswert, denn die Bilder brauchen viel Platz).
+1. Öffne ASTRO. Es fragt dich, **wo deine Daten gespeichert werden sollen**. Das kann ein Ordner auf deinem Computer oder auf einer externen Festplatte sein (empfehlenswert, denn die Bilder brauchen viel Platz). Wenn du es lieber erst in Aktion sehen willst, klicke auf **„Mit Beispieldaten ansehen“**: ASTRO öffnet sich mit Beispielaufnahmen, Kalibrierung, Stacks und Messungen der Wissenschaft, ohne deine Daten anzurühren. Zum Verlassen klickst du im Startfenster auf **„Zurück zu meinen Daten“** (oder „Mit meinen Daten beginnen“).
 2. Das **Startfenster** von ASTRO erscheint, mit einem Bereich samt Bild für alles, was du tun kannst: **Aufnahmen hinzufügen**, **Meine Objekte**, **Mehrere Setups**, **Kommende Nächte**, **Live-Sitzung**, **Mit Siril stacken**, **Kalibrierung** und **Wissenschaft**. Klicke auf den gewünschten Bereich, und er öffnet sich in deinem **Browser**, direkt an der richtigen Stelle. Lass das Fenster offen (du kannst es minimieren), solange du ASTRO nutzt; zum Beenden klickst du dort oder in **Weitere Optionen** auf **Beenden**.
 3. Klicke in der **Lights-Kontrolle** auf **„＋ Sitzung hinzufügen“** oder zieh den Ordner einer Aufnahmenacht hinein. Oben wählst du, ob die Aufnahmen **in ASTRO kopiert** werden (sie werden nach Objekt, Nacht und Filter geordnet gespeichert, ohne die Originale anzurühren, und so kannst du sie stacken) oder ob sie **nur analysiert** werden (sie bleiben, wo sie sind, und ASTRO speichert nur ihre Bewertung). ASTRO merkt sich deine Wahl.
    - **Qualitätskriterien** (unter Werkzeuge, in der Übersicht jedes Objekts oder über „Stacken…“): Ein Schieberegler macht die Bewertung für alle deine Aufnahmen **großzügiger oder strenger**, falls deine Ausrüstung oder dein Himmel die üblichen Schwellenwerte nicht schafft; während du ihn bewegst, siehst du, wie viele gültig, mit Warnungen und auszusortieren bleiben, die nutzbaren Stunden und **die erste Aufnahme, die aussortiert wird**, neben der, die gerade noch durchkommt. Ein weiterer Regler pro Objekt lässt dich **nur die besten behalten**: Er entfernt die schlechtesten X % jedes Filters (und jedes Setups), jeweils verglichen mit ihrer eigenen Sitzung, und zeigt dir die erste, die herausfällt. Nichts wird gelöscht: Die entfernten Aufnahmen werden beim Stacken weggelassen, und du kannst sie wieder einbeziehen.

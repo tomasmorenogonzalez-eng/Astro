@@ -16,10 +16,11 @@ Funziona su **Mac** e **Windows**, in spagnolo, inglese, francese, tedesco, ital
 ## Installazione (2 minuti)
 1. Scarica il file per il tuo computer dalla pagina di download (**Releases**).
 2. **Fai doppio clic.** ASTRO si installa da solo e si aggiornerà da solo quando ci saranno nuove versioni.
-3. Solo la prima volta, il sistema avvisa che il programma non è firmato:
-   - **Mac:** *Impostazioni di Sistema → Privacy e sicurezza → «Apri comunque»* (su macOS 14 o precedente: clic destro → Apri).
-   - **Windows:** *Ulteriori informazioni → Esegui comunque*.
-4. Installa **Siril** da siril.org se vuoi impilare.
+3. L'avviso di sicurezza:
+   - **Mac:** nessuno: ASTRO è firmato e approvato da Apple. (Se il Mac avvisasse comunque: *Impostazioni di Sistema → Privacy e sicurezza → «Apri comunque»*.)
+   - **Windows:** solo la prima volta, il sistema avvisa che il programma non è firmato: *Ulteriori informazioni → Esegui comunque*.
+4. Vuoi dare un'occhiata prima di usare le tue foto? Nella prima finestra, premi **«Prova con dati di esempio»**.
+5. Installa **Siril** da siril.org se vuoi impilare.
 
 ## Cosa ti chiedo di provare
 Usa ASTRO con **i tuoi dati reali**, come faresti normalmente. Se ti avanza tempo, queste sono le parti che più mi interessa verificare:
@@ -41,7 +42,8 @@ Usa ASTRO con **i tuoi dati reali**, come faresti normalmente. Se ti avanza temp
 15. **Scienza → Diagrammi H-R**: se hai immagini impilate di un ammasso aperto in due filtri (o a colori), misuralo. La distanza e l'arrossamento somigliano a quelli pubblicati (per esempio, in WEBDA o in Cantat-Gaudin 2020)?
 16. **Scienza → Spettroscopia**: se hai uno Star Analyser, misura lo spettro di una stella brillante (Vega è ideale). Trova la stella e lo spettro? Le righe di Balmer cadono al loro posto? Se misuri un'altra stella la stessa notte, prova a usare Vega come riferimento.
 17. **Il nuovo aspetto**: prova le modalità Giorno, Notte e Rosso (in basso a sinistra). Si legge bene tutto? C'è qualcosa della modalità Rosso che ti dà fastidio di notte?
-18. In generale: cosa trovi confuso, lento o senti che manca?
+18. **Dati di esempio e novità**: prova «Prova con dati di esempio» (nella finestra iniziale) e fai un giro in tutte le sezioni. Si capisce cosa fa ciascuna? Torni bene ai tuoi dati con «Torna ai miei dati»? E quando ASTRO si è aggiornato, è comparsa la finestra «Novità»?
+19. In generale: cosa trovi confuso, lento o senti che manca?
 
 ## Come raccontarmi quello che trovi
 In ASTRO: **menu «Altro» → «Segnala un problema o un suggerimento»**. Scrivi cosa è successo con parole tue; il programma aggiunge da solo i dati tecnici (versione, sistema e log). **Non invia le tue foto né dati personali.** Se puoi, allega uno screenshot.

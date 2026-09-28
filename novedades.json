@@ -1,0 +1,83 @@
+[
+ {
+  "version": "0.20",
+  "es": [
+   "Nuevo: «Ver con datos de ejemplo», en la ventana de inicio. Explora ASTRO con tomas y medidas de ejemplo (lights, calibración, apilados y los seis bloques de Ciencia) sin tocar tus datos.",
+   "Al actualizar, ASTRO te cuenta qué ha cambiado, como ahora. Puedes volver a verlo en «Novedades»."
+  ],
+  "en": [
+   "New: “Try it with example data”, in the start window. Explore ASTRO with example frames and measurements (lights, calibration, stacks and the six Science blocks) without touching your own data.",
+   "After an update, ASTRO tells you what has changed, like now. You can see it again under “What's new”."
+  ],
+  "fr": [
+   "Nouveau : « Essayer avec des données d'exemple », dans la fenêtre d'accueil. Découvrez ASTRO avec des poses et des mesures d'exemple (lights, calibration, empilements et les six blocs de Science) sans toucher à vos données.",
+   "Après une mise à jour, ASTRO vous montre ce qui a changé, comme maintenant. Vous pouvez le revoir dans « Nouveautés »."
+  ],
+  "de": [
+   "Neu: „Mit Beispieldaten ansehen“ im Startfenster. Erkunde ASTRO mit Beispielaufnahmen und -messungen (Lights, Kalibrierung, Stacks und die sechs Bereiche der Wissenschaft), ohne deine eigenen Daten anzurühren.",
+   "Nach einem Update zeigt dir ASTRO, was sich geändert hat – so wie jetzt. Unter „Neuigkeiten“ kannst du es jederzeit wieder ansehen."
+  ],
+  "it": [
+   "Nuovo: «Prova con dati di esempio», nella finestra iniziale. Esplora ASTRO con pose e misure di esempio (light, calibrazione, immagini impilate e i sei blocchi di Scienza) senza toccare i tuoi dati.",
+   "Dopo un aggiornamento, ASTRO ti dice cosa è cambiato, come adesso. Puoi rivederlo in «Novità»."
+  ],
+  "pt": [
+   "Novo: «Ver com dados de exemplo», na janela inicial. Explore o ASTRO com exposições e medidas de exemplo (lights, calibração, empilhamentos e os seis blocos de Ciência) sem mexer nos seus dados.",
+   "Depois de uma atualização, o ASTRO mostra-lhe o que mudou, como agora. Pode voltar a vê-lo em «Novidades»."
+  ]
+ },
+ {
+  "version": "0.19.1",
+  "es": [
+   "El idioma se elige en la ventana de inicio, nada más abrir ASTRO, y todos los programas lo siguen.",
+   "En Mac, ASTRO está firmado y aprobado por Apple: se abre con doble clic, sin el aviso de seguridad."
+  ],
+  "en": [
+   "Choose the language in the start window, as soon as ASTRO opens; all the programs follow it.",
+   "On Mac, ASTRO is signed and approved by Apple: it opens with a double-click, without the security warning."
+  ],
+  "fr": [
+   "La langue se choisit dans la fenêtre d'accueil, dès l'ouverture d'ASTRO, et tous les programmes la suivent.",
+   "Sur Mac, ASTRO est signé et approuvé par Apple : il s'ouvre d'un double-clic, sans l'avertissement de sécurité."
+  ],
+  "de": [
+   "Die Sprache wählst du im Startfenster, gleich nach dem Öffnen von ASTRO; alle Programme übernehmen sie.",
+   "Auf dem Mac ist ASTRO signiert und von Apple geprüft: Es öffnet sich per Doppelklick, ohne Sicherheitswarnung."
+  ],
+  "it": [
+   "La lingua si sceglie nella finestra iniziale, appena si apre ASTRO, e tutti i programmi la seguono.",
+   "Su Mac, ASTRO è firmato e approvato da Apple: si apre con un doppio clic, senza l'avviso di sicurezza."
+  ],
+  "pt": [
+   "O idioma escolhe-se na janela inicial, logo ao abrir o ASTRO, e todos os programas o seguem.",
+   "No Mac, o ASTRO está assinado e aprovado pela Apple: abre-se com um duplo clique, sem o aviso de segurança."
+  ]
+ },
+ {
+  "version": "0.19",
+  "es": [
+   "ASTRO habla seis idiomas: español, inglés, francés, alemán, italiano y portugués, también en Ciencia y en las guías.",
+   "Ciencia tiene seis bloques: calidad del cielo, estrellas variables, exoplanetas, asteroides y cometas, diagramas H-R y espectroscopia."
+  ],
+  "en": [
+   "ASTRO speaks six languages: Spanish, English, French, German, Italian and Portuguese, in Science and in the guides too.",
+   "Science has six blocks: sky quality, variable stars, exoplanets, asteroids and comets, H-R diagrams and spectroscopy."
+  ],
+  "fr": [
+   "ASTRO parle six langues : espagnol, anglais, français, allemand, italien et portugais, y compris dans Science et dans les guides.",
+   "Science compte six blocs : qualité du ciel, étoiles variables, exoplanètes, astéroïdes et comètes, diagrammes H-R et spectroscopie."
+  ],
+  "de": [
+   "ASTRO spricht sechs Sprachen: Spanisch, Englisch, Französisch, Deutsch, Italienisch und Portugiesisch – auch in der Wissenschaft und in den Anleitungen.",
+   "Die Wissenschaft hat sechs Bereiche: Himmelsqualität, veränderliche Sterne, Exoplaneten, Asteroiden und Kometen, H-R-Diagramme und Spektroskopie."
+  ],
+  "it": [
+   "ASTRO parla sei lingue: spagnolo, inglese, francese, tedesco, italiano e portoghese, anche in Scienza e nelle guide.",
+   "Scienza ha sei blocchi: qualità del cielo, stelle variabili, esopianeti, asteroidi e comete, diagrammi H-R e spettroscopia."
+  ],
+  "pt": [
+   "O ASTRO fala seis idiomas: espanhol, inglês, francês, alemão, italiano e português, também na Ciência e nos guias.",
+   "A Ciência tem seis blocos: qualidade do céu, estrelas variáveis, exoplanetas, asteroides e cometas, diagramas H-R e espectroscopia."
+  ]
+ }
+]

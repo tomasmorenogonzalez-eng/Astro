@@ -16,10 +16,11 @@ Es läuft auf **Mac** und **Windows**, auf Spanisch, Englisch, Französisch, Deu
 ## Installation (2 Minuten)
 1. Lade die Datei für deinen Computer von der Download-Seite (**Releases**) herunter.
 2. **Doppelklicke darauf.** ASTRO installiert sich selbst und aktualisiert sich selbst, wenn es neue Versionen gibt.
-3. Nur beim ersten Mal warnt das System, dass das Programm nicht signiert ist:
-   - **Mac:** *Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“* (unter macOS 14 oder älter: Rechtsklick → Öffnen).
-   - **Windows:** *Weitere Informationen → Trotzdem ausführen*.
-4. Installiere **Siril** von siril.org, wenn du stacken willst.
+3. Die Sicherheitswarnung:
+   - **Mac:** keine: ASTRO ist signiert und von Apple geprüft. (Falls der Mac trotzdem warnt: *Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“*.)
+   - **Windows:** Nur beim ersten Mal warnt das System, dass das Programm nicht signiert ist: *Weitere Informationen → Trotzdem ausführen*.
+4. Willst du dich erst umsehen, bevor du deine Fotos verwendest? Klicke im ersten Fenster auf **„Mit Beispieldaten ansehen“**.
+5. Installiere **Siril** von siril.org, wenn du stacken willst.
 
 ## Was du bitte testen sollst
 Nutze ASTRO mit **deinen echten Daten**, so wie du es normalerweise tun würdest. Wenn du noch Zeit hast, sind das die Teile, die ich am liebsten überprüft hätte:
@@ -41,7 +42,8 @@ Nutze ASTRO mit **deinen echten Daten**, so wie du es normalerweise tun würdest
 15. **Wissenschaft → HR-Diagramme**: Wenn du Stacks eines offenen Sternhaufens in zwei Filtern (oder in Farbe) hast, miss ihn. Ähneln Entfernung und Rötung den veröffentlichten Werten (zum Beispiel in WEBDA oder bei Cantat-Gaudin 2020)?
 16. **Wissenschaft → Spektroskopie**: Wenn du einen Star Analyser hast, miss das Spektrum eines hellen Sterns (Wega ist ideal). Findet es den Stern und das Spektrum? Liegen die Balmer-Linien an der richtigen Stelle? Wenn du in derselben Nacht einen weiteren Stern misst, probier aus, Wega als Referenz zu verwenden.
 17. **Das neue Design**: Probier die Modi Tag, Nacht und Rot aus (unten links). Ist alles gut lesbar? Stört dich nachts etwas am Rotmodus?
-18. Allgemein: Was findest du verwirrend oder langsam, oder was fehlt dir?
+18. **Beispieldaten und Neuigkeiten**: Probier „Mit Beispieldaten ansehen“ (im Startfenster) und schau dir alle Bereiche an. Versteht man, was jeder Bereich macht? Kommst du mit „Zurück zu meinen Daten“ gut zu deinen Daten zurück? Und ist nach dem Update von ASTRO das Fenster „Neuigkeiten“ erschienen?
+19. Allgemein: Was findest du verwirrend oder langsam, oder was fehlt dir?
 
 ## So meldest du mir, was du findest
 In ASTRO: **Menü „Mehr“ → „Problem oder Vorschlag melden“**. Beschreib mit deinen Worten, was passiert ist; das Programm fügt die technischen Daten (Version, System und Log) selbst hinzu. **Es sendet weder deine Bilder noch persönliche Daten.** Wenn du kannst, häng einen Screenshot an.

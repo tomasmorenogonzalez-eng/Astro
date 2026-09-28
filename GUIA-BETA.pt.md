@@ -16,10 +16,11 @@ Funciona em **Mac** e **Windows**, em espanhol, inglês, francês, alemão, ital
 ## Instalação (2 minutos)
 1. Descarregue o ficheiro do seu computador a partir da página de transferências (**Releases**).
 2. **Faça duplo clique.** O ASTRO instala-se sozinho e atualiza-se sozinho quando houver versões novas.
-3. Só da primeira vez, o sistema avisa que o programa não está assinado:
-   - **Mac:** *Definições do Sistema → Privacidade e segurança → «Abrir mesmo assim»* (no macOS 14 ou anterior: clique com o botão direito → Abrir).
-   - **Windows:** *Mais informações → Executar mesmo assim*.
-4. Instale o **Siril** a partir de siril.org se quiser empilhar.
+3. O aviso de segurança:
+   - **Mac:** nenhum: o ASTRO está assinado e aprovado pela Apple. (Se mesmo assim o Mac avisar: *Definições do Sistema → Privacidade e segurança → «Abrir mesmo assim»*.)
+   - **Windows:** só da primeira vez, o sistema avisa que o programa não está assinado: *Mais informações → Executar mesmo assim*.
+4. Quer espreitar antes de usar as suas fotografias? Na primeira janela, clique em **«Ver com dados de exemplo»**.
+5. Instale o **Siril** a partir de siril.org se quiser empilhar.
 
 ## O que peço que teste
 Use o ASTRO com **os seus dados reais**, como faria normalmente. Se tiver tempo, estas são as partes que mais me interessa verificar:
@@ -41,7 +42,8 @@ Use o ASTRO com **os seus dados reais**, como faria normalmente. Se tiver tempo,
 15. **Ciência → Diagramas H-R**: se tiver empilhamentos de um enxame aberto em dois filtros (ou a cores), meça-o. A distância e o avermelhamento parecem-se com os publicados (por exemplo, no WEBDA ou em Cantat-Gaudin 2020)?
 16. **Ciência → Espetroscopia**: se tiver um Star Analyser, meça o espetro de uma estrela brilhante (Vega é ideal). Encontra a estrela e o espetro? As linhas de Balmer caem no sítio certo? Se medir outra estrela na mesma noite, experimente usar Vega como referência.
 17. **O novo aspeto**: experimente os modos Dia, Noite e Vermelho (em baixo, à esquerda). Lê-se tudo bem? Há algo no modo Vermelho que o incomode à noite?
-18. Em geral: o que acha confuso ou lento, ou de que sente falta?
+18. **Dados de exemplo e novidades**: experimente «Ver com dados de exemplo» (na janela inicial) e dê uma volta por todas as secções. Percebe-se o que faz cada uma? Volta bem aos seus dados com «Voltar aos meus dados»? E quando o ASTRO se atualizou, apareceu a janela «Novidades»?
+19. Em geral: o que acha confuso ou lento, ou de que sente falta?
 
 ## Como comunicar o que encontrar
 No ASTRO: **menu «Mais» → «Comunicar um problema ou sugestão»**. Escreva o que aconteceu por palavras suas; o programa acrescenta automaticamente os dados técnicos (versão, sistema e registo). **Não envia as suas fotos nem dados pessoais.** Se puder, anexe uma captura de ecrã.

@@ -2481,7 +2481,9 @@
 "formato completo": "Vollformat",
 "Mostrar el archivo": "Datei anzeigen",
 "Criterios: se rechazan los bias con exposición superior a 0,01 s, nivel superior al 25% o saturación; los darks con nivel superior al 25% o saturación superior al 2%; los flats con mediana inferior al 10% o superior al 88% (lo ideal es 30–60%), además de valorar el viñeteo y el gradiente lateral; y los archivos calibrados con más del 5% de píxeles a cero. Se avisa de los masters con menos de 10 tomas y de los darks y bias de más de un año. Las estadísticas se calculan sobre una muestra de unos 400 000 píxeles.": "Kriterien: Aussortiert werden Bias mit einer Belichtung über 0,01 s, einem Niveau über 25% oder Sättigung; Darks mit einem Niveau über 25% oder einer Sättigung über 2%; Flats mit einem Median unter 10% oder über 88% (ideal sind 30–60%), wobei zusätzlich Vignettierung und seitlicher Gradient bewertet werden; und kalibrierte Dateien mit mehr als 5% Pixeln auf null. Gewarnt wird bei Mastern aus weniger als 10 Aufnahmen sowie bei Darks und Bias, die älter als ein Jahr sind. Die Statistiken werden an einer Stichprobe von etwa 400 000 Pixeln berechnet.",
-"Calibraciones pendientes": "Ausstehende Kalibrierungen"
+"Calibraciones pendientes": "Ausstehende Kalibrierungen",
+"Datos de ejemplo": "Beispieldaten",
+"Fotos y medidas inventadas para que explores ASTRO. Para usar las tuyas, pulsa «Volver a mis datos» en la ventana de inicio.": "Erfundene Aufnahmen und Messungen zum Ausprobieren von ASTRO. Für deine eigenen klicke im Startfenster auf „Zurück zu meinen Daten“."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

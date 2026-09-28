@@ -30,18 +30,15 @@ Quale Mac ho? Menu  → *Informazioni su questo Mac*: se c'è scritto «Chip App
 
 Poi aprila sempre da Applicazioni (Mac) o dal suo collegamento (Windows). Il file scaricato si può già cancellare.
 
-**Si aggiorna da sola:** ogni volta che si apre controlla se c'è una nuova versione e, se c'è, si aggiorna in pochi secondi senza chiedere niente.
+**Si aggiorna da sola:** ogni volta che si apre controlla se c'è una nuova versione e, se c'è, si aggiorna in pochi secondi senza chiedere niente. Poi ti mostra le **novità** di quella versione (puoi rivederle in **«✦ Novità»**, nella finestra iniziale).
 
-### Solo la prima volta: l'avviso di sicurezza
-Finché ASTRO non è firmato da Apple o Microsoft, il sistema avvisa la prima volta che lo apri:
-- **Mac:** se dice che non si può aprire, premi **OK**, vai in **Impostazioni di Sistema → Privacy e sicurezza**, scorri fino in fondo e premi **«Apri comunque»**. (Su macOS 14 o precedente basta un clic destro su ASTRO → **Apri**.)
-- **Windows:** se compare «Windows ha protetto il PC», premi **Ulteriori informazioni → Esegui comunque**.
-
-Non compare più: né quando lo apri in seguito né con gli aggiornamenti.
+### L'avviso di sicurezza (solo su Windows)
+- **Mac:** ASTRO è firmato e approvato da Apple, quindi si apre senza avvisi. (Se un giorno il Mac dicesse che non si può aprire, vai in **Impostazioni di Sistema → Privacy e sicurezza**, scorri fino in fondo e premi **«Apri comunque»**.)
+- **Windows:** finché ASTRO non è firmato da Microsoft, la prima volta che lo apri può comparire «Windows ha protetto il PC»: premi **Ulteriori informazioni → Esegui comunque**. Non compare più: né quando lo apri in seguito né con gli aggiornamenti.
 
 ## 2. Primo utilizzo
 
-1. Apri ASTRO. Ti chiederà **dove salvare i tuoi dati**. Può essere una cartella del tuo computer o di un disco esterno (consigliabile: le foto occupano molto spazio).
+1. Apri ASTRO. Ti chiederà **dove salvare i tuoi dati**. Può essere una cartella del tuo computer o di un disco esterno (consigliabile: le foto occupano molto spazio). Se preferisci vederlo prima all'opera, premi **«Prova con dati di esempio»**: ASTRO si apre con pose, calibrazione, immagini impilate e misure di Scienza di esempio, senza toccare i tuoi dati. Per uscire, premi **«Torna ai miei dati»** (o «Inizia con i miei dati») nella finestra iniziale.
 2. Compare la **finestra iniziale** di ASTRO, con una sezione e il suo disegno per ogni cosa che puoi fare: **Aggiungi pose**, **I miei oggetti**, **Più configurazioni**, **Prossime notti**, **Sessione in diretta**, **Impila con Siril**, **Calibrazione** e **Scienza**. Premi quella che vuoi e si apre nel tuo **browser**, già in quella sezione. Lascia la finestra aperta (puoi ridurla a icona) mentre usi ASTRO; per chiuderlo, premi **Esci** nella finestra o in **Altre opzioni**.
 3. In **Controllo dei light**, premi **«＋ Aggiungi sessione»** o trascina la cartella di una notte di foto. In alto scegli se **copiarle in ASTRO** (vengono salvate ordinate per oggetto, notte e filtro, senza toccare gli originali, e così le puoi impilare) o **analizzarle soltanto** (restano dove sono e ASTRO salva solo la loro valutazione). ASTRO ricorda cosa hai scelto.
    - **Criterio di qualità** (in Strumenti, nel riepilogo di ogni oggetto o da «Impila…»): un cursore rende la valutazione **più permissiva o più severa** per tutte le tue pose, nel caso in cui la tua attrezzatura o il tuo cielo non arrivino alle soglie di sempre; mentre lo sposti vedi quante restano valide, con avvisi e da scartare, le ore utili e **la prima posa che viene scartata** accanto a quella che passa più a fatica. Un altro cursore, per ogni oggetto, ti permette di **tenere le migliori**: toglie il peggior X % di ogni filtro (e di ogni configurazione), rispetto alla sua stessa sessione, e ti mostra la prima che resta fuori. Non si cancella niente: quelle che togli restano fuori dall'impilamento e puoi reincluderle.

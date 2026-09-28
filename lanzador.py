@@ -98,6 +98,9 @@ def puerto_libre(preferido):
     for p in (preferido, preferido + 1, preferido + 2, preferido + 3, 0):
         s = socket.socket()
         try:
+            if os.name != "nt":
+                # como hacen los servidores: tras reiniciar, las conexiones recién cerradas no bloquean el puerto
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind(("127.0.0.1", p)); p = s.getsockname()[1]; s.close(); return p
         except OSError:
             s.close()
@@ -188,6 +191,48 @@ TXT = {
     'it': {'lema': 'light e calibrazione', 'bienvenido': 'Benvenuto!', 'titulo_bienv': 'Benvenuto in ASTRO', 'intro': 'ASTRO controlla la qualità dei tuoi light (stelle, scie di satelliti, nuvole…), organizza la tua libreria di dark, flat e bias e impila con Siril.\n\nScegli la cartella in cui salverà le tue foto e i loro dati. Può essere su un disco esterno. Se usavi già ASTRO, scegli la cartella che contiene «Lights».', 'otra': "Scegli un'altra cartella…", 'empezar': 'Inizia', 'idioma': 'Lingua:', 'carpeta_titulo': 'Cartella dei dati di ASTRO', 'no_encuentro': 'Non trovo la tua cartella dei dati:\n%s', 'no_usar': 'Non si può usare questa cartella:\n%s', 'marcha': 'ASTRO è in funzione', 'marcha_txt': 'Scegli da dove cominciare; si apre nel browser. Lascia aperta questa finestra (o ridotta a icona) mentre usi ASTRO.', 'lights': 'Controllo dei light', 'biblio': 'Libreria di calibrazione', 'datos_en': 'Cartella dei dati:  ', 'cambiar': 'Cambia cartella dei dati…', 'lema_largo': 'Controlla, organizza, impila e misura le tue foto del cielo', 't_anadir': 'Aggiungi pose', 'd_anadir': 'Dalla scheda di memoria o da una cartella; ASTRO controlla ogni posa.', 't_objetos': 'I miei oggetti', 'd_objetos': 'Ore utili, qualità di ogni notte e ciò che ti manca.', 't_varios': 'Più configurazioni', 'd_varios': 'Un oggetto con più telescopi o camere, tuoi o di amici.', 't_noches': 'Prossime notti', 'd_noches': 'Luna, nuvole e cosa fotografare con la tua attrezzatura.', 't_directo': 'Sessione in diretta', 'd_directo': 'Controlla ogni posa mentre acquisisci e ti avvisa se qualcosa va storto.', 't_apilar': 'Impila con Siril', 'd_apilar': "Dalle tue pose buone all'immagine finale, già calibrata.", 't_calib': 'Calibrazione', 'd_calib': 'Dark, flat e bias: cosa hai e cosa ti manca.', 't_ciencia': 'Scienza', 'd_ciencia': 'Misura con le tue foto: cielo, variabili, esopianeti, asteroidi…', 'ciencia': 'Scienza', 'salir': 'Esci', 'cerrar_q': 'Chiudere ASTRO?', 'nueva_carpeta': 'Nuova cartella dei dati di ASTRO', 'reiniciar_q': 'ASTRO si riavvierà usando:\n%s\n\n(I dati della cartella precedente non vengono spostati.)', 'no_arranca': 'Impossibile avviare: %s.\nGuarda il registro in:\n%s', 'por': 'Creato da', 'actualizando': 'Aggiornamento di ASTRO alla versione %s…', 'beta': 'Versione di prova (beta). Se qualcosa non funziona o ti manca una funzione, usa «Segnala un problema o un suggerimento» in «Altre opzioni». Grazie per provare ASTRO!'},
     'pt': {'lema': 'lights e calibração', 'bienvenido': 'Bem-vindo!', 'titulo_bienv': 'Bem-vindo ao ASTRO', 'intro': 'O ASTRO verifica a qualidade das suas lights (estrelas, rastos de satélites, nuvens…), organiza a sua biblioteca de darks, flats e bias e empilha com o Siril.\n\nEscolha a pasta onde vai guardar as suas fotografias e os respetivos dados. Pode estar num disco externo. Se já usava o ASTRO, escolha a pasta que contém «Lights».', 'otra': 'Escolher outra pasta…', 'empezar': 'Começar', 'idioma': 'Idioma:', 'carpeta_titulo': 'Pasta de dados do ASTRO', 'no_encuentro': 'Não encontro a sua pasta de dados:\n%s', 'no_usar': 'Não é possível usar essa pasta:\n%s', 'marcha': 'O ASTRO está a funcionar', 'marcha_txt': 'Escolha por onde começar; abre-se no navegador. Deixe esta janela aberta (ou minimizada) enquanto usar o ASTRO.', 'lights': 'Controlo de lights', 'biblio': 'Biblioteca de calibração', 'datos_en': 'Pasta de dados:  ', 'cambiar': 'Alterar pasta de dados…', 'lema_largo': 'Verifique, organize, empilhe e meça as suas fotografias do céu', 't_anadir': 'Adicionar exposições', 'd_anadir': 'Do cartão ou de uma pasta; o ASTRO verifica cada exposição.', 't_objetos': 'Os meus objetos', 'd_objetos': 'Horas úteis, qualidade de cada noite e o que lhe falta.', 't_varios': 'Vários equipamentos', 'd_varios': 'Um objeto com vários telescópios ou câmaras, seus ou de colegas.', 't_noches': 'Próximas noites', 'd_noches': 'Lua, nuvens e o que fotografar com o seu equipamento.', 't_directo': 'Sessão em direto', 'd_directo': 'Verifica cada exposição durante a captura e avisa se algo correr mal.', 't_apilar': 'Empilhar com o Siril', 'd_apilar': 'Das suas boas exposições à imagem final, já calibrada.', 't_calib': 'Calibração', 'd_calib': 'Darks, flats e bias: o que tem e o que lhe falta.', 't_ciencia': 'Ciência', 'd_ciencia': 'Meça com as suas fotografias: céu, variáveis, exoplanetas, asteroides…', 'ciencia': 'Ciência', 'salir': 'Sair', 'cerrar_q': 'Fechar o ASTRO?', 'nueva_carpeta': 'Nova pasta de dados do ASTRO', 'reiniciar_q': 'O ASTRO vai reiniciar com:\n%s\n\n(Os dados da pasta anterior não são movidos.)', 'no_arranca': 'Não foi possível arrancar: %s.\nConsulte o registo em:\n%s', 'por': 'Criado por', 'actualizando': 'A atualizar o ASTRO para a versão %s…', 'beta': 'Versão de teste (beta). Se algo falhar ou sentir falta de alguma função, use «Comunicar um problema ou sugestão» em «Mais opções». Obrigado por experimentar o ASTRO!'},
 }
+
+
+TXT_EXTRA = {
+    "es": {"ejemplo_ver": "Ver con datos de ejemplo", "ejemplo_carpeta": "datos de ejemplo",
+           "ejemplo_aviso": "Estás viendo ASTRO con datos de ejemplo: tomas y medidas inventadas para que lo explores. Lo que cambies aquí no se guarda.",
+           "ejemplo_volver": "Volver a mis datos", "ejemplo_empezar": "Empezar con mis datos",
+           "ejemplo_bienv": "¿Quieres verlo antes de usar tus fotos?",
+           "ejemplo_error": "No se pudieron preparar los datos de ejemplo:\n%s",
+           "novedades": "Novedades", "novedades_titulo": "Novedades de ASTRO %s", "entendido": "Entendido"},
+    "en": {"ejemplo_ver": "Try it with example data", "ejemplo_carpeta": "example data",
+           "ejemplo_aviso": "You're looking at ASTRO with example data: made-up frames and measurements for you to explore. Nothing you change here is kept.",
+           "ejemplo_volver": "Back to my data", "ejemplo_empezar": "Start with my data",
+           "ejemplo_bienv": "Want to look around before using your own frames?",
+           "ejemplo_error": "The example data could not be prepared:\n%s",
+           "novedades": "What's new", "novedades_titulo": "What's new in ASTRO %s", "entendido": "Got it"},
+    "fr": {"ejemplo_ver": "Essayer avec des données d'exemple", "ejemplo_carpeta": "données d'exemple",
+           "ejemplo_aviso": "Vous découvrez ASTRO avec des données d'exemple\u00a0: poses et mesures fictives. Ce que vous modifiez ici n'est pas conservé.",
+           "ejemplo_volver": "Revenir à mes données", "ejemplo_empezar": "Commencer avec mes données",
+           "ejemplo_bienv": "Envie de le découvrir avant d'utiliser vos photos\u00a0?",
+           "ejemplo_error": "Impossible de préparer les données d'exemple\u00a0:\n%s",
+           "novedades": "Nouveautés", "novedades_titulo": "Nouveautés d'ASTRO %s", "entendido": "Compris"},
+    "de": {"ejemplo_ver": "Mit Beispieldaten ansehen", "ejemplo_carpeta": "Beispieldaten",
+           "ejemplo_aviso": "Du siehst ASTRO mit Beispieldaten: erfundene Aufnahmen und Messungen zum Ausprobieren. Was du hier änderst, wird nicht gespeichert.",
+           "ejemplo_volver": "Zurück zu meinen Daten", "ejemplo_empezar": "Mit meinen Daten beginnen",
+           "ejemplo_bienv": "Willst du dich erst umsehen, bevor du deine Fotos verwendest?",
+           "ejemplo_error": "Die Beispieldaten konnten nicht vorbereitet werden:\n%s",
+           "novedades": "Neuigkeiten", "novedades_titulo": "Neu in ASTRO %s", "entendido": "Verstanden"},
+    "it": {"ejemplo_ver": "Prova con dati di esempio", "ejemplo_carpeta": "dati di esempio",
+           "ejemplo_aviso": "Stai guardando ASTRO con dati di esempio: pose e misure inventate da esplorare. Le modifiche fatte qui non vengono salvate.",
+           "ejemplo_volver": "Torna ai miei dati", "ejemplo_empezar": "Inizia con i miei dati",
+           "ejemplo_bienv": "Vuoi dare un'occhiata prima di usare le tue foto?",
+           "ejemplo_error": "Impossibile preparare i dati di esempio:\n%s",
+           "novedades": "Novità", "novedades_titulo": "Novità di ASTRO %s", "entendido": "Ho capito"},
+    "pt": {"ejemplo_ver": "Ver com dados de exemplo", "ejemplo_carpeta": "dados de exemplo",
+           "ejemplo_aviso": "Está a ver o ASTRO com dados de exemplo: exposições e medidas fictícias para explorar. O que alterar aqui não é guardado.",
+           "ejemplo_volver": "Voltar aos meus dados", "ejemplo_empezar": "Começar com os meus dados",
+           "ejemplo_bienv": "Quer espreitar antes de usar as suas fotografias?",
+           "ejemplo_error": "Não foi possível preparar os dados de exemplo:\n%s",
+           "novedades": "Novidades", "novedades_titulo": "Novidades do ASTRO %s", "entendido": "Entendido"},
+}
+for _l, _d in TXT_EXTRA.items():
+    TXT[_l].update(_d)
 
 
 def idioma_sistema():
@@ -698,9 +743,15 @@ def bienvenida(mensaje=None):
     def usar():
         elegido["ruta"] = var.get(); w.destroy()
 
+    def ejemplo():
+        elegido["ruta"] = EJEMPLO; w.destroy()
+
     bot = tk.Frame(c, bg=FONDO); bot.pack(fill="x", pady=(18, 0))
     _boton(bot, T("otra"), otra).pack(side="left")
     _boton(bot, T("empezar"), usar, principal=True).pack(side="right")
+    ej = tk.Frame(c, bg=FONDO); ej.pack(fill="x", pady=(16, 0))
+    tk.Label(ej, text=T("ejemplo_bienv"), bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w").pack(side="left")
+    _enlace(ej, T("ejemplo_ver"), ejemplo).pack(side="left", padx=(8, 0))
     w.protocol("WM_DELETE_WINDOW", lambda: (w.destroy(), sys.exit(0)))
     w.mainloop()
     if elegido.get("cambio"):          # cambió el idioma: volver a mostrar la bienvenida
@@ -710,15 +761,152 @@ def bienvenida(mensaje=None):
     return elegido["ruta"]
 
 
+# ─────────────── datos de ejemplo y novedades ───────────────
+EJEMPLO = "__EJEMPLO__"             # lo que devuelve la bienvenida si eligen los datos de ejemplo
+MODO = {"ejemplo": False}
+
+
+def carpeta_ejemplo():
+    return os.path.join(carpeta_config(), "Datos de ejemplo")
+
+
+def preparar_ejemplo():
+    """Descomprime los datos de ejemplo (siempre de nuevo, así cada visita empieza limpia) y pone la
+    carpeta real donde el paquete dice __ASTRO_EJEMPLO__."""
+    import zipfile
+    destino = carpeta_ejemplo()
+    shutil.rmtree(destino, ignore_errors=True)
+    with zipfile.ZipFile(os.path.join(recursos(), "demo", "astro-ejemplo.zip")) as z:
+        z.extractall(destino)
+    en_json = json.dumps(destino)[1:-1]            # con las barras de Windows escapadas
+    for raiz, _, archivos in os.walk(destino):
+        for a in archivos:
+            if a.endswith((".json", ".csv", ".txt", ".psv", ".svg")):
+                ruta = os.path.join(raiz, a)
+                with open(ruta, "r", encoding="utf-8", errors="surrogateescape") as f:
+                    t = f.read()
+                if "__ASTRO_EJEMPLO__" in t:
+                    with open(ruta, "w", encoding="utf-8", errors="surrogateescape") as f:
+                        f.write(t.replace("__ASTRO_EJEMPLO__", en_json if a.endswith(".json") else destino))
+    return destino
+
+
+def _datos_ejemplo():
+    try:
+        d = preparar_ejemplo()
+        MODO["ejemplo"] = True
+        return d
+    except Exception as e:
+        print("Datos de ejemplo:", e)
+        c = leer_config(); c.pop("ejemplo", None); guardar_config(c)
+        if TK:
+            r = tk.Tk(); r.withdraw(); messagebox.showerror("ASTRO", T("ejemplo_error") % e); r.destroy()
+        return None
+
+
+def entrar_ejemplo():
+    c = leer_config(); c["ejemplo"] = True; guardar_config(c)
+    reiniciar()
+
+
+def salir_ejemplo():
+    c = leer_config(); c.pop("ejemplo", None); guardar_config(c)
+    real = c.get("datos")
+    if real and os.path.isdir(real):
+        compartir_idioma(real)                       # el idioma elegido mientras tanto también vale para tus datos
+    reiniciar()
+
+
+def cargar_novedades():
+    try:
+        with open(os.path.join(recursos(), "novedades.json"), "r", encoding="utf-8") as f:
+            return json.load(f) or []
+    except Exception:
+        return []
+
+
+def novedades_para(desde=None, maximo=3):
+    """Novedades de las versiones publicadas hasta esta (las más nuevas primero); con «desde», solo las posteriores."""
+    va = _v(VERSION_APP)
+    lista = [n for n in cargar_novedades() if _v(n.get("version")) <= va and (desde is None or _v(n.get("version")) > _v(desde))]
+    return sorted(lista, key=lambda n: _v(n.get("version")), reverse=True)[:maximo]
+
+
+NOVEDADES = {"pendientes": [], "mostradas": False}
+
+
+def ventana_novedades(padre, entradas):
+    if not entradas:
+        return
+    d = tk.Toplevel(padre); d.title(T("novedades")); d.configure(bg=FONDO); d.resizable(False, False)
+    try:
+        d.transient(padre)
+    except Exception:
+        pass
+    marco = tk.Frame(d, bg=FONDO); marco.pack(padx=28, pady=(22, 20), fill="both")
+    for i, n in enumerate(entradas):
+        textos = n.get(IDIOMA["v"]) or n.get("en") or n.get("es") or []
+        tk.Label(marco, text=T("novedades_titulo") % n.get("version", ""), bg=FONDO, fg=TEXTO if i == 0 else GRIS,
+                 font=("Helvetica", 17 if i == 0 else 13, "bold"), anchor="w").pack(fill="x", pady=(0 if i == 0 else 16, 6))
+        for t in textos:
+            fila = tk.Frame(marco, bg=FONDO); fila.pack(fill="x", anchor="w", pady=2)
+            tk.Label(fila, text="✦", bg=FONDO, fg=VIOLETA2, font=("Helvetica", 11)).pack(side="left", anchor="n", padx=(2, 8), pady=(2, 0))
+            tk.Label(fila, text=t, bg=FONDO, fg=TEXTO if i == 0 else GRIS, font=("Helvetica", 13 if i == 0 else 12), justify="left",
+                     anchor="w", wraplength=600).pack(side="left", fill="x")
+    _boton(marco, T("entendido"), d.destroy, principal=True).pack(anchor="e", pady=(20, 0))
+
+    def centrar():
+        d.update_idletasks()
+        x = padre.winfo_rootx() + (padre.winfo_width() - d.winfo_reqwidth()) // 2
+        y = padre.winfo_rooty() + max(40, (padre.winfo_height() - d.winfo_reqheight()) // 3)
+        d.geometry("+%d+%d" % (max(0, x), max(0, y)))
+        try:
+            d.lift(); d.focus_force()
+        except Exception:
+            pass
+    d.after(20, centrar)
+
+
+def preparar_novedades():
+    """Al abrir una versión nueva por primera vez, sus novedades se enseñan una vez."""
+    c = leer_config()
+    vista = c.get("version_vista")
+    if vista is None:
+        # antes no se guardaba: si ya había datos es que se ha actualizado (solo esta versión); si es nuevo, nada
+        NOVEDADES["pendientes"] = [] if BIENVENIDA["vista"] else novedades_para(maximo=1)
+    elif vista != VERSION_APP:
+        NOVEDADES["pendientes"] = novedades_para(desde=vista)
+    c["version_vista"] = VERSION_APP; guardar_config(c)
+
+
+def _enlace(padre, texto, orden):
+    l = tk.Label(padre, text=texto, bg=FONDO, fg=VIOLETA, font=("Helvetica", 12, "bold", "underline"), cursor="hand2")
+    l.bind("<Button-1>", lambda e: orden())
+    return l
+
+
 def carpeta_datos():
     c = leer_config()
+    if c.get("ejemplo"):
+        d = _datos_ejemplo()
+        if d:
+            return d
     datos = c.get("datos")
     if datos and os.path.isdir(datos):
         return datos
-    if datos and not os.path.isdir(datos):   # p. ej. disco externo desconectado
-        datos = bienvenida(T("no_encuentro") % datos)
-    else:
-        datos = bienvenida()
+    while True:
+        if datos and not os.path.isdir(datos):   # p. ej. disco externo desconectado
+            datos = bienvenida(T("no_encuentro") % datos)
+        else:
+            datos = bienvenida()
+        if datos != EJEMPLO:
+            break
+        c = leer_config(); c["ejemplo"] = True; guardar_config(c)
+        d = _datos_ejemplo()
+        if d:
+            return d
+        datos = None
+    c = leer_config()
     datos = normalizar_datos(datos)
     try:
         os.makedirs(datos, exist_ok=True)
@@ -746,6 +934,7 @@ def arrancar(datos):
     os.environ["ASTRO_BETA"] = "1" if ES_BETA else "0"
     os.environ["ASTRO_CONTACTO"] = CONTACTO
     os.environ["ASTRO_IDIOMA"] = IDIOMA["v"]
+    os.environ["ASTRO_EJEMPLO"] = "1" if MODO["ejemplo"] else "0"
     os.environ["ASTRO_REGISTRO"] = REGISTRO
     puertos = {}
     for pid, _, pref in PROGRAMAS:
@@ -800,8 +989,20 @@ def _ventana_inicio(datos, puertos):
     punto = tk.Canvas(fila, width=14, height=14, bg=FONDO, highlightthickness=0); punto.pack(side="left", padx=(0, 8), pady=(4, 0))
     punto.create_oval(2, 2, 12, 12, fill="#3FA56B", outline="")
     tk.Label(fila, text=T("marcha"), bg=FONDO, fg=TEXTO, font=("Helvetica", 17, "bold"), anchor="w").pack(side="left")
-    tk.Label(c, text=T("marcha_txt"), bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w", justify="left",
-             wraplength=960).pack(fill="x", pady=(2, 12))
+    if not (MODO["ejemplo"] and baja):              # en pantallas bajas, el aviso del ejemplo ocupa su sitio
+        tk.Label(c, text=T("marcha_txt"), bg=FONDO, fg=GRIS, font=("Helvetica", 12), anchor="w", justify="left",
+                 wraplength=960).pack(fill="x", pady=(2, 6))
+    if MODO["ejemplo"]:
+        # aviso bien visible y la salida a los datos propios
+        real = leer_config().get("datos")
+        av = tk.Frame(c, bg="#FBF1D6", highlightthickness=1, highlightbackground="#EBC96B"); av.pack(fill="x", pady=(8 if baja else 2, 4))
+        _boton(av, T("ejemplo_volver") if real and os.path.isdir(real) else T("ejemplo_empezar"), salir_ejemplo,
+               principal=True).pack(side="right", padx=10, pady=6 if baja else 8)
+        tk.Label(av, text=T("ejemplo_aviso"), bg="#FBF1D6", fg="#5C4300", font=("Helvetica", 12), anchor="w", justify="left",
+                 wraplength=700).pack(side="left", fill="x", expand=True, padx=12, pady=6 if baja else 8)
+    if NOVEDADES["pendientes"] and not NOVEDADES["mostradas"]:
+        NOVEDADES["mostradas"] = True
+        w.after(700, lambda: ventana_novedades(w, NOVEDADES["pendientes"]))
     L, C, S = url(puertos["lights"]), url(puertos["calibracion"]), url(puertos["ciencia"])
     abrir = lambda u: (lambda: webbrowser.open(u))
     apartados = [("apartado-anadir.png", "t_anadir", "d_anadir", abrir(L + "#anadir")),
@@ -821,13 +1022,20 @@ def _ventana_inicio(datos, puertos):
     def cambiar():
         r = filedialog.askdirectory(title=T("nueva_carpeta"), initialdir=datos)
         if r and messagebox.askyesno("ASTRO", T("reiniciar_q") % normalizar_datos(r)):
-            cc = leer_config(); cc["datos"] = normalizar_datos(r); guardar_config(cc); reiniciar()
+            cc = leer_config(); cc["datos"] = normalizar_datos(r); cc.pop("ejemplo", None); guardar_config(cc); reiniciar()
 
     pie = tk.Frame(c, bg=FONDO); pie.pack(fill="x", pady=(12, 0))
     _boton(pie, T("salir"), lambda: os._exit(0)).pack(side="right")
     _boton(pie, T("cambiar"), cambiar).pack(side="right", padx=8)
-    tk.Label(pie, text=T("datos_en") + datos, bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=520,
-             justify="left").pack(side="left", fill="x", expand=True)
+    # a la izquierda, en dos líneas (caben en la altura de los botones): los enlaces y la carpeta de datos
+    izq = tk.Frame(pie, bg=FONDO); izq.pack(side="left", fill="x", expand=True)
+    enl = tk.Frame(izq, bg=FONDO); enl.pack(fill="x", anchor="w")
+    if cargar_novedades():
+        _enlace(enl, "✦ " + T("novedades"), lambda: ventana_novedades(w, novedades_para(maximo=3))).pack(side="left")
+    if not MODO["ejemplo"] and os.path.exists(os.path.join(recursos(), "demo", "astro-ejemplo.zip")):
+        _enlace(enl, T("ejemplo_ver"), entrar_ejemplo).pack(side="left", padx=(20, 0))
+    tk.Label(izq, text=T("datos_en") + (T("ejemplo_carpeta") if MODO["ejemplo"] else datos), bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=520,
+             justify="left").pack(fill="x", anchor="w", pady=(2, 0))
     w.protocol("WM_DELETE_WINDOW", lambda: os._exit(0) if messagebox.askyesno("ASTRO", T("cerrar_q")) else None)
     w.mainloop()
     return estado["cambio"]
@@ -898,7 +1106,8 @@ def main():
     instalar_si_hace_falta()
     comprobar_actualizacion()
     datos = carpeta_datos()
-    if not BIENVENIDA["vista"]:
+    preparar_novedades()
+    if not BIENVENIDA["vista"] and not MODO["ejemplo"]:
         v = idioma_de_datos(datos)
         if v and v != IDIOMA["v"]:
             poner_idioma_app(v)

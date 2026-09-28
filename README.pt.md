@@ -48,15 +48,13 @@ O ASTRO faz esse trabalho por si. É gratuito, funciona em **Mac** e em **Window
    - Mac com chip Apple (M1, M2, M3, M4…): **ASTRO-Mac-AppleSilicon.zip**
    - Mac com processador Intel: **ASTRO-Mac-Intel.zip**
    - Windows 10 ou 11: **ASTRO-Windows.exe**
-2. **Faça duplo clique.** O ASTRO instala-se sozinho e, a partir daí, atualiza-se sozinho.
-3. Escolha o idioma e a pasta onde quer guardar as suas fotos. Pode estar num disco externo.
+2. **Faça duplo clique.** O ASTRO instala-se sozinho e, a partir daí, atualiza-se sozinho (e mostra-lhe as novidades de cada versão).
+3. Escolha o idioma e a pasta onde quer guardar as suas fotos. Pode estar num disco externo. Prefere espreitar primeiro? Clique em **«Ver com dados de exemplo»** e explore-o com exposições e medidas de exemplo, sem mexer em nada seu.
 4. Na **janela inicial**, escolha por onde começar: cada secção (Adicionar exposições, Os meus objetos, Vários equipamentos, Próximas noites, Sessão em direto, Empilhar com o Siril, Calibração e Ciência) tem o seu desenho e abre-se no seu navegador. Arraste a pasta de uma noite de fotos e deixe o ASTRO fazer o resto.
 
-**Da primeira vez**, o seu computador vai avisar que o programa não está assinado. É normal em programas gratuitos feitos por amadores:
-- No **Mac**: vá a *Definições do Sistema → Privacidade e segurança* e clique em **«Abrir mesmo assim»**.
-- No **Windows**: clique em *Mais informações → Executar mesmo assim*.
+No **Mac**, o ASTRO está assinado e aprovado pela Apple: abre-se com um duplo clique, sem avisos.
 
-Não volta a aparecer.
+No **Windows**, da primeira vez o seu computador vai avisar que o programa não está assinado (é normal em programas gratuitos feitos por amadores): clique em *Mais informações → Executar mesmo assim*. Não volta a aparecer.
 
 ---
 

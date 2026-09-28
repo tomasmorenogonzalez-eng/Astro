@@ -30,18 +30,15 @@ Que Mac tenho? Menu  → *Acerca deste Mac*: se indicar «Chip Apple M…», é 
 
 Depois, abra-a sempre a partir de Aplicações (Mac) ou do seu atalho (Windows). O ficheiro descarregado já pode ser apagado.
 
-**Atualiza-se sozinha:** sempre que é aberta, verifica se há uma versão nova e, se houver, atualiza-se em poucos segundos sem perguntar nada.
+**Atualiza-se sozinha:** sempre que é aberta, verifica se há uma versão nova e, se houver, atualiza-se em poucos segundos sem perguntar nada. Depois mostra-lhe as **novidades** dessa versão (pode voltar a vê-las em **«✦ Novidades»**, na janela inicial).
 
-### Só da primeira vez: o aviso de segurança
-Enquanto o ASTRO não estiver assinado pela Apple ou pela Microsoft, o sistema avisa da primeira vez que o abrir:
-- **Mac:** se disser que não é possível abri-lo, clique em **OK**, vá a **Definições do Sistema → Privacidade e segurança**, desça até ao fim e clique em **«Abrir mesmo assim»**. (No macOS 14 ou anterior basta clicar com o botão direito sobre o ASTRO → **Abrir**.)
-- **Windows:** se aparecer «O Windows protegeu o seu PC», clique em **Mais informações → Executar mesmo assim**.
-
-Não volta a aparecer: nem ao abri-lo depois nem nas atualizações.
+### O aviso de segurança (só no Windows)
+- **Mac:** o ASTRO está assinado e aprovado pela Apple, por isso abre-se sem avisos. (Se algum dia o Mac disser que não é possível abri-lo, vá a **Definições do Sistema → Privacidade e segurança**, desça até ao fim e clique em **«Abrir mesmo assim»**.)
+- **Windows:** enquanto o ASTRO não estiver assinado pela Microsoft, da primeira vez que o abrir pode aparecer «O Windows protegeu o seu PC»: clique em **Mais informações → Executar mesmo assim**. Não volta a aparecer: nem ao abri-lo depois nem nas atualizações.
 
 ## 2. Primeira utilização
 
-1. Abra o ASTRO. Vai perguntar **onde guardar os seus dados**. Pode ser uma pasta do seu computador ou de um disco externo (recomendável: as fotos ocupam muito espaço).
+1. Abra o ASTRO. Vai perguntar **onde guardar os seus dados**. Pode ser uma pasta do seu computador ou de um disco externo (recomendável: as fotos ocupam muito espaço). Se preferir vê-lo a funcionar primeiro, clique em **«Ver com dados de exemplo»**: o ASTRO abre-se com exposições, calibração, empilhamentos e medidas de Ciência de exemplo, sem mexer nos seus dados. Para sair, clique em **«Voltar aos meus dados»** (ou «Começar com os meus dados») na janela inicial.
 2. Aparece a **janela inicial** do ASTRO, com uma secção e o seu desenho para cada coisa que pode fazer: **Adicionar exposições**, **Os meus objetos**, **Vários equipamentos**, **Próximas noites**, **Sessão em direto**, **Empilhar com o Siril**, **Calibração** e **Ciência**. Clique na que quiser e abre-se no seu **navegador**, já nessa secção. Deixe a janela aberta (pode minimizá-la) enquanto usar o ASTRO; para o fechar, clique em **Sair** nela ou em **Mais opções**.
 3. Em **Controlo de lights**, clique em **«＋ Adicionar sessão»** ou arraste a pasta de uma noite de fotos. Em cima, escolha se quer **copiá-las para o ASTRO** (são guardadas ordenadas por objeto, noite e filtro, sem tocar nos originais, e assim pode empilhá-las) ou **só analisá-las** (ficam onde estão e o ASTRO guarda apenas a sua avaliação). O ASTRO lembra-se do que escolheu.
    - **Critério de qualidade** (em Ferramentas, no resumo de cada objeto ou a partir de «Empilhar…»): um cursor torna a avaliação **mais permissiva ou mais rigorosa** para todas as suas exposições, caso o seu equipamento ou o seu céu não cheguem para os limiares habituais; enquanto o move, vê quantas ficam válidas, com avisos e a rejeitar, as horas úteis e **a primeira exposição rejeitada** ao lado da que passa mais à justa. Outro controlo, para cada objeto, permite **ficar só com as melhores**: retira os piores X % de cada filtro (e de cada equipamento), em comparação com a sua própria sessão, e mostra a primeira que fica de fora. Nada é apagado: as que retirar ficam fora do empilhamento e pode voltar a incluí-las.

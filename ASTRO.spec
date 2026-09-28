@@ -26,7 +26,7 @@ DE_LOS_PROGRAMAS = sorted(m for p in PROGRAMAS for m in _importados(p) if m.spli
 
 a = Analysis(
     ["lanzador.py"],
-    datas=[(p, ".") for p in PROGRAMAS] + [("icono.png", "."), ("imagenes", "imagenes"), ("idiomas", "idiomas")] + extras,
+    datas=[(p, ".") for p in PROGRAMAS] + [("icono.png", "."), ("imagenes", "imagenes"), ("idiomas", "idiomas"), ("demo", "demo"), ("novedades.json", ".")] + extras,
     hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"] + DE_LOS_PROGRAMAS,
     excludes=EXCLUIDOS,
 )
