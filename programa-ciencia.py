@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.3"
+VERSION_PROG = "2026.09.28.4"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2146,6 +2146,43 @@ def medir_multi(img, x, y, radios, rin, rout):
     return m
 
 
+def _calibrar_tanda(grupo, W, siril, hechos, k0, total):
+    """Calibra con Siril un grupo de tomas (darks o bias y flats de la biblioteca, y revelado si son de color).
+    Devuelve la ruta del archivo que hay que medir de cada una (None si no se puede)."""
+    os.makedirs(W, exist_ok=True)
+    L = ["requires 1.2.0", "set32bits", "setext fit", "cd %s" % q(W)]
+    rutas = []
+    for j, (fecha, d, h, exp) in enumerate(grupo):
+        ext = os.path.splitext(d["ruta"])[1].lower()
+        enlace(d["ruta"], os.path.join(W, "t%03d%s" % (j, ext)))
+        cfa = (bool(h.get("BAYERPAT")) or d.get("bayer")) and int(num(h.get("NAXIS3")) or 1) < 3
+        ops = []
+        dark = master_de(siril, d.get("dark"), W, hechos) if siril else None
+        bias = None if dark else (master_de(siril, d.get("bias"), W, hechos) if siril else None)
+        flat_s = d.get("flat")
+        if flat_s and not flat_s.get("master"):
+            flat_s = dict(flat_s, _cflat=d.get("cflat"))
+        flat = master_de(siril, flat_s, W, hechos) if siril else None
+        for etq, rr in (("dark", dark), ("bias", bias), ("flat", flat)):
+            if rr:
+                ops.append(qo("-%s=" % etq, rr))
+        if dark:
+            ops.append("-cc=dark")
+        if cfa:
+            ops += ["-cfa", "-equalize_cfa", "-debayer"]
+        if ops:
+            L.append("calibrate_single t%03d%s %s" % (j, ext, " ".join(ops)))
+            rutas.append(os.path.join(W, "pp_t%03d.fit" % j))
+        else:
+            rutas.append(d["ruta"] if ext in EXT_FITS else None)
+    if len(L) > 4:
+        if not siril:
+            raise RuntimeError("hace falta Siril para calibrar las tomas")
+        JOB["texto"], JOB["archivo"] = "Calibrando", "%d–%d / %d" % (k0 + 1, k0 + len(grupo), total)
+        correr_siril(siril, L, "calibrar", W)
+    return rutas
+
+
 def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver):
     """Calibra las tomas por tandas con Siril, sigue el campo (resolviendo la primera) y mide todas las estrellas
     con las aperturas dadas (en FWHM). Devuelve un registro por toma medida."""
@@ -2159,38 +2196,8 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
         if JOB["cancelar"]:
             raise Cancelado()
         W = os.path.join(base, "%04d" % k0)
-        os.makedirs(W, exist_ok=True)
         grupo = tomas[k0:k0 + tanda]
-        L = ["requires 1.2.0", "set32bits", "setext fit", "cd %s" % q(W)]
-        rutas = []
-        for j, (fecha, d, h, exp) in enumerate(grupo):
-            ext = os.path.splitext(d["ruta"])[1].lower()
-            enlace(d["ruta"], os.path.join(W, "t%03d%s" % (j, ext)))
-            cfa = (bool(h.get("BAYERPAT")) or d.get("bayer")) and int(num(h.get("NAXIS3")) or 1) < 3
-            ops = []
-            dark = master_de(siril, d.get("dark"), W, hechos) if siril else None
-            bias = None if dark else (master_de(siril, d.get("bias"), W, hechos) if siril else None)
-            flat_s = d.get("flat")
-            if flat_s and not flat_s.get("master"):
-                flat_s = dict(flat_s, _cflat=d.get("cflat"))
-            flat = master_de(siril, flat_s, W, hechos) if siril else None
-            for etq, rr in (("dark", dark), ("bias", bias), ("flat", flat)):
-                if rr:
-                    ops.append(qo("-%s=" % etq, rr))
-            if dark:
-                ops.append("-cc=dark")
-            if cfa:
-                ops += ["-cfa", "-equalize_cfa", "-debayer"]
-            if ops:
-                L.append("calibrate_single t%03d%s %s" % (j, ext, " ".join(ops)))
-                rutas.append(os.path.join(W, "pp_t%03d.fit" % j))
-            else:
-                rutas.append(d["ruta"] if ext in EXT_FITS else None)
-        if len(L) > 4:
-            if not siril:
-                raise RuntimeError("hace falta Siril para calibrar las tomas")
-            JOB["texto"], JOB["archivo"] = "Calibrando", "%d–%d / %d" % (k0 + 1, k0 + len(grupo), len(tomas))
-            correr_siril(siril, L, "calibrar", W)
+        rutas = _calibrar_tanda(grupo, W, siril, hechos, k0, len(tomas))
         for j, (fecha, d, h, exp) in enumerate(grupo):
             if JOB["cancelar"]:
                 raise Cancelado()
@@ -3591,6 +3598,710 @@ def zip_exo(sid, en=False):
     return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", pl["nombre"]), serie.get("noche") or serie["creada"][:10])
 
 
+# ═════════════════════════════ ASTEROIDES Y COMETAS: ASTROMETRÍA ═════════════════════════════
+ASTROMETRIA_DIR = os.path.join(ROOT, "Asteroides y cometas")
+SB_IDENT_URL = "https://ssd-api.jpl.nasa.gov/sb_ident.api"
+HORIZONS_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
+
+
+def _sso_falso():
+    ruta = os.environ.get("ASTRO_SSO_FALSO")
+    return leer_json(ruta, {}) if ruta else None
+
+
+def a_plano(ra, dec, ra0, dec0):
+    """Coordenadas estándar (ξ, η) en radianes de (ra, dec) sobre el plano tangente en (ra0, dec0)."""
+    a, d, a0, d0 = math.radians(ra), math.radians(dec), math.radians(ra0), math.radians(dec0)
+    D = math.sin(d) * math.sin(d0) + math.cos(d) * math.cos(d0) * math.cos(a - a0)
+    return (math.cos(d) * math.sin(a - a0) / D,
+            (math.sin(d) * math.cos(d0) - math.cos(d) * math.sin(d0) * math.cos(a - a0)) / D)
+
+
+def de_plano(xi, eta, ra0, dec0):
+    a0, d0 = math.radians(ra0), math.radians(dec0)
+    den = math.cos(d0) - eta * math.sin(d0)
+    ra = a0 + math.atan2(xi, den)
+    dec = math.atan2(math.sin(d0) + eta * math.cos(d0), math.hypot(xi, den))
+    return math.degrees(ra) % 360.0, math.degrees(dec)
+
+
+def centroide(img, x, y, fw, radio=None):
+    """Centro de una estrella o de un asteroide con una ventana gaussiana que se va recentrando (como el XWIN de
+    SExtractor): más preciso que el centro de luz simple. Devuelve dict con x, y, flujo, fondo, sd, snr y pico, o None."""
+    sig = max(0.6, fw / 2.3548)
+    r = radio or max(3.0, 2.5 * fw)
+    rin, rout = max(r + 2.0, 3.0 * fw), max(r + 6.0, 5.0 * fw)
+    base = medir_estrella(img, x, y, max(1.5, 1.2 * fw), rin, rout, centrar=True)
+    if not base:
+        return None
+    cx, cy, fondo = base["x"], base["y"], base["fondo"]
+    x0, y0 = int(math.floor(cx - r - 2)), int(math.floor(cy - r - 2))
+    filas = img.recorte(x0, y0, int(math.ceil(cx + r + 3)), int(math.ceil(cy + r + 3)))
+    if len(filas) < 5:
+        return None
+    for _it in range(12):
+        sx = sy = sw = 0.0
+        for j, fila in enumerate(filas):
+            dy = y0 + j - cy
+            for i, v in enumerate(fila):
+                dx = x0 + i - cx
+                d2 = dx * dx + dy * dy
+                if d2 > r * r:
+                    continue
+                w = math.exp(-d2 / (2 * sig * sig)) * (v - fondo)
+                sx += w * dx; sy += w * dy; sw += w
+        if sw <= 0:
+            return None
+        ddx, ddy = 2.0 * sx / sw, 2.0 * sy / sw
+        if ddx * ddx + ddy * ddy > (2 * r) ** 2:
+            return None
+        cx, cy = cx + ddx, cy + ddy
+        if ddx * ddx + ddy * ddy < 1e-6:
+            break
+    m = medir_estrella(img, cx, cy, max(2.0, 1.6 * fw), rin, rout)
+    if not m or m["flujo"] <= 0:
+        return None
+    ruido = math.sqrt(m["n_ap"] * m["sd"] ** 2 * (1 + m["n_ap"] / max(m["n_an"], 1)))
+    return {"x": cx, "y": cy, "flujo": m["flujo"], "fondo": m["fondo"], "sd": m["sd"], "snr": m["flujo"] / ruido if ruido > 0 else 0.0,
+            "pico": m["pico"], "n_ap": m["n_ap"]}
+
+
+def ajustar_placa(pares, cx, cy, grado=1):
+    """Constantes de placa: (ξ, η) = polinomio de (x, y). pares: [(x, y, ξ, η)]. Devuelve (coeficientes ξ, coeficientes
+    η, residuos en radianes) o None. Con muchas estrellas se usa un polinomio de segundo grado (distorsión)."""
+    def terminos(x, y):
+        u, v = (x - cx) / 1000.0, (y - cy) / 1000.0
+        t = [1.0, u, v]
+        if grado >= 2:
+            t += [u * u, u * v, v * v]
+        if grado >= 3:
+            t += [u ** 3, u * u * v, u * v * v, v ** 3]
+        return t
+    n = len(terminos(0, 0))
+    if len(pares) < n + 3:
+        return None
+    usar = list(pares)
+    for _it in range(4):
+        A = [[0.0] * n for _ in range(n)]
+        bx, by = [0.0] * n, [0.0] * n
+        for x, y, xi, eta in usar:
+            t = terminos(x, y)
+            for i in range(n):
+                for j in range(n):
+                    A[i][j] += t[i] * t[j]
+                bx[i] += t[i] * xi
+                by[i] += t[i] * eta
+        cxi, ceta = _resolver(A, bx), _resolver(A, by)
+        if cxi is None or ceta is None:
+            return None
+        res = []
+        for x, y, xi, eta in pares:
+            t = terminos(x, y)
+            res.append((xi - sum(a * b for a, b in zip(cxi, t)), eta - sum(a * b for a, b in zip(ceta, t))))
+        rr = sorted(math.hypot(a, b) for a, b in res)
+        lim = 3.5 * rr[len(rr) // 2] / 1.1774 + 1e-12
+        nuevos = [p for p, (a, b) in zip(pares, res) if math.hypot(a, b) < lim]
+        if len(nuevos) == len(usar) or len(nuevos) < n + 3:
+            break
+        usar = nuevos
+    res_usados = [r for p, r in zip(pares, res) if p in usar]
+    return {"cxi": cxi, "ceta": ceta, "cx": cx, "cy": cy, "grado": grado, "n": len(usar), "n_total": len(pares), "terminos": terminos,
+            "rms_ra": (sum(a * a for a, _b in res_usados) / len(res_usados)) ** 0.5, "rms_dec": (sum(b * b for _a, b in res_usados) / len(res_usados)) ** 0.5}
+
+
+def placa_a_plano(pl, x, y):
+    t = pl["terminos"](x, y)
+    return sum(a * b for a, b in zip(pl["cxi"], t)), sum(a * b for a, b in zip(pl["ceta"], t))
+
+
+def plano_a_pix(pl, xi, eta, x0, y0):
+    """Inversa de la placa por Newton, partiendo de (x0, y0)."""
+    x, y = x0, y0
+    for _ in range(10):
+        a, b = placa_a_plano(pl, x, y)
+        h = 0.5
+        ax, bx = placa_a_plano(pl, x + h, y)
+        ay, by = placa_a_plano(pl, x, y + h)
+        j11, j12, j21, j22 = (ax - a) / h, (ay - a) / h, (bx - b) / h, (by - b) / h
+        det = j11 * j22 - j12 * j21
+        if not det:
+            break
+        dx = ((xi - a) * j22 - (eta - b) * j12) / det
+        dy = ((eta - b) * j11 - (xi - a) * j21) / det
+        x, y = x + dx, y + dy
+        if abs(dx) + abs(dy) < 1e-4:
+            break
+    return x, y
+
+
+# ── Qué objetos hay en el campo (JPL SB Identification) y sus efemérides (JPL Horizons) ──
+def _sexa(v, horas):
+    v = v / 15.0 if horas else v
+    s = "M" if v < 0 else ""
+    v = abs(v)
+    d = int(v); m = int((v - d) * 60); sg = (v - d - m / 60.0) * 3600
+    return "%s%02d-%02d-%05.2f" % (s, d, m, sg)
+
+
+def objetos_en_campo(jd_utc, ra, dec, hw_ra, hw_dec, lg, vmax):
+    """Asteroides y cometas conocidos dentro de un campo en un instante (servicio SB Identification del JPL)."""
+    falso = _sso_falso()
+    if falso is not None:
+        d = falso.get("sb_ident") or {}
+    else:
+        f = _dt.datetime(1970, 1, 1) + _dt.timedelta(days=jd_utc - 2440587.5)
+        pars = {"obs-time": f.strftime("%Y-%m-%d_%H:%M:%S"), "fov-ra-center": _sexa(ra, True), "fov-dec-center": _sexa(dec, False),
+                "fov-ra-hwidth": "%.4f" % min(10.0, hw_ra), "fov-dec-hwidth": "%.4f" % min(10.0, hw_dec), "vmag-lim": "%.1f" % vmax,
+                "two-pass": "true", "suppress-first-pass": "true"}
+        if lg and lg.get("lat") is not None:
+            pars.update(lat="%.5f" % lg["lat"], lon="%.5f" % lg["lon"], alt="%.3f" % ((lg.get("alt") or 0) / 1000.0))
+        else:
+            pars["mpc-code"] = "500"
+        try:
+            d = _get_json(SB_IDENT_URL + "?" + urllib.parse.urlencode(pars), timeout=120)
+        except Exception as e:
+            raise RuntimeError("No he podido preguntar al JPL qué asteroides hay en el campo (¿hay conexión a Internet?). %s" % e)
+    campos = d.get("fields_second") or d.get("fields_first") or []
+    filas = d.get("data_second_pass") or d.get("data_first_pass") or []
+    col = lambda *claves: next((i for i, c in enumerate(campos) if all(k.lower() in c.lower() for k in claves)), None)
+    i_n, i_ra, i_dec, i_v = col("object"), col("ra", "hh"), col("dec", "dd"), col("magnitude")
+    i_vra, i_vdec = col("ra rate"), col("dec rate")
+    out = []
+    for f in filas:
+        try:
+            nombre = str(f[i_n]).strip()
+            ra_o = _coord(str(f[i_ra]).replace("'", " ").replace('"', " "), True)
+            dec_o = _coord(str(f[i_dec]).replace("'", " ").replace('"', " "), False)
+        except Exception:
+            continue
+        v = num(f[i_v]) if i_v is not None else None
+        out.append({"nombre": nombre, "ra": ra_o, "dec": dec_o, "v": v, "vel_ra": num(f[i_vra]) if i_vra is not None else None,
+                    "vel_dec": num(f[i_vdec]) if i_vdec is not None else None, **designacion(nombre)})
+    return out
+
+
+def designacion(nombre):
+    """Tipo, número o designación (para ADES y para Horizons) a partir del nombre que da el JPL."""
+    n = nombre.strip()
+    prov = re.match(r"^\(?(\d{4} [A-Z]{2}\d{0,4}|\d{4} [PT]-[L123])\)?$", n)
+    if prov:
+        return {"tipo": "asteroide", "permID": "", "provID": prov.group(1), "horizons": "DES=%s;" % prov.group(1)}
+    m = re.match(r"^(\d+)(\s+[^\d(].*?)?\s*(\((.+)\))?$", n)
+    if re.match(r"^(\d+[PCDXI](-[A-Z]+)?)(/|$)", n) or re.match(r"^[PCDXIA]/\d{4}", n):
+        cometa = not n.startswith("A/")
+        base = re.match(r"^(\d+[PCDXI](-[A-Z]+)?|[PCDXIA]/\d{4} [A-Z]+\d*(-[A-Z])?)", n)
+        des = base.group(1) if base else n.split("(")[0].strip()
+        num_p = re.match(r"^\d+[PCDXI]", des)
+        return {"tipo": "cometa" if cometa else "asteroide", "permID": des if num_p else "", "provID": "" if num_p else des,
+                "horizons": "DES=%s;CAP;NOFRAG;" % des}
+    if m:
+        return {"tipo": "asteroide", "permID": m.group(1), "provID": "", "horizons": "%s;" % m.group(1)}
+    prov = re.sub(r"^\(|\)$", "", n)
+    return {"tipo": "asteroide", "permID": "", "provID": prov, "horizons": "DES=%s;" % prov}
+
+
+def efemerides(obj, jd_ini, jd_fin, lg):
+    """Posiciones astrométricas (RA, Dec en grados) topocéntricas del objeto, cada 2 minutos, del JPL Horizons.
+    Devuelve [(jd_utc, ra, dec, mag)]."""
+    falso = _sso_falso()
+    if falso is not None:
+        tabla = (falso.get("horizons") or {}).get(obj["nombre"]) or []
+        return [tuple(x) for x in tabla]
+    f = lambda jd: (_dt.datetime(1970, 1, 1) + _dt.timedelta(days=jd - 2440587.5)).strftime("%Y-%m-%d %H:%M")
+    pars = {"format": "json", "COMMAND": "'%s'" % obj["horizons"], "OBJ_DATA": "NO", "MAKE_EPHEM": "YES", "EPHEM_TYPE": "OBSERVER",
+            "START_TIME": "'%s'" % f(jd_ini - 5 / 1440.0), "STOP_TIME": "'%s'" % f(jd_fin + 6 / 1440.0), "STEP_SIZE": "'2 m'",
+            "QUANTITIES": "'1,9'", "ANG_FORMAT": "DEG", "EXTRA_PREC": "YES", "CSV_FORMAT": "YES", "TIME_TYPE": "UT"}
+    if lg and lg.get("lat") is not None:
+        pars.update(CENTER="'coord@399'", COORD_TYPE="GEODETIC", SITE_COORD="'%.5f,%.5f,%.3f'" % (lg["lon"], lg["lat"], (lg.get("alt") or 0) / 1000.0))
+    else:
+        pars["CENTER"] = "'500@399'"
+    try:
+        d = _get_json(HORIZONS_URL + "?" + urllib.parse.urlencode(pars), timeout=90)
+    except Exception as e:
+        raise RuntimeError("No he podido pedir las efemérides al JPL Horizons (%s)" % e)
+    texto = d.get("result") or ""
+    if "$$SOE" not in texto:
+        raise RuntimeError("Horizons no ha dado efemérides para %s" % obj["nombre"])
+    out = []
+    meses = {m: i + 1 for i, m in enumerate(("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))}
+    for lin in texto.split("$$SOE")[1].split("$$EOE")[0].strip().splitlines():
+        c = [x.strip() for x in lin.split(",")]
+        mm = re.match(r"(\d{4})-(\w{3})-(\d{2}) (\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?", c[0])
+        if not mm:
+            continue
+        fe = _dt.datetime(int(mm.group(1)), meses[mm.group(2)], int(mm.group(3)), int(mm.group(4)), int(mm.group(5))) + _dt.timedelta(seconds=float(mm.group(6) or 0))
+        nums = [num(x) for x in c[1:]]
+        nums = [x for x in nums if x is not None]
+        if len(nums) < 2:
+            continue
+        out.append((jd_utc(fe), nums[0], nums[1], nums[2] if len(nums) > 2 else None))
+    return out
+
+
+def _interpolar(tabla, jd):
+    """Posición en jd interpolando la tabla (cuadrática con los tres puntos más cercanos)."""
+    if len(tabla) < 2:
+        return None
+    k = min(range(len(tabla)), key=lambda i: abs(tabla[i][0] - jd))
+    k = max(1, min(len(tabla) - 2, k)) if len(tabla) >= 3 else 0
+    pts = tabla[k - 1:k + 2] if len(tabla) >= 3 else tabla[:2]
+    if not (pts[0][0] - 0.01 <= jd <= pts[-1][0] + 0.01):
+        return None
+    ra_ref = pts[0][1]
+    out = []
+    for idx in (1, 2):
+        s = 0.0
+        for i, (ti, *_r) in enumerate(pts):
+            li = 1.0
+            for j, (tj, *_q) in enumerate(pts):
+                if j != i:
+                    li *= (jd - tj) / (ti - tj)
+            v = pts[i][idx]
+            if idx == 1:
+                v = ra_ref + ((v - ra_ref + 180) % 360 - 180)
+            s += li * v
+        out.append(s)
+    return out[0] % 360.0, out[1]
+
+
+def trabajo_astrometria(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "ast-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        ids = [i for i in (p.get("ids") or []) if i]
+        tomas = _tomas_de_ids(ids)
+        if len(tomas) < 2:
+            raise RuntimeError("hacen falta al menos dos tomas (mejor tres o más, separadas unos minutos)")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[0]
+        escala = num(d0.get("escala")) or 1.0
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        vmax = float(p.get("vmax") or 19.0)
+        hechos = {}
+        # 1) la primera toma, resuelta: el campo y la lista de objetos que debería haber
+        W = W0 = os.path.join(base, "primera")
+        rutas0 = _calibrar_tanda(tomas[:1], W0, siril, hechos, 0, len(tomas))
+        ruta0 = rutas0[0]
+        if not ruta0 or not os.path.isfile(ruta0):
+            raise RuntimeError("para medir tomas XISF sin calibrar hace falta pasarlas a FITS")
+        hs = cabecera_de(ruta0)
+        if _ya_resuelta(hs):
+            wcs0 = WCS(hs)
+        elif _ya_resuelta(h0) and str(h0.get("ROWORDER", "")).strip().upper() != "TOP-DOWN":
+            wcs0 = WCS(h0)
+        else:
+            if not siril:
+                raise RuntimeError("hace falta Siril para resolver la imagen")
+            JOB["texto"] = "Resolviendo"
+            wcs0, _L = _resolver_con_siril(siril, ver, W, ruta0, h0, d0)
+        w, h = int(num(hs.get("NAXIS1")) or num(h0.get("NAXIS1"))), int(num(hs.get("NAXIS2")) or num(h0.get("NAXIS2")))
+        ra_c, dec_c = wcs0.pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0)
+        esquinas = [wcs0.pix_a_cielo(x, y) for x, y in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1))]
+        radio = max(separacion(ra_c, dec_c, a, b) for a, b in esquinas)
+        jd_ini, jd_fin = jd_utc(tomas[0][0]), jd_utc(tomas[-1][0])
+        JOB["texto"], JOB["archivo"] = "Preguntando al JPL qué asteroides y cometas hay en el campo", ""
+        objs = objetos_en_campo((jd_ini + jd_fin) / 2, ra_c, dec_c, radio / max(0.1, math.cos(math.radians(dec_c))) * 1.05, radio * 1.05, lg, vmax)
+        # solo los que caen dentro de la imagen (con margen)
+        dentro = []
+        for o in objs:
+            pp = wcs0.cielo_a_pix(o["ra"], o["dec"])
+            if pp and -50 < pp[0] < w + 50 and -50 < pp[1] < h + 50:
+                dentro.append(o)
+        dentro.sort(key=lambda o: o["v"] if o["v"] is not None else 99)
+        dentro = dentro[:25]
+        for o in dentro:
+            JOB["texto"], JOB["archivo"] = "Pidiendo efemérides al JPL Horizons", o["nombre"]
+            try:
+                o["tabla"] = efemerides(o, jd_ini, jd_fin, lg)
+            except Exception as e:
+                o["tabla"] = []
+                JOB["errores"].append({"nombre": o["nombre"], "error": str(e)})
+        dentro = [o for o in dentro if o.get("tabla")]
+        # 2) catálogo Gaia para la astrometría de cada toma
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        cat = gaia_campo(ra_c, dec_c, radio * 1.05, gmax=18.0)
+        anio = f0.year + (f0.timetuple().tm_yday - 0.5) / 365.25
+        ref = []
+        for e in cat["estrellas"]:
+            if e["g"] is None or e["g"] > 17.5:
+                continue
+            ra, dec = posicion_en(e, anio)
+            ref.append({"ra": ra, "dec": dec, "g": e["g"], "id": e["id"]})
+        brillantes = sorted(ref, key=lambda e: e["g"])[:60]
+        alineacion = [(e["ra"], e["dec"]) for e in brillantes if 9 < e["g"] < 14.5][:30] or [(e["ra"], e["dec"]) for e in brillantes[:30]]
+        # 3) cada toma: astrometría con las estrellas de Gaia y medida de cada objeto
+        tomas_res, medidas = [], {o["nombre"]: [] for o in dentro}
+        wref, previo = wcs0, (0.0, 0.0)
+        tanda = 6
+        for k0 in range(0, len(tomas), tanda):
+            if JOB["cancelar"]:
+                raise Cancelado()
+            W = os.path.join(base, "%04d" % k0)
+            grupo = tomas[k0:k0 + tanda]
+            if k0 == 0:
+                rutas = rutas0 + (_calibrar_tanda(grupo[1:], W, siril, hechos, 1, len(tomas)) if len(grupo) > 1 else [])
+            else:
+                rutas = _calibrar_tanda(grupo, W, siril, hechos, k0, len(tomas))
+            for j, (fecha, d, h, exp) in enumerate(grupo):
+                if JOB["cancelar"]:
+                    raise Cancelado()
+                JOB["hechos"] = k0 + j
+                nombre = os.path.basename(d["ruta"])
+                ruta = rutas[j]
+                if not ruta or not os.path.isfile(ruta):
+                    JOB["errores"].append({"nombre": nombre, "error": "para medir tomas XISF sin calibrar hace falta pasarlas a FITS"})
+                    continue
+                JOB["texto"], JOB["archivo"] = "Midiendo", nombre
+                img = Imagen(ruta)
+                try:
+                    fw = tomas_res[-1]["fwhm"] if tomas_res else min(20.0, max(1.5, 3.0 / escala))
+                    wcs = wcs0 if (k0 + j) == 0 else None
+                    if wcs is None:
+                        dd = desplazamiento(img, wref, alineacion, fw, previo) or desplazamiento(img, wref, alineacion, fw, previo, radio=max(60.0, 12 * fw))
+                        if dd:
+                            wcs, previo = _wcs_desplazada(wref, *dd), dd
+                        else:
+                            hs = cabecera_de(ruta)
+                            if _ya_resuelta(hs):
+                                wcs = WCS(hs)
+                            elif _ya_resuelta(h) and str(h.get("ROWORDER", "")).strip().upper() != "TOP-DOWN":
+                                wcs = WCS(h)
+                            elif siril:
+                                JOB["texto"] = "Resolviendo"
+                                wcs, _L = _resolver_con_siril(siril, ver, W, ruta, h, d)
+                            else:
+                                raise RuntimeError("no he podido seguir el campo en esta toma")
+                            wref, previo = wcs, (0.0, 0.0)
+                    res = _astrometria_toma(img, wcs, ref, fw, fecha, exp, d, dentro, medidas, escala, lg)
+                    res.update(archivo=nombre, id_toma=d.get("id"))
+                    tomas_res.append(res)
+                except Cancelado:
+                    raise
+                except Exception as e:
+                    JOB["errores"].append({"nombre": nombre, "error": str(e)})
+                finally:
+                    img.cerrar()
+            shutil.rmtree(W, ignore_errors=True)
+        if not tomas_res:
+            raise RuntimeError("no he podido medir ninguna toma")
+        JOB["hechos"] = len(tomas)
+        objetos = []
+        for o in dentro:
+            ms = medidas[o["nombre"]]
+            objetos.append({k: o.get(k) for k in ("nombre", "tipo", "permID", "provID", "horizons", "v")} | {"medidas": ms})
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "astrometria",
+                 "centro": [ra_c, dec_c], "radio": radio, "vmax": vmax, "escala": escala, "tomas": tomas_res, "objetos": objetos,
+                 "objeto": d0.get("objeto") or "", "filtro": d0.get("filtro") or "", "cam": d0.get("cam") or "", "tel": d0.get("tel") or "",
+                 "noche": d0.get("noche") or "", "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon"),
+                                                          "alt": (lg or {}).get("alt")},
+                 "calibracion": sorted({"%s: %s" % (k, (dd.get(k) or {}).get("desc")) for _f, dd, _h, _e in tomas for k in ("dark", "bias", "flat") if dd.get(k)}),
+                 "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver,
+                 "fuentes": {"identificacion": "JPL SB Identification", "efemerides": "JPL Horizons"}}
+        calc = calcular_astrometria(serie, {})
+        dd_ = os.path.join(ASTROMETRIA_DIR, serie["id"])
+        os.makedirs(dd_, exist_ok=True)
+        escribir_json(os.path.join(dd_, "serie.json"), serie)
+        guardar_astrometria(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def _recorte_vista(img, x, y, lado=31):
+    """Recorte pequeño alrededor de (x, y) con el brillo estirado, en valores de 0 a 255 (para verlo en la página)."""
+    m = lado // 2
+    xi, yi = int(round(x)), int(round(y))
+    if xi - m < 0 or yi - m < 0 or xi + m + 1 > img.w or yi + m + 1 > img.h:
+        return None
+    filas = img.recorte(xi - m, yi - m, xi + m + 1, yi + m + 1)
+    vals = sorted(v for f in filas for v in f)
+    lo, hi = vals[len(vals) // 4], vals[int(len(vals) * 0.995)]
+    if hi <= lo:
+        return None
+    out = []
+    for f in filas:
+        for v in f:
+            t = max(0.0, (v - lo) / (hi - lo))
+            out.append(int(255 * min(1.0, math.asinh(t * 8) / math.asinh(8))))
+    return out
+
+
+def _astrometria_toma(img, wcs, ref, fw, fecha, exp, d, objetos, medidas, escala, lg):
+    """Astrometría de una toma: centros de las estrellas de Gaia, constantes de placa, punto cero en G y medida de los
+    objetos conocidos (con su O−C frente a Horizons)."""
+    t = jd_utc(fecha)
+    ra0, dec0 = wcs.pix_a_cielo(img.w / 2.0, img.h / 2.0)
+    pares, fws = [], []
+    for e in ref:
+        pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+        if not pp or not (15 < pp[0] < img.w - 15 and 15 < pp[1] < img.h - 15):
+            continue
+        c = centroide(img, pp[0], pp[1], fw)
+        if not c or c["snr"] < 20 or math.hypot(c["x"] - pp[0], c["y"] - pp[1]) > max(4.0, 2.5 * fw):
+            continue
+        xi, eta = a_plano(e["ra"], e["dec"], ra0, dec0)
+        pares.append((c["x"], c["y"], xi, eta, e, c))
+        if len(fws) < 25 and 9 < e["g"] < 15:
+            v = fwhm_hfr(img, c["x"], c["y"], 3.0 * fw)
+            if v and 0.8 < v < 40:
+                fws.append(v)
+    if len(fws) >= 3:
+        fw = sigma_clip(fws, 2.5, 3)[0]
+    # las saturadas fuera: la parte alta del reparto de picos
+    if len(pares) > 10:
+        picos = sorted(c["pico"] for *_r, c in pares)
+        techo = picos[-1]
+        pares = [p for p in pares if p[5]["pico"] < 0.9 * techo] or pares
+    grado = 3 if len(pares) >= 60 else (2 if len(pares) >= 25 else 1)
+    pl = ajustar_placa([(x, y, xi, eta) for x, y, xi, eta, _e, _c in pares], img.w / 2.0, img.h / 2.0, grado)
+    if not pl:
+        raise RuntimeError("no hay bastantes estrellas de Gaia para la astrometría de esta toma")
+    # punto cero en G con las estrellas medidas (magnitud aproximada de los objetos)
+    zps = [e["g"] + 2.5 * math.log10(c["flujo"]) for _x, _y, _xi, _eta, e, c in pares if c["flujo"] > 0 and 11 < e["g"] < 17 and c["snr"] > 30]
+    zp = sigma_clip(zps, 2.5, 4)[0] if len(zps) >= 5 else None
+    rad = 206264.806
+    tiempo = fecha.strftime("%Y-%m-%dT%H:%M:%S.%f")[:22] + "Z"
+    for o in objetos:
+        pred = _interpolar(o["tabla"], t)
+        if not pred:
+            continue
+        xi_p, eta_p = a_plano(pred[0], pred[1], ra0, dec0)
+        pp = wcs.cielo_a_pix(pred[0], pred[1])
+        if not pp:
+            continue
+        xp, yp = plano_a_pix(pl, xi_p, eta_p, pp[0], pp[1])
+        if not (10 < xp < img.w - 10 and 10 < yp < img.h - 10):
+            continue
+        busca = max(3.0 * fw, 6.0 / escala)
+        c = centroide(img, xp, yp, fw)
+        avisos = []
+        if not c or math.hypot(c["x"] - xp, c["y"] - yp) > busca or c["snr"] < 4:
+            medidas[o["nombre"]].append({"archivo": d.get("id"), "tiempo": tiempo, "jd": round(t, 7), "x": round(xp, 2), "y": round(yp, 2),
+                                         "encontrado": False, "vista": _recorte_vista(img, xp, yp)})
+            continue
+        xi_m, eta_m = placa_a_plano(pl, c["x"], c["y"])
+        ra_m, dec_m = de_plano(xi_m, eta_m, ra0, dec0)
+        oc_ra = (xi_m - xi_p) * rad
+        oc_dec = (eta_m - eta_p) * rad
+        # estrellas cerca (se mezclan con el objeto)
+        mag = zp - 2.5 * math.log10(c["flujo"]) if zp is not None and c["flujo"] > 0 else None
+        for e in ref:
+            if abs(e["dec"] - dec_m) < 0.01 and separacion(e["ra"], e["dec"], ra_m, dec_m) * 3600 < 2.5 * fw * escala and (mag is None or e["g"] < mag + 2.5):
+                avisos.append("estrella cerca")
+                break
+        err_c = fw * escala / max(1.0, c["snr"]) / 1.5
+        medidas[o["nombre"]].append({"archivo": d.get("id"), "tiempo": tiempo, "jd": round(t, 7), "x": round(c["x"], 3), "y": round(c["y"], 3),
+                                     "encontrado": True, "ra": round(ra_m, 7), "dec": round(dec_m, 7), "ra_pred": round(pred[0], 7), "dec_pred": round(pred[1], 7),
+                                     "oc_ra": round(oc_ra, 3), "oc_dec": round(oc_dec, 3), "mag": round(mag, 2) if mag is not None else None,
+                                     "snr": round(c["snr"], 1), "err_ra": round(math.hypot(err_c, pl["rms_ra"] * rad), 3),
+                                     "err_dec": round(math.hypot(err_c, pl["rms_dec"] * rad), 3), "avisos": avisos,
+                                     "vista": _recorte_vista(img, c["x"], c["y"])})
+    alt = altura(ra0, dec0, t, lg["lat"], lg["lon"]) if lg and lg.get("lat") is not None else None
+    return {"tiempo": tiempo, "jd": round(t, 7), "exp": exp, "fwhm": round(fw, 2), "estrellas": pl["n"], "estrellas_total": pl["n_total"], "grado": grado,
+            "rms_ra": round(pl["rms_ra"] * rad, 3), "rms_dec": round(pl["rms_dec"] * rad, 3), "zp_g": round(zp, 3) if zp is not None else None,
+            "altura": round(alt, 1) if alt is not None else None}
+
+
+def iniciar_astrometria(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="astrometria", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    guardar_config_ciencia(**{k: p.get(k) for k in ("mpc_codigo", "observador", "apertura_m", "detector", "diseno") if p.get(k) not in (None, "")})
+    threading.Thread(target=trabajo_astrometria, args=(p,), daemon=True).start()
+
+
+def calcular_astrometria(serie, sel):
+    """Resumen de cada objeto con las medidas que se usan (las elegidas o, si no, las encontradas sin avisos)."""
+    quitar = set(sel.get("quitar") or [])            # "objeto|tiempo"
+    objetos = []
+    for o in serie["objetos"]:
+        ms = []
+        for m in o["medidas"]:
+            usar = m.get("encontrado") and (("%s|%s" % (o["nombre"], m["tiempo"])) not in quitar) and ("quitar" in sel or not m.get("avisos"))
+            ms.append(dict(m, usar=bool(usar), vista=None))
+        us = [m for m in ms if m["usar"]]
+        r = {k: o.get(k) for k in ("nombre", "tipo", "permID", "provID", "v")}
+        r["n_tomas"] = len(ms)
+        r["n_encontrado"] = sum(1 for m in ms if m.get("encontrado"))
+        r["n_usadas"] = len(us)
+        if us:
+            ra_ = [m["oc_ra"] for m in us]; de_ = [m["oc_dec"] for m in us]
+            r["oc_ra"] = round(sum(ra_) / len(ra_), 3); r["oc_dec"] = round(sum(de_) / len(de_), 3)
+            r["oc_rms"] = round((sum((a - r["oc_ra"]) ** 2 + (b - r["oc_dec"]) ** 2 for a, b in zip(ra_, de_)) / max(1, len(us) - 1)) ** 0.5, 3) if len(us) > 1 else None
+            r["oc_total"] = round(math.hypot(r["oc_ra"], r["oc_dec"]), 3)
+            mags = [m["mag"] for m in us if m.get("mag") is not None]
+            r["mag"] = round(sorted(mags)[len(mags) // 2], 2) if mags else None
+            r["snr"] = round(sorted(m["snr"] for m in us)[len(us) // 2], 1)
+        r["medidas"] = [{k: v for k, v in m.items() if k != "vista"} for m in ms]
+        objetos.append(r)
+    t = serie["tomas"]
+    return {"objetos": objetos, "quitar": sorted(quitar) if "quitar" in sel else None,
+            "rms_placa": round(sorted(math.hypot(x["rms_ra"], x["rms_dec"]) for x in t)[len(t) // 2], 3) if t else None,
+            "estrellas": sorted(x["estrellas"] for x in t)[len(t) // 2] if t else 0, "n_tomas": len(t),
+            "fwhm_arcsec": round(sorted(x["fwhm"] for x in t)[len(t) // 2] * serie["escala"], 2) if t else None}
+
+
+def archivo_ades(serie, calc):
+    """Informe en formato ADES (PSV) para el Minor Planet Center."""
+    cfg = config_ciencia()
+    codigo = (cfg.get("mpc_codigo") or "XXX").strip().upper()[:3] or "XXX"
+    obs = (cfg.get("observador") or "").strip() or "?"
+    lg = serie.get("lugar") or {}
+    det = "CMO" if (cfg.get("detector") or "CMO") == "CMO" else "CCD"
+    ap = num(cfg.get("apertura_m"))
+    L = ["# version=2017", "# observatory", "! mpcCode %s" % codigo]
+    if lg.get("nombre"):
+        L.append("! name %s" % re.sub(r"[|\n]", " ", lg["nombre"]))
+    L += ["# submitter", "! name %s" % obs, "# observers", "! name %s" % obs, "# measurers", "! name %s" % obs, "# telescope",
+          "! aperture %s" % ("%.2f" % ap if ap else "0.2"), "! design %s" % (cfg.get("diseno") if cfg.get("diseno") in ("Reflector", "Refractor", "Schmidt") else "Reflector"),
+          "! detector %s" % det]
+    L += ["# comment", "! line Astrometry by ASTRO (Ciencia %s): plate constants from Gaia DR3 stars, windowed centroids." % VERSION_PROG]
+    if codigo == "XXX" and lg.get("lat") is not None:
+        L.append("! line New observer. Long. %.5f E, Lat. %.5f, Alt. %.0f m (WGS84)." % (lg["lon"], lg["lat"], lg.get("alt") or 0))
+    cab = ["permID", "provID", "trkSub", "mode", "stn", "obsTime", "ra", "dec", "rmsRA", "rmsDec", "astCat", "mag", "rmsMag", "band", "photCat", "notes", "remarks"]
+    filas = []
+    for o in calc["objetos"]:
+        for m in o["medidas"]:
+            if not m.get("usar"):
+                continue
+            mag = m.get("mag") if o["tipo"] == "asteroide" else None
+            rms_mag = round(1.0857 / m["snr"] + 0.03, 2) if mag is not None and m.get("snr") else None
+            filas.append([o.get("permID") or "", o.get("provID") or "", "", det, codigo, m["tiempo"], "%.6f" % m["ra"], "%+.6f" % m["dec"],
+                          "%.3f" % m["err_ra"], "%.3f" % m["err_dec"], "Gaia3", "%.2f" % mag if mag is not None else "",
+                          "%.2f" % rms_mag if rms_mag is not None else "", "G" if mag is not None else "", "Gaia3" if mag is not None else "", "", ""])
+    anchos = [max(len(c), *(len(f[i]) for f in filas)) if filas else len(c) for i, c in enumerate(cab)]
+    L.append("|".join(c.ljust(a) for c, a in zip(cab, anchos)))
+    for f in filas:
+        L.append("|".join(v.ljust(a) for v, a in zip(f, anchos)))
+    return "\n".join(L) + "\n"
+
+
+def guardar_astrometria(serie, calc):
+    d = os.path.join(ASTROMETRIA_DIR, serie["id"])
+    os.makedirs(d, exist_ok=True)
+    escribir_json(os.path.join(d, "resultado.json"), calc)
+    with open(os.path.join(d, "ades.psv"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(archivo_ades(serie, calc))
+    with open(os.path.join(d, "medidas.csv"), "w", encoding="utf-8", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["objeto", "tiempo_utc", "jd_utc", "encontrado", "usada", "ra", "dec", "ra_pred", "dec_pred", "oc_ra_arcsec", "oc_dec_arcsec",
+                     "err_ra", "err_dec", "mag_g", "snr", "x", "y", "avisos"])
+        for o in calc["objetos"]:
+            for m in o["medidas"]:
+                wr.writerow([o["nombre"], m["tiempo"], m["jd"], m.get("encontrado"), m.get("usar"), m.get("ra"), m.get("dec"), m.get("ra_pred"),
+                             m.get("dec_pred"), m.get("oc_ra"), m.get("oc_dec"), m.get("err_ra"), m.get("err_dec"), m.get("mag"), m.get("snr"),
+                             m.get("x"), m.get("y"), "; ".join(m.get("avisos") or [])])
+
+
+def series_astrometria():
+    out = []
+    if not os.path.isdir(ASTROMETRIA_DIR):
+        return out
+    for n in sorted(os.listdir(ASTROMETRIA_DIR), reverse=True):
+        s = leer_json(os.path.join(ASTROMETRIA_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(ASTROMETRIA_DIR, n, "resultado.json"), None) or {}
+        if not s:
+            continue
+        obs = c.get("objetos") or []
+        out.append({"id": s["id"], "noche": s.get("noche"), "objeto": s.get("objeto"), "tomas": len(s["tomas"]),
+                    "objetos": sum(1 for o in obs if o.get("n_usadas")), "medidas": sum(o.get("n_usadas", 0) for o in obs),
+                    "nombres": [o["nombre"] for o in obs if o.get("n_usadas")][:4], "rms_placa": c.get("rms_placa"),
+                    "oc_rms": round(sorted(o["oc_rms"] for o in obs if o.get("oc_rms") is not None)[len([o for o in obs if o.get("oc_rms") is not None]) // 2], 2)
+                    if any(o.get("oc_rms") is not None for o in obs) else None})
+    return out
+
+
+def serie_astrometria(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return leer_json(os.path.join(ASTROMETRIA_DIR, sid, "serie.json"), None), leer_json(os.path.join(ASTROMETRIA_DIR, sid, "resultado.json"), None)
+
+
+def recalcular_astrometria(sid, sel):
+    serie, _c = serie_astrometria(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la medida")
+    if any(k in sel for k in ("mpc_codigo", "observador", "apertura_m", "detector", "diseno")):
+        guardar_config_ciencia(**{k: sel.get(k) for k in ("mpc_codigo", "observador", "apertura_m", "detector", "diseno") if sel.get(k) not in (None, "")})
+    c = calcular_astrometria(serie, sel)
+    guardar_astrometria(serie, c)
+    return c
+
+
+def borrar_astrometria(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("medida no válida")
+    shutil.rmtree(os.path.join(ASTROMETRIA_DIR, sid), ignore_errors=True)
+
+
+LEEME_AST_ES = """ASTEROIDES Y COMETAS · {noche} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  ades.psv       El informe en formato ADES (PSV) para el Minor Planet Center: se sube en https://minorplanetcenter.net/submit_psv
+                 (conviene probarlo antes en https://minorplanetcenter.org/submit_psv_test). Si aún no tienes código de
+                 observatorio, va con XXX y tus coordenadas en el comentario: el MPC te dará uno cuando vea medidas buenas
+                 de asteroides numerados.
+  medidas.csv    Cada medida: hora (UTC, mitad de la exposición), posición medida y prevista, O−C, error, magnitud G y SNR.
+  serie.json     Todo: astrometría de cada toma (estrellas de Gaia usadas, grado de la placa, residuos, punto cero) y cada objeto.
+  resultado.json Las medidas elegidas y el resumen de cada objeto.
+
+Método
+  Tomas calibradas con los masters de la biblioteca de ASTRO; la primera, resuelta con Siril. En cada toma, los centros de
+  las estrellas de Gaia DR3 (posición llevada a la fecha con su movimiento propio) se miden con una ventana gaussiana y se
+  ajustan unas constantes de placa (polinomio de grado 1 a 3 según las estrellas) sobre el plano tangente. Los objetos
+  del campo los da el servicio SB Identification del JPL y su posición prevista, el JPL Horizons (topocéntrica).
+  O−C: medida menos prevista, en segundos de arco (RA·cos Dec y Dec). Magnitud G aproximada con el punto cero de
+  las estrellas de Gaia de cada toma. Hora: la mitad de la exposición según la cabecera (comprueba que tu reloj va bien).
+"""
+LEEME_AST_EN = """ASTEROIDS AND COMETS · {noche} · ASTRO (Science section)
+
+What this package contains
+  ades.psv       The report in ADES (PSV) format for the Minor Planet Center: upload it at https://minorplanetcenter.net/submit_psv
+                 (better test it first at https://minorplanetcenter.org/submit_psv_test). If you have no observatory code yet,
+                 it goes with XXX and your coordinates in the comment: the MPC will assign one after good measurements of
+                 numbered asteroids.
+  medidas.csv    Every measurement: time (UTC, mid-exposure), measured and predicted position, O−C, error, G magnitude and SNR.
+  serie.json     Everything: astrometry of each frame (Gaia stars used, plate degree, residuals, zero point) and each object.
+  resultado.json The measurements chosen and the summary of each object.
+
+Method
+  Frames calibrated with the masters of ASTRO's library; the first one plate-solved with Siril. In each frame the centres
+  of Gaia DR3 stars (positions brought to the date with their proper motion) are measured with a Gaussian window and plate
+  constants (a degree 1 to 3 polynomial depending on the number of stars) are fitted on the tangent plane. The objects in
+  the field come from JPL's SB Identification service and their predicted positions from JPL Horizons (topocentric).
+  O−C: measured minus predicted, in arcseconds (RA·cos Dec and Dec). Approximate G magnitude with the zero point of the
+  Gaia stars of each frame. Time: mid-exposure according to the header (make sure your clock is right).
+"""
+
+
+def zip_astrometria(sid, en=False):
+    serie, c = serie_astrometria(sid)
+    if not serie or not c:
+        raise RuntimeError("no encuentro la medida")
+    d = os.path.join(ASTROMETRIA_DIR, sid)
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt" if en else "LEEME.txt", (LEEME_AST_EN if en else LEEME_AST_ES).format(noche=serie.get("noche") or ""))
+        for n in ("ades.psv", "medidas.csv", "serie.json", "resultado.json"):
+            if os.path.isfile(os.path.join(d, n)):
+                with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                    z.writestr(n, sin_rutas(f.read()))
+    return mem.getvalue(), "ASTRO-asteroides-%s.zip" % (serie.get("noche") or serie["creada"][:10])
+
+
 # ═════════════════════════════ AUTOPRUEBA (para la fábrica) ═════════════════════════════
 def escribir_fits_flotante(ruta, w, h, datos, claves):
     """FITS de 32 bits en coma flotante, sin librerías (datos: lista de filas)."""
@@ -3643,12 +4354,17 @@ def autoprueba(carpeta):
     # el modelo del tránsito: sin oscurecimiento del limbo, un planeta de radio 0,1 entero dentro tapa el 1 %
     tr_ = flujo_transito(0.3, 0.1, 0.0, 0.0)
     ok = ok and abs(tr_ - 0.99) < 1e-5
+    # la astrometría: ida y vuelta al plano tangente
+    xi_, eta_ = a_plano(ra0 + 0.1, dec0 - 0.05, ra0, dec0)
+    ra_v, dec_v = de_plano(xi_, eta_, ra0, dec0)
+    plano_ok = abs(ra_v - ra0 - 0.1) < 1e-9 and abs(dec_v - dec0 + 0.05) < 1e-9
+    ok = ok and plano_ok
     try:
         os.remove(ruta)
     except OSError:
         pass
     return {"ok": ok, "zp": r["zp"], "zp_esperado": zp, "cielo": r["brillo_cielo"], "cielo_esperado": sb, "fwhm_px": r["fwhm_px"],
-            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "segundos": r["segundos"]}
+            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "plano": plano_ok, "segundos": r["segundos"]}
 
 
 # ═════════════════════════════ LO QUE PIDE LA PÁGINA ═════════════════════════════
@@ -3974,6 +4690,31 @@ class H(BaseHTTPRequestHandler):
                                                          float(num((qs.get("vmax") or ["13"])[0]) or 13), todos=(qs.get("todos") or ["0"])[0] == "1"))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/ast/series":
+                return self._json(series_astrometria())
+            if p.path == "/api/ast/config":
+                c = config_ciencia()
+                return self._json({k: c.get(k) or "" for k in ("mpc_codigo", "observador", "apertura_m", "detector", "diseno")})
+            if p.path == "/api/ast/serie":
+                serie, calc = serie_astrometria((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                vistas = {"%s|%s" % (o["nombre"], m["tiempo"]): m.get("vista") for o in serie["objetos"] for m in o["medidas"]}
+                resumen = {k: v for k, v in serie.items() if k != "objetos"}
+                return self._json({"serie": resumen, "calculo": calc, "vistas": vistas})
+            if p.path in ("/api/ast/ades", "/api/ast/csv"):
+                sid = (qs.get("id") or [""])[0]
+                serie, calc = serie_astrometria(sid)
+                if not calc:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                fecha = serie.get("noche") or serie["creada"][:10]
+                if p.path.endswith("ades"):
+                    return self._send(200, archivo_ades(serie, calc), "text/plain; charset=utf-8", {"Content-Disposition": 'attachment; filename="ADES-%s.psv"' % fecha})
+                with open(os.path.join(ASTROMETRIA_DIR, sid, "medidas.csv"), "r", encoding="utf-8") as f:
+                    return self._send(200, "\ufeff" + f.read(), "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-asteroides-%s.csv"' % fecha})
+            if p.path == "/api/ast/zip":
+                datos, nombre = zip_astrometria((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
             if p.path == "/api/cielo/medidas":
                 return self._json(medidas())
             if p.path == "/api/cielo/medida":
@@ -4039,6 +4780,20 @@ class H(BaseHTTPRequestHandler):
                     return self._json(recalcular_exo(d.get("id"), d))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/ast/medir":
+                try:
+                    iniciar_astrometria(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/ast/recalcular":
+                try:
+                    return self._json(recalcular_astrometria(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/ast/borrar":
+                borrar_astrometria(d.get("id"))
+                return self._json({"ok": True})
             if p.path == "/api/exo/borrar":
                 borrar_exo(d.get("id"))
                 return self._json({"ok": True})
@@ -4058,7 +4813,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "ast": ASTROMETRIA_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -4339,7 +5094,7 @@ DIC_EN = {
     "magnitudes de catálogo en": "catalogue magnitudes in",
     "Comparación": "Comparison",
     "conjunto de": "ensemble of",
-    "una estrella": "a single star",
+    "una sola estrella": "a single star",
     "secuencia VSP de la AAVSO": "AAVSO VSP sequence",
     "Equipo": "Equipment",
     "Borrar esta serie": "Delete this series",
@@ -4483,6 +5238,67 @@ DIC_EN = {
     "no he podido descargar la lista de planetas (¿hay conexión a Internet?)": "I couldn't download the list of planets (is there an Internet connection?)",
     "no encuentro la medida": "I can't find the measurement",
     "medida no válida": "invalid measurement",
+    "Medir asteroides y cometas": "Measure asteroids and comets",
+    "Elige la sesión con las tomas del campo (al menos tres, separadas unos minutos). ASTRO pregunta al JPL qué asteroides y cometas conocidos hay en él, calcula la astrometría de cada toma con las estrellas de Gaia, mide cada objeto, lo compara con su efeméride (O−C) y prepara el informe ADES para el Minor Planet Center.": "Choose the session with the frames of the field (at least three, a few minutes apart). ASTRO asks JPL which known asteroids and comets are in it, computes the astrometry of every frame with the Gaia stars, measures each object, compares it with its ephemeris (O−C) and prepares the ADES report for the Minor Planet Center.",
+    "Buscar objetos hasta la magnitud": "Look for objects down to magnitude",
+    "Código de observatorio MPC": "MPC observatory code",
+    "Tu nombre para el MPC": "Your name for the MPC",
+    "Abertura (m)": "Aperture (m)",
+    "reflector": "reflector",
+    "refractor": "refractor",
+    "Hace falta Internet para preguntar al JPL (SB Identification y Horizons) y para el catálogo Gaia, y Siril para calibrar y resolver. Si todavía no tienes código de observatorio, deja XXX: el informe lleva las coordenadas de tu lugar.": "An Internet connection is needed to ask JPL (SB Identification and Horizons) and for the Gaia catalogue, and Siril to calibrate and plate-solve. If you don't have an observatory code yet, leave XXX: the report carries your site's coordinates.",
+    "Tus medidas de asteroides y cometas": "Your asteroid and comet measurements",
+    "Añade en Control de lights las tomas del campo (al menos tres, separadas unos minutos).": "Add in Light frames the frames of the field (at least three, a few minutes apart).",
+    "Elige primero la sesión con las tomas del campo": "First choose the session with the frames of the field",
+    "Con dos tomas se puede medir, pero el MPC pide al menos tres por objeto y noche": "Two frames can be measured, but the MPC asks for at least three per object and night",
+    "Todavía no has medido ningún campo": "You haven't measured any field yet",
+    "Elige arriba una sesión y pulsa «Medir».": "Choose a session above and press “Measure”.",
+    "Campo": "Field",
+    "Objetos medidos": "Objects measured",
+    "Medidas": "Measurements",
+    "Dispersión (″)": "Scatter (″)",
+    "ninguno": "none",
+    "Hora (UTC)": "Time (UTC)",
+    "O−C RA (″)": "O−C RA (″)",
+    "no se ve": "not seen",
+    "asteroide": "asteroid",
+    "cometa": "comet",
+    "estrella cerca": "star nearby",
+    "V prevista": "predicted V",
+    "medido en": "measured in",
+    "dispersión entre tomas": "scatter between frames",
+    "Asteroides y cometas": "Asteroids and comets",
+    "objetos del": "objects from",
+    "objetos": "objects",
+    "medidos, de": "measured, of",
+    "en el campo": "in the field",
+    "posiciones": "positions",
+    "para el informe ADES": "for the ADES report",
+    "Residuo de la astrometría (estrellas de Gaia)": "Astrometric residual (Gaia stars)",
+    "FWHM mediano": "median FWHM",
+    "El JPL no conoce ningún asteroide ni cometa más brillante que ese límite en el campo a esa hora.": "JPL knows of no asteroid or comet brighter than that limit in the field at that time.",
+    "Informe para el Minor Planet Center (ADES)": "Report for the Minor Planet Center (ADES)",
+    "Nombre": "Name",
+    "Descargar ADES": "Download ADES",
+    "Probar en el MPC": "Test at the MPC",
+    "Enviar al MPC": "Submit to the MPC",
+    "Primero pruébalo en la página de validación del MPC y luego envíalo. Van las medidas marcadas; las que tienen una estrella muy cerca se quitan solas. Los cometas van sin magnitud (su brillo total se mide de otra forma, para COBS).": "Test it first on the MPC validation page, then submit it. The ticked measurements are included; those with a star very close are left out automatically. Comets go without magnitude (their total brightness is measured differently, for COBS).",
+    "constantes de placa con las estrellas de Gaia DR3 de cada toma (polinomio de grado": "plate constants with the Gaia DR3 stars of each frame (polynomial of degree",
+    "Centros": "Centroids",
+    "ventana gaussiana que se recentra (como SExtractor)": "iteratively re-centred Gaussian window (as in SExtractor)",
+    "topocéntricas, desde": "topocentric, from",
+    "G aproximada, con el punto cero de las estrellas de Gaia de cada toma": "approximate G, with the zero point of the Gaia stars of each frame",
+    "O−C: medida menos efeméride": "O−C: measured minus ephemeris",
+    "Cada punto es una toma (vacío: no se usa). El círculo marca 1″. Un grupo apretado lejos del centro es un error de la efeméride (normal en objetos poco observados); puntos dispersos, un problema de medida o de hora.": "Each point is a frame (hollow: not used). The circle marks 1″. A tight group far from the centre is an ephemeris error (normal for poorly observed objects); scattered points mean a measurement or timing problem.",
+    "Preguntando al JPL qué asteroides y cometas hay en el campo": "Asking JPL which asteroids and comets are in the field",
+    "Pidiendo efemérides al JPL Horizons": "Requesting ephemerides from JPL Horizons",
+    "hacen falta al menos dos tomas (mejor tres o más, separadas unos minutos)": "at least two frames are needed (better three or more, a few minutes apart)",
+    "no hay bastantes estrellas de Gaia para la astrometría de esta toma": "there aren't enough Gaia stars for the astrometry of this frame",
+    "no he podido seguir el campo en esta toma": "I couldn't follow the field in this frame",
+    "no he podido medir ninguna toma": "I couldn't measure any frame",
+    "~No he podido preguntar al JPL qué asteroides hay en el campo (¿hay conexión a Internet?).": "I couldn't ask JPL which asteroids are in the field (is there an Internet connection?).",
+    "~No he podido pedir las efemérides al JPL Horizons": "I couldn't get the ephemerides from JPL Horizons",
+    "~Horizons no ha dado efemérides para": "Horizons gave no ephemeris for",
 }
 
 HTML = r'''<!DOCTYPE html>
@@ -4604,7 +5420,7 @@ td.num{text-align:right}
 .cifra.dest{background:linear-gradient(135deg,#1B1233,#3A1B63);border:0;color:#F5F2FC} .cifra.dest .e,.cifra.dest .u{color:rgba(245,242,252,.8)}
 .graf{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .graf h4{font-size:14px;margin-bottom:6px}
-.graf svg{width:100%;height:auto;display:block} .lienzo{overflow-x:auto} .lienzo svg{min-width:620px}
+.graf svg{width:100%;height:auto;display:block} .lienzo{overflow-x:auto} .lienzo svg{min-width:620px} canvas.vista{width:46px;height:46px;image-rendering:pixelated;border-radius:6px;display:block;background:#000}
 .graf .pie{color:var(--muted);font-size:12.5px;margin-top:6px}
 .tx{fill:var(--muted);font-size:12px} .tx.f{fill:var(--text);font-weight:700}
 .rej{stroke:var(--line);stroke-width:1}
@@ -4731,6 +5547,28 @@ td.num{text-align:right}
         </div>
         <h3 class="seccion">Tus tránsitos</h3>
         <div id="xSeries"></div>
+      </div>
+      <div id="herramientaAst" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Medir asteroides y cometas</h3>
+          <div class="note">Elige la sesión con las tomas del campo (al menos tres, separadas unos minutos). ASTRO pregunta al JPL qué asteroides y cometas conocidos hay en él, calcula la astrometría de cada toma con las estrellas de Gaia, mide cada objeto, lo compara con su efeméride (O−C) y prepara el informe ADES para el Minor Planet Center.</div>
+          <div id="aSesiones" style="margin-top:12px"></div>
+          <div class="opciones">
+            <label>Buscar objetos hasta la magnitud <select id="aVmax"><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19" selected>19</option><option value="20">20</option><option value="21">21</option></select></label>
+          </div>
+          <div class="opciones">
+            <label>Código de observatorio MPC <input id="aCodigo" class="notr" placeholder="XXX" maxlength="3" style="width:70px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);text-transform:uppercase"></label>
+            <label>Tu nombre para el MPC <input id="aObservador" class="notr" placeholder="T. Moreno" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <label>Abertura (m) <input id="aApertura" class="notr" placeholder="0.20" style="width:70px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <label>Telescopio <select id="aDiseno"><option value="Reflector">reflector</option><option value="Refractor">refractor</option><option value="Schmidt">Schmidt</option></select></label>
+            <label>Cámara <select id="aDetector"><option value="CMO">CMOS</option><option value="CCD">CCD</option></select></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnAst">Medir</button>
+          </div>
+          <div class="note" style="margin-top:10px">Hace falta Internet para preguntar al JPL (SB Identification y Horizons) y para el catálogo Gaia, y Siril para calibrar y resolver. Si todavía no tienes código de observatorio, deja XXX: el informe lleva las coordenadas de tu lugar.</div>
+        </div>
+        <h3 class="seccion">Tus medidas de asteroides y cometas</h3>
+        <div id="aSeries"></div>
       </div>
       <div id="herramientaCielo" style="display:none">
         <div class="caja">
@@ -4945,7 +5783,7 @@ const BLOQUES = [
    destino:["ExoClock: approved light curves keep Ariel's ephemerides up to date; observers are co-authors of its papers.","Exoplanet Watch (NASA), in the AAVSO exoplanet database.","VarAstro-ETD and, later on, the TESS follow-up programme (TFOP)."],
    hara:["Transits fully visible from your site in the coming days","Gaia comparison stars, chosen and checked","Light curve in BJD_TDB and the night's trend","Transit fit (T₀, depth, duration) with honest errors","O−C against the ExoClock ephemeris","Light curves for ExoClock and VarAstro-ETD, figure and package"]}},
 
- {id:"astrometria", n:"2", estado:"pronto", icono:"astrometria",
+ {id:"astrometria", n:"2", estado:"ya", icono:"astrometria",
   es:{titulo:"Asteroides y cometas", corto:"Mide dónde está un cuerpo que se mueve y ayuda a calcular su órbita.",
    historia:[
     "Entre Marte y Júpiter, y también mucho más cerca y mucho más lejos, se mueven más de un millón de asteroides catalogados. Unos pocos, los asteroides cercanos a la Tierra, cruzan nuestra órbita. Saber exactamente por dónde van no es curiosidad: es la única manera de saber si alguno podría chocar con nosotros dentro de cien años.",
@@ -4955,7 +5793,7 @@ const BLOQUES = [
    necesitas:["Una escala de 1 a 2 segundos de arco por píxel (por ejemplo, 1.000 mm de focal con píxeles de 3,76 µm agrupados 2×2).","Exposiciones cortas, la hora exacta de cada toma y las coordenadas precisas del lugar.","Para tu propio código de observatorio del MPC: medidas de diez asteroides cercanos a la Tierra ya numerados, en dos noches, en formato ADES."],
    programas:[["Siril","Resuelve la imagen y marca los asteroides conocidos del campo"],["Tycho Tracker","Detecta objetos muy débiles sumando las tomas siguiendo el movimiento"],["Astrometrica","El clásico de la astrometría de aficionado"],["Find_Orb","Calcula la órbita con tus posiciones"]],
    destino:["Minor Planet Center: tus posiciones entran en cada nuevo cálculo de órbita; si confirmas un NEO, tu código sale en la circular.","COBS: el brillo de los cometas, en formato ICQ.","Minor Planet Bulletin: periodos de rotación de asteroides."],
-   hara:["NEO numerados y objetos por confirmar a tu alcance esta noche","Qué cuerpos conocidos hay en tu campo (SkyBoT)","Posición en cada toma con las estrellas de Gaia","Residuos frente a la efeméride de JPL","Envío ADES para el MPC y brillo de cometas para COBS"]},
+   hara:["Qué asteroides y cometas conocidos hay en tu campo (JPL)","Posición en cada toma con las estrellas de Gaia (constantes de placa)","O−C frente a la efeméride del JPL Horizons","Magnitud G aproximada de cada asteroide","Informe ADES para el Minor Planet Center"]},
   en:{titulo:"Asteroids and comets", corto:"Measure where a moving body is and help to compute its orbit.",
    historia:[
     "Between Mars and Jupiter, and also much closer and much farther away, more than a million catalogued asteroids are moving. A few of them, the near-Earth asteroids, cross our orbit. Knowing exactly where they go is not idle curiosity: it is the only way to know whether one could hit us within a hundred years.",
@@ -4965,7 +5803,7 @@ const BLOQUES = [
    necesitas:["An image scale of 1 to 2 arcseconds per pixel (for example, 1,000 mm focal length with 3.76 µm pixels binned 2×2).","Short exposures, the exact time of each frame and the precise coordinates of your site.","For your own MPC observatory code: measurements of ten numbered near-Earth asteroids, on two nights, in ADES format."],
    programas:[["Siril","Plate-solves the image and marks the known asteroids in the field"],["Tycho Tracker","Finds very faint objects by stacking along the motion"],["Astrometrica","The classic of amateur astrometry"],["Find_Orb","Computes the orbit from your positions"]],
    destino:["Minor Planet Center: your positions enter every new orbit computation; if you confirm a NEO, your code appears in the circular.","COBS: comet brightness, in ICQ format.","Minor Planet Bulletin: asteroid rotation periods."],
-   hara:["Numbered NEOs and objects to confirm within reach tonight","Which known bodies are in your field (SkyBoT)","Position in each frame with the Gaia stars","Residuals against the JPL ephemeris","ADES submission for the MPC and comet brightness for COBS"]}},
+   hara:["Which known asteroids and comets are in your field (JPL)","Position in each frame with the Gaia stars (plate constants)","O−C against the JPL Horizons ephemeris","Approximate G magnitude of each asteroid","ADES report for the Minor Planet Center"]}},
 
  {id:"hr", n:"4", estado:"pronto", icono:"hr",
   es:{titulo:"Diagramas de Hertzsprung-Russell", corto:"Ordena las estrellas de un cúmulo por color y brillo, y lee su edad.",
@@ -5053,11 +5891,13 @@ function pintarBloque(id){
   $("herramientaCielo").style.display = id === "cielo" ? "" : "none";
   $("herramientaVariable").style.display = id === "variables" ? "" : "none";
   $("herramientaExo").style.display = id === "exoplanetas" ? "" : "none";
+  $("herramientaAst").style.display = id === "astrometria" ? "" : "none";
   BLOQUE_ACTUAL = id;
   if (id === "cielo") abrirCielo();
   if (id === "variables") abrirVariables();
   if (id === "exoplanetas") abrirExo();
-  if (!["cielo", "variables", "exoplanetas"].includes(id)) $("trabajo").classList.remove("show");
+  if (id === "astrometria") abrirAst();
+  if (!["cielo", "variables", "exoplanetas", "astrometria"].includes(id)) $("trabajo").classList.remove("show");
 }
 let BLOQUE_ACTUAL = "";
 
@@ -5152,7 +5992,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", exo: "exoplanetas"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", exo: "exoplanetas", astrometria: "astrometria"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -5162,12 +6002,13 @@ async function sondear(){
     $("tLog").textContent = (e.log || []).join("\n");
     $("btnCancelar").style.display = e.activo ? "" : "none";
   } else caja.classList.remove("show");
-  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = !!e.activo;
+  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnAst").disabled = !!e.activo;
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
     if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
+    else if (e.tipo === "astrometria"){ cargarSeriesAst(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "astrometria") verAst(e.resultados[0]); }
     else { cargarMedidas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "cielo") verMedida(e.resultados[0]); }
   }
   if (e.activo) CIELO._activo = true;
@@ -5383,7 +6224,7 @@ async function verSerie(id, calcNuevo){
     <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
       <dt>Filtro</dt><dd><span class="notr">${esc(s.banda)}</span> · ${tr("magnitudes de catálogo en")} <span class="notr">${esc(s.banda_catalogo)}</span></dd>
       <dt>Calibración</dt><dd>${(s.calibracion || []).length ? s.calibracion.map(x => `<div class="notr">${esc(x)}</div>`).join("") : esc(tr("sin calibrar"))}</dd>
-      <dt>Comparación</dt><dd>${c.modo === "ensemble" ? tr("conjunto de") + " " + c.comps.length + " " + tr("estrellas") : tr("una estrella")} · ${tr("secuencia VSP de la AAVSO")}</dd>
+      <dt>Comparación</dt><dd>${c.modo === "ensemble" ? tr("conjunto de") + " " + c.comps.length + " " + tr("estrellas") : tr("una sola estrella")} · ${tr("secuencia VSP de la AAVSO")}</dd>
       <dt>Lugar</dt><dd class="notr">${esc((s.lugar || {}).nombre || "")} ${(s.lugar || {}).lat != null ? "(" + numEs(s.lugar.lat, 3) + ", " + numEs(s.lugar.lon, 3) + ")" : ""}</dd>
       <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
     </dl></div>
@@ -5624,6 +6465,135 @@ function graficaExo(s, c){
   g2 += `<polyline fill="none" stroke="var(--oro)" stroke-width="2" points="${P.map(p => X(hr(p.bjd)).toFixed(1) + "," + Y2(p.modelo * p.base).toFixed(1)).join(" ")}"/>`;
   g2 += `<text class="tx" x="${(L+W-R)/2}" y="${H2-6}" text-anchor="middle">${esc(tr("hora (aprox. UTC; el eje va en BJD_TDB)"))}</text>`;
   $("gNoche").innerHTML = `<h4>La noche, sin corregir</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H2}" role="img">${g2}</svg></div><div class="pie"><span>Flujo relativo tal como sale, con el modelo por la tendencia elegida</span> (<span>${esc(tr(({lineal: "lineal en el tiempo", cuadratica: "cuadrática en el tiempo", masa_aire: "con la masa de aire"})[c.tendencia]))}</span>). <span>Masa de aire de</span> <span class="notr">${numEs(Math.min(...P.map(p => p.masa_aire)), 2)}</span> <span>a</span> <span class="notr">${numEs(Math.max(...P.map(p => p.masa_aire)), 2)}</span>.</div>`;
+}
+
+/* ============ Asteroides y cometas ============ */
+const AST = {sesiones:null, sel:null, series:[], cfg:null, actual:null};
+const COLORES_OBJ = ["#6A3FA0", "#C27A00", "#1F7A5C", "#B8431F", "#2F5FA8", "#8F1D52", "#5B6B1E"];
+async function abrirAst(){
+  try { AST.cfg = await (await api("/api/ast/config")).json(); } catch(_){ AST.cfg = {}; }
+  $("aCodigo").value = AST.cfg.mpc_codigo || ""; $("aObservador").value = AST.cfg.observador || ""; $("aApertura").value = AST.cfg.apertura_m || "";
+  $("aDetector").value = AST.cfg.detector || "CMO"; $("aDiseno").value = AST.cfg.diseno || "Reflector";
+  if (!AST.sesiones){ try { AST.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ AST.sesiones = []; } }
+  pintarSesionesAst(); cargarSeriesAst(); sondear();
+}
+function pintarSesionesAst(){
+  const ss = (AST.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.tomas.length >= 2);
+  if (!ss.length){ $("aSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con varias tomas</b>Añade en Control de lights las tomas del campo (al menos tres, separadas unos minutos).</div>`; return; }
+  $("aSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th>De … a (UTC)</th></tr></thead><tbody>${
+    ss.map(([s, i]) => { const f = s.tomas.map(t => t.fecha).filter(Boolean).sort();
+      return `<tr data-i="${i}" class="${AST.sel === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="aSes" ${AST.sel === i ? "checked" : ""}></td><td>${esc(fechaCorta(s.noche))}</td><td class="notr">${esc(s.objeto)}</td>
+      <td class="notr">${esc(s.filtro_original || s.filtro)}</td><td class="notr">${esc(s.cam)}</td><td class="notr">${esc(s.tel)}</td><td class="num">${s.tomas.length}</td>
+      <td class="notr">${f.length ? esc(f[0].slice(11, 16) + " – " + f[f.length - 1].slice(11, 16)) : ""}</td></tr>`; }).join("")}</tbody></table></div>`;
+  $("aSesiones").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
+    AST.sel = +t.dataset.i;
+    $("aSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
+  });
+}
+function datosObservador(){
+  return {mpc_codigo: ($("aCodigo").value.trim() || "XXX").toUpperCase(), observador: $("aObservador").value.trim(), apertura_m: $("aApertura").value.trim().replace(",", "."),
+          detector: $("aDetector").value, diseno: $("aDiseno").value};
+}
+$("btnAst").onclick = async () => {
+  if (AST.sel === null){ toast("Elige primero la sesión con las tomas del campo"); return; }
+  const s = AST.sesiones[AST.sel];
+  if (s.tomas.length < 3) toast("Con dos tomas se puede medir, pero el MPC pide al menos tres por objeto y noche");
+  try { await post("/api/ast/medir", Object.assign({ids: s.tomas.map(t => t.id), vmax: +$("aVmax").value}, datosObservador())); sondear(); }
+  catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesAst(){
+  try { AST.series = await (await api("/api/ast/series")).json(); } catch(_){ AST.series = []; }
+  const ss = AST.series;
+  if (!ss.length){ $("aSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ningún campo</b>Elige arriba una sesión y pulsa «Medir».</div>`; return; }
+  $("aSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Noche</th><th>Campo</th><th class="num">Tomas</th><th>Objetos medidos</th><th class="num">Medidas</th><th class="num">Dispersión (″)</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}</td><td class="notr">${esc(x.objeto || "")}</td><td class="num">${x.tomas}</td>
+      <td><span class="notr">${esc(x.nombres.join(", "))}</span>${x.objetos > x.nombres.length ? " …" : ""}${!x.objetos ? `<span class="note">${esc(tr("ninguno"))}</span>` : ""}</td>
+      <td class="num">${x.medidas}</td><td class="num">${numEs(x.oc_rms, 2)}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("aSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verAst(t.dataset.id));
+}
+function pintarVista(cv, datos){
+  if (!datos) return;
+  const n = Math.round(Math.sqrt(datos.length)); cv.width = n; cv.height = n;
+  const ctx = cv.getContext("2d"), im = ctx.createImageData(n, n);
+  datos.forEach((v, i) => { im.data[4*i] = im.data[4*i+1] = im.data[4*i+2] = v; im.data[4*i+3] = 255; });
+  ctx.putImageData(im, 0, 0);
+}
+async function verAst(id, calcNuevo){
+  let d; try { d = await (await api("/api/ast/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo; AST.actual = {s, c, vistas: d.vistas};
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const obs = c.objetos, usados = obs.filter(o => o.n_usadas);
+  const box = $("detalleBox");
+  const tarjetas = obs.map((o, k) => {
+    const col = COLORES_OBJ[k % COLORES_OBJ.length];
+    const filas = o.medidas.map((m, j) => `<tr><td><input type="checkbox" class="aUsar" data-k="${esc(o.nombre + "|" + m.tiempo)}" ${m.usar ? "checked" : ""} ${m.encontrado ? "" : "disabled"}></td>
+      <td><canvas class="vista" data-v="${esc(o.nombre + "|" + m.tiempo)}"></canvas></td><td class="notr">${esc(m.tiempo.slice(11, 21))}</td>
+      ${m.encontrado ? `<td class="num">${(m.oc_ra > 0 ? "+" : "") + numEs(m.oc_ra, 2)}</td><td class="num">${(m.oc_dec > 0 ? "+" : "") + numEs(m.oc_dec, 2)}</td><td class="num">${numEs(m.mag, 2)}</td><td class="num">${numEs(m.snr, 0)}</td>
+      <td>${(m.avisos || []).map(a => `<span class="chip warn">${esc(tr(a))}</span>`).join(" ")}</td>` : `<td colspan="5"><span class="chip">${esc(tr("no se ve"))}</span></td>`}</tr>`).join("");
+    return `<div class="graf"><h4><span style="color:${col}">●</span> <span class="notr">${esc(o.nombre)}</span> <span class="chip">${esc(tr(o.tipo))}</span></h4>
+      <div class="note"><span>V prevista</span> <span class="notr">${numEs(o.v, 1)}</span> · <span>medido en</span> <span class="notr">${o.n_encontrado} / ${o.n_tomas}</span> <span>tomas</span>${o.n_usadas ? ` · O−C <span class="notr">${(o.oc_ra > 0 ? "+" : "") + numEs(o.oc_ra, 2)}″, ${(o.oc_dec > 0 ? "+" : "") + numEs(o.oc_dec, 2)}″</span>${o.oc_rms != null ? ` · <span>dispersión entre tomas</span> <span class="notr">${numEs(o.oc_rms, 2)}″</span>` : ""}${o.mag != null ? ` · G ≈ <span class="notr">${numEs(o.mag, 1)}</span>` : ""}` : ""}</div>
+      <div class="tabla" style="max-height:340px;margin-top:8px"><table><thead><tr><th>Usar</th><th></th><th>Hora (UTC)</th><th class="num">O−C RA (″)</th><th class="num">O−C Dec (″)</th><th class="num">G</th><th class="num">SNR</th><th></th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
+  }).join("");
+  box.innerHTML = `<div class="cabBox"><div><h2>${esc(tr("Asteroides y cometas"))} · <span class="notr">${esc(s.objeto || "")}</span></h2><div class="note"><span>${esc(fechaCorta(s.noche))}</span> · <span class="notr">${s.tomas.length}</span> <span>tomas</span> · <span>objetos del</span> <span class="notr">JPL (SB Identification, Horizons)</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(String(usados.length), tr("objetos"), tr("medidos, de") + " " + obs.length + " " + tr("en el campo"), true)}
+      ${cifra(String(usados.reduce((a, o) => a + o.n_usadas, 0)), tr("posiciones"), tr("para el informe ADES"))}
+      ${cifra(numEs(c.rms_placa, 2), "″", tr("Residuo de la astrometría (estrellas de Gaia)") + " · " + c.estrellas + " " + tr("estrellas"))}
+      ${cifra(numEs(c.fwhm_arcsec, 1), "″", tr("FWHM mediano") + " · " + numEs(s.escala, 2) + " ″/px")}</div>
+    ${!obs.length ? `<div class="avisos"><div>${esc(tr("El JPL no conoce ningún asteroide ni cometa más brillante que ese límite en el campo a esa hora."))}</div></div>` : ""}
+    ${usados.length ? `<div class="graf" id="gOC"></div>` : ""}
+    ${tarjetas}
+    <div class="dos">
+      <div class="graf"><h4>Informe para el Minor Planet Center (ADES)</h4>
+        <div class="opciones" style="margin-top:4px">
+          <label>Código <input id="dCodigo" class="notr" maxlength="3" value="${esc((AST.cfg || {}).mpc_codigo || "XXX")}" style="width:60px;padding:5px 7px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);text-transform:uppercase"></label>
+          <label>Nombre <input id="dObservador" class="notr" value="${esc((AST.cfg || {}).observador || "")}" style="width:140px;padding:5px 7px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="acciones" style="margin-top:10px;flex-wrap:wrap"><a class="btn small primary" href="/api/ast/ades?id=${encodeURIComponent(s.id)}" download>Descargar ADES</a>
+          <a class="btn small" href="/api/ast/csv?id=${encodeURIComponent(s.id)}" download>Tabla (CSV)</a>
+          <a class="btn small" href="https://minorplanetcenter.org/submit_psv_test" target="_blank" rel="noopener">Probar en el MPC</a>
+          <a class="btn small" href="https://minorplanetcenter.net/submit_psv" target="_blank" rel="noopener">Enviar al MPC</a></div>
+        <div class="pie">Primero pruébalo en la página de validación del MPC y luego envíalo. Van las medidas marcadas; las que tienen una estrella muy cerca se quitan solas. Los cometas van sin magnitud (su brillo total se mide de otra forma, para COBS).</div></div>
+      <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
+        <dt>Astrometría</dt><dd><span>constantes de placa con las estrellas de Gaia DR3 de cada toma (polinomio de grado</span> <span class="notr">${s.tomas.map(t => t.grado).sort()[0]}–${s.tomas.map(t => t.grado).sort().slice(-1)[0]}</span>)</dd>
+        <dt>Centros</dt><dd><span>ventana gaussiana que se recentra (como SExtractor)</span></dd>
+        <dt>Efemérides</dt><dd><span class="notr">JPL Horizons</span> · <span>topocéntricas, desde</span> <span class="notr">${esc((s.lugar || {}).nombre || "")}</span></dd>
+        <dt>Magnitud</dt><dd><span>G aproximada, con el punto cero de las estrellas de Gaia de cada toma</span></dd>
+        <dt>Calibración</dt><dd>${(s.calibracion || []).length ? s.calibracion.map(x => `<div class="notr">${esc(x)}</div>`).join("") : esc(tr("sin calibrar"))}</dd>
+        <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
+      </dl></div>
+    </div>
+    <div class="acciones"><a class="btn small" href="/api/ast/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar esta medida</button></div>`;
+  $("detalle").classList.add("show");
+  box.querySelectorAll("canvas.vista").forEach(cv => pintarVista(cv, (AST.actual.vistas || {})[cv.dataset.v]));
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "ast"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar esta medida?")) return; await post("/api/ast/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesAst(); };
+  $("dRecalcular").onclick = async () => {
+    const quitar = [...document.querySelectorAll(".aUsar:not(:checked):not(:disabled)")].map(x => x.dataset.k);
+    try {
+      const nuevo = await (await post("/api/ast/recalcular", {id: s.id, quitar, mpc_codigo: ($("dCodigo").value.trim() || "XXX").toUpperCase(), observador: $("dObservador").value.trim()})).json();
+      if (AST.cfg){ AST.cfg.mpc_codigo = ($("dCodigo").value.trim() || "XXX").toUpperCase(); AST.cfg.observador = $("dObservador").value.trim(); }
+      verAst(s.id, nuevo); cargarSeriesAst(); toast("Recalculado");
+    } catch(e){ toast(e.message || e); }
+  };
+  if (usados.length) graficaOC(obs);
+}
+function graficaOC(obs){
+  const L = 48, R = 14, T = 14, B = 46, lado = 340, W = L + R + lado, H = T + B + lado;
+  const pts = []; obs.forEach((o, k) => o.medidas.forEach(m => { if (m.encontrado) pts.push([m.oc_ra, m.oc_dec, k, m.usar]); }));
+  const lim = Math.max(1.0, ...pts.map(p => Math.max(Math.abs(p[0]), Math.abs(p[1])))) * 1.1;
+  const X = v => L + (v + lim) / (2 * lim) * (W - L - R), Y = v => T + (lim - v) / (2 * lim) * (H - T - B);
+  let g = "";
+  const paso = lim > 4 ? 1 : lim > 2 ? 0.5 : 0.25;
+  for (let v = -Math.floor(lim / paso) * paso; v <= lim; v += paso){
+    g += `<line class="rej" x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${H-B}"/><line class="rej" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/>`;
+    g += `<text class="tx" x="${X(v)}" y="${H-B+15}" text-anchor="middle">${numEs(v, paso < 0.5 ? 2 : 1)}</text><text class="tx" x="${L-5}" y="${Y(v)+4}" text-anchor="end">${numEs(v, paso < 0.5 ? 2 : 1)}</text>`;
+  }
+  g += `<circle cx="${X(0)}" cy="${Y(0)}" r="${(X(1) - X(0)).toFixed(1)}" fill="none" stroke="var(--oro)" stroke-dasharray="4 3"/>`;
+  g += pts.map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="4" fill="${p[3] ? COLORES_OBJ[p[2] % COLORES_OBJ.length] : "none"}" stroke="${COLORES_OBJ[p[2] % COLORES_OBJ.length]}" stroke-width="1.5"/>`).join("");
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">O−C RA·cos Dec (″)</text><text class="tx" x="12" y="${(T+H-B)/2}" text-anchor="middle" transform="rotate(-90 12 ${(T+H-B)/2})">O−C Dec (″)</text>`;
+  $("gOC").innerHTML = `<h4>O−C: medida menos efeméride</h4><div style="max-width:420px"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("Cada punto es una toma (vacío: no se usa). El círculo marca 1″. Un grupo apretado lejos del centro es un error de la efeméride (normal en objetos poco observados); puntos dispersos, un problema de medida o de hora."))}</div>`;
 }
 
 /* ============ Informe de problemas y «Acerca de» ============ */
