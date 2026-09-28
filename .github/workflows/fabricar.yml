@@ -77,11 +77,18 @@ jobs:
           security list-keychains -d user -s fab.keychain $(security list-keychains -d user | tr -d '"')
           security default-keychain -s fab.keychain
           security unlock-keychain -p "$CLAVE" fab.keychain
+          # Certificado intermedio de Apple (Developer ID G2), por si la máquina de GitHub no lo trae:
+          # sin él el certificado sale como «no es fiable» y no se puede firmar.
+          curl -fsSL -o g2.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer && security import g2.cer -k fab.keychain || true
+          rm -f g2.cer
           security import cert.p12 -k fab.keychain -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$CLAVE" fab.keychain
           rm -f cert.p12
           ID=$(security find-identity -v -p codesigning fab.keychain | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
-          if [ -z "$ID" ]; then echo "::error::El certificado no es «Developer ID Application» (mira FIRMA.md)."; exit 1; fi
+          if [ -z "$ID" ]; then
+            security find-identity -p codesigning fab.keychain || true
+            echo "::error::No hay un certificado «Developer ID Application» válido con su clave en el .p12 (mira FIRMA.md)."; exit 1
+          fi
           codesign --force --deep --options runtime --timestamp --entitlements entitlements.plist -s "$ID" dist/ASTRO.app
           codesign --verify --deep --strict --verbose=2 dist/ASTRO.app
           ditto -c -k --keepParent dist/ASTRO.app certificar.zip
