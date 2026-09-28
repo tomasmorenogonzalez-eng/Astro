@@ -1097,7 +1097,7 @@ def _ventana_inicio(datos, puertos):
         _enlace(enl, T("ejemplo_ver"), entrar_ejemplo).pack(side="left", padx=(20, 0))
     if hay_ventana_propia():
         def a_ventana():
-            cc = leer_config(); cc.pop("ventana", None); guardar_config(cc); reiniciar()
+            cc = leer_config(); cc.pop("ventana", None); cc.pop("ventana_fallo", None); guardar_config(cc); reiniciar()
         _enlace(enl, T("app_ventana"), a_ventana).pack(side="left", padx=(20, 0))
     tk.Label(izq, text=T("datos_en") + (T("ejemplo_carpeta") if MODO["ejemplo"] else datos), bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=520,
              justify="left").pack(fill="x", anchor="w", pady=(2, 0))
@@ -1706,6 +1706,30 @@ def _guardar_geometria():
         pass
 
 
+def _ventana_a_prueba():
+    """Seguro por si la ventana propia no llega a abrirse en algún ordenador (el motor web se cierra de golpe
+    o no carga): se apunta el intento antes de abrirla y se borra en cuanto la ventana muestra la primera
+    página. Si al abrir ASTRO el intento anterior de esta misma versión quedó apuntado, esta vez se usa el
+    navegador, que también busca actualizaciones: así una ventana que falla nunca deja a nadie sin ASTRO."""
+    c = leer_config()
+    f = c.get("ventana_fallo") or {}
+    if f.get("version") == VERSION_APP:
+        print("La ventana propia no llegó a abrirse la última vez; esta vez se usa el navegador")
+        return False
+    c["ventana_fallo"] = {"version": VERSION_APP, "cuando": time.time()}
+    guardar_config(c)
+    return True
+
+
+def _ventana_funciona(*_):
+    if VENTANA_APP.get("ok"):
+        return
+    VENTANA_APP["ok"] = True
+    c = leer_config()
+    if c.pop("ventana_fallo", None) is not None:
+        guardar_config(c)
+
+
 def main_ventana(webview):
     """ASTRO en su propia ventana. Solo vuelve si la ventana no ha podido abrirse (para seguir con el navegador)."""
     VENTANA_APP["webview"] = webview
@@ -1731,6 +1755,7 @@ def main_ventana(webview):
         w.events.maximized += maximizada
         w.events.restored += restaurada
         w.events.closing += _guardar_geometria
+        w.events.loaded += _ventana_funciona
     except Exception:
         pass
     gui = "edgechromium" if ES_WIN else ("qt" if not ES_MAC else None)
@@ -1820,6 +1845,8 @@ def main():
         return
     instalar_si_hace_falta()
     wv = cargar_webview()
+    if wv and not _ventana_a_prueba():
+        wv = None
     if wv:
         try:
             main_ventana(wv)            # no vuelve: al cerrar la ventana se cierra ASTRO
