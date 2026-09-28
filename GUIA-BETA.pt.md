@@ -1,0 +1,58 @@
+# ✦ ASTRO beta · Guia para testadores
+
+[Español](GUIA-BETA.md) · [English](GUIA-BETA.md#-astro-beta--tester-guide) · [Français](GUIA-BETA.fr.md) · [Deutsch](GUIA-BETA.de.md) · [Italiano](GUIA-BETA.it.md) · **Português**
+
+Obrigado por testar o ASTRO! É uma **versão de teste**: pode ter falhas, e é precisamente para as encontrar que preciso da sua ajuda.
+
+## O que é o ASTRO
+Um programa gratuito de astrofotografia que:
+- **revê os seus lights**: mede as estrelas (FWHM e alongamento) e deteta rastos de satélites, nuvens e desfocagem;
+- **vigia a noite em direto**: revê cada exposição à medida que a ASIAIR ou o N.I.N.A. a fazem e avisa se algo corre mal;
+- **organiza a sua biblioteca de calibração** (bias, darks, flats) e diz **o que lhe falta**, com a lista para a ASIAIR ou uma **sequência pronta para o N.I.N.A.**;
+- **empilha com o Siril** (gratuito) cada objeto por filtros e deixa uma **pré-visualização já revelada** (e as combinações RGB, LRGB, SHO ou HOO), pronta a abrir no GIMP, no Photoshop ou no PixInsight.
+
+Funciona em **Mac** e **Windows**, em espanhol, inglês, francês, alemão, italiano e português.
+
+## Instalação (2 minutos)
+1. Descarregue o ficheiro do seu computador a partir da página de transferências (**Releases**).
+2. **Faça duplo clique.** O ASTRO instala-se sozinho e atualiza-se sozinho quando houver versões novas.
+3. Só da primeira vez, o sistema avisa que o programa não está assinado:
+   - **Mac:** *Definições do Sistema → Privacidade e segurança → «Abrir mesmo assim»* (no macOS 14 ou anterior: clique com o botão direito → Abrir).
+   - **Windows:** *Mais informações → Executar mesmo assim*.
+4. Instale o **Siril** a partir de siril.org se quiser empilhar.
+
+## O que peço que teste
+Use o ASTRO com **os seus dados reais**, como faria normalmente. Se tiver tempo, estas são as partes que mais me interessa verificar:
+
+1. **Adicionar uma sessão** de lights: as avaliações (válida / com avisos / a rejeitar) coincidem com o que vê nas exposições? Experimente também **«De uma pasta do disco»** com «Só analisar»: o ASTRO segue as ligações simbólicas e depois pode empilhar as exposições sem as ter copiado.
+2. **O seu equipamento:** reconhece bem a sua câmara, telescópio, filtros, exposição e temperatura?
+3. **Biblioteca de calibração:** adicione darks, flats e bias, ou importe-os da **ASIAIR** ou do **N.I.N.A.**
+4. **«O que me falta?»**: acerta no que lhe falta? Se usa o N.I.N.A., experimente carregar a sequência que gera.
+5. **Empilhar** um objeto com o Siril. A **pré-visualização** parece razoável? «Abrir com…» encontra os seus programas de edição?
+6. **Resumo e objetivo** de um objeto, e **«Próximas noites»**: as noites que propõe para cada filtro fazem sentido com a Lua que vê?
+7. **«Em direto»** durante uma noite de captura, com a ASIAIR pela rede ou com o N.I.N.A.: encontra a pasta? Chegam os avisos (som e notificação) quando entra uma nuvem ou a sequência para? Há algum aviso a mais, ou algum de que sinta falta?
+8. **«O que fotografar?»** e os **locais com horizonte**: propõe objetos que façam sentido para o seu equipamento? Se usa o N.I.N.A., experimente carregar o plano que guarda.
+9. **Pastas vigiadas**: em «Adicionar sessão», vigie a pasta onde guarda as exposições e verifique que, ao abrir o ASTRO, as sessões novas aparecem sozinhas. E no «Resumo» de um objeto com várias noites, veja **«Como evolui»**: as noites fracas coincidem com o que se lembra?
+10. **«O meu equipamento» e o plano da noite**: registe os seus telescópios, câmaras e filtros. Faz sentido o que propõe montar, o filtro e o tempo por exposição para o seu céu? Crie um projeto e experimente o WhatsApp (o botão e, se quiser, o envio automático de todas as tardes).
+11. **Ciência → Magnitude limite e qualidade do céu**: meça algumas exposições de uma noite (de preferência com darks e flats na biblioteca). O brilho do céu parece-se com o do seu SQM ou com o que espera do seu local? A magnitude limite faz sentido para o seu equipamento? O Siril precisa de Internet da primeira vez para resolver cada campo (ou do seu catálogo local do Gaia).
+12. **Ciência → Estrelas variáveis**: se tiver uma série de exposições de uma variável (uma noite, mesmo filtro), meça-a. Encontra a estrela e a sua sequência da AAVSO? A curva de luz parece-se com o esperado (ou com a da AAVSO dessa noite)? A estrela de controlo sai plana? Se tiver código de observador, veja se o WebObs aceita o ficheiro sem erros.
+13. **Ciência → Exoplanetas**: veja que trânsitos propõe para as próximas noites a partir do seu local. Se tiver (ou captar) um trânsito, meça-o: o instante central e o O−C parecem-se com o que dão o HOPS, o EXOTIC ou o AstroImageJ com as mesmas exposições? O ExoClock aceita a curva?
+14. **Ciência → Asteroides e cometas**: meça um campo com algum asteroide (três ou mais exposições separadas por alguns minutos). Encontra os asteroides conhecidos? O O−C fica abaixo de um segundo de arco? O relatório ADES é validado na página de teste do MPC?
+15. **Ciência → Diagramas H-R**: se tiver empilhamentos de um enxame aberto em dois filtros (ou a cores), meça-o. A distância e o avermelhamento parecem-se com os publicados (por exemplo, no WEBDA ou em Cantat-Gaudin 2020)?
+16. **Ciência → Espetroscopia**: se tiver um Star Analyser, meça o espetro de uma estrela brilhante (Vega é ideal). Encontra a estrela e o espetro? As linhas de Balmer caem no sítio certo? Se medir outra estrela na mesma noite, experimente usar Vega como referência.
+17. **O novo aspeto**: experimente os modos Dia, Noite e Vermelho (em baixo, à esquerda). Lê-se tudo bem? Há algo no modo Vermelho que o incomode à noite?
+18. Em geral: o que acha confuso ou lento, ou de que sente falta?
+
+## Como comunicar o que encontrar
+No ASTRO: **menu «Mais» → «Comunicar um problema ou sugestão»**. Escreva o que aconteceu por palavras suas; o programa acrescenta automaticamente os dados técnicos (versão, sistema e registo). **Não envia as suas fotos nem dados pessoais.** Se puder, anexe uma captura de ecrã.
+
+Tudo serve: falhas, frases pouco claras, ideias e também aquilo de que gosta.
+
+## Os seus dados
+- Tudo fica na pasta que escolheu ao começar; o ASTRO **não envia nada para a Internet**. Apenas verifica se há versões novas; em «Próximas noites», pede a previsão do tempo ao Open-Meteo.com com a sua posição aproximada (pode ser desativado), e em «Ciência» consulta o catálogo Gaia com as coordenadas do campo que mede e, para as variáveis, a AAVSO com o nome da estrela (nunca as suas fotos); para os trânsitos, descarrega a lista de planetas do ExoClock e da NASA, e para os asteroides consulta o JPL com o centro do campo, a hora e a posição do seu local. Se ativar o WhatsApp automático, a mensagem passa pelo CallMeBot, um serviço gratuito de terceiros.
+- O ASTRO copia as suas exposições para a sua pasta sem tocar nos originais (ou, com «Só analisar», deixa-as onde estão e apenas as lê). Ainda assim, por ser uma beta, **não apague os seus originais** enquanto testa.
+
+## Duração
+A beta vai durar cerca de **3 meses**. Todas as melhorias chegam automaticamente ao abrir o ASTRO.
+
+*Tomás Moreno González · Membro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) e Agrupación Astronómica de Miguelturra (C.Real)*

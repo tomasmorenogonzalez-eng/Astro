@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.12"
+VERSION_PROG = "2026.09.28.13"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -154,7 +154,8 @@ def html_idioma(html, idi):
         d = datos_idioma(idi)
         js = lambda o: json.dumps(o, ensure_ascii=True).replace("</", "<\\/")
         _HTML_IDI[clave] = (html.replace("__IDIOMA__", idi).replace("__DIC_OTRO__", js(d.get("dic") or {}))
-                            .replace("__PAT_OTRO__", js(d.get("patrones") or {})).replace("__MESES_OTRO__", js(d.get("meses") or {})))
+                            .replace("__PAT_OTRO__", js(d.get("patrones") or {})).replace("__MESES_OTRO__", js(d.get("meses") or {}))
+                            .replace("__BLQ_OTRO__", js(d.get("bloques") or {})))
     return _HTML_IDI[clave]
 
 
@@ -6211,7 +6212,7 @@ DIC_EN = {
     "Ciencia · ASTRO": "Science · ASTRO",
     "Ciencia: medir con tus fotos": "Science: measuring with your images",
     "Inicio": "Home",
-    "Los cinco bloques": "The five blocks",
+    "Los seis bloques": "The six blocks",
     "Día": "Day",
     "Noche": "Night",
     "Rojo": "Red",
@@ -7032,7 +7033,7 @@ th{background:var(--surface);font-weight:700}
   <aside class="lat">
     <div class="marca"><span class="logo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z"/></svg></span><div><h1>ASTRO</h1><div class="sub">Ciencia: medir con tus fotos</div></div></div>
     <button class="nav on" data-vista="inicio"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
-    <div class="grupo">Los cinco bloques</div>
+    <div class="grupo">Los seis bloques</div>
     <div id="navBloques"></div>
     <div class="pieLat">
       <div class="temas" id="temas"><button data-t="dia" title="Aspecto claro, para el día">Día</button><button data-t="noche" title="Aspecto oscuro, para la noche">Noche</button><button data-t="rojo" title="Todo en rojo, para no perder la adaptación a la oscuridad"><i></i>Rojo</button></div>
@@ -7057,7 +7058,7 @@ th{background:var(--surface);font-weight:700}
       </div>
       <div class="regla" style="margin-top:16px"><b>La regla de oro: medir sobre datos lineales, calibrados y con la hora exacta</b>
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
-      <h3 class="seccion">Los cinco bloques</h3>
+      <h3 class="seccion">Los seis bloques</h3>
       <div class="bloques" id="bloques"></div>
       <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real).</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Agrupación Astronómica de Miguelturra (C.Real)" title="Agrupación Astronómica de Miguelturra (C.Real)" onerror="this.remove()"></div></div>
     </section>
@@ -7271,7 +7272,7 @@ function tr(s){
   let v = _CACHE.get(k);
   if (v === undefined){
     const base = _trTexto(k);
-    const m = base.replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/g, (x, d, mm) => d + " " + (_MESES[mm] || mm));
+    const m = base.replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b(\.?)/g, (x, d, mm) => d + " " + (_MESES[mm] || mm));   // el punto de la abreviatura española se quita: cada idioma lleva la suya
     v = m !== k ? m : null;
     if (_CACHE.size > 20000) _CACHE.clear();
     _CACHE.set(k, v);
@@ -7355,7 +7356,7 @@ document.addEventListener("click", () => $("menuLista").classList.remove("show")
 $("btnCarpeta").onclick = () => post("/api/revelar", {});
 
 /* ============ Bloques ============ */
-/* Los cinco bloques de Ciencia: su introducción (la historia), qué hace falta, con qué programas y adónde van los datos.
+/* Los seis bloques de Ciencia: su introducción (la historia), qué hace falta, con qué programas y adónde van los datos.
    Van en los dos idiomas porque son textos largos (la traducción automática de la página no los toca). */
 const BLOQUES = [
  {id:"cielo", n:"3", estado:"ya", icono:"cielo",
@@ -7497,7 +7498,8 @@ const BLOQUES = [
    hara:["Find the star and extract its spectrum (slitless)","Calibrate the wavelength with the grating and the hydrogen and telluric lines","Mark the lines and measure their equivalent widths","Correct the response with a reference star and give the colour temperature","1D FITS for ISIS, VSpec or BASS, table and figure"]}},
 ];
 const BL = id => BLOQUES.find(b => b.id === id);
-const T = b => b[IDIOMA] || b.es;
+const _BLQ_OTRO = IDIOMA === "es" || IDIOMA === "en" ? {} : __BLQ_OTRO__;   // bloques traducidos (idiomas/xx.json)
+const T = b => b[IDIOMA] || _BLQ_OTRO[b.id] || b.en || b.es;
 const ORDEN = ["cielo", "variables", "exoplanetas", "astrometria", "hr", "espectros"];
 const ICONOS = {
   cielo: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><path d="M16 4.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',

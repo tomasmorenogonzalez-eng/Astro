@@ -1930,7 +1930,7 @@
 "# archivos de calibración añadidos desde un proyecto importado": "# file di calibrazione aggiunti da un progetto importato",
 "Ciencia · ASTRO": "Scienza · ASTRO",
 "Ciencia: medir con tus fotos": "Scienza: misurare con le tue foto",
-"Los cinco bloques": "I cinque blocchi",
+"Los seis bloques": "I sei blocchi",
 "Todo en rojo, para no perder la adaptación a la oscuridad": "Tutto in rosso, per non perdere l'adattamento al buio",
 "Abrir la carpeta de Ciencia": "Apri la cartella di Scienza",
 "Ciencia": "Scienza",
@@ -2912,5 +2912,276 @@
 "Longitud de onda (Å)": "Lunghezza d'onda (Å)",
 "Residuos · RMS %.2f ppt": "Residui · RMS %.2f ppt",
 "ASTRO-calidad-del-cielo.csv": "ASTRO-qualita-del-cielo.csv"
+},
+"bloques": {
+"cielo": {
+"titulo": "Magnitudine limite e qualità del cielo",
+"corto": "Dai un numero al cielo di ogni notte e di ogni luogo, con le tue foto.",
+"historia": [
+"Quanto è buio il tuo cielo? Per secoli è stata una domanda di sensazioni: la magnitudine limite a occhio nudo era quella della stella più debole che riuscivi a vedere, e dipendeva tanto dal cielo quanto dai tuoi occhi e da quanto eri stanco. Oggi si può rispondere con un numero che ha un'unità di misura: magnitudini per secondo d'arco quadrato (mag/arcsec²). È la luminosità del fondo cielo stesso, distribuita su quadratini di un secondo d'arco di lato. Poiché le magnitudini vanno al contrario, un numero più alto significa un cielo più buio: il centro di una città si aggira intorno a 17 o 18, un buon cielo rurale supera 21 e i luoghi più bui del pianeta arrivano a 22.",
+"Le tue foto contengono già questa informazione. Il fondo di ogni posa calibrata è la luce del cielo, e le stelle della stessa posa, di cui conosciamo la luminosità grazie a Gaia, ci dicono quanta luce corrisponde a ogni conteggio della camera. Con questo, il fondo si converte in mag/arcsec²: lo stesso numero che dà un fotometro SQM, ma in più nella direzione esatta in cui guardava il telescopio.",
+"La magnitudine limite di un'immagine è un'altra cosa, anche se simile: è la stella più debole che si rileva con sicurezza in quella posa o in quell'immagine impilata. Di solito si definisce come la magnitudine alla quale il segnale è cinque volte il rumore (SNR = 5). Dipende dal cielo, ma anche dal telescopio, dalla camera, dal tempo totale, dal seeing e dalla messa a fuoco. Per questo è un'ottima misura della qualità di una notte e di un'attrezzatura: se una notte arrivi alla magnitudine 19,5 e un'altra alla 18,7 con la stessa attrezzatura e lo stesso tempo, qualcosa è cambiato, e il numero ti dice quanto.",
+"Questo ha due usi molto diversi. Uno, pratico: sapere quali notti valgono la pena, confrontare le tue attrezzature e i tuoi luoghi di osservazione e decidere in base ai dati. L'altro, sociale e scientifico: l'inquinamento luminoso cresce in tutta Europa, e misurarlo in modo continuativo è la base di qualsiasi difesa del cielo notturno, da un regolamento comunale sull'illuminazione fino a una certificazione Starlight. Per un osservatorio pubblico, una serie di misure ben fatte, anno dopo anno, è un argomento molto difficile da confutare."
+],
+"necesitas": [
+"Niente di nuovo: qualsiasi posa calibrata con darks (o bias) e flats, meglio senza Luna e con il telescopio puntato in alto.",
+"Per confrontare con un SQM, meglio il filtro V o il G; con la luminanza si calibra nella banda G di Gaia. Qualche decimo di differenza con l'SQM è normale: misurano in bande un po' diverse.",
+"Siril (gratuito), che ASTRO usa per calibrare e risolvere l'immagine, e una connessione a Internet la prima volta che si misura ogni campo (per il catalogo Gaia)."
+],
+"programas": [
+[
+"ASTRO",
+"Tutto con le tue foto, e la serie per notti, attrezzature e luoghi"
+],
+[
+"Siril",
+"Calibra e risolve l'immagine (ASTRO lo usa internamente)"
+],
+[
+"ASTAP",
+"Un altro modo per misurare il fondo in mag/arcsec² a partire dall'immagine"
+],
+[
+"Globe at Night",
+"Campagna di scienza partecipata a occhio nudo"
+],
+[
+"Rete TESS (STARS4ALL)",
+"Fotometri fissi che misurano ogni notte, con dati aperti"
+]
+],
+"destino": [
+"La relazione dell'osservatorio: una serie annuale della luminosità del cielo, con il metodo spiegato, serve per tenere d'occhio l'illuminazione e per qualsiasi pratica di tutela o di certificazione (i criteri Starlight richiedono un fondo più buio di 21 mag/arcsec²).",
+"Reti partecipative e professionali: Globe at Night e la rete TESS di STARS4ALL, con cui si possono confrontare le misure di ASTRO.",
+"Pubblicare: una serie lunga e documentata può diventare una nota breve (Research Notes of the AAS) o un contributo a un congresso sull'inquinamento luminoso; i dati, su Zenodo con un DOI."
+]
+},
+"variables": {
+"titulo": "Stelle variabili",
+"corto": "Misura come cambia la luminosità di una stella e invia le misure all'AAVSO.",
+"historia": [
+"Quasi tutte le stelle che vedi in una notte serena sembrano immobili ed eterne. Non lo sono. Alcune pulsano come un cuore lento, gonfiandosi e contraendosi nel giro di giorni, come le cefeidi. Altre, come Mira, impiegano quasi un anno per passare dall'essere visibili a occhio nudo al richiedere un telescopio. Ci sono coppie di stelle che si coprono a vicenda a intervalli di poche ore o pochi giorni, e a ogni eclisse la luce cala come se qualcuno abbassasse una tapparella: sono le binarie a eclisse. E ci sono stelle che un giorno, senza preavviso, moltiplicano la loro luminosità per migliaia: le novae.",
+"Misurare una stella variabile è, in fondo, come confrontare due lampadine: la si mette accanto ad altre stelle che non cambiano e si guarda quanto brilla di più o di meno. Queste stelle di riferimento le chiamiamo stelle di confronto, e un'altra ancora, che serve a verificare che tutto vada bene, stella di controllo. Poiché sono tutte nella stessa posa, attraversano la stessa atmosfera nello stesso istante: se passa un velo di nubi, si affievoliscono tutte insieme e la differenza resta la stessa. Questa è la magia della fotometria differenziale.",
+"C'è un dettaglio che separa una misura casalinga da una scientifica: il filtro. Per questo l'astronomia usa filtri standard (Johnson-Cousins B, V, R, I) e stelle di riferimento misurate con essi. Con i filtri fotografici si può cominciare — l'AAVSO accetta il verde fotografico come TG e le pose senza filtro come CV — ma il salto di qualità arriva con un V e un B fotometrici.",
+"Le curve di luce dell'AAVSO servono per decidere quando puntare un satellite, per avvisare che una stella è entrata in eruzione o per scoprire variazioni di periodo che rivelano una terza stella invisibile. Il suo database riunisce più di un secolo di osservazioni, e in buona parte sono opera di astrofili."
+],
+"necesitas": [
+"Una camera mono con un rifrattore (campo ampio per avere la variabile e le sue stelle di confronto); un telescopio più grande per quelle deboli.",
+"Filtri Johnson V e B per misure standard; nel frattempo, il G fotografico o senza filtro.",
+"Un account gratuito sull'AAVSO, con il tuo codice di osservatore."
+],
+"programas": [
+[
+"Siril",
+"Fotometria di serie ed esportazione in formato AAVSO"
+],
+[
+"AstroImageJ",
+"Il riferimento della fotometria differenziale"
+],
+[
+"VPhot (AAVSO)",
+"Fotometria nel browser con le sequenze ufficiali"
+],
+[
+"VStar (AAVSO)",
+"Analizzare curve e cercare periodi"
+]
+],
+"destino": [
+"AAVSO: il file in formato Extended si carica su WebObs ed entra nel database internazionale.",
+"VarAstro: minimi di binarie a eclisse e il loro diagramma O–C.",
+"Pubblicare: Journal of the AAVSO (con revisione paritaria), OEJV o Research Notes of the AAS."
+],
+"hara": [
+"Cercare la stella nel VSX: tipo, periodo e intervallo di variazione",
+"Scaricare la sequenza ufficiale di confronto",
+"Calibrare e risolvere con Siril; fotometria d'apertura",
+"Scegliere le stelle di confronto e la stella di controllo",
+"Curva con errori, massa d'aria e avvisi",
+"File AAVSO Extended pronto per WebObs"
+]
+},
+"exoplanetas": {
+"titulo": "Esopianeti: il transito",
+"corto": "Misura l'istante esatto in cui un pianeta passa davanti alla sua stella.",
+"historia": [
+"Nel 1999, un telescopio di appena 10 centimetri vide per la prima volta la luce della stella HD 209458 calare di circa l'1,5 % per circa tre ore: un pianeta gigante le stava passando davanti. Oggi si conoscono migliaia di pianeti scoperti così. Ma scoprire un pianeta è solo l'inizio: per studiarlo bisogna sapere quando ripasserà, e quel «quando» diventa sempre più sfumato. Un piccolo errore nel periodo, ripetuto per centinaia di orbite, diventa minuti e poi ore.",
+"Ed è qui che entri in gioco tu. La missione Ariel, dell'Agenzia Spaziale Europea, studierà l'atmosfera di circa un migliaio di esopianeti, e per non sprecare nemmeno un minuto di telescopio ha bisogno di conoscerne i transiti con precisione. Il progetto ExoClock è nato per questo: una rete aperta di osservatori che misurano transiti con piccoli telescopi. La NASA ha il suo equivalente, Exoplanet Watch.",
+"Misurare un transito è fotometria differenziale portata all'estremo: cali di luce dallo 0,5 al 2 % per due o tre ore. Bisogna cominciare un'ora prima e finire un'ora dopo, non spostare il campo, sfocare un po' per non saturare e annotare l'ora al secondo. Ciò che conta di più è l'istante centrale del transito, T₀, con la sua incertezza.",
+"Quell'istante si esprime in BJD_TDB: l'ora in cui la luce sarebbe arrivata al baricentro del Sistema Solare. Sembra un capriccio, ma la luce impiega più di un quarto d'ora ad attraversare l'orbita della Terra: senza questa correzione, lo stesso transito osservato a gennaio e a luglio darebbe ore diverse. ASTRO calcola già quest'ora (con un errore inferiore a un decimo di secondo)."
+],
+"necesitas": [
+"Apertura: più è grande, meglio è (da 20 a 35 cm è l'ideale); camera mono meglio che a colori.",
+"Inseguimento stabile e autoguida, e l'orologio del computer sincronizzato al secondo.",
+"Un account gratuito su ExoClock."
+],
+"programas": [
+[
+"HOPS",
+"Il programma di ExoClock"
+],
+[
+"EXOTIC",
+"Quello di Exoplanet Watch (NASA/JPL)"
+],
+[
+"AstroImageJ",
+"Lo standard per il follow-up di TESS"
+],
+[
+"N.I.N.A.",
+"Pianificare e riprendere il transito"
+]
+],
+"destino": [
+"ExoClock: le curve approvate mantengono aggiornate le effemeridi di Ariel; gli osservatori figurano come coautori dei suoi articoli.",
+"Exoplanet Watch (NASA), nel database di esopianeti dell'AAVSO.",
+"VarAstro-ETD e, più avanti, il programma di follow-up di TESS (TFOP)."
+],
+"hara": [
+"Transiti visibili per intero dal tuo luogo nei prossimi giorni",
+"Stelle di confronto di Gaia scelte e tenute sotto controllo",
+"Curva in BJD_TDB e tendenza della notte",
+"Adattamento del transito (T₀, profondità, durata) con errori onesti",
+"O−C rispetto alle effemeridi di ExoClock",
+"Curve per ExoClock e VarAstro-ETD, figura e pacchetto"
+]
+},
+"astrometria": {
+"titulo": "Asteroidi e comete",
+"corto": "Misura dove si trova un corpo in movimento e aiuta a calcolarne l'orbita.",
+"historia": [
+"Tra Marte e Giove, e anche molto più vicino e molto più lontano, si muovono più di un milione di asteroidi catalogati. Alcuni, gli asteroidi vicini alla Terra, incrociano la nostra orbita. Sapere esattamente dove vanno non è una curiosità: è l'unico modo per sapere se uno di essi potrebbe colpirci tra cento anni.",
+"L'astrometria misura posizioni. Sembra la parte più modesta dell'astronomia ed è la più antica. Oggi abbiamo la migliore mappa del cielo della storia, il catalogo Gaia, con circa 1,8 miliardi di stelle misurate con una precisione di millesimi di secondo d'arco. Questo permette a qualsiasi astrofilo di misurare la posizione di un asteroide con una precisione di decimi di secondo d'arco, perché le stelle intorno fanno da righello.",
+"Fai diverse pose dello stesso campo nell'arco di mezz'ora. Le stelle non si muovono; l'asteroide sì. Misuri il suo centro in ogni posa, lo converti in coordinate con le stelle di Gaia e annoti l'istante centrale di ogni esposizione. Queste posizioni, inviate al Minor Planet Center dell'IAU, si sommano a quelle di migliaia di osservatori per calcolare le orbite. E se nelle tue pose compare un oggetto che non è in nessun catalogo e l'MPC lo accetta, la scoperta è tua.",
+"Le comete aggiungono la loro luminosità, che cambia man mano che si avvicinano al Sole, a volte con outburst improvvisi; si misura con aperture grandi e si invia a COBS. E gli asteroidi nascondono un'altra sorpresa: la loro luminosità sale e scende mentre ruotano, e con una curva di diverse ore se ne misura il periodo di rotazione."
+],
+"necesitas": [
+"Una scala da 1 a 2 secondi d'arco per pixel (per esempio, 1.000 mm di focale con pixel da 3,76 µm in binning 2×2).",
+"Esposizioni brevi, l'ora esatta di ogni posa e le coordinate precise del luogo.",
+"Per avere un tuo codice di osservatorio dell'MPC: misure di dieci asteroidi vicini alla Terra già numerati, in due notti, in formato ADES."
+],
+"programas": [
+[
+"Siril",
+"Risolve l'immagine e segna gli asteroidi noti nel campo"
+],
+[
+"Tycho Tracker",
+"Rileva oggetti molto deboli sommando le pose lungo il loro moto"
+],
+[
+"Astrometrica",
+"Il classico dell'astrometria amatoriale"
+],
+[
+"Find_Orb",
+"Calcola l'orbita con le tue posizioni"
+]
+],
+"destino": [
+"Minor Planet Center: le tue posizioni entrano in ogni nuovo calcolo d'orbita; se confermi un NEO, il tuo codice compare nella circolare.",
+"COBS: la luminosità delle comete, in formato ICQ.",
+"Minor Planet Bulletin: periodi di rotazione di asteroidi."
+],
+"hara": [
+"Quali asteroidi e comete noti ci sono nel tuo campo (JPL)",
+"Posizione in ogni posa con le stelle di Gaia (costanti di lastra)",
+"O−C rispetto all'effemeride di JPL Horizons",
+"Magnitudine G approssimata di ogni asteroide",
+"Rapporto ADES per il Minor Planet Center"
+]
+},
+"hr": {
+"titulo": "Diagrammi di Hertzsprung-Russell",
+"corto": "Ordina le stelle di un ammasso per colore e luminosità, e misurane la distanza.",
+"historia": [
+"Intorno al 1910, Ejnar Hertzsprung e Henry Norris Russell, ciascuno per conto proprio, riportarono in un grafico la luminosità reale delle stelle in funzione del loro colore. Si aspettavano una nuvola disordinata e ne uscì un disegno con una struttura: una fascia diagonale dove vive la maggior parte delle stelle, la sequenza principale; le giganti rosse in alto a destra; e le nane bianche, piccole e calde, in basso a sinistra. Quel grafico è oggi la mappa della vita delle stelle.",
+"Il colore è un termometro, e il modo più semplice per misurarlo è confrontare la luminosità in due filtri, B (blu) e V (visuale). La differenza B−V è l'indice di colore: vicino a 0 per una stella bianca come Vega, circa 0,65 per il Sole, più di 1,5 per una gigante rossa.",
+"Il trucco sta negli ammassi: tutte le loro stelle sono alla stessa distanza e sono nate insieme. Il diagramma che ne esce ha la forma dell'H-R, solo traslata, e questa traslazione dà la distanza. Il punto in cui le stelle abbandonano la sequenza principale è un orologio: più è in basso, più l'ammasso è vecchio. Le Pleiadi conservano stelle azzurre; M67, con circa 4 miliardi di anni, non più; e un globulare come M13 supera gli 11 miliardi.",
+"Gaia aggiunge l'appartenenza all'ammasso tramite parallasse e moto proprio, e il 2 dicembre 2026 arriva Gaia DR4, ancora più precisa. Il diagramma di un ammasso molto studiato non è una scoperta, ma è il miglior esercizio per imparare davvero la fotometria e apre la porta ad ammassi meno studiati."
+],
+"necesitas": [
+"Filtri Johnson B e V (indispensabili per un diagramma standard).",
+"Un rifrattore con camera mono per gli ammassi aperti; più focale per i globulari.",
+"Due tempi di esposizione per filtro: pose brevi per le stelle brillanti e lunghe per quelle deboli."
+],
+"programas": [
+[
+"Siril",
+"Rileva e misura tutte le stelle del campo"
+],
+[
+"Archivio Gaia / VizieR",
+"Appartenenza tramite parallasse e moto proprio"
+],
+[
+"PARSEC e MIST",
+"Isocrone per l'età, la distanza e l'arrossamento"
+],
+[
+"TOPCAT",
+"Esplorare e incrociare tabelle"
+]
+],
+"destino": [
+"Esercitazioni di astrofisica osservativa e corsi.",
+"Divulgazione: un diagramma misurato nel proprio osservatorio.",
+"Research Notes of the AAS o JAAVSO; le nuove variabili, al catalogo VSX."
+],
+"hara": [
+"Misurare tutte le stelle di Gaia nelle due immagini",
+"Calibrare il colore e la luminosità con Gaia",
+"Membri per moto proprio e parallasse",
+"Distanza e arrossamento dell'ammasso",
+"Diagramma sul vicinato solare, tabella, figura e rapporto sul metodo"
+]
+},
+"espectros": {
+"titulo": "Spettroscopia",
+"corto": "Separa la luce nei suoi colori e leggi di cosa è fatta una stella.",
+"historia": [
+"Se la fotometria chiede «quanta luce», la spettroscopia chiede «quale luce». Separando la luce di una stella appare un arcobaleno attraversato da righe, e ogni riga è la firma di un elemento chimico: l'idrogeno lascia le righe di Balmer (Hα a 656,3 nm, Hβ a 486,1 nm…), il sodio il suo doppietto giallo vicino a 589 nm. Nel 1868, una di queste righe, vista nel Sole durante un'eclisse, rivelò un elemento che nessuno conosceva sulla Terra e che per questo fu chiamato elio.",
+"Uno spettro racconta la temperatura, la composizione e il moto, grazie all'effetto Doppler. Nelle stelle Be la riga Hα appare in emissione e cambia nel corso dei mesi; in una nova si vedono passare, in pochi giorni, strati lanciati a migliaia di chilometri al secondo; e uno spettro a bassa risoluzione basta per classificare una supernova appena scoperta.",
+"Cominciare costa poco: un reticolo di diffrazione come lo Star Analyser 200, che si avvita come un filtro, trasforma ogni stella in un piccolo spettro, sufficiente per classificare le stelle e vederne le righe principali. Il passo successivo è uno spettrografo a fenditura, come l'Alpy 600 o lo Star'Ex; con questi, ciò che misuri entra già nei database professionali.",
+"La parola chiave è la risoluzione, R = λ/Δλ: con R di circa cento si separano i colori e le righe più larghe; con R = 600 si vedono bene le righe e se ne misura la forma; con R = 10.000 si misurano velocità di pochi chilometri al secondo."
+],
+"necesitas": [
+"Per cominciare, uno Star Analyser 200 davanti alla camera mono, con un rifrattore corto.",
+"Una stella di riferimento di tipo A, vicina in cielo, per correggere la risposta strumentale.",
+"Poi, uno spettrografo a fenditura (Alpy 600 o Star'Ex)."
+],
+"programas": [
+[
+"specINTI",
+"Il programma attuale di Christian Buil per spettrografi a fenditura"
+],
+[
+"ISIS",
+"Il veterano di Buil"
+],
+[
+"BASS Project",
+"Elaborazione completa, molto usato con lo Star Analyser"
+],
+[
+"RSpec",
+"Il più semplice per cominciare senza fenditura"
+]
+],
+"destino": [
+"Database di spettroscopia della BAA (accetta anche la bassa risoluzione).",
+"AVSpec, dell'AAVSO.",
+"ARAS (novae, simbiotiche), BeSS (stelle Be) e TNS per classificare supernovae."
+],
+"hara": [
+"Trovare la stella ed estrarne lo spettro (senza fenditura)",
+"Calibrare in lunghezza d'onda con il reticolo e le righe dell'idrogeno e dell'atmosfera",
+"Segnare le righe e misurarne le larghezze equivalenti",
+"Correggere la risposta con una stella di riferimento e ricavare la temperatura di colore",
+"FITS 1D per ISIS, VSpec o BASS, tabella e figura"
+]
+}
 }
 }

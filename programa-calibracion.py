@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.28.5"
+VERSION_PROG = "2026.09.28.6"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -742,7 +742,7 @@ function tr(s){
   let v = _CACHE.get(k);
   if (v === undefined){
     const base = _trTexto(k);
-    const m = base.replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/g, (x, d, mm) => d + " " + (_MESES[mm] || mm));
+    const m = base.replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b(\.?)/g, (x, d, mm) => d + " " + (_MESES[mm] || mm));   // el punto de la abreviatura española se quita: cada idioma lleva la suya
     v = m !== k ? m : null;
     if (_CACHE.size > 20000) _CACHE.clear();
     _CACHE.set(k, v);

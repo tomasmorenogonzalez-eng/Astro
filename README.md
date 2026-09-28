@@ -1,5 +1,7 @@
 # ✦ ASTRO
 
+**Español** · [English](README.md#in-english) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Italiano](README.it.md) · [Português](README.pt.md)
+
 **Tu ayudante para las noches de astrofotografía.**
 
 Si haces fotografía de cielo profundo, seguro que conoces la escena: vuelves de una noche de captura con cientos de tomas y te toca revisarlas una a una. ¿Cuáles tienen las estrellas movidas? ¿En cuáles pasó un satélite o entró una nube? ¿Tengo los darks y los flats que necesito para esta sesión?

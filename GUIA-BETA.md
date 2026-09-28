@@ -1,5 +1,7 @@
 # ✦ ASTRO beta · Guía para probadores
 
+**Español** · [English](GUIA-BETA.md#-astro-beta--tester-guide) · [Français](GUIA-BETA.fr.md) · [Deutsch](GUIA-BETA.de.md) · [Italiano](GUIA-BETA.it.md) · [Português](GUIA-BETA.pt.md)
+
 ¡Gracias por probar ASTRO! Es una **versión de prueba**: puede tener fallos, y precisamente para encontrarlos te necesito.
 
 ## Qué es ASTRO

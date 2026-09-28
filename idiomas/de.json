@@ -1930,7 +1930,7 @@
 "# archivos de calibración añadidos desde un proyecto importado": "# Kalibrierdateien aus einem importierten Projekt hinzugefügt",
 "Ciencia · ASTRO": "Wissenschaft · ASTRO",
 "Ciencia: medir con tus fotos": "Wissenschaft: mit deinen Fotos messen",
-"Los cinco bloques": "Die fünf Bereiche",
+"Los seis bloques": "Die sechs Bereiche",
 "Todo en rojo, para no perder la adaptación a la oscuridad": "Alles in Rot, damit du die Dunkeladaption nicht verlierst",
 "Abrir la carpeta de Ciencia": "Wissenschaftsordner öffnen",
 "Ciencia": "Wissenschaft",
@@ -2912,5 +2912,276 @@
 "Longitud de onda (Å)": "Wellenlänge (Å)",
 "Residuos · RMS %.2f ppt": "Residuen · RMS %.2f ppt",
 "ASTRO-calidad-del-cielo.csv": "ASTRO-Himmelsqualitaet.csv"
+},
+"bloques": {
+"cielo": {
+"titulo": "Grenzgröße und Himmelsqualität",
+"corto": "Gib dem Himmel jeder Nacht und jedes Orts eine Zahl, mit deinen eigenen Fotos.",
+"historia": [
+"Wie dunkel ist dein Himmel? Jahrhundertelang war das eine Frage des Gefühls: Die Grenzgröße mit bloßem Auge war die des schwächsten Sterns, den du gerade noch sehen konntest, und sie hing ebenso vom Himmel ab wie von deinen Augen und davon, wie müde du warst. Heute lässt sich die Frage mit einer Zahl beantworten, die eine Einheit hat: Magnituden pro Quadratbogensekunde (mag/arcsec²). Das ist die Helligkeit des Himmelshintergrunds selbst, verteilt auf kleine Quadrate von einer Bogensekunde Kantenlänge. Da die Magnitudenskala umgekehrt läuft, bedeutet eine größere Zahl einen dunkleren Himmel: Ein Stadtzentrum liegt bei etwa 17 oder 18, ein guter ländlicher Himmel bei über 21, und die dunkelsten Orte der Erde erreichen 22.",
+"Deine Fotos enthalten diese Information bereits. Der Hintergrund jeder kalibrierten Aufnahme ist das Licht des Himmels, und die Sterne derselben Aufnahme, deren Helligkeit wir dank Gaia kennen, verraten uns, wie viel Licht jedem Zählwert (ADU) der Kamera entspricht. Damit wird der Hintergrund in mag/arcsec² umgerechnet: dieselbe Zahl, die ein SQM-Photometer liefert, aber zusätzlich genau in der Richtung, in die das Teleskop gezeigt hat.",
+"Die Grenzgröße eines Bildes ist etwas anderes, wenn auch Ähnliches: Sie ist der schwächste Stern, der in dieser Aufnahme oder diesem Stack sicher nachgewiesen wird. Meist wird sie als die Magnitude definiert, bei der das Signal fünfmal so groß ist wie das Rauschen (SNR = 5). Sie hängt vom Himmel ab, aber auch vom Teleskop, der Kamera, der Gesamtbelichtungszeit, dem Seeing und dem Fokus. Deshalb ist sie ein hervorragendes Maß für die Qualität einer Nacht und eines Setups: Wenn du in einer Nacht bis Magnitude 19,5 kommst und in einer anderen bis 18,7, mit demselben Setup und derselben Zeit, hat sich etwas verändert, und die Zahl sagt dir, wie viel.",
+"Das hat zwei ganz verschiedene Anwendungen. Die eine ist praktisch: wissen, welche Nächte sich lohnen, deine Setups und Beobachtungsorte vergleichen und anhand von Daten entscheiden. Die andere ist gesellschaftlich und wissenschaftlich: Die Lichtverschmutzung nimmt in ganz Europa zu, und sie kontinuierlich zu messen ist die Grundlage für jeden Schutz des Nachthimmels, von einer kommunalen Beleuchtungssatzung bis zu einer Starlight-Zertifizierung. Für eine öffentliche Sternwarte ist eine Reihe sauberer Messungen, Jahr für Jahr, ein Argument, das sich kaum widerlegen lässt."
+],
+"necesitas": [
+"Nichts Neues: jede mit Darks (oder Bias) und Flats kalibrierte Aufnahme, am besten ohne Mond und mit dem Teleskop hoch am Himmel.",
+"Für den Vergleich mit einem SQM am besten der V- oder der G-Filter; mit Luminanz wird auf das G-Band von Gaia kalibriert. Ein paar Zehntel Unterschied zum SQM sind normal: Beide messen in etwas unterschiedlichen Bändern.",
+"Siril (kostenlos), das ASTRO zum Kalibrieren und astrometrischen Lösen des Bildes verwendet, und eine Internetverbindung beim ersten Messen jedes Feldes (für den Gaia-Katalog)."
+],
+"programas": [
+[
+"ASTRO",
+"Alles mit deinen Fotos, dazu die Reihe nach Nächten, Setups und Orten"
+],
+[
+"Siril",
+"Kalibriert das Bild und löst es astrometrisch (ASTRO nutzt es intern)"
+],
+[
+"ASTAP",
+"Eine weitere Möglichkeit, den Hintergrund in mag/arcsec² aus dem Bild zu messen"
+],
+[
+"Globe at Night",
+"Bürgerwissenschaftliche Kampagne mit bloßem Auge"
+],
+[
+"TESS-Netzwerk (STARS4ALL)",
+"Fest installierte Photometer, die jede Nacht messen, mit offenen Daten"
+]
+],
+"destino": [
+"Der Jahresbericht der Sternwarte: Eine jährliche Messreihe der Himmelshelligkeit mit erläuterter Methode hilft, die Beleuchtung zu überwachen, und taugt für jedes Schutz- oder Zertifizierungsverfahren (die Starlight-Kriterien verlangen einen Hintergrund, der dunkler als 21 mag/arcsec² ist).",
+"Bürger- und Fachnetzwerke: Globe at Night und das TESS-Netzwerk von STARS4ALL, mit dem sich die Messungen von ASTRO abgleichen lassen.",
+"Veröffentlichen: Eine lange, dokumentierte Reihe kann als Kurzmitteilung (Research Notes of the AAS) erscheinen oder auf einer Tagung zur Lichtverschmutzung vorgestellt werden; die Daten gehören mit einer DOI auf Zenodo."
+]
+},
+"variables": {
+"titulo": "Veränderliche Sterne",
+"corto": "Miss, wie sich die Helligkeit eines Sterns ändert, und schick es an die AAVSO.",
+"historia": [
+"Fast alle Sterne, die du in einer klaren Nacht siehst, wirken ruhig und ewig. Das sind sie nicht. Manche pulsieren wie ein langsames Herz, blähen sich über Tage auf und ziehen sich wieder zusammen, wie die Cepheiden. Andere, wie Mira, brauchen fast ein Jahr, um vom Objekt für das bloße Auge zu einem für das Teleskop zu werden. Es gibt Sternpaare, die sich alle paar Stunden oder Tage gegenseitig verdecken, und bei jeder Bedeckung sinkt das Licht, als würde jemand einen Rollladen herunterlassen: die Bedeckungsveränderlichen. Und es gibt Sterne, die eines Tages ohne Vorwarnung ihre Helligkeit vertausendfachen: die Novae.",
+"Einen veränderlichen Stern zu messen ist im Grunde dasselbe, wie zwei Glühbirnen zu vergleichen: Man stellt ihn neben andere Sterne, die sich nicht ändern, und schaut, um wie viel heller oder schwächer er leuchtet. Diese Referenzsterne nennen wir Vergleichssterne, und einen weiteren, mit dem man prüft, ob alles stimmt, Kontrollstern. Da alle in derselben Aufnahme liegen, durchqueren sie im selben Moment dieselbe Atmosphäre: Zieht ein Wolkenschleier durch, werden alle gleichzeitig schwächer, und der Unterschied bleibt erhalten. Das ist der Zauber der differenziellen Photometrie.",
+"Was eine Hobbymessung von einer wissenschaftlichen trennt, ist ein Detail: der Filter. Deshalb verwendet die Astronomie Standardfilter (Johnson-Cousins B, V, R, I) und Referenzsterne, die mit ihnen gemessen wurden. Mit den üblichen Filtern für Astrofotos kann man anfangen — die AAVSO akzeptiert den Grünfilter als TG und Aufnahmen ohne Filter als CV —, aber der Qualitätssprung kommt mit einem photometrischen V- und B-Filter.",
+"Die Lichtkurven der AAVSO dienen dazu, zu entscheiden, wann ein Satellit ein Objekt anpeilt, zu melden, dass ein Stern einen Ausbruch hat, oder Periodenänderungen aufzudecken, die einen unsichtbaren dritten Stern verraten. Ihre Datenbank umfasst mehr als ein Jahrhundert an Beobachtungen, und ein guter Teil davon stammt von Amateuren."
+],
+"necesitas": [
+"Eine Monokamera an einem Refraktor (großes Feld, damit der Veränderliche und seine Vergleichssterne draufpassen); ein größeres Teleskop für die schwachen.",
+"Johnson-Filter V und B für Standardmessungen; bis dahin den normalen G-Filter oder ohne Filter.",
+"Ein kostenloses Konto bei der AAVSO, mit deinem Beobachtercode."
+],
+"programas": [
+[
+"Siril",
+"Photometrie von Serien und Export im AAVSO-Format"
+],
+[
+"AstroImageJ",
+"Die Referenz für differenzielle Photometrie"
+],
+[
+"VPhot (AAVSO)",
+"Photometrie im Browser mit den offiziellen Sequenzen"
+],
+[
+"VStar (AAVSO)",
+"Kurven analysieren und Perioden suchen"
+]
+],
+"destino": [
+"AAVSO: Die Datei im Extended-Format wird über WebObs hochgeladen und landet in der internationalen Datenbank.",
+"VarAstro: Minima von Bedeckungsveränderlichen und ihr O–C-Diagramm.",
+"Veröffentlichen: Journal of the AAVSO (mit Peer-Review), OEJV oder Research Notes of the AAS."
+],
+"hara": [
+"Den Stern im VSX suchen: Typ, Periode und Helligkeitsbereich",
+"Die offizielle Vergleichssequenz herunterladen",
+"Mit Siril kalibrieren und astrometrisch lösen; Aperturphotometrie",
+"Vergleichssterne und Kontrollstern wählen",
+"Kurve mit Fehlern, Luftmasse und Warnungen",
+"AAVSO-Extended-Datei, fertig für WebObs"
+]
+},
+"exoplanetas": {
+"titulo": "Exoplaneten: der Transit",
+"corto": "Miss den genauen Zeitpunkt, zu dem ein Planet vor seinem Stern vorbeizieht.",
+"historia": [
+"1999 sah ein Teleskop von gerade einmal 10 Zentimetern zum ersten Mal, wie das Licht des Sterns HD 209458 rund drei Stunden lang um etwa 1,5 % abnahm: Ein Riesenplanet zog vor ihm vorbei. Heute kennt man Tausende Planeten, die auf diese Weise entdeckt wurden. Doch einen Planeten zu entdecken ist erst der Anfang: Um ihn zu untersuchen, muss man wissen, wann er das nächste Mal vorbeizieht, und dieses „Wann“ verschwimmt mit der Zeit. Ein kleiner Fehler in der Periode, wiederholt über Hunderte von Umläufen, wird zu Minuten und dann zu Stunden.",
+"Hier kommst du ins Spiel. Die Mission Ariel der Europäischen Weltraumorganisation wird die Atmosphären von rund tausend Exoplaneten untersuchen, und um keine Minute Teleskopzeit zu verschwenden, muss sie deren Transits genau kennen. Genau dafür wurde das Projekt ExoClock gegründet: ein offenes Netzwerk von Beobachtern, die Transits mit kleinen Teleskopen messen. Die NASA hat ihr Gegenstück, Exoplanet Watch.",
+"Einen Transit zu messen ist differenzielle Photometrie am Limit: Helligkeitseinbrüche von 0,5 bis 2 % über zwei oder drei Stunden. Man muss eine Stunde vorher anfangen und eine Stunde danach aufhören, das Feld nicht verschieben, leicht defokussieren, um nicht zu sättigen, und die Zeit auf die Sekunde genau festhalten. Am wichtigsten ist der Mittenzeitpunkt des Transits, T₀, mit seiner Unsicherheit.",
+"Dieser Zeitpunkt wird in BJD_TDB angegeben: die Zeit, zu der das Licht am Schwerpunkt des Sonnensystems angekommen wäre. Das wirkt wie eine Spitzfindigkeit, aber das Licht braucht mehr als eine Viertelstunde, um die Erdbahn zu durchqueren: Ohne diese Korrektur ergäbe derselbe Transit, im Januar und im Juli beobachtet, unterschiedliche Zeiten. ASTRO berechnet diese Zeit bereits (mit einem Fehler unter einer Zehntelsekunde)."
+],
+"necesitas": [
+"Öffnung: je mehr, desto besser (20 bis 35 cm sind ideal); eine Monokamera ist besser als eine Farbkamera.",
+"Stabile Nachführung und Guiding sowie eine sekundengenau synchronisierte Computeruhr.",
+"Ein kostenloses Konto bei ExoClock."
+],
+"programas": [
+[
+"HOPS",
+"Das Programm von ExoClock"
+],
+[
+"EXOTIC",
+"Das von Exoplanet Watch (NASA/JPL)"
+],
+[
+"AstroImageJ",
+"Der Standard beim TESS-Follow-up"
+],
+[
+"N.I.N.A.",
+"Den Transit planen und aufnehmen"
+]
+],
+"destino": [
+"ExoClock: Die freigegebenen Kurven halten die Ephemeriden für Ariel aktuell; die Beobachter erscheinen als Koautoren der ExoClock-Artikel.",
+"Exoplanet Watch (NASA), in der Exoplaneten-Datenbank der AAVSO.",
+"VarAstro-ETD und später das TESS-Follow-up-Programm (TFOP)."
+],
+"hara": [
+"Transits, die in den nächsten Tagen von deinem Ort aus vollständig sichtbar sind",
+"Vergleichssterne aus Gaia, ausgewählt und überwacht",
+"Kurve in BJD_TDB und Trend der Nacht",
+"Transit-Fit (T₀, Tiefe, Dauer) mit ehrlichen Fehlern",
+"O−C gegenüber den Ephemeriden von ExoClock",
+"Kurven für ExoClock und VarAstro-ETD, Grafik und Paket"
+]
+},
+"astrometria": {
+"titulo": "Asteroiden und Kometen",
+"corto": "Miss, wo sich ein bewegter Himmelskörper befindet, und hilf mit, seine Bahn zu berechnen.",
+"historia": [
+"Zwischen Mars und Jupiter, aber auch viel näher und viel weiter draußen, bewegen sich mehr als eine Million katalogisierter Asteroiden. Einige wenige, die erdnahen Asteroiden, kreuzen unsere Bahn. Genau zu wissen, wo sie entlangziehen, ist keine Neugier: Es ist die einzige Möglichkeit herauszufinden, ob einer von ihnen in hundert Jahren mit uns zusammenstoßen könnte.",
+"Die Astrometrie misst Positionen. Sie wirkt wie der bescheidenste Teil der Astronomie und ist der älteste. Heute haben wir die beste Himmelskarte der Geschichte, den Gaia-Katalog, mit rund 1,8 Milliarden Sternen, gemessen mit einer Genauigkeit von Tausendstel Bogensekunden. Damit kann jeder Amateur die Position eines Asteroiden auf Zehntel Bogensekunden genau messen, weil die umliegenden Sterne als Lineal dienen.",
+"Du machst eine halbe Stunde lang mehrere Aufnahmen desselben Feldes. Die Sterne bewegen sich nicht, der Asteroid schon. Du misst in jeder Aufnahme sein Zentrum, rechnest es mit den Gaia-Sternen in Koordinaten um und notierst den Mittenzeitpunkt jeder Belichtung. Diese Positionen gehen an das Minor Planet Center der IAU und werden dort mit denen Tausender Sternwarten zusammengeführt, um die Bahnen zu berechnen. Und wenn in deinen Aufnahmen ein Objekt auftaucht, das in keinem Katalog steht, und das MPC es anerkennt, gehört die Entdeckung dir.",
+"Bei Kometen kommt ihre Helligkeit hinzu, die sich bei der Annäherung an die Sonne ändert, manchmal mit plötzlichen Ausbrüchen; sie wird mit großen Aperturen gemessen und an COBS gemeldet. Und die Asteroiden halten noch eine Überraschung bereit: Ihre Helligkeit steigt und fällt, während sie rotieren, und mit einer Lichtkurve über mehrere Stunden lässt sich ihre Rotationsperiode messen."
+],
+"necesitas": [
+"Ein Abbildungsmaßstab von 1 bis 2 Bogensekunden pro Pixel (zum Beispiel 1000 mm Brennweite mit 3,76-µm-Pixeln im 2×2-Binning).",
+"Kurze Belichtungen, die genaue Zeit jeder Aufnahme und die präzisen Koordinaten des Standorts.",
+"Für deinen eigenen MPC-Sternwartencode: Messungen von zehn bereits nummerierten erdnahen Asteroiden, in zwei Nächten, im ADES-Format."
+],
+"programas": [
+[
+"Siril",
+"Löst das Bild astrometrisch und markiert die bekannten Asteroiden im Feld"
+],
+[
+"Tycho Tracker",
+"Findet sehr schwache Objekte, indem es die Aufnahmen entlang der Bewegung aufaddiert"
+],
+[
+"Astrometrica",
+"Der Klassiker der Amateur-Astrometrie"
+],
+[
+"Find_Orb",
+"Berechnet die Bahn aus deinen Positionen"
+]
+],
+"destino": [
+"Minor Planet Center: Deine Positionen fließen in jede neue Bahnberechnung ein; wenn du ein NEO bestätigst, erscheint dein Code im Zirkular.",
+"COBS: die Helligkeit der Kometen, im ICQ-Format.",
+"Minor Planet Bulletin: Rotationsperioden von Asteroiden."
+],
+"hara": [
+"Welche bekannten Asteroiden und Kometen in deinem Feld stehen (JPL)",
+"Position in jeder Aufnahme anhand der Gaia-Sterne (Plattenkonstanten)",
+"O−C gegenüber der Ephemeride von JPL Horizons",
+"Ungefähre G-Magnitude jedes Asteroiden",
+"ADES-Bericht für das Minor Planet Center"
+]
+},
+"hr": {
+"titulo": "Hertzsprung-Russell-Diagramme",
+"corto": "Ordne die Sterne eines Sternhaufens nach Farbe und Helligkeit und miss seine Entfernung.",
+"historia": [
+"Um 1910 trugen Ejnar Hertzsprung und Henry Norris Russell unabhängig voneinander die wahre Helligkeit der Sterne gegen ihre Farbe in einem Diagramm auf. Sie erwarteten eine ungeordnete Wolke, heraus kam aber ein Bild mit Struktur: ein diagonales Band, in dem die meisten Sterne zu Hause sind, die Hauptreihe; die Roten Riesen oben rechts; und die Weißen Zwerge, klein und heiß, unten links. Dieses Diagramm ist heute die Landkarte des Sternenlebens.",
+"Die Farbe ist ein Thermometer, und am einfachsten misst man sie, indem man die Helligkeit in zwei Filtern vergleicht, B (blau) und V (visuell). Die Differenz B−V ist der Farbindex: nahe 0 bei einem weißen Stern wie Wega, etwa 0,65 bei der Sonne, über 1,5 bei einem Roten Riesen.",
+"Der Trick liegt in den Sternhaufen: Alle ihre Sterne sind gleich weit entfernt und zur selben Zeit entstanden. Das Diagramm, das dabei herauskommt, hat die Form des H-R-Diagramms, nur verschoben, und diese Verschiebung liefert die Entfernung. Der Punkt, an dem die Sterne die Hauptreihe verlassen, ist eine Uhr: Je tiefer er liegt, desto älter ist der Haufen. Die Plejaden haben noch blaue Sterne; M67 mit etwa 4 Milliarden Jahren nicht mehr; und ein Kugelsternhaufen wie M13 ist über 11 Milliarden Jahre alt.",
+"Gaia liefert zusätzlich die Haufenzugehörigkeit über Parallaxe und Eigenbewegung, und am 2. Dezember 2026 erscheint Gaia DR4, noch genauer. Das Diagramm eines gut untersuchten Haufens ist keine Entdeckung, aber es ist die beste Übung, um richtige Photometrie zu lernen, und öffnet die Tür zu weniger untersuchten Haufen."
+],
+"necesitas": [
+"Johnson-Filter B und V (unverzichtbar für ein Standarddiagramm).",
+"Ein Refraktor mit Monokamera für offene Sternhaufen; mehr Brennweite für Kugelsternhaufen.",
+"Zwei Belichtungszeiten pro Filter: kurze für die hellen und lange für die schwachen Sterne."
+],
+"programas": [
+[
+"Siril",
+"Findet und misst alle Sterne im Feld"
+],
+[
+"Gaia-Archiv / VizieR",
+"Zugehörigkeit über Parallaxe und Eigenbewegung"
+],
+[
+"PARSEC und MIST",
+"Isochronen für Alter, Entfernung und Rötung"
+],
+[
+"TOPCAT",
+"Tabellen erkunden und miteinander abgleichen"
+]
+],
+"destino": [
+"Praktika in beobachtender Astrophysik und Kurse.",
+"Öffentlichkeitsarbeit: ein an der eigenen Sternwarte gemessenes Diagramm.",
+"Research Notes of the AAS oder JAAVSO; neue Veränderliche in den VSX-Katalog."
+],
+"hara": [
+"Alle Gaia-Sterne in beiden Bildern messen",
+"Farbe und Helligkeit mit Gaia kalibrieren",
+"Mitglieder über Eigenbewegung und Parallaxe",
+"Entfernung und Rötung des Haufens",
+"Diagramm über der Sonnenumgebung, Tabelle, Grafik und Methodenbericht"
+]
+},
+"espectros": {
+"titulo": "Spektroskopie",
+"corto": "Zerlege das Licht in seine Farben und lies ab, woraus ein Stern besteht.",
+"historia": [
+"Wenn die Photometrie nach „wie viel Licht“ fragt, fragt die Spektroskopie nach „welchem Licht“. Zerlegt man das Licht eines Sterns, erscheint ein Regenbogen, durchzogen von Linien, und jede Linie ist die Signatur eines chemischen Elements: Wasserstoff hinterlässt die Balmer-Linien (Hα bei 656,3 nm, Hβ bei 486,1 nm …), Natrium sein gelbes Dublett bei etwa 589 nm. 1868 verriet eine dieser Linien, während einer Finsternis an der Sonne beobachtet, ein Element, das niemand auf der Erde kannte und das deshalb Helium genannt wurde.",
+"Ein Spektrum verrät die Temperatur, die Zusammensetzung und, über den Dopplereffekt, die Bewegung. Bei Be-Sternen erscheint die Hα-Linie in Emission und verändert sich über die Monate; bei einer Nova sieht man innerhalb weniger Tage Schichten vorbeiziehen, die mit Tausenden Kilometern pro Sekunde ausgeschleudert werden; und ein Spektrum niedriger Auflösung genügt, um eine gerade entdeckte Supernova zu klassifizieren.",
+"Der Einstieg kostet wenig: Ein Beugungsgitter wie der Star Analyser 200, der wie ein Filter eingeschraubt wird, verwandelt jeden Stern in ein kleines Spektrum, genug, um Sterne zu klassifizieren und ihre wichtigsten Linien zu sehen. Der nächste Schritt ist ein Spaltspektrograph wie der Alpy 600 oder der Star'Ex; damit landet das, was du misst, bereits in den professionellen Datenbanken.",
+"Das Schlüsselwort ist die Auflösung, R = λ/Δλ: Mit R um die hundert trennt man die Farben und die breitesten Linien; mit R = 600 sieht man die Linien gut und misst ihre Form; mit R = 10.000 misst man Geschwindigkeiten von wenigen Kilometern pro Sekunde."
+],
+"necesitas": [
+"Für den Anfang ein Star Analyser 200 vor der Monokamera, an einem kurzen Refraktor.",
+"Ein Referenzstern vom Typ A, am Himmel in der Nähe, um die Empfindlichkeitskurve der Ausrüstung zu korrigieren.",
+"Danach ein Spaltspektrograph (Alpy 600 oder Star'Ex)."
+],
+"programas": [
+[
+"specINTI",
+"Das aktuelle Programm von Christian Buil für Spaltspektrographen"
+],
+[
+"ISIS",
+"Der Veteran von Buil"
+],
+[
+"BASS Project",
+"Komplette Verarbeitung, sehr verbreitet mit dem Star Analyser"
+],
+[
+"RSpec",
+"Das einfachste für den Einstieg ohne Spalt"
+]
+],
+"destino": [
+"Spektroskopie-Datenbank der BAA (akzeptiert auch niedrige Auflösung).",
+"AVSpec der AAVSO.",
+"ARAS (Novae, symbiotische Sterne), BeSS (Be-Sterne) und TNS zur Klassifikation von Supernovae."
+],
+"hara": [
+"Den Stern finden und sein Spektrum extrahieren (spaltlos)",
+"Wellenlängenkalibrierung mit dem Gitter und den Linien des Wasserstoffs und der Luft",
+"Die Linien markieren und ihre Äquivalentbreiten messen",
+"Die Empfindlichkeitskurve mit einem Referenzstern korrigieren und die Farbtemperatur angeben",
+"FITS 1D für ISIS, VSpec oder BASS, Tabelle und Grafik"
+]
+}
 }
 }

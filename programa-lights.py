@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.28.8"
+VERSION_PROG = "2026.09.28.9"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -290,7 +290,7 @@ def tr_py(texto, idioma=None):
         return texto
     T = _tr_idioma(idi)
     v = _tr_texto(k, T)
-    return re.sub(r"\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b", lambda m: m.group(1) + " " + T[2].get(m.group(2), m.group(2)), v)
+    return re.sub(r"\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b(\.?)", lambda m: m.group(1) + " " + T[2].get(m.group(2), m.group(2)), v)   # sin el punto de la abreviatura española
 
 
 
@@ -1209,7 +1209,7 @@ function tr(s){
   let v = _CACHE.get(k);
   if (v === undefined){
     const base = _trTexto(k);
-    const m = base.replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/g, (x, d, mm) => d + " " + (_MESES[mm] || mm));
+    const m = base.replace(/\b(\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b(\.?)/g, (x, d, mm) => d + " " + (_MESES[mm] || mm));   // el punto de la abreviatura española se quita: cada idioma lleva la suya
     v = m !== k ? m : null;
     if (_CACHE.size > 20000) _CACHE.clear();
     _CACHE.set(k, v);
