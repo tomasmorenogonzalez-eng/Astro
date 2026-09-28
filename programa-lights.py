@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.22"
+VERSION_PROG = "2026.09.29.23"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -135,7 +135,7 @@ DIC_EN.update({"Registros de la ASIAIR": "ASIAIR logs", "Los registros de la ASI
 DIC_EN.update({"Indicadores de calidad": "Quality indicators", "Gradiente": "Gradient"})
 DIC_EN.update({"Dar más peso a las tomas con mejor señal": "Give more weight to the frames with the best signal", "Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.": "Siril weights each frame by its noise, as PixInsight does: a frame with half the SNR of the rest counts for a quarter, not the same as them."})
 DIC_EN.update({"Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "All your projects over the years: how many hours you have, what's missing and how to carry on", "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "All your projects over the years: index the folders, see how they're going, then analyse, clean up and stack each one", "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indexed from the Archive: not analysed yet. Analyse it from its project, in the Archive.", "Ya se está indexando otra carpeta.": "Another folder is already being indexed."})      # Archivo
-DIC_EN.update({"Parpadeo": "Blink", "Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas": "Shows the frames in view one after another, aligned, to catch satellites, clouds or trailed stars", "Anterior (←)": "Previous (←)", "Reproducir o parar (espacio)": "Play or stop (space)", "Siguiente (→)": "Next (→)", "Velocidad": "Speed", "# por segundo": "# per second", "Superpone cada toma a la de referencia del proyecto por sus estrellas, para que lo que se mueve salte a la vista": "Overlays each frame on the project's reference frame using its stars, so that anything that moves stands out", "Alinear": "Align", "Qué tomas pasar": "Which frames to show", "Con avisos o rechazables": "With warnings or rejected", "Fuera del apilado o descartadas": "Left out of the stack or discarded", "Cerrar (Esc)": "Close (Esc)", "Cada raya es una toma: verde, válida; amarilla, con avisos; roja, rechazable. Pulsa para ir a ella.": "Each line is a frame: green, valid; yellow, with warnings; red, rejected. Click to go to it.", "← → pasar · espacio: reproducir o parar · X: dentro o fuera del apilado · Supr o ⌫: descartar o recuperar · Esc: cerrar": "← → step through · space: play or stop · X: in or out of the stack · Del or ⌫: discard or restore · Esc: close", "# tomas fuera del apilado": "# frames left out of the stack", "# tomas vuelven al apilado": "# frames go back into the stack", "1 toma vuelve al apilado": "1 frame goes back into the stack"})   # el parpadeo
+DIC_EN.update({"Parpadeo": "Blink", "Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas": "Shows the frames in view one after another, aligned, to catch satellites, clouds or trailed stars", "Anterior (←)": "Previous (←)", "Reproducir o parar (espacio)": "Play or stop (space)", "Siguiente (→)": "Next (→)", "Velocidad": "Speed", "# por segundo": "# per second", "Superpone cada toma a la de referencia del proyecto por sus estrellas, para que lo que se mueve salte a la vista": "Overlays each frame on the project's reference frame using its stars, so that anything that moves stands out", "Alinear": "Align", "Qué tomas pasar": "Which frames to show", "Con avisos o rechazables": "With warnings or rejected", "Fuera del apilado o descartadas": "Left out of the stack or discarded", "Cerrar (Esc)": "Close (Esc)", "Cada raya es una toma: verde, válida; amarilla, con avisos; roja, rechazable. Pulsa para ir a ella.": "Each line is a frame: green, valid; yellow, with warnings; red, rejected. Click to go to it.", "← → pasar · espacio: reproducir o parar · X: dentro o fuera del apilado · Supr o ⌫: descartar o recuperar · Esc: cerrar": "← → step through · space: play or stop · X: in or out of the stack · Del or ⌫: discard or restore · Esc: close", "# tomas fuera del apilado": "# frames left out of the stack", "# tomas vuelven al apilado": "# frames go back into the stack", "1 toma vuelve al apilado": "1 frame goes back into the stack", "Siril no ha podido resolverla": "Siril couldn't solve it", "(¿coordenadas, focal o tamaño de píxel de la cabecera?)": "(coordinates, focal length or pixel size in the header?)", "no encuentro el archivo de la toma (¿está conectado el disco?)": "I can't find the frame's file (is the disk connected?)", "para resolver tomas XISF hace falta Siril 1.4 o posterior": "solving XISF frames needs Siril 1.4 or later", "Ya se están resolviendo otras tomas.": "Other frames are already being solved.", "No hay tomas que resolver.": "There are no frames to solve.", "No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.": "I can't find Siril. Install it from siril.org and try again."})   # el parpadeo
 
 
 def idioma_actual():
@@ -965,7 +965,7 @@ th{background:var(--surface);font-weight:700}
 table.arcSes{min-width:900px} table.arcSes td{vertical-align:top}
 tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowrap}
 .arcSesObj{margin:0 0 4px} .arcSesObj .chips{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle} .arcSesObj a{font-weight:700;color:var(--text)}
-.arcH{margin:22px 0 8px;font-size:17px}
+.arcH{margin:22px 0 8px;font-size:17px} .arcSubH{margin:14px 0 6px;font-size:14.5px}
 .hist{position:relative;margin:4px 0 10px}
 .hist::before{content:"";position:absolute;left:115px;top:10px;bottom:10px;width:2px;background:var(--line2)}
 .histI{display:grid;grid-template-columns:100px 12px 1fr;gap:10px;align-items:start;padding:5px 0}
@@ -2414,9 +2414,9 @@ function htmlEncuadre(obj){
   let h = `<h3 class="arcH">${esc(trLT("Encuadre", "Framing"))}</h3>`;
   if (!E.ref){
     return h + `<div class="note" style="margin-bottom:8px">${esc(trLT("Para medir el encuadre hacen falta tomas analizadas con esta versión: ASTRO guarda dónde caen sus estrellas más brillantes.", "Measuring the framing needs frames analysed with this version: ASTRO stores where their brightest stars fall."))}</div>` +
-      (E.sinMedir ? `<button class="btn small primary" data-arc-acc="medirencuadre">${esc(trLT("Medir el encuadre de {1} tomas", "Measure the framing of {1} frames", nfmt(E.sinMedir)))}</button>` : "");
+      (E.sinMedir ? `<button class="btn small primary" data-arc-acc="medirencuadre">${esc(trLT("Medir el encuadre de {1} tomas", "Measure the framing of {1} frames", nfmt(E.sinMedir)))}</button>` : "") + htmlAstrometria(obj);
   }
-  if (E.calculando) return h + `<div class="note">${esc(trLT("Comparando el encuadre de cada toma con la de referencia…", "Comparing each frame's framing with the reference…"))}</div>`;
+  if (E.calculando) return h + `<div class="note">${esc(trLT("Comparando el encuadre de cada toma con la de referencia…", "Comparing each frame's framing with the reference…"))}</div>` + htmlAstrometria(obj);
   const ref = E.ref, escRef = escalaToma(ref), ang = angCabecera(ref);
   // por sesión (noche y equipo)
   const ses = new Map();
@@ -2432,9 +2432,10 @@ function htmlEncuadre(obj){
     const ini = ord.slice(0, q), fin = ord.slice(-q), mx = a => m(a.map(t => t.e.dx)), my = a => m(a.map(t => t.e.dy));
     const deriva = ord.length >= 6 ? Math.hypot(mx(fin) - mx(ini), my(fin) - my(ini)) : null;
     const arc = px => escS ? " · " + numEs(px*escS/60, 1) + "′" : "";
+    const pas = l.slice().sort((x, y) => (x.f.dateObs || "").localeCompare(y.f.dateObs || "")).map(t => t.f.astro && t.f.astro.pa).filter(v => v != null), paN = textoAngulos(pas);
     filas.push(`<tr><td><b>${esc(fechaDia(noche))}</b><div class="note">${esc(trLT("{1} de {2} tomas", "{1} of {2} frames", ok.length, l.length))}</div></td><td class="notr">${esc(eq)}</td>
       <td class="num">${escS ? esc(numEs(escS, 2)) + "″/px" : "—"}${Math.abs(sc - 1) > 0.02 ? `<div class="note">×${esc(numEs(sc, 2))}</div>` : ""}</td>
-      <td class="num">${esc(numEs(gir, 1))}°${volt ? `<div class="note">${esc(volt === ok.length ? trLT("volteada (giro de meridiano)", "flipped (meridian flip)") : trLT("{1} volteadas", "{1} flipped", volt))}</div>` : ""}</td>
+      <td class="num">${esc(numEs(gir, 1))}°${paN ? `<div class="note">${esc(paN)}</div>` : ""}${volt ? `<div class="note">${esc(volt === ok.length ? trLT("volteada (giro de meridiano)", "flipped (meridian flip)") : trLT("{1} volteadas", "{1} flipped", volt))}</div>` : ""}</td>
       <td class="num">${esc(Math.round(off))} px${esc(arc(off))}</td>
       <td class="num">${deriva != null ? esc(Math.round(deriva)) + " px" + esc(arc(deriva)) : "—"}</td>
       <td class="num"><span class="${comun >= 0.9 ? "arcOk" : comun >= 0.75 ? "arcAviso" : "arcMal"}">${esc(Math.round(100*comun))} %</span></td></tr>`);
@@ -2454,6 +2455,148 @@ function htmlEncuadre(obj){
                  fallan ? trLT("{1} tomas no se han podido comparar (nubes, muy pocas estrellas u otro campo).", "{1} frames could not be compared (clouds, too few stars or another field).", nfmt(fallan)) : ""].filter(Boolean);
   if (extra.length) h += `<div class="note" style="margin-top:6px">${esc(extra.join(" "))}</div>`;
   if (E.sinMedir) h += `<button class="btn small" style="margin-top:6px" data-arc-acc="medirencuadre">${esc(trLT("Medir el encuadre de {1} tomas", "Measure the framing of {1} frames", nfmt(E.sinMedir)))}</button>`;
+  return h + htmlAstrometria(obj);
+}
+
+/* ============ Astrometría: la mejor toma de cada noche se resuelve con Siril y las demás la heredan por sus estrellas ============ */
+// f.astro = {ra, dec (centro, grados), pa (ángulo de posición de la parte de arriba de la imagen, del norte hacia el este),
+//            esc (″/px), espejo, campo [ancho, alto] en grados, fuente: "siril" | "estrellas", fecha; y en las resueltas,
+//            el WCS de Siril y si Siril le dio la vuelta a las filas}
+const ASTR = {obj:"", reloj:null, est:null, fase:0, errores:{}};
+function cieloWcs(A){
+  const W = A.wcs, r = Math.PI / 180, a0 = W.crval1 * r, d0 = W.crval2 * r, sd = Math.sin(d0), cd0 = Math.cos(d0);
+  return (x0, y0) => {
+    const dx = x0 + 1 - W.crpix1, dy = (A.vuelta ? A.H - y0 : y0 + 1) - W.crpix2;
+    const xi = (W.cd[0][0] * dx + W.cd[0][1] * dy) * r, eta = (W.cd[1][0] * dx + W.cd[1][1] * dy) * r, den = cd0 - eta * sd;
+    return {ra: (((Math.atan2(xi, den) + a0) / r) % 360 + 360) % 360, dec: Math.atan2(sd + eta * cd0, Math.hypot(xi, den)) / r};
+  };
+}
+function rumbo(a, b){     // del norte hacia el este, en grados
+  const r = Math.PI / 180, d1 = a.dec * r, d2 = b.dec * r, dl = (b.ra - a.ra) * r;
+  return (Math.atan2(Math.sin(dl) * Math.cos(d2), Math.cos(d1) * Math.sin(d2) - Math.sin(d1) * Math.cos(d2) * Math.cos(dl)) / r + 360) % 360;
+}
+function filasArriba(f){ return f.format === "xisf" || /TOP-DOWN/i.test(String((f.header || {}).ROWORDER || "")); }
+function resumenAstro(cielo, w, h, arriba){
+  // «arriba» es la parte de arriba de la imagen tal como la enseñan Siril y los programas de captura (la fila 1 del FITS
+  // abajo, salvo en las tomas TOP-DOWN y las XISF)
+  const cx = (w - 1) / 2, cy = (h - 1) / 2, d = Math.max(20, Math.min(w, h) / 4);
+  const c = cielo(cx, cy), u = cielo(cx, cy + (arriba ? -d : d)), r = cielo(cx + d, cy);
+  const esc = sepGrados(c, u) * 3600 / d, pa = rumbo(c, u), dr = ((rumbo(c, r) - pa + 540) % 360) - 180;
+  return {ra: +c.ra.toFixed(5), dec: +c.dec.toFixed(5), pa: +pa.toFixed(2), esc: +esc.toFixed(3), espejo: dr > 0,
+          campo: [+(w * esc / 3600).toFixed(3), +(h * esc / 3600).toFixed(3)]};
+}
+const hoyISO = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const sexaTxt = (v, horas) => IDIOMA === "en" ? sexa(v, horas).txt : sexa(v, horas).txt.replace(".", ",");
+function astroResuelta(f, r){
+  const A = {wcs: r.wcs, vuelta: !!r.vuelta, H: r.h || f.h};
+  return Object.assign(resumenAstro(cieloWcs(A), f.w || r.w, f.h || r.h, A.vuelta), {fuente:"siril", fecha: hoyISO(), wcs: r.wcs, vuelta: A.vuelta, H: A.H, siril: r.siril || ""});
+}
+function llevarAstro(S, f, T){
+  // la astrometría de S llevada a f con la transformación de sus estrellas (S → f): la inversa lleva cada píxel de f a S
+  const cS = cieloWcs({wcs: S.astro.wcs, vuelta: S.astro.vuelta, H: S.astro.H}), s2 = T.c * T.c + T.sn * T.sn || 1;
+  const cielo = (x, y) => { const X = x - T.tx, Y = y - T.ty; return cS((T.c * X + T.sn * Y) / s2, (-T.sn * X + T.c * Y) / s2); };
+  return Object.assign(resumenAstro(cielo, f.w, f.h, filasArriba(f)), {fuente:"estrellas", de: S.id, fecha: hoyISO(), rms: +(T.rms || 0).toFixed(2)});
+}
+async function propagarAstro(obj){
+  const l = frames.filter(f => (f.object || "").trim() === obj && !f.discarded);
+  const resueltas = l.filter(f => f.astro && f.astro.fuente === "siril" && f.astro.wcs && f.estrellas && f.estrellas.length >= 5 && f.w);
+  let n = 0, i = 0;
+  for (const f of l){
+    if ((f.astro && f.astro.fuente === "siril") || !f.estrellas || f.estrellas.length < 5 || !f.w) continue;
+    // primero la resuelta de su noche; si sus estrellas no casan, cualquier otra
+    const cand = resueltas.slice().sort((a, b) => (b.night === f.night) - (a.night === f.night));
+    for (const S of cand){ const T = transformacionEstrellas(S.estrellas, f.estrellas); if (T){ f.astro = llevarAstro(S, f, T); n++; break; } }
+    if (++i % 25 === 0) await esperar(0);
+  }
+  return n;
+}
+function tomasResolubles(obj){ return frames.filter(f => (f.object || "").trim() === obj && !f.discarded && (f.path || f.origen) && f.status !== "na" && f.w); }
+async function resolverProyecto(obj){
+  if (ASTR.reloj) return toast(trLT("Ya se están resolviendo tomas", "Frames are already being solved"));
+  const l = tomasResolubles(obj);
+  if (!l.length) return toast(trLT("No hay tomas analizadas que resolver", "There are no analysed frames to solve"));
+  // la mejor de cada noche: con las estrellas medidas (para llevarla a las demás), sin rechazar, con más estrellas y mejor FWHM
+  const elegidas = [...groupBy(l, f => f.night || "?").values()].map(ln => ln.slice().sort((a, b) =>
+    (b.estrellas ? 1 : 0) - (a.estrellas ? 1 : 0) || (a.status === "bad") - (b.status === "bad") || (b.starCount || 0) - (a.starCount || 0) || (a.fwhm || 99) - (b.fwhm || 99))[0]);
+  ASTR.errores = {};
+  await lanzarAstrometria(obj, elegidas, 1);
+}
+async function lanzarAstrometria(obj, lista, fase){
+  while (saving) await esperar(120);
+  await saveDb();                                       // el servidor busca el archivo de cada toma en las fichas guardadas
+  const c = coordsObjeto(obj), cat = catDe(obj), pista = c || (cat ? {ra: cat[1], dec: cat[2]} : {});
+  try {
+    const r = await api("/api/astrometria/resolver", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ids: lista.map(f => f.id), objeto: obj, pista: {ra: pista.ra, dec: pista.dec, escala: med(lista.map(escalaToma))}})});
+    ASTR.est = await r.json();
+  } catch(e){ toast(tr(String(e.message || e))); return; }
+  ASTR.obj = obj; ASTR.fase = fase;
+  clearInterval(ASTR.reloj); ASTR.reloj = setInterval(sondearAstrometria, 1000);
+  if (VISTA_ACTUAL === "proyecto" && ARC.proyecto === obj) renderProyecto();
+}
+async function sondearAstrometria(){
+  let e; try { e = await (await api("/api/astrometria/estado")).json(); } catch(_){ return; }
+  ASTR.est = e;
+  if (!e.activo){ clearInterval(ASTR.reloj); ASTR.reloj = null; await terminarAstrometria(e); }
+  if (VISTA_ACTUAL === "proyecto" && ARC.proyecto === ASTR.obj) renderProyecto();
+}
+async function terminarAstrometria(e){
+  const obj = ASTR.obj, porId = new Map(frames.map(f => [f.id, f]));
+  let resueltas = 0;
+  for (const [id, r] of Object.entries(e.resultados || {})){ const f = porId.get(id); if (f && r && r.wcs){ f.astro = astroResuelta(f, r); resueltas++; } }
+  for (const [id, err] of Object.entries(e.errores || {})) ASTR.errores[id] = err;
+  ASTR.resueltas = (ASTR.fase === 1 ? 0 : ASTR.resueltas || 0) + resueltas;
+  const n = await propagarAstro(obj);
+  // segunda vuelta: las que no han podido heredarla por sus estrellas, una a una (si la primera ha ido bien)
+  if (ASTR.fase === 1 && resueltas && !e.cancelar){
+    const faltan = tomasResolubles(obj).filter(f => !f.astro && !ASTR.errores[f.id]).slice(0, 40);
+    if (faltan.length){ ASTR.llevadas = n; return lanzarAstrometria(obj, faltan, 2); }
+  }
+  ENCUADRE_CACHE.delete(obj);
+  await saveDb();
+  const siril = ASTR.resueltas, llevadas = n, err = Object.keys(ASTR.errores).length;
+  if (siril) registrarHistorial(obj, "astrometria", {siril, estrellas: llevadas, errores: err});
+  if (e.cancelar) return toast(trLT("Astrometría parada", "Astrometry stopped") + (siril ? " · " + trLT("{1} tomas resueltas con Siril y {2} por sus estrellas", "{1} frames solved with Siril and {2} by their stars", nfmt(siril), nfmt(llevadas)) : ""));
+  toast(siril ? trLT("Astrometría: {1} tomas resueltas con Siril y {2} por sus estrellas", "Astrometry: {1} frames solved with Siril and {2} by their stars", nfmt(siril), nfmt(llevadas))
+              : trLT("Siril no ha podido resolver ninguna toma", "Siril couldn't solve any frame"));
+}
+function textoAngulos(pas){
+  // el ángulo de posición de una noche; tras un giro de meridiano hay dos, a 180° uno del otro
+  if (!pas.length) return "";
+  const m = medianaAng(pas.map(v => (2 * v) % 360)) / 2, cerca = v => Math.abs(((v - m + 540) % 360) - 180) < 90;
+  const a = pas.filter(cerca), b = pas.filter(v => !cerca(v));
+  if (!b.length || !a.length) return trLT("ángulo {1}°", "angle {1}°", numEs(medianaAng(pas), 1));
+  const [x, y] = cerca(pas[0]) ? [a, b] : [b, a];            // en orden de hora: el primero es el de antes del giro
+  return trLT("ángulo {1}° / {2}°", "angle {1}° / {2}°", numEs(medianaAng(x), 1), numEs(medianaAng(y), 1));      // el segundo, tras el giro de meridiano
+}
+function fmtCampo(a, b){ return Math.max(a, b) >= 1 ? numEs(a, 2) + "° × " + numEs(b, 2) + "°" : numEs(a * 60, 1) + "′ × " + numEs(b * 60, 1) + "′"; }
+function textoAstroToma(a){
+  return `${RA_TXT} ${sexaTxt(a.ra, true)} · Dec ${sexaTxt(a.dec, false)} · ${trLT("ángulo {1}°", "angle {1}°", numEs(a.pa, 1))}${a.espejo ? " (" + trLT("en espejo", "mirrored") + ")" : ""} · ${numEs(a.esc, 2)}″/px`;
+}
+function htmlAstrometria(obj){
+  const l = frames.filter(f => (f.object || "").trim() === obj && !f.discarded), con = l.filter(f => f.astro);
+  const job = ASTR.obj === obj && (ASTR.reloj || (ASTR.est && ASTR.est.activo)) ? ASTR.est : null;
+  let h = `<h4 class="arcSubH">${esc(trLT("Astrometría", "Astrometry"))}</h4>`;
+  if (job){
+    h += `<div class="status" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">${esc(trLT("Resolviendo con Siril {1} de {2}", "Solving with Siril {1} of {2}", nfmt(Math.min(job.total, job.hechas + 1)), nfmt(job.total)))}${job.actual ? ` · <span class="notr">${esc(job.actual)}</span>` : ""}</span>
+      <button class="btn small" data-arc-acc="pararastro">${esc(trLT("Parar", "Stop"))}</button></div>`;
+  }
+  if (con.length){
+    const sir = con.filter(f => f.astro.fuente === "siril").length, c = {ra: medianaAng(con.map(f => f.astro.ra)), dec: med(con.map(f => f.astro.dec))};
+    const cat = catDe(obj), dCat = cat ? sepGrados(c, {ra: cat[1], dec: cat[2]}) : null, espejo = con.filter(f => f.astro.espejo).length > con.length / 2;
+    const campo = [med(con.map(f => f.astro.campo && f.astro.campo[0])), med(con.map(f => f.astro.campo && f.astro.campo[1]))];
+    const escH = med(con.map(f => escalaToma(f))), escA = med(con.map(f => f.astro.esc));
+    h += `<div class="note" style="line-height:1.6">${esc(trLT("{1} de {2} tomas con astrometría: {3} resueltas con Siril y {4} por la posición de sus estrellas.", "{1} of {2} frames with astrometry: {3} solved with Siril and {4} by the position of their stars.",
+        nfmt(con.length), nfmt(l.length), nfmt(sir), nfmt(con.length - sir)))}<br>
+      <b>${esc(trLT("Centro", "Centre"))}</b> <span class="notr">${esc(RA_TXT)} ${esc(sexaTxt(c.ra, true))} · Dec ${esc(sexaTxt(c.dec, false))}</span>${dCat != null ? " · " + esc(trLT("{1} queda a {2} del centro", "{1} is {2} from the centre", listaNombresTxt([cat[0]]), fmtSep(dCat))) : ""}<br>
+      <b>${esc(trLT("Escala", "Scale"))}</b> ${esc(numEs(escA, 2))}″/px${escH && Math.abs(escH / escA - 1) > 0.02 ? " · " + esc(trLT("la cabecera decía {1}″/px", "the header said {1}″/px", numEs(escH, 2))) : ""} ·
+      <b>${esc(trLT("Campo", "Field"))}</b> ${esc(fmtCampo(campo[0], campo[1]))}${espejo ? " · " + esc(trLT("imagen en espejo", "mirrored image")) : ""}</div>`;
+  }
+  const errs = Object.entries(ASTR.obj === obj ? ASTR.errores || {} : {});
+  if (errs.length && !job) h += `<div class="note" style="margin-top:4px;color:var(--warn)">${esc(trLT("{1} no se han podido resolver:", "{1} couldn't be solved:", nfmt(errs.length)))} ${esc(tr(errs[0][1]))}</div>`;
+  if (!job) h += `<div style="margin-top:6px"><button class="btn small" data-arc-acc="resolver" title="${esc(trLT("Siril resuelve la mejor toma de cada noche (busca las estrellas en su catálogo, por Internet) y las demás heredan la astrometría por la posición de sus estrellas. Hace falta Siril.",
+      "Siril solves the best frame of each night (it looks up the stars in its catalogue, over the Internet) and the rest inherit the astrometry from the position of their stars. Siril is needed."))}">${esc(con.length ? trLT("Volver a resolver con Siril", "Solve again with Siril") : trLT("Resolver con Siril", "Solve with Siril"))}</button>
+    ${con.length ? "" : `<span class="note" style="margin-left:8px">${esc(trLT("Centro, ángulo y escala reales de cada toma.", "The real centre, angle and scale of each frame."))}</span>`}</div>`;
   return h;
 }
 
@@ -3006,6 +3149,7 @@ function renderPanel(f){
       <dt>Estrellas</dt><dd>${f.starCount??"—"}${f.satStars?" · <span>"+f.satStars+" saturadas</span>":""}</dd>
       <dt>Trazas</dt><dd>${f.trailCount||0}${f.trailLen?" · <span>longitud "+f.trailLen.toFixed(2)+" diagonales</span>":""}</dd>
       <dt>Gradiente</dt><dd>${f.gradient!=null?numEs(f.gradient, 2):"—"}</dd>
+      ${f.astro ? `<dt>${esc(trLT("Astrometría", "Astrometry"))}</dt><dd><span class="notr">${esc(textoAstroToma(f.astro))}</span><div class="note">${esc(f.astro.fuente === "siril" ? trLT("Resuelta con Siril el {1}", "Solved with Siril on {1}", fechaDia(f.astro.fecha)) : trLT("Por sus estrellas, desde una toma resuelta con Siril", "By its stars, from a frame solved with Siril"))}</div></dd>` : ""}
       ${(() => { if (!f.estrellas || !(f.object||"").trim()) return ""; try { const E = encuadreProyecto(f.object.trim()), t = E.tomas.find(x => x.f === f);
         if (!t || !t.T || t.f === E.ref) return t && t.f === E.ref ? `<dt>${esc(trLT("Encuadre", "Framing"))}</dt><dd>${esc(trLT("Es la toma de referencia del proyecto", "It is the project's reference frame"))}</dd>` : "";
         return `<dt>${esc(trLT("Encuadre", "Framing"))}</dt><dd>${esc(trLT("Respecto a la referencia: giro {1}°, centro desplazado {2} px, {3} % del campo en común", "From the reference: rotation {1}°, centre offset {2} px, {3}% of the field shared", numEs(t.g.r, 1), Math.round(t.e.d), Math.round(100*t.e.comun)))}</dd>`; } catch(_){ return ""; } })()}
@@ -3618,6 +3762,8 @@ function textoEventoHist(e){
     case "recuperadas": return [trLT("Tomas", "Frames"), conNoches(uno ? trLT("1 toma recuperada", "1 frame restored") : trLT("{1} tomas recuperadas", "{1} frames restored", n)), "evento"];
     case "analisis": return [trLT("Análisis", "Analysis"), (uno ? trLT("1 toma analizada", "1 frame analysed") : trLT("{1} tomas analizadas", "{1} frames analysed", n)) +
       (e.errores ? " · " + trLT("{1} no se han podido leer", "{1} could not be read", nfmt(e.errores)) : ""), "evento"];
+    case "astrometria": return [trLT("Astrometría", "Astrometry"), trLT("{1} tomas resueltas con Siril y {2} por sus estrellas", "{1} frames solved with Siril and {2} by their stars", nfmt(e.siril || 0), nfmt(e.estrellas || 0)) +
+      (e.errores ? " · " + trLT("{1} sin resolver", "{1} unsolved", nfmt(e.errores)) : ""), "ok"];
     case "calibracion": {
       if (!e.sin_dark && !e.sin_flat) return [trLT("Calibración", "Calibration"), trLT("Completa: todas las tomas tienen dark y flat", "Complete: every frame has a dark and a flat"), "ok"];
       const p = [e.sin_dark ? (e.sin_dark === 1 ? trLT("1 toma sin dark", "1 frame without a dark") : trLT("{1} tomas sin dark", "{1} frames without a dark", nfmt(e.sin_dark))) : "",
@@ -4160,6 +4306,8 @@ function arcAccion(a, obj){
   if (a === "tomas"){ filters.object = new Set([obj]); mostrarVista("tomas"); render(); return; }
   if (a === "criterio") return abrirCriterio(obj);
   if (a === "historial"){ ARC.histTodo = obj; return renderProyecto(); }
+  if (a === "resolver") return resolverProyecto(obj);
+  if (a === "pararastro") return api("/api/astrometria/parar", {method:"POST"}).catch(() => {});
   if (a === "parpadeo") return abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj), obj);
   if (a === "indicadores") return abrirIndicadores(obj, "*");
   if (a === "calenviar") return arcEnviarCalibracion();
@@ -6379,8 +6527,8 @@ function posicionesNombres(){
   for (const f of frames){
     const o = (f.object || "").trim(); if (!o) continue;
     let x = g.get(o); if (!x){ x = {nombre:o, n:0, cs:[], campo:[]}; g.set(o, x); }
-    x.n++; const c = coordsTomaC(f); if (c) x.cs.push(c);
-    const k = campoToma(f); if (k) x.campo.push(k);
+    x.n++; const c = f.astro ? f.astro : coordsTomaC(f); if (c) x.cs.push({ra: c.ra, dec: c.dec});
+    const k = f.astro && f.astro.campo ? Math.min(...f.astro.campo) : campoToma(f); if (k) x.campo.push(k);
   }
   const out = [];
   for (const x of g.values()){
@@ -13572,7 +13720,7 @@ def archivo_apilados():
 
 
 ESTADOS_PROYECTO = ("terminado", "pausa")
-TIPOS_HISTORIAL = ("estado", "limites", "union", "nombre", "fuera", "descartadas", "recuperadas", "analisis", "calibracion")
+TIPOS_HISTORIAL = ("estado", "limites", "union", "nombre", "fuera", "descartadas", "recuperadas", "analisis", "calibracion", "astrometria")
 _HIST_LOCK = threading.RLock()
 
 
@@ -13593,6 +13741,163 @@ def archivo_historial(obj):
     v = leer_archivo_cfg()
     h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
     return {"eventos": h.get(obj) if isinstance(h.get(obj), list) else []}
+
+
+# ── Astrometría de las tomas con Siril (platesolve) ──
+# Se resuelve la mejor toma de cada noche; la página lleva la astrometría a las demás por la posición de sus estrellas.
+# El resultado vuelve a la página (que es quien guarda las fichas): el WCS de la imagen que guarda Siril y si Siril le
+# dio la vuelta a las filas respecto al archivo original (las tomas TOP-DOWN y las XISF).
+ASTROM = {"id": 0, "activo": False, "objeto": "", "total": 0, "hechas": 0, "actual": "", "resultados": {}, "errores": {},
+          "cancelar": False, "error": "", "siril": ""}
+_ASTROM_P = {"p": None}
+
+
+def _wcs_de_cabecera(h):
+    """CRVAL, CRPIX y la matriz CD (de CD, de PC con CDELT o de CDELT con CROTA2) de una cabecera; None si no está resuelta."""
+    g = lambda k: num(h.get(k))
+    if "TAN" not in str(h.get("CTYPE1", "")).upper() or None in (g("CRVAL1"), g("CRVAL2"), g("CRPIX1"), g("CRPIX2")):
+        return None
+    if g("CD1_1") is not None and g("CD2_2") is not None:
+        cd = [[g("CD1_1"), g("CD1_2") or 0.0], [g("CD2_1") or 0.0, g("CD2_2")]]
+    elif g("CDELT1") and g("CDELT2"):
+        if g("PC1_1") is not None:
+            cd = [[g("CDELT1") * g("PC1_1"), g("CDELT1") * (g("PC1_2") or 0.0)], [g("CDELT2") * (g("PC2_1") or 0.0), g("CDELT2") * g("PC2_2")]]
+        else:
+            a = math.radians(g("CROTA2") or 0.0)
+            cd = [[g("CDELT1") * math.cos(a), -g("CDELT2") * math.sin(a)], [g("CDELT1") * math.sin(a), g("CDELT2") * math.cos(a)]]
+    else:
+        return None
+    if not (cd[0][0] or cd[0][1]) or not (cd[1][0] or cd[1][1]):
+        return None
+    return {"crval1": g("CRVAL1"), "crval2": g("CRVAL2"), "crpix1": g("CRPIX1"), "crpix2": g("CRPIX2"), "cd": cd}
+
+
+def _ruta_toma(r):
+    """El archivo de una ficha: el copiado en la biblioteca de lights o el de su carpeta original."""
+    if r.get("path"):
+        ruta = os.path.normpath(os.path.join(ROOT, r["path"]))
+        if ruta.startswith(os.path.normpath(ROOT)) and os.path.isfile(ruta):
+            return ruta
+    if r.get("origen") and os.path.isfile(r["origen"]):
+        return r["origen"]
+    return ""
+
+
+def _resolver_toma(siril, ver, r, pista):
+    ruta = _ruta_toma(r)
+    if not ruta:
+        raise RuntimeError("no encuentro el archivo de la toma (¿está conectado el disco?)")
+    ext = os.path.splitext(ruta)[1].lower()
+    xisf = ext == ".xisf"
+    if xisf and not version_ge(ver, "1.4"):
+        raise RuntimeError("para resolver tomas XISF hace falta Siril 1.4 o posterior")
+    h = {} if xisf else cabecera_fits(ruta)
+    hr = dict(r.get("header") or {}, **h)
+    W = os.path.join(TRABAJO_DIR, "astrometria_%s_%d" % (seguro(r.get("id") or "t"), os.getpid()))
+    shutil.rmtree(W, ignore_errors=True)
+    os.makedirs(W, exist_ok=True)
+    try:
+        enlace(ruta, os.path.join(W, "t" + ext))
+        cfa = bool(hr.get("BAYERPAT")) and int(num(hr.get("NAXIS3")) or 1) < 3
+        L = ["requires 1.2.0", "setext fit", "cd %s" % q(W)]
+        L += ["calibrate_single t%s -cfa -debayer" % ext, "load pp_t"] if cfa else ["load t%s" % ext]
+        ps = ["platesolve"]
+        if pista and pista.get("ra") is not None and pista.get("dec") is not None:
+            ps.append("%.5f,%.5f" % (float(pista["ra"]), float(pista["dec"])))
+        focal, pix = num(hr.get("FOCALLEN")), num(hr.get("XPIXSZ") or hr.get("PIXSIZE1"))
+        esc = num((pista or {}).get("escala"))
+        if (not focal or focal < 10) and esc:
+            pix = pix if pix and pix > 0.5 else 3.76
+            focal = 206.265 * pix / esc
+        if focal and focal > 10:
+            ps.append("-focal=%.1f" % focal)
+        if pix and pix > 0.5:
+            ps.append("-pixelsize=%.2f" % pix)
+        ps.append("-noflip")
+        if (num(hr.get("NAXIS1")) or r.get("w") or 0) * (num(hr.get("NAXIS2")) or r.get("h") or 0) > 30e6:
+            ps.append("-downscale")
+        L += [" ".join(ps), "save s"]
+        guion = os.path.join(W, "resolver.ssf")
+        with open(guion, "w", encoding="utf-8") as f:
+            f.write("\n".join(L) + "\n")
+        p = lanzar_siril([siril, "-s", guion], cwd=W)
+        _ASTROM_P["p"] = p
+        ultimas, t0 = [], time.time()
+        for linea in p.stdout:
+            linea = re.sub(r"^log:\s*", "", linea.rstrip())
+            if linea and not linea.startswith(("progress:", "status:", "closing pipes")):
+                ultimas = (ultimas + [linea])[-6:]
+            if ASTROM["cancelar"] or time.time() - t0 > 300:
+                p.terminate()
+        p.wait()
+        _ASTROM_P["p"] = None
+        if ASTROM["cancelar"]:
+            raise RuntimeError("Cancelado")
+        salida = os.path.join(W, "s.fit")
+        hs = cabecera_fits(salida) if os.path.isfile(salida) else {}
+        wcs = _wcs_de_cabecera(hs)
+        if not wcs:
+            motivo = next((x for x in reversed(ultimas) if re.search(r"fail|error|not solved|no .*star|catalog", x, re.I)), "")
+            raise RuntimeError("Siril no ha podido resolverla" + (": " + motivo[:160] if motivo else " (¿coordenadas, focal o tamaño de píxel de la cabecera?)"))
+        # ¿las filas de la imagen resuelta van al revés que en el archivo original?
+        arriba = lambda x: str(x.get("ROWORDER", "")).strip().upper() == "TOP-DOWN"
+        vuelta = (xisf or arriba(h)) and not arriba(hs)
+        ancho, alto = int(num(hs.get("NAXIS1")) or r.get("w") or 0), int(num(hs.get("NAXIS2")) or r.get("h") or 0)
+        return {"wcs": wcs, "vuelta": vuelta, "w": ancho, "h": alto, "siril": ver}
+    finally:
+        shutil.rmtree(W, ignore_errors=True)
+
+
+def astrometria_resolver(d):
+    if ASTROM["activo"]:
+        raise RuntimeError("Ya se están resolviendo otras tomas.")
+    siril, ver = buscar_siril()
+    if not siril:
+        raise RuntimeError("No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.")
+    ids = [str(x) for x in (d.get("ids") or [])][:500]
+    fichas = {r.get("id"): r for r in leer_json(DB, {"frames": []}).get("frames", []) if r.get("id") in set(ids)}
+    tareas = [fichas[i] for i in ids if i in fichas]
+    if not tareas:
+        raise RuntimeError("No hay tomas que resolver.")
+    ASTROM.update(id=ASTROM["id"] + 1, activo=True, objeto=str(d.get("objeto") or ""), total=len(tareas), hechas=0, actual="",
+                  resultados={}, errores={}, cancelar=False, error="", siril=ver)
+    threading.Thread(target=_astrometria_hilo, args=(tareas, siril, ver, d.get("pista") or {}), daemon=True).start()
+    return astrometria_estado()
+
+
+def _astrometria_hilo(tareas, siril, ver, pista):
+    try:
+        for r in tareas:
+            if ASTROM["cancelar"]:
+                break
+            ASTROM["actual"] = r.get("name") or ""
+            try:
+                ASTROM["resultados"][r["id"]] = _resolver_toma(siril, ver, r, pista)
+            except Exception as e:
+                if str(e) == "Cancelado":
+                    break
+                ASTROM["errores"][r["id"]] = str(e)
+            ASTROM["hechas"] += 1
+    except Exception as e:
+        ASTROM["error"] = str(e)
+    finally:
+        ASTROM["activo"] = False
+        ASTROM["actual"] = ""
+
+
+def astrometria_estado():
+    return {k: ASTROM[k] for k in ("id", "activo", "objeto", "total", "hechas", "actual", "resultados", "errores", "error", "siril", "cancelar")}
+
+
+def astrometria_parar():
+    ASTROM["cancelar"] = True
+    p = _ASTROM_P["p"]
+    if p:
+        try:
+            p.terminate()
+        except Exception:
+            pass
+    return astrometria_estado()
 
 
 def archivo_proyectos(d=None):
@@ -14753,6 +15058,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(archivo_calibracion(), ensure_ascii=False))
         if p.path == "/api/archivo/cobertura":
             return self._send(200, json.dumps(cobertura_calibracion(q.get("objeto", [""])[0]), ensure_ascii=False, default=str))
+        if p.path == "/api/astrometria/estado":
+            return self._send(200, json.dumps(astrometria_estado(), ensure_ascii=False))
         if p.path == "/api/archivo/historial":
             return self._send(200, json.dumps(archivo_historial(q.get("objeto", [""])[0]), ensure_ascii=False))
         if p.path == "/api/archivo/proyectos":
@@ -14994,6 +15301,13 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(archivo_carpetas(json.loads(self._body() or b"{}")), ensure_ascii=False))
             if p.path == "/api/archivo/proyectos":
                 return self._send(200, json.dumps(archivo_proyectos(json.loads(self._body() or b"{}")), ensure_ascii=False))
+            if p.path == "/api/astrometria/resolver":
+                try:
+                    return self._send(200, json.dumps(astrometria_resolver(json.loads(self._body() or b"{}")), ensure_ascii=False))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/astrometria/parar":
+                return self._send(200, json.dumps(astrometria_parar(), ensure_ascii=False))
             if p.path == "/api/archivo/cal_enviar":
                 return self._send(200, json.dumps(archivo_cal_enviar(), ensure_ascii=False))
             if p.path == "/api/importar/elegir":
