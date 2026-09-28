@@ -42,8 +42,9 @@ Use o ASTRO com **os seus dados reais**, como faria normalmente. Se tiver tempo,
 15. **Ciência → Diagramas H-R**: se tiver empilhamentos de um enxame aberto em dois filtros (ou a cores), meça-o. A distância e o avermelhamento parecem-se com os publicados (por exemplo, no WEBDA ou em Cantat-Gaudin 2020)?
 16. **Ciência → Espetroscopia**: se tiver um Star Analyser, meça o espetro de uma estrela brilhante (Vega é ideal). Encontra a estrela e o espetro? As linhas de Balmer caem no sítio certo? Se medir outra estrela na mesma noite, experimente usar Vega como referência.
 17. **O novo aspeto**: experimente os modos Dia, Noite e Vermelho (em baixo, à esquerda). Lê-se tudo bem? Há algo no modo Vermelho que o incomode à noite?
-18. **Dados de exemplo e novidades**: experimente «Ver com dados de exemplo» (na janela inicial) e dê uma volta por todas as secções. Percebe-se o que faz cada uma? Volta bem aos seus dados com «Voltar aos meus dados»? E quando o ASTRO se atualizou, apareceu a janela «Novidades»?
-19. Em geral: o que acha confuso ou lento, ou de que sente falta?
+18. **Arquivo**: se tem anos de fotografias em pastas, clique em «Indexar uma pasta» e escolha a pasta principal. Quanto tempo demora? Os seus projetos, as horas por filtro e as temporadas estão certos? Entre num projeto e siga os passos (analisar, depurar, calibração e empilhar). Falta-lhe alguma coisa para continuar os seus projetos ano após ano?
+19. **Dados de exemplo e novidades**: experimente «Ver com dados de exemplo» (na janela inicial) e dê uma volta por todas as secções. Percebe-se o que faz cada uma? Volta bem aos seus dados com «Voltar aos meus dados»? E quando o ASTRO se atualizou, apareceu a janela «Novidades»?
+20. Em geral: o que acha confuso ou lento, ou de que sente falta?
 
 ## Como comunicar o que encontrar
 No ASTRO: **menu «Mais» → «Comunicar um problema ou sugestão»**. Escreva o que aconteceu por palavras suas; o programa acrescenta automaticamente os dados técnicos (versão, sistema e registo). **Não envia as suas fotos nem dados pessoais.** Se puder, anexe uma captura de ecrã.

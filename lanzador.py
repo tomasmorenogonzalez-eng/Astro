@@ -194,37 +194,49 @@ TXT = {
 
 
 TXT_EXTRA = {
-    "es": {"ejemplo_ver": "Ver con datos de ejemplo", "ejemplo_carpeta": "datos de ejemplo",
+    "es": {"t_archivo": "Archivo", "d_archivo": "Tus proyectos de todos los años: horas, temporadas y cómo seguir.",
+           "t_quefoto": "¿Qué fotografío?", "d_quefoto": "Objetos que esa noche se ven bien y caben en tu campo.",
+           "ejemplo_ver": "Ver con datos de ejemplo", "ejemplo_carpeta": "datos de ejemplo",
            "ejemplo_aviso": "Estás viendo ASTRO con datos de ejemplo: tomas y medidas inventadas para que lo explores. Lo que cambies aquí no se guarda.",
            "ejemplo_volver": "Volver a mis datos", "ejemplo_empezar": "Empezar con mis datos",
            "ejemplo_bienv": "¿Quieres verlo antes de usar tus fotos?",
            "ejemplo_error": "No se pudieron preparar los datos de ejemplo:\n%s",
            "novedades": "Novedades", "novedades_titulo": "Novedades de ASTRO %s", "entendido": "Entendido"},
-    "en": {"ejemplo_ver": "Try it with example data", "ejemplo_carpeta": "example data",
+    "en": {"t_archivo": "Archive", "d_archivo": "All your projects over the years: hours, seasons and how to carry on.",
+           "t_quefoto": "What should I shoot?", "d_quefoto": "Targets that look good that night and fit your field of view.",
+           "ejemplo_ver": "Try it with example data", "ejemplo_carpeta": "example data",
            "ejemplo_aviso": "You're looking at ASTRO with example data: made-up frames and measurements for you to explore. Nothing you change here is kept.",
            "ejemplo_volver": "Back to my data", "ejemplo_empezar": "Start with my data",
            "ejemplo_bienv": "Want to look around before using your own frames?",
            "ejemplo_error": "The example data could not be prepared:\n%s",
            "novedades": "What's new", "novedades_titulo": "What's new in ASTRO %s", "entendido": "Got it"},
-    "fr": {"ejemplo_ver": "Essayer avec des données d'exemple", "ejemplo_carpeta": "données d'exemple",
+    "fr": {"t_archivo": "Archives", "d_archivo": "Tous vos projets au fil des ans\u00a0: heures, saisons et comment continuer.",
+           "t_quefoto": "Que photographier\u00a0?", "d_quefoto": "Les objets bien placés cette nuit-là et qui tiennent dans votre champ.",
+           "ejemplo_ver": "Essayer avec des données d'exemple", "ejemplo_carpeta": "données d'exemple",
            "ejemplo_aviso": "Vous découvrez ASTRO avec des données d'exemple\u00a0: poses et mesures fictives. Ce que vous modifiez ici n'est pas conservé.",
            "ejemplo_volver": "Revenir à mes données", "ejemplo_empezar": "Commencer avec mes données",
            "ejemplo_bienv": "Envie de le découvrir avant d'utiliser vos photos\u00a0?",
            "ejemplo_error": "Impossible de préparer les données d'exemple\u00a0:\n%s",
            "novedades": "Nouveautés", "novedades_titulo": "Nouveautés d'ASTRO %s", "entendido": "Compris"},
-    "de": {"ejemplo_ver": "Mit Beispieldaten ansehen", "ejemplo_carpeta": "Beispieldaten",
+    "de": {"t_archivo": "Archiv", "d_archivo": "All deine Projekte über die Jahre: Stunden, Saisons und wie es weitergeht.",
+           "t_quefoto": "Was fotografiere ich?", "d_quefoto": "Objekte, die in der Nacht gut stehen und in dein Bildfeld passen.",
+           "ejemplo_ver": "Mit Beispieldaten ansehen", "ejemplo_carpeta": "Beispieldaten",
            "ejemplo_aviso": "Du siehst ASTRO mit Beispieldaten: erfundene Aufnahmen und Messungen zum Ausprobieren. Was du hier änderst, wird nicht gespeichert.",
            "ejemplo_volver": "Zurück zu meinen Daten", "ejemplo_empezar": "Mit meinen Daten beginnen",
            "ejemplo_bienv": "Willst du dich erst umsehen, bevor du deine Fotos verwendest?",
            "ejemplo_error": "Die Beispieldaten konnten nicht vorbereitet werden:\n%s",
            "novedades": "Neuigkeiten", "novedades_titulo": "Neu in ASTRO %s", "entendido": "Verstanden"},
-    "it": {"ejemplo_ver": "Prova con dati di esempio", "ejemplo_carpeta": "dati di esempio",
+    "it": {"t_archivo": "Archivio", "d_archivo": "Tutti i tuoi progetti negli anni: ore, stagioni e come continuare.",
+           "t_quefoto": "Cosa fotografo?", "d_quefoto": "Oggetti ben visibili quella notte e che entrano nel tuo campo.",
+           "ejemplo_ver": "Prova con dati di esempio", "ejemplo_carpeta": "dati di esempio",
            "ejemplo_aviso": "Stai guardando ASTRO con dati di esempio: pose e misure inventate da esplorare. Le modifiche fatte qui non vengono salvate.",
            "ejemplo_volver": "Torna ai miei dati", "ejemplo_empezar": "Inizia con i miei dati",
            "ejemplo_bienv": "Vuoi dare un'occhiata prima di usare le tue foto?",
            "ejemplo_error": "Impossibile preparare i dati di esempio:\n%s",
            "novedades": "Novità", "novedades_titulo": "Novità di ASTRO %s", "entendido": "Ho capito"},
-    "pt": {"ejemplo_ver": "Ver com dados de exemplo", "ejemplo_carpeta": "dados de exemplo",
+    "pt": {"t_archivo": "Arquivo", "d_archivo": "Todos os seus projetos ao longo dos anos: horas, temporadas e como continuar.",
+           "t_quefoto": "O que fotografar?", "d_quefoto": "Objetos que nessa noite se veem bem e cabem no seu campo.",
+           "ejemplo_ver": "Ver com dados de exemplo", "ejemplo_carpeta": "dados de exemplo",
            "ejemplo_aviso": "Está a ver o ASTRO com dados de exemplo: exposições e medidas fictícias para explorar. O que alterar aqui não é guardado.",
            "ejemplo_volver": "Voltar aos meus dados", "ejemplo_empezar": "Começar com os meus dados",
            "ejemplo_bienv": "Quer espreitar antes de usar as suas fotografias?",
@@ -411,15 +423,15 @@ def _tarjeta(padre, dibujo, titulo, texto, orden, con_texto=True):
     img = _imagen(dibujo)
     if img:
         padre.winfo_toplevel()._imgs.append(img)
-        l = tk.Label(t, image=img, bg=FONDO_T, bd=0, cursor="hand2"); l.pack(padx=10, pady=(10, 6)); partes.append(l)
-    tk.Frame(t, bg=FONDO_T, width=236, height=0).pack()     # todas las tarjetas del mismo ancho
-    l = tk.Label(t, text=titulo, bg=FONDO_T, fg=TEXTO, font=("Helvetica", 14, "bold"), anchor="w", justify="left",
-                 wraplength=212, cursor="hand2")
-    l.pack(fill="x", padx=12); partes.append(l)
+        l = tk.Label(t, image=img, bg=FONDO_T, bd=0, cursor="hand2"); l.pack(padx=7, pady=(7, 5)); partes.append(l)
+    tk.Frame(t, bg=FONDO_T, width=182, height=0).pack()     # todas las tarjetas del mismo ancho (cinco por fila)
+    l = tk.Label(t, text=titulo, bg=FONDO_T, fg=TEXTO, font=("Helvetica", 13, "bold"), anchor="w", justify="left",
+                 wraplength=166, height=2, cursor="hand2")
+    l.pack(fill="x", padx=9); partes.append(l)
     if con_texto:
         l = tk.Label(t, text=texto, bg=FONDO_T, fg=GRIS, font=("Helvetica", 11), anchor="nw", justify="left",
-                     wraplength=206, height=3, cursor="hand2")
-        l.pack(fill="x", padx=12, pady=(2, 10)); partes.append(l)
+                     wraplength=164, height=4, cursor="hand2")
+        l.pack(fill="x", padx=9, pady=(0, 8)); partes.append(l)
     else:
         tk.Frame(t, bg=FONDO_T, height=8).pack()
 
@@ -1007,15 +1019,17 @@ def _ventana_inicio(datos, puertos):
     abrir = lambda u: (lambda: webbrowser.open(u))
     apartados = [("apartado-anadir.png", "t_anadir", "d_anadir", abrir(L + "#anadir")),
                  ("apartado-objetos.png", "t_objetos", "d_objetos", abrir(L + "#objetos")),
+                 ("apartado-archivo.png", "t_archivo", "d_archivo", abrir(L + "#archivo")),
                  ("apartado-varios.png", "t_varios", "d_varios", abrir(L + "#varios")),
-                 ("apartado-noches.png", "t_noches", "d_noches", abrir(L + "#noches")),
-                 ("apartado-directo.png", "t_directo", "d_directo", abrir(L + "#directo")),
                  ("apartado-apilar.png", "t_apilar", "d_apilar", abrir(L + "#apilar")),
+                 ("apartado-noches.png", "t_noches", "d_noches", abrir(L + "#noches")),
+                 ("apartado-quefotografio.png", "t_quefoto", "d_quefoto", abrir(L + "#quefotografio")),
+                 ("apartado-directo.png", "t_directo", "d_directo", abrir(L + "#directo")),
                  ("apartado-calibracion.png", "t_calib", "d_calib", abrir(C)),
                  ("apartado-ciencia.png", "t_ciencia", "d_ciencia", abrir(S))]
-    # ocho apartados: cuatro arriba y cuatro abajo
+    # diez apartados: arriba tus datos y el procesado; abajo la noche y los otros programas
     rejilla = tk.Frame(c, bg=FONDO); rejilla.pack()
-    for fila_ap in (apartados[:4], apartados[4:]):
+    for fila_ap in (apartados[:5], apartados[5:]):
         fila_t = tk.Frame(rejilla, bg=FONDO); fila_t.pack()
         for dib, t, d, orden in fila_ap:
             _tarjeta(fila_t, dib, T(t), T(d), orden, con_texto=not baja).pack(side="left", padx=8, pady=8, anchor="n")

@@ -13,7 +13,7 @@ S = 3                                   # sobremuestreo
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA = os.path.join(AQUI, "..", "imagenes")
 TARJ = (264, 132)                       # lienzo de cada dibujo de apartado (se dibuja a este tamaño)
-TARJ_FINAL = (216, 108)                 # tamaño con el que se guarda (ocho apartados en dos filas)
+TARJ_FINAL = (168, 84)                  # tamaño con el que se guarda (diez apartados en dos filas de cinco)
 CAB = (1100, 176)                       # tamaño final de la cabecera (la ventana de inicio mide 1080)
 
 NOCHE1, NOCHE2 = (18, 14, 40), (46, 30, 86)
@@ -166,7 +166,7 @@ def banda(nombre_dibujo, salida, semilla):
 
 def versiones_web():
     _jpg(ORIGINALES["cabecera.png"], "cabecera.jpg", (CAB[0] * 2, CAB[1] * 2))
-    for i, n in enumerate(("anadir", "objetos", "noches", "directo", "apilar", "calibracion", "varios", "ciencia")):
+    for i, n in enumerate(("anadir", "objetos", "noches", "directo", "apilar", "calibracion", "varios", "ciencia", "archivo", "quefotografio")):
         _jpg(ORIGINALES["apartado-%s.png" % n], "dibujo-%s.jpg" % n, (TARJ[0] * 2, TARJ[1] * 2))
         banda("apartado-%s.png" % n, "banda-%s.jpg" % n, 100 + i)
 
@@ -548,6 +548,59 @@ def d_ciencia():
     guardar(im, "apartado-ciencia.png", TARJ_FINAL)
 
 
+def d_archivo():
+    """Años de tomas en sus carpetas y, al lado, las horas de cada temporada: el archivo de proyectos."""
+    w, h = TARJ
+    im = fondo_tarjeta(9)
+    d = ImageDraw.Draw(im)
+    # tres carpetas, una detrás de otra, con tomas asomando
+    for i, (col, obj) in enumerate((((70, 52, 118), "nebulosa"), ((88, 62, 142), "cumulo"), ((110, 76, 170), "galaxia"))):
+        x, y = (16 + i * 12) * S, (28 + i * 14) * S
+        toma(im, x + 10 * S, y - 12 * S, 70 * S, 40 * S, 90 + i, obj)
+        d = ImageDraw.Draw(im)
+        d.polygon([(x, y + 6 * S), (x + 26 * S, y + 6 * S), (x + 32 * S, y), (x + 92 * S, y), (x + 92 * S, y + 64 * S), (x, y + 64 * S)],
+                  fill=col + (255,), outline=(215, 200, 245, 200))
+        d.rounded_rectangle([x + 8 * S, y + 16 * S, x + 44 * S, y + 22 * S], radius=2 * S, fill=(255, 255, 255, 70))
+    # horas por temporada: siete barras y la de este año en dorado
+    bx, base = 150 * S, 112 * S
+    alturas = [26, 44, 34, 58, 48, 70, 40]
+    d.line([bx - 4 * S, base, bx + 104 * S, base], fill=(255, 255, 255, 90), width=S)
+    for i, a in enumerate(alturas):
+        x0 = bx + i * 15 * S
+        col = ORO if i == len(alturas) - 1 else LILA
+        d.rounded_rectangle([x0, base - a * S, x0 + 10 * S, base], radius=2 * S, fill=col + (255 if i == len(alturas) - 1 else 215,))
+    check(im, bx + 98 * S, 22 * S, 8 * S, VERDE)
+    guardar(im, "apartado-archivo.png", TARJ_FINAL)
+
+
+def d_quefotografio():
+    """El campo de tu cámara encuadrando un objeto que esa noche se ve bien, y la lupa que lo busca."""
+    w, h = TARJ
+    im = degradado(w, h, (14, 12, 38), (52, 34, 98))
+    estrellas(im, 70, 12, brillo=0.85, tam=0.85)
+    cx, cy = 150 * S, 60 * S
+    mancha(im, [cx - 50 * S, cy - 26 * S, cx + 50 * S, cy + 30 * S], (220, 70, 120), 11 * S, 150)
+    mancha(im, [cx - 24 * S, cy - 14 * S, cx + 30 * S, cy + 16 * S], (90, 170, 230), 8 * S, 120)
+    galaxia(im, 226 * S, 26 * S, 16 * S, 6 * S, -35)
+    d = ImageDraw.Draw(im)
+    # campo de la cámara: esquinas marcadas y la cruz del centro
+    x0, y0, x1, y1 = cx - 44 * S, cy - 30 * S, cx + 44 * S, cy + 30 * S
+    L = 12 * S
+    for (px, py, dx, dy) in ((x0, y0, 1, 1), (x1, y0, -1, 1), (x0, y1, 1, -1), (x1, y1, -1, -1)):
+        d.line([px, py, px + dx * L, py], fill=ORO + (255,), width=int(2.4 * S))
+        d.line([px, py, px, py + dy * L], fill=ORO + (255,), width=int(2.4 * S))
+    d.line([cx - 6 * S, cy, cx + 6 * S, cy], fill=ORO + (200,), width=int(1.4 * S))
+    d.line([cx, cy - 6 * S, cx, cy + 6 * S], fill=ORO + (200,), width=int(1.4 * S))
+    # lupa
+    lx, ly, r = 52 * S, 70 * S, 20 * S
+    d.ellipse([lx - r, ly - r, lx + r, ly + r], outline=(235, 228, 255, 255), width=int(3.2 * S))
+    d.ellipse([lx - r + 3 * S, ly - r + 3 * S, lx + r - 3 * S, ly + r - 3 * S], fill=(255, 255, 255, 28))
+    d.line([lx + r * 0.72, ly + r * 0.72, lx + r * 1.55, ly + r * 1.55], fill=(235, 228, 255, 255), width=int(5 * S))
+    brillo_estrella(im, lx - 4 * S, ly - 3 * S, 2 * S, ORO)
+    check(im, x1, y0, 7 * S, VERDE)
+    guardar(im, "apartado-quefotografio.png", TARJ_FINAL)
+
+
 LETRAS = {  # trazos de una fuente de palo en una rejilla de 4×6
     "D": [[(0, 0), (0, 6), (2.5, 6), (4, 4.5), (4, 1.5), (2.5, 0), (0, 0)]],
     "A": [[(0, 6), (2, 0), (4, 6)], [(0.7, 4), (3.3, 4)]],
@@ -574,5 +627,6 @@ def _rotulo(d, texto, cx, cy, alto):
 
 if __name__ == "__main__":
     cabecera(); d_anadir(); d_objetos(); d_noches(); d_directo(); d_apilar(); d_calibracion(); d_varios(); d_ciencia()
+    d_archivo(); d_quefotografio()
     versiones_web()
     print("Dibujos guardados en", os.path.abspath(SALIDA))

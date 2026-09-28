@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.21",
+  "es": [
+   "Nuevo apartado «Archivo», para quien llega con años de fotos: indexa tus carpetas leyendo solo las cabeceras (miles de tomas en unos minutos, sin copiar nada) y verás cada proyecto con sus horas por filtro, sus temporadas y un calendario de noches.",
+   "Dentro de cada proyecto, paso a paso: analizar sus tomas, depurar, calibración, apilar y continuar.",
+   "La ventana de inicio tiene diez apartados: se suman «Archivo» y «¿Qué fotografío?»."
+  ],
+  "en": [
+   "New “Archive” section, for anyone with years of frames: index your folders by reading only the headers (thousands of frames in a few minutes, nothing copied) and see each project with its hours per filter, its seasons and a calendar of nights.",
+   "Inside each project, step by step: analyse its frames, clean up, calibration, stack and carry on.",
+   "The start window has ten sections: “Archive” and “What should I shoot?” are new."
+  ],
+  "fr": [
+   "Nouvelle section « Archives », pour ceux qui ont des années de photos : indexez vos dossiers en ne lisant que les en-têtes (des milliers de poses en quelques minutes, sans rien copier) et voyez chaque projet avec ses heures par filtre, ses saisons et un calendrier des nuits.",
+   "Dans chaque projet, pas à pas : analyser ses poses, faire le tri, calibration, empiler et continuer.",
+   "La fenêtre d'accueil compte dix sections : « Archives » et « Que photographier ? » sont nouvelles."
+  ],
+  "de": [
+   "Neuer Bereich „Archiv“, für alle mit Aufnahmen aus vielen Jahren: Indexiere deine Ordner, indem nur die Header gelesen werden (Tausende Aufnahmen in wenigen Minuten, nichts wird kopiert), und sieh jedes Projekt mit seinen Stunden pro Filter, seinen Saisons und einem Kalender der Nächte.",
+   "In jedem Projekt Schritt für Schritt: Aufnahmen analysieren, aussortieren, Kalibrierung, stacken und weitermachen.",
+   "Das Startfenster hat zehn Bereiche: „Archiv“ und „Was fotografiere ich?“ sind neu."
+  ],
+  "it": [
+   "Nuova sezione «Archivio», per chi ha anni di foto: indicizza le tue cartelle leggendo solo le intestazioni (migliaia di pose in pochi minuti, senza copiare nulla) e vedrai ogni progetto con le sue ore per filtro, le stagioni e un calendario delle notti.",
+   "Dentro ogni progetto, passo dopo passo: analizzare le pose, scremare, calibrazione, impilare e continuare.",
+   "La finestra iniziale ha dieci sezioni: si aggiungono «Archivio» e «Cosa fotografo?»."
+  ],
+  "pt": [
+   "Nova secção «Arquivo», para quem tem anos de fotografias: indexe as suas pastas lendo só os cabeçalhos (milhares de exposições em poucos minutos, sem copiar nada) e veja cada projeto com as suas horas por filtro, as temporadas e um calendário das noites.",
+   "Dentro de cada projeto, passo a passo: analisar as exposições, depurar, calibração, empilhar e continuar.",
+   "A janela inicial tem dez secções: juntam-se «Arquivo» e «O que fotografar?»."
+  ]
+ },
+ {
   "version": "0.20.1",
   "es": [
    "Desde la biblioteca de calibración y desde Ciencia, el botón «Volver a…» de arriba a la izquierda te devuelve justo donde estabas en el control de lights: Mis objetos, Todas las tomas o el resumen de un objeto."

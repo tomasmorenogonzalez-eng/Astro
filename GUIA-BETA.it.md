@@ -42,8 +42,9 @@ Usa ASTRO con **i tuoi dati reali**, come faresti normalmente. Se ti avanza temp
 15. **Scienza → Diagrammi H-R**: se hai immagini impilate di un ammasso aperto in due filtri (o a colori), misuralo. La distanza e l'arrossamento somigliano a quelli pubblicati (per esempio, in WEBDA o in Cantat-Gaudin 2020)?
 16. **Scienza → Spettroscopia**: se hai uno Star Analyser, misura lo spettro di una stella brillante (Vega è ideale). Trova la stella e lo spettro? Le righe di Balmer cadono al loro posto? Se misuri un'altra stella la stessa notte, prova a usare Vega come riferimento.
 17. **Il nuovo aspetto**: prova le modalità Giorno, Notte e Rosso (in basso a sinistra). Si legge bene tutto? C'è qualcosa della modalità Rosso che ti dà fastidio di notte?
-18. **Dati di esempio e novità**: prova «Prova con dati di esempio» (nella finestra iniziale) e fai un giro in tutte le sezioni. Si capisce cosa fa ciascuna? Torni bene ai tuoi dati con «Torna ai miei dati»? E quando ASTRO si è aggiornato, è comparsa la finestra «Novità»?
-19. In generale: cosa trovi confuso, lento o senti che manca?
+18. **Archivio**: se hai anni di foto in cartelle, premi «Indicizza una cartella» e scegli la cartella principale. Quanto ci mette? I tuoi progetti, le loro ore per filtro e le stagioni sono corretti? Entra in un progetto e segui i passi (analizzare, scremare, calibrazione e impilare). Ti manca qualcosa per portare avanti i tuoi progetti anno dopo anno?
+19. **Dati di esempio e novità**: prova «Prova con dati di esempio» (nella finestra iniziale) e fai un giro in tutte le sezioni. Si capisce cosa fa ciascuna? Torni bene ai tuoi dati con «Torna ai miei dati»? E quando ASTRO si è aggiornato, è comparsa la finestra «Novità»?
+20. In generale: cosa trovi confuso, lento o senti che manca?
 
 ## Come raccontarmi quello che trovi
 In ASTRO: **menu «Altro» → «Segnala un problema o un suggerimento»**. Scrivi cosa è successo con parole tue; il programma aggiunge da solo i dati tecnici (versione, sistema e log). **Non invia le tue foto né dati personali.** Se puoi, allega uno screenshot.

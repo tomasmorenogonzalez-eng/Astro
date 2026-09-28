@@ -24,6 +24,8 @@ ASTRO fa questo lavoro al posto tuo. È gratuito, funziona su **Mac** e su **Win
 
 **Si accorge da solo delle tue sessioni.** Digli una volta in quali cartelle salvano le foto l'ASIAIR, N.I.N.A. o il tuo programma di acquisizione e ASTRO le controlla all'apertura e ogni dieci minuti: le nuove pose vengono analizzate e sistemate da sole, senza trascinare niente.
 
+**Mette ordine in anni di foto.** La sezione **Archivio** indicizza le tue cartelle di tutti gli anni leggendo solo le intestazioni, senza copiare nulla, e ti mostra ogni progetto con le sue ore per filtro e per stagione. Dentro ognuno, lo analizzi, lo scremi e lo impili passo dopo passo.
+
 **Ti aiuta a raggiungere il tuo obiettivo.** Per ogni oggetto vedi quante ore utili hai per filtro, quante te ne mancano e quante notti ti serviranno ancora, più o meno. E come procede notte dopo notte: l'FWHM e il fondo di ogni sessione, quali notti sono state scarse (rispetto al normale di ogni attrezzatura e filtro) e quanto migliora davvero il rapporto segnale/rumore con un'altra notte. Le notti scarse si possono **lasciare fuori dall'impilamento** con un pulsante, senza cancellare niente, e nella scheda di ogni posa vedi **quale dark, flat e bias le toccano** nell'impilamento e cosa le manca.
 
 **E ti dice quando.** Con il tuo luogo di osservazione, la Luna e l'altezza di ogni oggetto, ASTRO ti mostra quali notti del prossimo mese vanno bene per ciò che ti manca: la banda larga quando non c'è la Luna e l'Hα, l'OIII o l'SII quando c'è. In «Prossime notti» vedi a colpo d'occhio cosa fare stanotte e le notti seguenti, con le previsioni dei prossimi sette giorni ora per ora (nuvole, umidità, rugiada e vento). Salva più luoghi, ognuno con il suo orizzonte (gli alberi, la casa o la cupola), e ti disegna l'altezza di ogni oggetto stanotte. E se cerchi qualcosa di nuovo, **«Cosa fotografo?»** ti propone oggetti adatti al campo della tua attrezzatura e ti prepara il piano per N.I.N.A. o l'ASIAIR.
@@ -50,7 +52,7 @@ ASTRO fa questo lavoro al posto tuo. È gratuito, funziona su **Mac** e su **Win
    - Windows 10 o 11: **ASTRO-Windows.exe**
 2. **Fai doppio clic.** ASTRO si installa da solo e, da quel momento, si aggiorna da solo (e ti racconta le novità di ogni versione).
 3. Scegli la lingua e la cartella in cui vuoi salvare le tue foto. Può stare su un disco esterno. Preferisci dare prima un'occhiata? Premi **«Prova con dati di esempio»** ed esploralo con pose e misure di esempio, senza toccare niente di tuo.
-4. Nella **finestra iniziale** scegli da dove cominciare: ogni sezione (Aggiungi pose, I miei oggetti, Più configurazioni, Prossime notti, Sessione in diretta, Impila con Siril, Calibrazione e Scienza) ha il suo disegno e si apre nel tuo browser. Trascina la cartella di una notte di foto e lascia che ASTRO faccia il resto.
+4. Nella **finestra iniziale** scegli da dove cominciare: ogni sezione (Aggiungi pose, I miei oggetti, Archivio, Più configurazioni, Impila con Siril, Prossime notti, Cosa fotografo?, Sessione in diretta, Calibrazione e Scienza) ha il suo disegno e si apre nel tuo browser. Trascina la cartella di una notte di foto e lascia che ASTRO faccia il resto.
 
 Su **Mac**, ASTRO è firmato e approvato da Apple: si apre con un doppio clic, senza avvisi.
 

@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.28.8"
+VERSION_PROG = "2026.09.28.9"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -701,10 +701,11 @@ const VOLVER_ASTRO = (() => { try {
 } catch(_){ return null; } })();
 function ponerVolverAstro(p){
   const a = document.getElementById("volverLights"); if (!a || !p) return;
-  const v = VOLVER_ASTRO || "", obj = v.startsWith("obj:") ? v.slice(4) : "";
-  a.href = `http://127.0.0.1:${p}/#` + (obj ? "obj=" + encodeURIComponent(obj) : v === "tomas" ? "tomas" : "objetos");
+  const v = VOLVER_ASTRO || "", obj = v.startsWith("obj:") ? v.slice(4) : "", proy = v.startsWith("arc:") ? v.slice(4) : "";
+  a.href = `http://127.0.0.1:${p}/#` + (obj ? "obj=" + encodeURIComponent(obj) : proy ? "archivo=" + encodeURIComponent(proy)
+    : v === "tomas" ? "tomas" : v === "archivo" ? "archivo" : "objetos");
   a.querySelector("small").textContent = VOLVER_ASTRO === null ? trLT("Ir a", "Go to") : trLT("Volver a", "Back to");
-  a.querySelector("b").textContent = obj || (v === "tomas" ? trLT("Todas las tomas", "All frames") : trLT("Mis objetos", "My targets"));
+  a.querySelector("b").textContent = obj || proy || (v === "tomas" ? trLT("Todas las tomas", "All frames") : v === "archivo" ? (IDIOMA === "es" ? "Archivo" : IDIOMA === "en" ? "Archive" : (DIC["Archivo (apartado)"] ?? "Archive")) : trLT("Mis objetos", "My targets"));
   a.title = trLT("Control de lights", "Light frame checker");
   a.style.display = "";
 }
