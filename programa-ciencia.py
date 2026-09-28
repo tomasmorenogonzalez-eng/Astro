@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.28.5"
+VERSION_PROG = "2026.09.28.6"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -4800,6 +4800,589 @@ def zip_hr(sid, en=False):
     return mem.getvalue(), "ASTRO-HR-%s.zip" % re.sub(r"[^\w.-]+", "_", serie.get("nombre") or serie["id"])
 
 
+# ═════════════════════════════ ESPECTROSCOPIA (red de difracción delante de la cámara) ═════════════════════════════
+ESPECTROS_DIR = os.path.join(ROOT, "Espectros")
+LINEAS_ESPECTRO = [("Hε", 3970.1, "H"), ("Hδ", 4101.7, "H"), ("Hγ", 4340.5, "H"), ("Hβ", 4861.3, "H"), ("Mg b", 5175.0, "met"),
+                   ("Na D", 5892.9, "met"), ("Hα", 6562.8, "H"), ("O₂ B", 6869.0, "tel"), ("H₂O", 7186.0, "tel"), ("O₂ A", 7605.0, "tel")]
+PLANCK_C2 = 1.4388e8        # hc/k en Å·K
+
+
+class _Region:
+    """Un trozo de la imagen en memoria (sumando los planos si es en color), con lectura bilineal."""
+    def __init__(self, ruta, cx, cy, radio):
+        img = Imagen(ruta, plano=0)
+        try:
+            self.w, self.h, planos = img.w, img.h, img.planos
+        finally:
+            img.cerrar()
+        self.x0, self.y0 = max(0, int(cx - radio)), max(0, int(cy - radio))
+        self.x1, self.y1 = min(self.w, int(cx + radio) + 1), min(self.h, int(cy + radio) + 1)
+        filas = None
+        for pl in range(planos if planos >= 3 else 1):
+            im = Imagen(ruta, plano=pl)
+            try:
+                f = [array.array("f", r) for r in im.recorte(self.x0, self.y0, self.x1, self.y1)]
+            finally:
+                im.cerrar()
+            filas = f if filas is None else [array.array("f", (a + b for a, b in zip(r1, r2))) for r1, r2 in zip(filas, f)]
+        self.filas = filas
+        muestra = [v for r in filas[::7] for v in r[::7]]
+        self.fondo, self.ruido, _n = sigma_clip(muestra, 3.0, 5)
+
+    def v(self, x, y):
+        xi, yi = x - self.x0, y - self.y0
+        i, j = int(math.floor(xi)), int(math.floor(yi))
+        if i < 0 or j < 0 or j + 1 >= len(self.filas) or i + 1 >= len(self.filas[0]):
+            return None
+        fx, fy = xi - i, yi - j
+        f0, f1 = self.filas[j], self.filas[j + 1]
+        return (f0[i] * (1 - fx) + f0[i + 1] * fx) * (1 - fy) + (f1[i] * (1 - fx) + f1[i + 1] * fx) * fy
+
+
+def orden_cero(ruta, pista=None):
+    """Posición de la estrella (orden cero): la que se indique o la más brillante de la imagen."""
+    img = Imagen(ruta)
+    try:
+        if pista:
+            x, y = pista
+        else:
+            paso = max(1, int(math.sqrt(img.w * img.h / 400000)))
+            mejor = (-1e30, img.w / 2, img.h / 2)
+            for yy in range(0, img.h, paso):
+                f = img.fila(yy, 0, img.w)
+                for xx in range(0, img.w, paso):
+                    if f[xx] > mejor[0]:
+                        mejor = (f[xx], xx, yy)
+            x, y = mejor[1], mejor[2]
+        c = medir_estrella(img, x, y, 6.0, 14.0, 22.0, centrar=True)
+        if c:
+            c2 = medir_estrella(img, c["x"], c["y"], 6.0, 14.0, 22.0, centrar=True) or c
+            x, y = c2["x"], c2["y"]
+        fw = fwhm_hfr(img, x, y, 12.0) or 3.0
+        return x, y, fw, (img.w, img.h)
+    finally:
+        img.cerrar()
+
+
+def direccion_espectro(reg, x0, y0, rmin, rmax):
+    """Ángulo (grados) en el que sale el espectro del orden cero: la dirección con más luz entre rmin y rmax."""
+    def suma(th, ancho=1):
+        ct, st = math.cos(math.radians(th)), math.sin(math.radians(th))
+        s = 0.0
+        for r in range(int(rmin), int(rmax), 2):
+            for t in range(-ancho, ancho + 1):
+                v = reg.v(x0 + r * ct - t * st, y0 + r * st + t * ct)
+                if v is not None:
+                    s += v - reg.fondo
+        return s
+    puntos = [(suma(th), th) for th in range(0, 360, 1)]
+    _s, th = max(puntos)
+    paso = 0.5
+    while paso > 0.02:
+        cands = [(suma(t, 0), t) for t in (th - paso, th, th + paso)]
+        _s, th = max(cands)
+        paso /= 2
+    return th % 360.0
+
+
+def extraer_espectro(reg, x0, y0, th, dmin, dmax, fw):
+    """Perfil del espectro a lo largo de la dirección th: para cada distancia d al orden cero, la luz en una franja
+    de ±1,5 FWHM menos el fondo de dos bandas a los lados."""
+    ct, st = math.cos(math.radians(th)), math.sin(math.radians(th))
+    med = max(2.0, 1.5 * fw)
+    b1, b2 = med + 4, med + 12
+    out = []
+    for d in range(int(dmin), int(dmax)):
+        suma, fondo = 0.0, []
+        n = 0
+        entera = True
+        for k in range(-int(b2), int(b2) + 1):
+            v = reg.v(x0 + d * ct - k * st, y0 + d * st + k * ct)
+            if v is None:
+                entera = False                      # la franja se sale de la imagen: se para aquí
+                break
+            if abs(k) <= med:
+                suma += v
+                n += 1
+            elif b1 <= abs(k) <= b2:
+                fondo.append(v)
+        if not entera:
+            if out:
+                break
+            continue
+        if n and len(fondo) >= 4:
+            fondo.sort()
+            out.append((d, suma - n * fondo[len(fondo) // 2]))
+    return out
+
+
+def dispersion_teorica(lineas_mm, dist_mm, pixel_um):
+    """Ångström por píxel de una red de lineas_mm líneas por milímetro a dist_mm del sensor."""
+    if not (lineas_mm and dist_mm and pixel_um):
+        return None
+    return pixel_um * 1e-3 / (lineas_mm * dist_mm) * 1e7
+
+
+def _suavizar(vals, n):
+    out = []
+    for i in range(len(vals)):
+        a, b = max(0, i - n), min(len(vals), i + n + 1)
+        out.append(sum(vals[a:b]) / (b - a))
+    return out
+
+
+def continuo(lam, flujo, ventana=250.0):
+    """Continuo aproximado: el máximo suavizado en ventanas de 'ventana' Å (las líneas de absorción quedan por debajo)."""
+    if not lam:
+        return []
+    paso = abs(lam[1] - lam[0]) if len(lam) > 1 else 1.0
+    n = max(3, int(ventana / paso / 2))
+    sup = []
+    for i in range(len(flujo)):
+        a, b = max(0, i - n), min(len(flujo), i + n + 1)
+        v = sorted(flujo[a:b])
+        sup.append(v[int(len(v) * 0.9)])
+    return _suavizar(sup, max(2, n // 2))
+
+
+def buscar_lineas(lam, flujo, cont, tolerancia=160.0):
+    """Mínimos de las líneas conocidas cerca de donde deberían estar: [(nombre, λ laboratorio, índice del mínimo)]."""
+    rel = [f / c if c > 0 else 1.0 for f, c in zip(flujo, cont)]
+    rel_s = _suavizar(rel, 1)
+    out = []
+    for nombre, l0, _t in LINEAS_ESPECTRO:
+        idx = [i for i, l in enumerate(lam) if abs(l - l0) < tolerancia]
+        if len(idx) < 5:
+            continue
+        i = min(idx, key=lambda k: rel_s[k])
+        if i in (idx[0], idx[-1]):
+            continue
+        prof = 1 - rel_s[i]
+        vecinos = [rel_s[k] for k in idx if abs(k - i) > 4]
+        if prof > 0.04 and vecinos and rel_s[i] < min(vecinos) - 0.01:
+            out.append((nombre, l0, i, round(prof, 3)))
+    return out
+
+
+def anchura_equivalente(lam, flujo, l0, medio=40.0, fuera=(50.0, 110.0)):
+    """Anchura equivalente (Å) de una línea: con un continuo recto ajustado a ambos lados."""
+    xs, ys = [], []
+    for l, f in zip(lam, flujo):
+        if fuera[0] <= abs(l - l0) <= fuera[1]:
+            xs.append(l); ys.append(f)
+    if len(xs) < 6:
+        return None
+    a, b = ajuste_lineal(xs, ys)
+    ew = 0.0
+    for i in range(1, len(lam)):
+        l = lam[i]
+        if abs(l - l0) <= medio:
+            c = a + b * l
+            if c > 0:
+                ew += (1 - flujo[i] / c) * abs(lam[i] - lam[i - 1])
+    return round(ew, 1)
+
+
+def escala_por_lineas(ds, fs, disp, margen=0.3):
+    """Dispersión (Å/px) que mejor encaja el patrón de líneas fuertes (Balmer y la banda A del oxígeno) con los
+    mínimos del espectro, probando de −30 % a +30 % alrededor de la prevista. Si no hay un máximo claro, la prevista."""
+    if not ds or len(ds) < 30:
+        return disp
+    cont = continuo(ds, fs, 250.0 / disp)
+    rel = [f / c if c > 0 else 1.0 for f, c in zip(fs, cont)]
+    umbral = 0.15 * max(cont)                      # solo donde hay luz de verdad (ni el orden cero ni los extremos)
+    patron = [(6562.8, 1.0), (4861.3, 1.0), (4340.5, 0.6), (4101.7, 0.4), (7605.0, 0.8), (6869.0, 0.3), (5892.9, 0.3)]
+    d0 = ds[0]
+    notas = []
+    for k in range(-int(margen * 1000), int(margen * 1000) + 1, 1):
+        c1 = disp * (1 + k / 1000.0)
+        sc = pw = 0.0
+        for l0, w in patron:
+            i = l0 / c1 - d0
+            if 1 <= i < len(rel) - 2 and cont[int(i)] > umbral:
+                j = int(i)
+                t = i - j
+                sc += w * (1 - (rel[j] * (1 - t) + rel[j + 1] * t))
+                pw += w
+        if pw >= 2.0:
+            notas.append((sc / pw, c1))
+    if not notas:
+        return disp
+    mejor, c1 = max(notas)
+    resto = sorted(n for n, _c in notas)
+    if mejor < 0.05 or mejor < resto[len(resto) // 2] + 3 * (1.4826 * _mediana([abs(n - resto[len(resto) // 2]) for n in resto]) or 0.01):
+        return disp
+    # al menos dos de las líneas fuertes tienen que verse de verdad en su sitio
+    claras = 0
+    for l0 in (6562.8, 4861.3, 7605.0, 4340.5):
+        i = l0 / c1 - d0
+        if 2 <= i < len(rel) - 3:
+            j = int(round(i))
+            if 1 - min(rel[j - 1:j + 2]) > 0.05:
+                claras += 1
+    return c1 if claras >= 2 else disp
+
+
+def temperatura_color(lam, flujo):
+    """Temperatura del cuerpo negro que mejor sigue la forma del espectro corregido (sin las líneas)."""
+    mascara = [l0 for _n, l0, _t in LINEAS_ESPECTRO]
+    pts = [(l, f) for l, f in zip(lam, flujo) if f > 0.02 and 4000 <= l <= 7800 and all(abs(l - m) > 60 for m in mascara)]
+    if len(pts) < 20:
+        return None
+    mejor = None
+    t = 2500.0
+    while t <= 40000.0:
+        r = [math.log(f / planck(l, t)) for l, f in pts]
+        m = sum(r) / len(r)
+        e = sum((x - m) ** 2 for x in r)
+        if mejor is None or e < mejor[0]:
+            mejor = (e, t)
+        t *= 1.02
+    return round(mejor[1], -1) if mejor and 2600 < mejor[1] < 39000 else None
+
+
+def planck(lam, teff):
+    return 1.0 / (lam ** 5 * (math.exp(min(700.0, PLANCK_C2 / (lam * teff))) - 1.0))
+
+
+def calcular_espectro(serie, sel):
+    """Calibración en longitud de onda, líneas, anchuras equivalentes y, si hay estrella de referencia, la respuesta."""
+    per = serie["perfil"]
+    ds, fs = [p[0] for p in per], [p[1] for p in per]
+    disp = num(sel.get("dispersion")) or serie.get("dispersion_teorica") or 7.5
+    c0, c1 = 0.0, disp
+    avisos = []
+    fuente = "manual" if num(sel.get("dispersion")) else ("teórica" if serie.get("dispersion_teorica") else "supuesta")
+    halladas = []
+    if not num(sel.get("dispersion")):
+        c1 = escala_por_lineas(ds, fs, disp, 0.15 if serie.get("dispersion_teorica") else 0.45)
+        if c1 != disp:
+            fuente = "patrón de líneas"
+        for _ in range(3):
+            lam = [c0 + c1 * d for d in ds]
+            cont = continuo(lam, fs)
+            halladas = [h for h in buscar_lineas(lam, fs, cont, tolerancia=70.0) if h[0] in ("Hα", "Hβ", "Hγ", "O₂ A", "Na D", "Hδ")]
+            if len(halladas) >= 2:
+                a, b = ajuste_lineal([ds[h[2]] for h in halladas], [h[1] for h in halladas])
+                if abs(a) < 150 and 0.97 * c1 < b < 1.03 * c1:
+                    c0, c1 = a, b
+                    fuente = "líneas"
+    lam = [c0 + c1 * d for d in ds]
+    rango = [(l, f) for l, f in zip(lam, fs) if 3600 <= l <= 8200]
+    if len(rango) < 20:
+        avisos.append("el espectro calibrado no cubre el visible: revisa la red, la distancia o la dispersión")
+        rango = list(zip(lam, fs))
+    lam = [l for l, _f in rango]
+    fl = [f for _l, f in rango]
+    mx = max(fl) or 1.0
+    fl = [f / mx for f in fl]
+    cont = continuo(lam, fl)
+    tol = max(40.0, 2.5 * serie.get("fwhm", 3.0) * abs(c1))
+    vistos = {}
+    for n, l0, i, pr in buscar_lineas(lam, fl, cont, tolerancia=tol):
+        if i not in vistos or abs(lam[i] - l0) < abs(lam[i] - vistos[i][1]):
+            vistos[i] = (n, l0, i, pr)
+    lineas = [{"nombre": n, "lambda": l0, "medida": round(lam[i], 1), "profundidad": pr} for n, l0, i, pr in sorted(vistos.values(), key=lambda x: x[1])]
+    ew = {n: anchura_equivalente(lam, fl, l0) for n, l0, _t in LINEAS_ESPECTRO if n in ("Hα", "Hβ", "Hγ")}
+    fw_nm = serie.get("fwhm", 3.0) * abs(c1)
+    res = {"c0": round(c0, 2), "c1": round(c1, 4), "fuente_dispersion": fuente, "dispersion_teorica": serie.get("dispersion_teorica"),
+           "lineas_calibracion": [h[0] for h in halladas] if fuente == "líneas" or fuente == "una línea" else [],
+           "resolucion_A": round(fw_nm, 1), "R": round(6000.0 / fw_nm) if fw_nm > 0 else None,
+           "lambda": [round(l, 1) for l in lam], "flujo": [round(f, 5) for f in fl], "continuo": [round(c, 5) for c in cont],
+           "lineas": lineas, "ew": ew, "avisos": avisos}
+    # corrección de la respuesta del equipo con una estrella de referencia medida igual
+    ref_id = sel.get("referencia")
+    teff = num(sel.get("teff_ref"))
+    if ref_id and teff:
+        rs, rc = serie_espectro(ref_id)
+        if rc and rc.get("lambda"):
+            rl, rf = rc["lambda"], rc["flujo"]
+            enmascarar = [l0 for _n, l0, _t in LINEAS_ESPECTRO]
+            puntos = [(l, f / planck(l, teff)) for l, f in zip(rl, rf) if all(abs(l - m) > 70 for m in enmascarar) and f > 0]
+            if len(puntos) > 20:
+                ls = [p[0] for p in puntos]
+                vs = _suavizar([p[1] for p in puntos], max(3, len(puntos) // 40))
+
+                def resp(l):
+                    if l <= ls[0]:
+                        return vs[0]
+                    if l >= ls[-1]:
+                        return vs[-1]
+                    k = max(1, min(len(ls) - 1, next(i for i, x in enumerate(ls) if x >= l)))
+                    t = (l - ls[k - 1]) / (ls[k] - ls[k - 1] or 1)
+                    return vs[k - 1] + t * (vs[k] - vs[k - 1])
+                corr = [f / resp(l) if resp(l) > 0 else 0.0 for l, f in zip(lam, fl)]
+                m2 = max(corr) or 1.0
+                res["corregido"] = [round(c / m2, 5) for c in corr]
+                res["referencia"] = {"id": ref_id, "nombre": (rs or {}).get("estrella") or "", "teff": teff}
+                res["t_color"] = temperatura_color(lam, res["corregido"])
+    return res
+
+
+def trabajo_espectro(p):
+    try:
+        ruta = ""
+        if p.get("apilado"):
+            ruta = os.path.normpath(os.path.join(APIL_ROOT, p["apilado"]))
+            if not ruta.startswith(os.path.normpath(APIL_ROOT)):
+                ruta = ""
+        elif p.get("ruta"):
+            ruta = p["ruta"]
+        if not ruta or not os.path.isfile(ruta) or not ruta.lower().endswith(EXT_FITS):
+            raise RuntimeError("elige una imagen FITS con el espectro")
+        JOB["total"] = 3
+        JOB["texto"], JOB["archivo"] = "Buscando la estrella (orden cero)", os.path.basename(ruta)
+        h = cabecera_de(ruta)
+        pista = (float(p["x"]), float(p["y"])) if p.get("x") not in (None, "") and p.get("y") not in (None, "") else None
+        serie = medir_espectro(ruta, h, pista, p)
+        serie.update(id=_id_medida(), creada=time.strftime("%Y-%m-%dT%H:%M:%S"), version=VERSION_PROG, tipo="espectro")
+        calc = calcular_espectro(serie, {"dispersion": p.get("dispersion")})
+        d = os.path.join(ESPECTROS_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        guardar_espectro(serie, calc)
+        JOB["hechos"] = 3
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def medir_espectro(ruta, h, pista, p):
+    x0, y0, fw, (w, hh) = orden_cero(ruta, pista)
+    JOB["hechos"] = 1
+    pix = num(p.get("pixel")) or (num(h.get("XPIXSZ")) or 3.76)
+    lineas_mm = num(p.get("lineas")) or 100.0
+    dist = num(p.get("distancia"))
+    disp = dispersion_teorica(lineas_mm, dist, pix)
+    # hasta dónde llega el primer orden: hasta ~8.500 Å con la dispersión prevista (o 900 píxeles)
+    dmax = min(1400.0, 8600.0 / disp) if disp else 1400.0
+    dmin = 2600.0 / disp if disp else 40.0
+    JOB["texto"] = "Buscando el espectro"
+    reg = _Region(ruta, x0, y0, dmax + 30)
+    th = float(p["angulo"]) if p.get("angulo") not in (None, "") else direccion_espectro(reg, x0, y0, max(15.0, dmin), dmax)
+    JOB["hechos"], JOB["texto"] = 2, "Extrayendo el espectro"
+    perfil = extraer_espectro(reg, x0, y0, th, max(8.0, dmin * 0.8), dmax, fw)
+    if len(perfil) < 30:
+        raise RuntimeError("no encuentro un espectro junto a la estrella (¿está dentro de la imagen?)")
+    vista, esc_v = _vista_imagen(ruta)
+    return {"archivo": os.path.basename(ruta), "ruta": ruta, "estrella": (p.get("estrella") or h.get("OBJECT") or "").strip(),
+            "fecha": str(h.get("DATE-OBS") or ""), "exp": num(h.get("EXPTIME")), "orden_cero": [round(x0, 2), round(y0, 2)], "fwhm": round(fw, 2),
+            "angulo": round(th, 3), "red": {"lineas_mm": lineas_mm, "distancia_mm": dist, "pixel_um": pix}, "dispersion_teorica": round(disp, 4) if disp else None,
+            "perfil": [[d, round(v, 6)] for d, v in perfil], "tam": [w, hh], "vista": vista, "vista_escala": esc_v,
+            "cam": str(h.get("INSTRUME") or ""), "tel": str(h.get("TELESCOP") or ""), "fondo": reg.fondo}
+
+
+def _vista_imagen(ruta, lado=420):
+    """La imagen reducida (lado máximo 'lado' píxeles) y estirada, en valores de 0 a 255, para verla en la página."""
+    img = Imagen(ruta)
+    try:
+        paso = max(1, int(math.ceil(max(img.w, img.h) / float(lado))))
+        filas = []
+        for y in range(0, img.h, paso):
+            f = img.fila(y, 0, img.w)
+            filas.append([max(f[x:x + paso]) for x in range(0, img.w, paso)])
+        vals = sorted(v for r in filas[::3] for v in r[::3])
+        lo, hi = vals[len(vals) // 2], vals[int(len(vals) * 0.998)]
+        out = [[int(255 * min(1.0, math.asinh(max(0.0, (v - lo) / (hi - lo or 1)) * 10) / math.asinh(10))) for v in r] for r in filas]
+        return out, paso
+    finally:
+        img.cerrar()
+
+
+def iniciar_espectro(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        JOB.update(activo=True, tipo="espectro", texto="Empezando", archivo="", sub="", hechos=0, total=3, log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    guardar_config_ciencia(**{("esp_" + k): p.get(k) for k in ("lineas", "distancia", "pixel") if p.get(k) not in (None, "")})
+    threading.Thread(target=trabajo_espectro, args=(p,), daemon=True).start()
+
+
+def fits_espectro(serie, c):
+    """Espectro 1D en FITS con la longitud de onda lineal (CRVAL1/CDELT1 en Å), como piden ISIS, VSpec o BASS."""
+    lam = c["lambda"]
+    fl = c.get("corregido") or c["flujo"]
+    paso = (lam[-1] - lam[0]) / (len(lam) - 1)
+    cards = [("SIMPLE", True), ("BITPIX", -32), ("NAXIS", 1), ("NAXIS1", len(fl)), ("CRVAL1", float(lam[0])), ("CDELT1", float(paso)),
+             ("CRPIX1", 1.0), ("CTYPE1", "Wavelength"), ("CUNIT1", "Angstrom"), ("OBJNAME", serie.get("estrella") or ""),
+             ("OBJECT", serie.get("estrella") or ""), ("DATE-OBS", serie.get("fecha") or ""), ("EXPTIME", float(serie.get("exp") or 0)),
+             ("BSS_INST", ("Grating %g l/mm + %s" % (serie["red"]["lineas_mm"], serie.get("cam") or "camera"))[:68]),
+             ("BSS_RESP", "YES" if c.get("corregido") else "NO"), ("ORIGIN", "ASTRO Ciencia %s" % VERSION_PROG)]
+    L = []
+    for k, v in cards:
+        if isinstance(v, bool):
+            L.append("%-8s= %20s" % (k, "T" if v else "F"))
+        elif isinstance(v, int):
+            L.append("%-8s= %20d" % (k, v))
+        elif isinstance(v, float):
+            L.append("%-8s= %20.10G" % (k, v))
+        else:
+            L.append("%-8s= '%s'" % (k, str(v).replace("'", " ")[:66]))
+    L.append("END")
+    cab = "".join(x[:80].ljust(80) for x in L)
+    cab += " " * (-len(cab) % 2880)
+    a = array.array("f", fl)
+    if sys.byteorder == "little":
+        a.byteswap()
+    datos = a.tobytes()
+    datos += b"\0" * (-len(datos) % 2880)
+    return cab.encode("ascii") + datos
+
+
+def svg_espectro(serie, c, en=False):
+    W, H, L, R, T, B = 900, 420, 60, 20, 40, 50
+    lam = c["lambda"]
+    fl = c.get("corregido") or c["flujo"]
+    la, lb = 3800.0, 8000.0
+    X = lambda l: L + (l - la) / (lb - la) * (W - L - R)
+    Y = lambda v: T + (1.05 - v) / 1.1 * (H - T - B)
+    g = ['<rect width="100%" height="100%" fill="#ffffff"/>']
+    # banda de colores del visible
+    for l in range(3900, 7600, 20):
+        hue = max(0, min(270, (6500 - l) / (6500 - 4000) * 270))
+        g.append('<rect x="%.1f" y="%d" width="%.1f" height="8" fill="hsl(%d,90%%,55%%)"/>' % (X(l), H - B + 22, X(l + 20) - X(l) + 0.5, hue))
+    for l in range(4000, 8001, 500):
+        g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#eee"/><text x="%.1f" y="%d" font-size="11" text-anchor="middle" fill="#555">%d</text>' % (X(l), X(l), T, H - B, X(l), H - B + 15, l))
+    for n, l0, t in LINEAS_ESPECTRO:
+        if la <= l0 <= lb:
+            g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="%s" stroke-dasharray="3 3"/><text x="%.1f" y="%d" font-size="11" text-anchor="middle" fill="#555">%s</text>' % (
+                X(l0), X(l0), T, H - B, "#C27A00" if t == "tel" else "#6A3FA0", X(l0), T - 6, _xml(n)))
+    pts = " ".join("%.1f,%.1f" % (X(l), Y(v)) for l, v in zip(lam, fl) if la <= l <= lb)
+    g.append('<polyline fill="none" stroke="#222" stroke-width="1.4" points="%s"/>' % pts)
+    tit = "%s · %s · %.2f Å/px" % (serie.get("estrella") or "?", (serie.get("fecha") or "")[:10], c["c1"])
+    g.append('<text x="%d" y="18" font-size="14" font-weight="700" fill="#222">%s</text>' % (L, _xml(tit)))
+    g.append('<text x="%d" y="%d" font-size="12" text-anchor="middle" fill="#333">%s</text>' % ((L + W - R) // 2, H - 4, "Wavelength (Å)" if en else "Longitud de onda (Å)"))
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d" font-family="Helvetica, Arial, sans-serif">%s</svg>\n' % (W, H, W, H, "".join(g))
+
+
+def guardar_espectro(serie, c):
+    d = os.path.join(ESPECTROS_DIR, serie["id"])
+    os.makedirs(d, exist_ok=True)
+    escribir_json(os.path.join(d, "resultado.json"), c)
+    with open(os.path.join(d, "espectro.csv"), "w", encoding="utf-8", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["lambda_A", "flujo_instrumental", "continuo"] + (["flujo_corregido"] if c.get("corregido") else []))
+        for i, l in enumerate(c["lambda"]):
+            wr.writerow([l, c["flujo"][i], c["continuo"][i]] + ([c["corregido"][i]] if c.get("corregido") else []))
+    with open(os.path.join(d, "espectro.fits"), "wb") as f:
+        f.write(fits_espectro(serie, c))
+    with open(os.path.join(d, "espectro.svg"), "w", encoding="utf-8") as f:
+        f.write(svg_espectro(serie, c))
+
+
+def series_espectros():
+    out = []
+    if not os.path.isdir(ESPECTROS_DIR):
+        return out
+    for n in sorted(os.listdir(ESPECTROS_DIR), reverse=True):
+        s = leer_json(os.path.join(ESPECTROS_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(ESPECTROS_DIR, n, "resultado.json"), None) or {}
+        if not s:
+            continue
+        out.append({"id": s["id"], "estrella": s.get("estrella") or "", "fecha": s.get("fecha") or "", "archivo": s.get("archivo"),
+                    "dispersion": c.get("c1"), "fuente": c.get("fuente_dispersion"), "lineas": [x["nombre"] for x in c.get("lineas") or []],
+                    "resolucion": c.get("resolucion_A")})
+    return out
+
+
+def serie_espectro(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return leer_json(os.path.join(ESPECTROS_DIR, sid, "serie.json"), None), leer_json(os.path.join(ESPECTROS_DIR, sid, "resultado.json"), None)
+
+
+def recalcular_espectro(sid, sel):
+    serie, _c = serie_espectro(sid)
+    if not serie:
+        raise RuntimeError("no encuentro el espectro")
+    if any(sel.get(k) not in (None, "") for k in ("x", "y", "angulo", "distancia", "lineas", "pixel")):
+        if not os.path.isfile(serie.get("ruta") or ""):
+            raise RuntimeError("no encuentro la imagen original para volver a extraer el espectro")
+        p = {"lineas": sel.get("lineas") or serie["red"]["lineas_mm"], "distancia": sel.get("distancia") or serie["red"]["distancia_mm"],
+             "pixel": sel.get("pixel") or serie["red"]["pixel_um"], "angulo": sel.get("angulo"), "estrella": serie.get("estrella")}
+        pista = (float(sel["x"]), float(sel["y"])) if sel.get("x") not in (None, "") and sel.get("y") not in (None, "") else tuple(serie["orden_cero"])
+        nueva = medir_espectro(serie["ruta"], cabecera_de(serie["ruta"]), pista, p)
+        for k in ("orden_cero", "fwhm", "angulo", "red", "dispersion_teorica", "perfil", "fondo"):
+            serie[k] = nueva[k]
+        escribir_json(os.path.join(ESPECTROS_DIR, sid, "serie.json"), serie)
+    if sel.get("estrella"):
+        serie["estrella"] = sel["estrella"].strip()
+        escribir_json(os.path.join(ESPECTROS_DIR, sid, "serie.json"), serie)
+    c = calcular_espectro(serie, sel)
+    c["seleccion"] = {k: sel.get(k) for k in ("dispersion", "referencia", "teff_ref") if sel.get(k) not in (None, "")}
+    guardar_espectro(serie, c)
+    return c
+
+
+def borrar_espectro(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("espectro no válido")
+    shutil.rmtree(os.path.join(ESPECTROS_DIR, sid), ignore_errors=True)
+
+
+LEEME_ESP_ES = """ESPECTRO DE {estrella} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  espectro.fits  El espectro en FITS de una dimensión (CRVAL1/CDELT1 en Å), para abrirlo en ISIS, VSpec o BASS.
+  espectro.csv   Longitud de onda (Å), flujo instrumental, continuo y, si se ha corregido, el flujo corregido.
+  espectro.svg   La figura, con las líneas principales marcadas.
+  serie.json     La extracción: orden cero, ángulo, red, distancia, perfil a lo largo del espectro.
+  resultado.json La calibración en longitud de onda, las líneas encontradas y sus anchuras equivalentes.
+
+Método
+  Red de difracción delante de la cámara (tipo Star Analyser). El orden cero es la estrella; el espectro se busca en la
+  dirección con más luz y se extrae sumando una franja de ±1,5 FWHM menos el fondo de dos bandas a los lados.
+  Longitud de onda: λ = c0 + c1·d (d, distancia al orden cero en píxeles); c1 sale de la red y la distancia al sensor
+  y se afina con las líneas encontradas (Hα, Hβ, Hγ, Na D, O₂ A). Dispersión: {disp} Å/px; resolución ≈ {res} Å.
+  El flujo es instrumental (lleva la respuesta de la cámara, la óptica y la atmósfera) salvo que se haya corregido con
+  una estrella de referencia medida igual; esa corrección usa un cuerpo negro de su temperatura: es aproximada.
+"""
+LEEME_ESP_EN = """SPECTRUM OF {estrella} · ASTRO (Science section)
+
+What this package contains
+  espectro.fits  One-dimensional FITS spectrum (CRVAL1/CDELT1 in Å), to open in ISIS, VSpec or BASS.
+  espectro.csv   Wavelength (Å), instrumental flux, continuum and, if corrected, the corrected flux.
+  espectro.svg   The figure, with the main lines marked.
+  serie.json     The extraction: zero order, angle, grating, distance, profile along the spectrum.
+  resultado.json Wavelength calibration, lines found and their equivalent widths.
+
+Method
+  Diffraction grating in front of the camera (Star Analyser type). The zero order is the star; the spectrum is sought in
+  the brightest direction and extracted by summing a ±1.5 FWHM strip minus the background of two side bands.
+  Wavelength: λ = c0 + c1·d (d, distance to the zero order in pixels); c1 comes from the grating and its distance to the
+  sensor and is refined with the lines found (Hα, Hβ, Hγ, Na D, O₂ A). Dispersion: {disp} Å/px; resolution ≈ {res} Å.
+  The flux is instrumental (it carries the response of camera, optics and atmosphere) unless corrected with a reference
+  star measured the same way; that correction uses a blackbody of its temperature: it is approximate.
+"""
+
+
+def zip_espectro(sid, en=False):
+    serie, c = serie_espectro(sid)
+    if not serie or not c:
+        raise RuntimeError("no encuentro el espectro")
+    d = os.path.join(ESPECTROS_DIR, sid)
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt" if en else "LEEME.txt", (LEEME_ESP_EN if en else LEEME_ESP_ES).format(estrella=serie.get("estrella") or "?", disp=c["c1"], res=c["resolucion_A"]))
+        for n in ("espectro.csv", "resultado.json"):
+            with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                z.writestr(n, sin_rutas(f.read()))
+        z.writestr("serie.json", sin_rutas(json.dumps({k: v for k, v in serie.items() if k not in ("vista", "ruta")}, ensure_ascii=False, indent=1)))
+        z.writestr("espectro.svg", svg_espectro(serie, c, en))
+        with open(os.path.join(d, "espectro.fits"), "rb") as f:
+            z.writestr("espectro.fits", f.read())
+    return mem.getvalue(), "ASTRO-espectro-%s.zip" % re.sub(r"[^\w.-]+", "_", serie.get("estrella") or serie["id"])
+
+
 # ═════════════════════════════ AUTOPRUEBA (para la fábrica) ═════════════════════════════
 def escribir_fits_flotante(ruta, w, h, datos, claves):
     """FITS de 32 bits en coma flotante, sin librerías (datos: lista de filas)."""
@@ -4857,6 +5440,7 @@ def autoprueba(carpeta):
     ra_v, dec_v = de_plano(xi_, eta_, ra0, dec0)
     plano_ok = abs(ra_v - ra0 - 0.1) < 1e-9 and abs(dec_v - dec0 + 0.05) < 1e-9
     ok = ok and plano_ok
+    ok = ok and abs((dispersion_teorica(100, 50, 3.76) or 0) - 7.52) < 1e-6
     try:
         os.remove(ruta)
     except OSError:
@@ -5238,6 +5822,31 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/hr/zip":
                 datos, nombre = zip_hr((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
                 return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/esp/series":
+                return self._json(series_espectros())
+            if p.path == "/api/esp/config":
+                c = config_ciencia()
+                return self._json({k: c.get("esp_" + k) or "" for k in ("lineas", "distancia", "pixel")})
+            if p.path == "/api/esp/serie":
+                serie, calc = serie_espectro((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                return self._json({"serie": {k: v for k, v in serie.items() if k != "ruta"}, "calculo": calc})
+            if p.path in ("/api/esp/csv", "/api/esp/fits", "/api/esp/svg"):
+                sid = (qs.get("id") or [""])[0]
+                serie, calc = serie_espectro(sid)
+                if not calc:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                nombre = re.sub(r"[^\w.-]+", "_", serie.get("estrella") or sid)
+                if p.path.endswith("fits"):
+                    return self._send(200, fits_espectro(serie, calc), "application/fits", {"Content-Disposition": 'attachment; filename="ASTRO-%s.fits"' % nombre})
+                if p.path.endswith("svg"):
+                    return self._send(200, svg_espectro(serie, calc, idioma_actual() == "en"), "image/svg+xml; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-%s.svg"' % nombre})
+                with open(os.path.join(ESPECTROS_DIR, sid, "espectro.csv"), "r", encoding="utf-8") as f:
+                    return self._send(200, "\ufeff" + f.read(), "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-%s.csv"' % nombre})
+            if p.path == "/api/esp/zip":
+                datos, nombre = zip_espectro((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
             if p.path == "/api/cielo/medidas":
                 return self._json(medidas())
             if p.path == "/api/cielo/medida":
@@ -5331,6 +5940,20 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/hr/borrar":
                 borrar_hr(d.get("id"))
                 return self._json({"ok": True})
+            if p.path == "/api/esp/medir":
+                try:
+                    iniciar_espectro(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/esp/recalcular":
+                try:
+                    return self._json(recalcular_espectro(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/esp/borrar":
+                borrar_espectro(d.get("id"))
+                return self._json({"ok": True})
             if p.path == "/api/exo/borrar":
                 borrar_exo(d.get("id"))
                 return self._json({"ok": True})
@@ -5350,7 +5973,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -5891,6 +6514,59 @@ DIC_EN = {
     "no encuentro un cúmulo claro en los movimientos propios de Gaia: el diagrama sale con todas las estrellas del campo": "I can't find a clear cluster in the Gaia proper motions: the diagram shows every star in the field",
     "la paralaje del cúmulo es demasiado pequeña para dar una distancia fiable": "the cluster's parallax is too small to give a reliable distance",
     "~No he podido descargar la referencia de Gaia (¿hay conexión a Internet?).": "I couldn't download the Gaia reference (is there an Internet connection?).",
+    "Medir un espectro": "Measure a spectrum",
+    "Para imágenes hechas con una red de difracción delante de la cámara (tipo Star Analyser). ASTRO encuentra la estrella y su espectro, lo extrae, lo calibra en longitud de onda con la red y con las líneas de hidrógeno y del oxígeno del aire, y mide las líneas.": "For images taken with a diffraction grating in front of the camera (Star Analyser type). ASTRO finds the star and its spectrum, extracts it, calibrates the wavelength with the grating and the hydrogen and atmospheric oxygen lines, and measures the lines.",
+    "Apilado": "Stack",
+    "Red": "Grating",
+    "Distancia de la red al sensor (mm)": "Grating-to-sensor distance (mm)",
+    "Píxel (µm)": "Pixel (µm)",
+    "La distancia de la red al sensor da una primera escala; ASTRO la afina con las líneas. Si la estrella del espectro no es la más brillante de la imagen, podrás marcarla después sobre la vista.": "The grating-to-sensor distance gives a first scale; ASTRO refines it with the lines. If the star of the spectrum is not the brightest in the image, you can mark it afterwards on the preview.",
+    "Tus espectros": "Your spectra",
+    "Elige un apilado": "Choose a stack",
+    "Elige primero el archivo FITS": "First choose the FITS file",
+    "Sin la distancia de la red al sensor, ASTRO buscará la escala solo con las líneas": "Without the grating-to-sensor distance, ASTRO will find the scale from the lines alone",
+    "Todavía no has medido ningún espectro": "You haven't measured any spectrum yet",
+    "Elige arriba la imagen y pulsa «Medir».": "Choose the image above and press “Measure”.",
+    "Resolución (Å)": "Resolution (Å)",
+    "Líneas": "Lines",
+    "Espectro": "Spectrum",
+    "red de": "grating of",
+    "Dispersión": "Dispersion",
+    "ajustada con las líneas": "fitted with the lines",
+    "por el patrón de líneas": "from the line pattern",
+    "de la red y la distancia (sin líneas claras)": "from the grating and distance (no clear lines)",
+    "escrita a mano": "typed by hand",
+    "supuesta: da la red y la distancia": "assumed: enter the grating and distance",
+    "Resolución (FWHM de la estrella)": "Resolution (FWHM of the star)",
+    "líneas": "lines",
+    "Temperatura de color (corregido con la estrella de referencia)": "Colour temperature (corrected with the reference star)",
+    "Anchura equivalente de Hα": "Equivalent width of Hα",
+    "La imagen": "The image",
+    "El círculo es la estrella (orden cero) y la línea, el espectro que se ha extraído. Si no es la estrella buena, pulsa sobre la correcta y se vuelve a medir.": "The circle is the star (zero order) and the line is the extracted spectrum. If it is not the right star, click on the right one and it is measured again.",
+    "Estrella de referencia": "Reference star",
+    "ninguna": "none",
+    "su temperatura (K)": "its temperature (K)",
+    "Con una estrella de referencia medida con el mismo equipo y la misma noche (mejor una de tipo A, como Vega, a una altura parecida), ASTRO calcula la respuesta de tu cámara y tu óptica y la quita del espectro. Usa un cuerpo negro de su temperatura: es una aproximación.": "With a reference star measured with the same equipment on the same night (preferably an A-type star such as Vega, at a similar altitude), ASTRO computes the response of your camera and optics and removes it from the spectrum. It uses a blackbody of its temperature: it's an approximation.",
+    "Anchuras equivalentes": "Equivalent widths",
+    "Las líneas de hidrógeno son máximas en las estrellas de tipo A (unos 10 000 K) y se debilitan en las más frías y en las más calientes.": "Hydrogen lines peak in A-type stars (about 10,000 K) and weaken in cooler and hotter stars.",
+    "Espectro (FITS 1D)": "Spectrum (1D FITS)",
+    "Borrar este espectro": "Delete this spectrum",
+    "¿Borrar este espectro?": "Delete this spectrum?",
+    "Escribe la temperatura de la estrella de referencia": "Type the reference star's temperature",
+    "longitud de onda (Å)": "wavelength (Å)",
+    "Espectro corregido de la respuesta del equipo": "Spectrum corrected for the equipment response",
+    "Espectro (instrumental)": "Spectrum (instrumental)",
+    "Dividido por la respuesta calculada con la estrella de referencia. En morado, las líneas de la estrella; en dorado, las del aire (O₂ y H₂O).": "Divided by the response computed with the reference star. In purple, the star's lines; in gold, those of the air (O₂ and H₂O).",
+    "Tal como llega a la cámara: lleva la respuesta de la cámara, la óptica y la atmósfera. En gris, el continuo que se usa para buscar las líneas; en morado, las líneas de la estrella; en dorado, las del aire (O₂ y H₂O).": "As it reaches the camera: it carries the response of camera, optics and atmosphere. In grey, the continuum used to find the lines; in purple, the star's lines; in gold, those of the air (O₂ and H₂O).",
+    "Buscando la estrella (orden cero)": "Looking for the star (zero order)",
+    "Buscando el espectro": "Looking for the spectrum",
+    "Extrayendo el espectro": "Extracting the spectrum",
+    "elige una imagen FITS con el espectro": "choose a FITS image with the spectrum",
+    "no encuentro un espectro junto a la estrella (¿está dentro de la imagen?)": "I can't find a spectrum next to the star (is it inside the image?)",
+    "el espectro calibrado no cubre el visible: revisa la red, la distancia o la dispersión": "the calibrated spectrum doesn't cover the visible range: check the grating, the distance or the dispersion",
+    "no encuentro el espectro": "I can't find the spectrum",
+    "no encuentro la imagen original para volver a extraer el espectro": "I can't find the original image to extract the spectrum again",
+    "espectro no válido": "invalid spectrum",
 }
 
 HTML = r'''<!DOCTYPE html>
@@ -6184,6 +6860,26 @@ td.num{text-align:right}
         <h3 class="seccion">Tus diagramas</h3>
         <div id="hSeries"></div>
       </div>
+      <div id="herramientaEsp" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Medir un espectro</h3>
+          <div class="note">Para imágenes hechas con una red de difracción delante de la cámara (tipo Star Analyser). ASTRO encuentra la estrella y su espectro, lo extrae, lo calibra en longitud de onda con la red y con las líneas de hidrógeno y del oxígeno del aire, y mide las líneas.</div>
+          <div class="fuentes" id="eFuentes" style="margin-top:14px"><button data-f="apilado" class="on">Apilados</button><button data-f="archivo">Un archivo FITS</button></div>
+          <div class="opciones" id="eUnApilado"><label>Apilado <select id="eApilado"></select></label></div>
+          <div class="opciones" id="eUnArchivo" style="display:none"><button class="btn" id="eBtnArchivo">Elegir un archivo FITS…</button><span class="notr note" id="eRuta"></span></div>
+          <div class="opciones">
+            <label>Estrella <input id="eEstrella" placeholder="p. ej. Vega" style="width:130px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <label>Red <select id="eLineas"><option value="100">Star Analyser 100 (100 l/mm)</option><option value="200">Star Analyser 200 (200 l/mm)</option><option value="50">50 l/mm</option><option value="300">300 l/mm</option></select></label>
+            <label>Distancia de la red al sensor (mm) <input id="eDistancia" class="notr" placeholder="50" style="width:70px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <label>Píxel (µm) <input id="ePixel" class="notr" placeholder="3.76" style="width:70px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnEsp">Medir</button>
+          </div>
+          <div class="note" style="margin-top:10px">La distancia de la red al sensor da una primera escala; ASTRO la afina con las líneas. Si la estrella del espectro no es la más brillante de la imagen, podrás marcarla después sobre la vista.</div>
+        </div>
+        <h3 class="seccion">Tus espectros</h3>
+        <div id="eSeries"></div>
+      </div>
       <div id="herramientaCielo" style="display:none">
         <div class="caja">
           <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:260px"><h3 style="font-size:17px">Medir el cielo</h3>
@@ -6420,7 +7116,7 @@ const BLOQUES = [
    hara:["Which known asteroids and comets are in your field (JPL)","Position in each frame with the Gaia stars (plate constants)","O−C against the JPL Horizons ephemeris","Approximate G magnitude of each asteroid","ADES report for the Minor Planet Center"]}},
 
  {id:"hr", n:"4", estado:"ya", icono:"hr",
-  es:{titulo:"Diagramas de Hertzsprung-Russell", corto:"Ordena las estrellas de un cúmulo por color y brillo, y lee su edad.",
+  es:{titulo:"Diagramas de Hertzsprung-Russell", corto:"Ordena las estrellas de un cúmulo por color y brillo, y mide su distancia.",
    historia:[
     "Hacia 1910, Ejnar Hertzsprung y Henry Norris Russell, cada uno por su lado, pusieron en un gráfico el brillo real de las estrellas frente a su color. Esperaban una nube sin orden y salió un dibujo con estructura: una franja diagonal donde vive la mayoría, la secuencia principal; las gigantes rojas arriba a la derecha; y las enanas blancas, pequeñas y calientes, abajo a la izquierda. Ese gráfico es hoy el mapa de la vida de las estrellas.",
     "El color es un termómetro, y la manera más sencilla de medirlo es comparar el brillo en dos filtros, B (azul) y V (visual). La diferencia B−V es el índice de color: cerca de 0 para una estrella blanca como Vega, unos 0,65 para el Sol, más de 1,5 para una gigante roja.",
@@ -6430,7 +7126,7 @@ const BLOQUES = [
    programas:[["Siril","Detecta y mide todas las estrellas del campo"],["Archivo de Gaia / VizieR","Pertenencia por paralaje y movimiento propio"],["PARSEC y MIST","Isocronas para la edad, la distancia y el enrojecimiento"],["TOPCAT","Explorar y cruzar tablas"]],
    destino:["Prácticas de astrofísica observacional y cursos.","Divulgación: un diagrama medido en el propio observatorio.","Research Notes of the AAS o JAAVSO; las variables nuevas, al catálogo VSX."],
    hara:["Medir todas las estrellas de Gaia en las dos imágenes","Calibrar el color y el brillo con Gaia","Miembros por movimiento propio y paralaje","Distancia y enrojecimiento del cúmulo","Diagrama sobre la vecindad solar, tabla, figura e informe del método"]},
-  en:{titulo:"Hertzsprung-Russell diagrams", corto:"Sort the stars of a cluster by colour and brightness, and read its age.",
+  en:{titulo:"Hertzsprung-Russell diagrams", corto:"Sort the stars of a cluster by colour and brightness, and measure its distance.",
    historia:[
     "Around 1910 Ejnar Hertzsprung and Henry Norris Russell, independently, plotted the true brightness of stars against their colour. They expected a shapeless cloud and got a structured picture instead: a diagonal band where most stars live, the main sequence; the red giants at the top right; and the small, hot white dwarfs at the bottom left. Today that plot is the map of the lives of stars.",
     "Colour is a thermometer, and the simplest way to measure it is to compare the brightness in two filters, B (blue) and V (visual). The difference B−V is the colour index: about 0 for a white star like Vega, around 0.65 for the Sun, above 1.5 for a red giant.",
@@ -6441,7 +7137,7 @@ const BLOQUES = [
    destino:["Observational astrophysics practicals and courses.","Outreach: a diagram measured at the observatory itself.","Research Notes of the AAS or JAAVSO; new variables go to the VSX catalogue."],
    hara:["Measure every Gaia star on both images","Calibrate colour and brightness with Gaia","Members by proper motion and parallax","Distance and reddening of the cluster","Diagram over the solar neighbourhood, table, figure and method report"]}},
 
- {id:"espectros", n:"5", estado:"pronto", icono:"espectros",
+ {id:"espectros", n:"5", estado:"ya", icono:"espectros",
   es:{titulo:"Espectroscopia", corto:"Separa la luz en sus colores y lee de qué está hecha una estrella.",
    historia:[
     "Si la fotometría pregunta «cuánta luz», la espectroscopia pregunta «qué luz». Al separar la luz de una estrella aparece un arcoíris cruzado por líneas, y cada línea es la firma de un elemento químico: el hidrógeno deja las líneas de Balmer (Hα a 656,3 nm, Hβ a 486,1 nm…), el sodio su doblete amarillo cerca de 589 nm. En 1868, una de esas líneas, vista en el Sol durante un eclipse, delató un elemento que nadie conocía en la Tierra y que por eso se llamó helio.",
@@ -6451,7 +7147,7 @@ const BLOQUES = [
    necesitas:["Para empezar, una Star Analyser 200 delante de la cámara mono, con un refractor corto.","Una estrella de referencia de tipo A, cerca en el cielo, para corregir la respuesta del equipo.","Después, un espectrógrafo de rendija (Alpy 600 o Star'Ex)."],
    programas:[["specINTI","El programa actual de Christian Buil para espectrógrafos de rendija"],["ISIS","El veterano de Buil"],["BASS Project","Procesado completo, muy usado con la Star Analyser"],["RSpec","El más sencillo para empezar sin rendija"]],
    destino:["Base de datos de espectroscopia de la BAA (acepta baja resolución).","AVSpec, de la AAVSO.","ARAS (novas, simbióticas), BeSS (estrellas Be) y TNS para clasificar supernovas."],
-   hara:["Extraer el espectro de la toma (sin rendija)","Calibrar en nanómetros con líneas conocidas","Corregir la respuesta con una estrella de referencia","Marcar las líneas y estimar el tipo espectral","FITS 1D con las cabeceras que piden las bases de datos"]},
+   hara:["Encontrar la estrella y extraer su espectro (sin rendija)","Calibrar en longitud de onda con la red y las líneas del hidrógeno y del aire","Marcar las líneas y medir sus anchuras equivalentes","Corregir la respuesta con una estrella de referencia y dar la temperatura de color","FITS 1D para ISIS, VSpec o BASS, tabla y figura"]},
   en:{titulo:"Spectroscopy", corto:"Split light into its colours and read what a star is made of.",
    historia:[
     "If photometry asks 'how much light', spectroscopy asks 'what light'. Splitting a star's light reveals a rainbow crossed by lines, and each line is the signature of a chemical element: hydrogen leaves the Balmer lines (Hα at 656.3 nm, Hβ at 486.1 nm…), sodium its yellow doublet near 589 nm. In 1868 one of those lines, seen in the Sun during an eclipse, revealed an element nobody knew on Earth, and so it was named helium.",
@@ -6461,7 +7157,7 @@ const BLOQUES = [
    necesitas:["To start, a Star Analyser 200 in front of the mono camera, with a short refractor.","An A-type reference star nearby in the sky, to correct the response of your setup.","Later, a slit spectrograph (Alpy 600 or Star'Ex)."],
    programas:[["specINTI","Christian Buil's current software for slit spectrographs"],["ISIS","Buil's veteran program"],["BASS Project","Full processing, widely used with the Star Analyser"],["RSpec","The easiest way to start without a slit"]],
    destino:["BAA spectroscopy database (accepts low resolution).","AVSpec, from the AAVSO.","ARAS (novae, symbiotics), BeSS (Be stars) and TNS to classify supernovae."],
-   hara:["Extract the spectrum from the frame (slitless)","Calibrate in nanometres with known lines","Correct the response with a reference star","Mark the lines and estimate the spectral type","1D FITS with the headers the databases ask for"]}},
+   hara:["Find the star and extract its spectrum (slitless)","Calibrate the wavelength with the grating and the hydrogen and telluric lines","Mark the lines and measure their equivalent widths","Correct the response with a reference star and give the colour temperature","1D FITS for ISIS, VSpec or BASS, table and figure"]}},
 ];
 const BL = id => BLOQUES.find(b => b.id === id);
 const T = b => b[IDIOMA] || b.es;
@@ -6507,13 +7203,15 @@ function pintarBloque(id){
   $("herramientaExo").style.display = id === "exoplanetas" ? "" : "none";
   $("herramientaAst").style.display = id === "astrometria" ? "" : "none";
   $("herramientaHR").style.display = id === "hr" ? "" : "none";
+  $("herramientaEsp").style.display = id === "espectros" ? "" : "none";
   BLOQUE_ACTUAL = id;
   if (id === "cielo") abrirCielo();
   if (id === "variables") abrirVariables();
   if (id === "exoplanetas") abrirExo();
   if (id === "astrometria") abrirAst();
   if (id === "hr") abrirHR();
-  if (!["cielo", "variables", "exoplanetas", "astrometria", "hr"].includes(id)) $("trabajo").classList.remove("show");
+  if (id === "espectros") abrirEsp();
+  if (!["cielo", "variables", "exoplanetas", "astrometria", "hr", "espectros"].includes(id)) $("trabajo").classList.remove("show");
 }
 let BLOQUE_ACTUAL = "";
 
@@ -6608,7 +7306,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", exo: "exoplanetas", astrometria: "astrometria", hr: "hr"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", exo: "exoplanetas", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -6618,7 +7316,7 @@ async function sondear(){
     $("tLog").textContent = (e.log || []).join("\n");
     $("btnCancelar").style.display = e.activo ? "" : "none";
   } else caja.classList.remove("show");
-  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnAst").disabled = $("btnHR").disabled = !!e.activo;
+  $("btnMedir").disabled = $("btnVariable").disabled = $("btnExo").disabled = $("btnAst").disabled = $("btnHR").disabled = $("btnEsp").disabled = !!e.activo;
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
@@ -6626,6 +7324,7 @@ async function sondear(){
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
     else if (e.tipo === "astrometria"){ cargarSeriesAst(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "astrometria") verAst(e.resultados[0]); }
     else if (e.tipo === "hr"){ cargarSeriesHR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "hr") verHR(e.resultados[0]); }
+    else if (e.tipo === "espectro"){ cargarSeriesEsp(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "espectros") verEsp(e.resultados[0]); }
     else { cargarMedidas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "cielo") verMedida(e.resultados[0]); }
   }
   if (e.activo) CIELO._activo = true;
@@ -7325,6 +8024,116 @@ function graficasHR(s, c, ref){
   const lim = 12;
   dispersion($("gVPD"), "Movimientos propios (Gaia)", pm.filter(e => !miembros.has(e.id)).map(e => [e.pmra, e.pmdec, fondo, 1.5]).concat(pm.filter(e => miembros.has(e.id)).map(e => [e.pmra, e.pmdec, mc, 2.3])),
     cum.pmra - lim, cum.pmra + lim, cum.pmdec + lim, cum.pmdec - lim, "μα* (mas/a)", "μδ (mas/a)", "Las estrellas del cúmulo se mueven juntas por el cielo: forman el grupo apretado. Los miembros son las de ese grupo con una paralaje compatible.");
+}
+
+/* ============ Espectroscopia ============ */
+const ESP = {apilados:null, fuente:"apilado", ruta:"", series:[], actual:null};
+document.querySelectorAll("#eFuentes button").forEach(b => b.onclick = () => {
+  ESP.fuente = b.dataset.f;
+  document.querySelectorAll("#eFuentes button").forEach(x => x.classList.toggle("on", x === b));
+  $("eUnApilado").style.display = ESP.fuente === "apilado" ? "" : "none"; $("eUnArchivo").style.display = ESP.fuente === "archivo" ? "" : "none";
+});
+$("eBtnArchivo").onclick = async () => {
+  try { const r = await (await post("/api/elegir_archivo")).json();
+    if (r.fallo){ toast("No se ha podido abrir la ventana para elegir el archivo"); return; }
+    if (!r.ruta) return; ESP.ruta = r.ruta; $("eRuta").textContent = r.ruta;
+    const h = r.cabecera || {}; if (h.OBJECT && !$("eEstrella").value) $("eEstrella").value = h.OBJECT;
+  } catch(e){ toast(e.message || e); }
+};
+async function abrirEsp(){
+  if (!ESP.apilados){ try { ESP.apilados = await (await api("/api/apilados")).json(); } catch(_){ ESP.apilados = []; } }
+  $("eApilado").innerHTML = ESP.apilados.length ? ESP.apilados.map(a => `<option value="${esc(a.rel)}">${esc(a.objeto + " · " + a.nombre)}</option>`).join("") : `<option value="">${esc(tr("no hay apilados"))}</option>`;
+  try { const c = await (await api("/api/esp/config")).json(); if (c.lineas) $("eLineas").value = String(Math.round(c.lineas)); if (c.distancia) $("eDistancia").value = c.distancia; if (c.pixel) $("ePixel").value = c.pixel; } catch(_){}
+  cargarSeriesEsp(); sondear();
+}
+$("btnEsp").onclick = async () => {
+  const d = {lineas: +$("eLineas").value, distancia: $("eDistancia").value.trim().replace(",", "."), pixel: $("ePixel").value.trim().replace(",", "."), estrella: $("eEstrella").value.trim()};
+  if (ESP.fuente === "apilado"){ if (!$("eApilado").value){ toast("Elige un apilado"); return; } d.apilado = $("eApilado").value; }
+  else { if (!ESP.ruta){ toast("Elige primero el archivo FITS"); return; } d.ruta = ESP.ruta; }
+  if (!d.distancia) toast("Sin la distancia de la red al sensor, ASTRO buscará la escala solo con las líneas");
+  try { await post("/api/esp/medir", d); sondear(); } catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesEsp(){
+  try { ESP.series = await (await api("/api/esp/series")).json(); } catch(_){ ESP.series = []; }
+  const ss = ESP.series;
+  if (!ss.length){ $("eSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ningún espectro</b>Elige arriba la imagen y pulsa «Medir».</div>`; return; }
+  $("eSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Fecha</th><th>Estrella</th><th>Archivo</th><th class="num">Å/px</th><th class="num">Resolución (Å)</th><th>Líneas</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta((x.fecha || "").slice(0, 10)))}</td><td class="notr"><b>${esc(x.estrella || "—")}</b></td><td class="notr">${esc(x.archivo || "")}</td>
+      <td class="num">${numEs(x.dispersion, 2)}</td><td class="num">${numEs(x.resolucion, 0)}</td><td class="notr">${esc((x.lineas || []).join(" · "))}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("eSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verEsp(t.dataset.id));
+}
+const FUENTE_DISP = {"líneas": "ajustada con las líneas", "patrón de líneas": "por el patrón de líneas", "teórica": "de la red y la distancia (sin líneas claras)", "manual": "escrita a mano", "supuesta": "supuesta: da la red y la distancia"};
+async function verEsp(id, calcNuevo){
+  let d; try { d = await (await api("/api/esp/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo; ESP.actual = {s, c};
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const otros = (ESP.series || []).filter(x => x.id !== s.id);
+  const sel = c.seleccion || {};
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.estrella || tr("Espectro"))}</h2><div class="note"><span class="notr">${esc(s.archivo)} · ${esc((s.fecha || "").slice(0, 16).replace("T", " "))}</span> · <span>red de</span> <span class="notr">${numEs(s.red.lineas_mm, 0)} l/mm${s.red.distancia_mm ? " · " + numEs(s.red.distancia_mm, 1) + " mm" : ""}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(numEs(c.c1, 3), "Å/px", tr("Dispersión") + " · " + tr(FUENTE_DISP[c.fuente_dispersion] || c.fuente_dispersion), true)}
+      ${cifra(numEs(c.resolucion_A, 0), "Å", tr("Resolución (FWHM de la estrella)") + " · R ≈ " + numEs(c.R, 0))}
+      ${cifra(String((c.lineas || []).length), tr("líneas"), `<span class="notr">${esc((c.lineas || []).map(x => x.nombre).join(" · ") || "—")}</span>`)}
+      ${c.t_color ? cifra(numEs(c.t_color, 0), "K", tr("Temperatura de color (corregido con la estrella de referencia)")) : cifra(numEs(c.ew["Hα"], 1), "Å", tr("Anchura equivalente de Hα") + " · Hβ " + numEs(c.ew["Hβ"], 1) + " Å")}</div>
+    ${(c.avisos || []).length ? `<div class="avisos">${c.avisos.map(a => `<div>${esc(tr(a))}</div>`).join("")}</div>` : ""}
+    <div class="graf" id="gEsp"></div>
+    <div class="dos">
+      <div class="graf"><h4>La imagen</h4><canvas id="eVista" style="width:100%;max-width:520px;cursor:crosshair;border-radius:8px;background:#000"></canvas>
+        <div class="pie">El círculo es la estrella (orden cero) y la línea, el espectro que se ha extraído. Si no es la estrella buena, pulsa sobre la correcta y se vuelve a medir.</div></div>
+      <div class="graf"><h4>Ajustes</h4>
+        <div class="opciones"><label>Estrella <input id="dEstrella" class="notr" value="${esc(s.estrella || "")}" style="width:120px;padding:5px 7px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+          <label>Å/px <input id="dDisp" class="notr" placeholder="${esc(tr("automático"))}" value="${esc(sel.dispersion || "")}" style="width:80px;padding:5px 7px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label></div>
+        <div class="opciones"><label>Estrella de referencia <select id="dRef"><option value="">${esc(tr("ninguna"))}</option>${otros.map(x => `<option value="${esc(x.id)}" ${sel.referencia === x.id ? "selected" : ""}>${esc((x.estrella || "?") + " · " + (x.archivo || ""))}</option>`).join("")}</select></label>
+          <label>su temperatura (K) <input id="dTeff" class="notr" value="${esc(sel.teff_ref || "")}" placeholder="9600" style="width:80px;padding:5px 7px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="pie">Con una estrella de referencia medida con el mismo equipo y la misma noche (mejor una de tipo A, como Vega, a una altura parecida), ASTRO calcula la respuesta de tu cámara y tu óptica y la quita del espectro. Usa un cuerpo negro de su temperatura: es una aproximación.</div>
+        <h4 style="margin-top:12px">Anchuras equivalentes</h4>
+        <dl class="kv"><dt>Hα</dt><dd class="notr">${numEs(c.ew["Hα"], 1)} Å</dd><dt>Hβ</dt><dd class="notr">${numEs(c.ew["Hβ"], 1)} Å</dd><dt>Hγ</dt><dd class="notr">${numEs(c.ew["Hγ"], 1)} Å</dd></dl>
+        <div class="pie">Las líneas de hidrógeno son máximas en las estrellas de tipo A (unos 10 000 K) y se debilitan en las más frías y en las más calientes.</div>
+        <div class="acciones" style="margin-top:10px;flex-wrap:wrap"><a class="btn small primary" href="/api/esp/fits?id=${encodeURIComponent(s.id)}" download>Espectro (FITS 1D)</a>
+          <a class="btn small" href="/api/esp/csv?id=${encodeURIComponent(s.id)}" download>Tabla (CSV)</a>
+          <a class="btn small" href="/api/esp/svg?id=${encodeURIComponent(s.id)}" download>Figura (SVG)</a></div></div>
+    </div>
+    <div class="acciones"><a class="btn small" href="/api/esp/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar este espectro</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "esp"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar este espectro?")) return; await post("/api/esp/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesEsp(); };
+  const recalc = async extra => {
+    const datos = Object.assign({id: s.id, estrella: $("dEstrella").value.trim(), dispersion: $("dDisp").value.trim().replace(",", "."), referencia: $("dRef").value, teff_ref: $("dTeff").value.trim()}, extra || {});
+    if (datos.referencia && !datos.teff_ref){ toast("Escribe la temperatura de la estrella de referencia"); return; }
+    try { toast("Calculando…"); const nuevo = await (await post("/api/esp/recalcular", datos)).json(); verEsp(s.id, nuevo); cargarSeriesEsp(); toast("Recalculado"); }
+    catch(e){ toast(e.message || e); }
+  };
+  $("dRecalcular").onclick = () => recalc();
+  const cv = $("eVista"), v = s.vista || [];
+  if (v.length){
+    const hgt = v.length, wid = v[0].length; cv.width = wid; cv.height = hgt;
+    const ctx = cv.getContext("2d"), im = ctx.createImageData(wid, hgt);
+    v.forEach((fila, y) => fila.forEach((val, x) => { const i = 4 * (y * wid + x); im.data[i] = im.data[i+1] = im.data[i+2] = val; im.data[i+3] = 255; }));
+    ctx.putImageData(im, 0, 0);
+    const k = s.vista_escala, x0 = s.orden_cero[0] / k, y0 = s.orden_cero[1] / k, a = s.angulo * Math.PI / 180;
+    const largo = (s.perfil.length ? s.perfil[s.perfil.length - 1][0] : 600) / k;
+    ctx.strokeStyle = "#F2C14E"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x0, y0, 7, 0, 2 * Math.PI); ctx.stroke();
+    ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x0 + 9 * Math.cos(a), y0 + 9 * Math.sin(a)); ctx.lineTo(x0 + largo * Math.cos(a), y0 + largo * Math.sin(a)); ctx.stroke();
+    cv.onclick = ev => { const r = cv.getBoundingClientRect(); const x = (ev.clientX - r.left) / r.width * wid * k, y = (ev.clientY - r.top) / r.height * hgt * k; recalc({x: x.toFixed(1), y: y.toFixed(1)}); };
+  }
+  graficaEsp(s, c);
+}
+function graficaEsp(s, c){
+  const W = 1000, H = 380, L = 50, R = 16, T = 30, B = 58;
+  const lam = c.lambda, fl = c.corregido || c.flujo;
+  const la = 3800, lb = 8000;
+  const X = l => L + (l - la) / (lb - la) * (W - L - R), Y = v => T + (1.05 - v) / 1.1 * (H - T - B);
+  let g = "";
+  for (let l = 3900; l < 7600; l += 20){ const hue = Math.max(0, Math.min(270, (6500 - l) / 2500 * 270)); g += `<rect x="${X(l).toFixed(1)}" y="${H-B+24}" width="${(X(l+20)-X(l)+0.6).toFixed(1)}" height="7" fill="hsl(${hue.toFixed(0)},85%,55%)"/>`; }
+  for (let l = 4000; l <= 8000; l += 500) g += `<line class="rej" x1="${X(l)}" x2="${X(l)}" y1="${T}" y2="${H-B}"/><text class="tx" x="${X(l)}" y="${H-B+16}" text-anchor="middle">${l}</text>`;
+  for (const x of (c.lineas || [])) g += `<line x1="${X(x.lambda)}" x2="${X(x.lambda)}" y1="${T}" y2="${H-B}" stroke="${/O₂|H₂O/.test(x.nombre) ? "var(--oro)" : "var(--accent2)"}" stroke-dasharray="3 3"/><text class="tx" x="${X(x.lambda)}" y="${T-8}" text-anchor="middle">${esc(x.nombre)}</text>`;
+  if (!c.corregido) g += `<polyline fill="none" stroke="var(--line2)" stroke-width="1.2" points="${lam.map((l, i) => l >= la && l <= lb ? X(l).toFixed(1) + "," + Y(c.continuo[i]).toFixed(1) : "").filter(Boolean).join(" ")}"/>`;
+  g += `<polyline fill="none" stroke="var(--accent)" stroke-width="1.6" points="${lam.map((l, i) => l >= la && l <= lb ? X(l).toFixed(1) + "," + Y(fl[i]).toFixed(1) : "").filter(Boolean).join(" ")}"/>`;
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">${esc(tr("longitud de onda (Å)"))}</text>`;
+  $("gEsp").innerHTML = `<h4>${esc(tr(c.corregido ? "Espectro corregido de la respuesta del equipo" : "Espectro (instrumental)"))}</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr(c.corregido ? "Dividido por la respuesta calculada con la estrella de referencia. En morado, las líneas de la estrella; en dorado, las del aire (O₂ y H₂O)." : "Tal como llega a la cámara: lleva la respuesta de la cámara, la óptica y la atmósfera. En gris, el continuo que se usa para buscar las líneas; en morado, las líneas de la estrella; en dorado, las del aire (O₂ y H₂O)."))}</div>`;
 }
 
 /* ============ Informe de problemas y «Acerca de» ============ */
