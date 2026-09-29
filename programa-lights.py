@@ -5,13 +5,35 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.28"
+VERSION_PROG = "2026.09.29.29"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
 ROOT = os.path.join(DISCO, "Lights")
 DIBUJOS_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes", "web")
 DB = os.path.join(ROOT, "lights.json")
+_DB_LOCK = threading.Lock()
+
+
+def guardar_db(data):
+    """Escribe lights.json de forma segura: una escritura a la vez, a un temporal que se fuerza a disco, y la versión
+    anterior se queda en lights.json.bak (si un corte de luz o un disco lleno estropea la nueva, no se pierde el catálogo)."""
+    with _DB_LOCK:
+        tmp = DB + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(data); f.flush()
+            try: os.fsync(f.fileno())
+            except OSError: pass
+        if os.path.exists(DB):
+            try:
+                with open(DB, "rb") as f0:
+                    viejo = f0.read()
+                json.loads(viejo)                  # solo se guarda de copia una versión que se pueda leer
+                with open(DB + ".bak", "wb") as fb:
+                    fb.write(viejo)
+            except Exception:
+                pass
+        os.replace(tmp, DB)
 
 
 ES_MAC = sys.platform == "darwin"
@@ -1725,19 +1747,22 @@ const $ = id => document.getElementById(id);
 async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
 async function loadDb(){
   try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); frames.forEach(f=>{ if (!f.id) f.id = uid(); }); arreglarCamaras(); await cargarRegTomas(); }
-  catch(e){ frames = []; toast("No se pudo leer lights.json: "+(e.message||e)); }
+  catch(e){ frames = []; DB_ILEGIBLE = true; toast("No se pudo leer lights.json: "+(e.message||e)); }
   evaluateAll();
   $("storeInfo").textContent = `Base de datos: ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas`;
 }
-let saveTimer = null, saving = false, dirty = false;
+let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0;
 function scheduleSave(){ dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, 700); }
 async function saveDb(){
   if (saving){ scheduleSave(); return; }
+  // lights.json no se pudo leer al abrir: guardar ahora lo dejaría casi vacío; se conserva tal cual (y su copia .bak)
+  if (DB_ILEGIBLE){ toast("lights.json no se pudo leer al abrir ASTRO: no se guardan cambios para no perder tu catálogo. Cierra ASTRO y revisa el archivo (hay una copia en lights.json.bak)."); return; }
   saving = true; dirty = false;
   try { await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:1, updated:new Date().toISOString(), frames})});
-    $("storeInfo").textContent = `Guardado en ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas · ${new Date().toLocaleTimeString(LOCALE)}`; }
-  catch(e){ toast("No se pudo guardar lights.json: "+(e.message||e)); }
-  saving = false; if (dirty) scheduleSave();
+    $("storeInfo").textContent = `Guardado en ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas · ${new Date().toLocaleTimeString(LOCALE)}`; fallosGuardar = 0; }
+  catch(e){ toast("No se pudo guardar lights.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
+  saving = false;
+  if (dirty){ if (fallosGuardar){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, Math.min(30000, 2000 * fallosGuardar)); } else scheduleSave(); }
 }
 window.addEventListener("beforeunload", e => { if (dirty || saving){ saveDb(); e.preventDefault(); e.returnValue=""; } });
 function safe(s){ return String(s||"").replace(/[\\/:*?"<>|]/g,"_").replace(/\s+/g," ").trim().slice(0,80) || "_"; }
@@ -1746,7 +1771,9 @@ async function copyIntoLibrary(file, rec){
   const r = await api("/api/upload?path="+encodeURIComponent(libPath(rec, file.name)), {method:"POST", body:file});
   rec.path = (await r.json()).path;
 }
-async function moveOnDisk(rec, to){ await api("/api/move", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({from:rec.path, to})}); rec.path = to; }
+async function moveOnDisk(rec, to){ const r = await api("/api/move", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({from:rec.path, to})});
+  let p = to; try { p = (await r.json()).path || to; } catch(_){}
+  rec.path = String(p).replace(/\\/g, "/"); }
 async function deleteFromDisk(rec){ if (!rec.path) return false; try { await api("/api/delete", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path:rec.path})}); return true; } catch(e){ return false; } }
 
 /* ============ Lectura ============ */
@@ -14479,7 +14506,7 @@ def importar_copiar(ruta, rel):
         except OSError:
             pass
         raise
-    return os.path.relpath(dest, ROOT)
+    return os.path.relpath(dest, ROOT).replace(os.sep, "/")
 
 
 def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True):
@@ -15229,6 +15256,10 @@ class H(BaseHTTPRequestHandler):
                 chunk = self.rfile.read(min(1 << 20, left))
                 if not chunk: break
                 f.write(chunk); left -= len(chunk)
+        if left > 0:                      # la copia se cortó: no se deja un archivo a medias con su nombre definitivo
+            try: os.remove(tmp)
+            except OSError: pass
+            raise IOError("la copia se ha cortado antes de terminar")
         os.replace(tmp, dest)
 
     def _servir_archivo(self, ruta):
@@ -15408,6 +15439,10 @@ class H(BaseHTTPRequestHandler):
         p = urllib.parse.urlparse(self.path)
         if p.path.startswith("/api/movil") and not self._mismo_origen():
             return self._send(403, "origen", "text/plain; charset=utf-8")
+        # otra web abierta en el navegador no puede borrar, mover ni guardar nada aquí (el navegador pone su Origin)
+        o = self.headers.get("Origin")
+        if o and not re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$", o):
+            return self._send(403, "origen", "text/plain; charset=utf-8")
         if p.path == "/api/movil":
             d = json.loads(self._body() or b"{}")
             try:
@@ -15458,9 +15493,7 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/save":
                 data = self._body()
                 json.loads(data)  # comprobar que es JSON válido antes de escribir
-                tmp = DB + ".tmp"
-                with open(tmp, "wb") as f: f.write(data)
-                os.replace(tmp, DB)
+                guardar_db(data)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/upload":
                 dest = dentro(q.get("path", [""])[0])
@@ -15468,7 +15501,7 @@ class H(BaseHTTPRequestHandler):
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 dest = nombre_libre(dest)
                 self._stream_to(dest)
-                return self._send(200, json.dumps({"path": os.path.relpath(dest, ROOT)}))
+                return self._send(200, json.dumps({"path": os.path.relpath(dest, ROOT).replace(os.sep, "/")}))
             if p.path == "/api/export":
                 dest = dentro(q.get("path", [""])[0])
                 if not dest: return self._send(400, "ruta no válida", "text/plain; charset=utf-8")
@@ -15494,7 +15527,7 @@ class H(BaseHTTPRequestHandler):
                 d0 = os.path.dirname(src)
                 while d0 != ROOT and os.path.isdir(d0) and not os.listdir(d0):
                     os.rmdir(d0); d0 = os.path.dirname(d0)
-                return self._send(200, json.dumps({"path": os.path.relpath(dst, ROOT)}))
+                return self._send(200, json.dumps({"path": os.path.relpath(dst, ROOT).replace(os.sep, "/")}))
             if p.path == "/api/objetivos":
                 d = json.loads(self._body() or b"{}")
                 ruta = os.path.join(ROOT, "objetivos.json")

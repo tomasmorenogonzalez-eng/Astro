@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.1"
+VERSION_PROG = "2026.09.29.2"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -3496,6 +3496,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web abierta en el navegador no puede borrar ni mover nada aquí (el navegador pone su Origin)
+        o = self.headers.get("Origin")
+        if o and not re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$", o):
+            return self._send(403, "origen", "text/plain; charset=utf-8")
         if p.path == "/api/idioma":
             d = json.loads(self._body() or b"{}")
             guardar_idioma(d.get("idioma", "es"))

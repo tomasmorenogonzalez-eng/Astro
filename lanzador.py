@@ -1553,6 +1553,10 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urllib.parse.urlparse(self.path).path
+        # otra web abierta en el navegador no puede cambiar la carpeta de datos ni cerrar ASTRO
+        o = self.headers.get("Origin")
+        if o and not re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$", o):
+            self.send_response(403); self.end_headers(); return
         try:
             n = int(self.headers.get("Content-Length") or 0)
             d = json.loads(self.rfile.read(n) or b"{}") if n else {}
