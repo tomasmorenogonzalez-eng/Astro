@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.11"
+VERSION_PROG = "2026.09.29.12"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -3565,12 +3565,15 @@ def _db_cambiada(data):
     la marca «updated» de lo que leyó; si la del archivo es otra, guardar ahora borraría lo que hizo la otra pestaña."""
     try:
         m = re.search(rb'"base"\s*:\s*"([^"]*)"', data[:300])
-        if not m or not os.path.exists(DB):
+        if not m:
             return False
+        if not os.path.exists(DB):
+            # la pestaña leyó una biblioteca que aquí no está: es de otra carpeta de datos
+            return bool(m.group(1))
         with open(DB, "rb") as f:
             ini = f.read(300)
         a = re.search(rb'"updated"\s*:\s*"([^"]*)"', ini)
-        return bool(a) and a.group(1) != m.group(1)
+        return (a.group(1) if a else b"") != m.group(1)
     except OSError:
         return False
 

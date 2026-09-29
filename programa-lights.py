@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.46"
+VERSION_PROG = "2026.09.29.47"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -99,12 +99,16 @@ def _db_cambiada(data):
     la marca «updated» de lo que leyó; si la del archivo es otra, guardar ahora borraría lo que hizo la otra pestaña."""
     try:
         m = re.search(rb'"base"\s*:\s*"([^"]*)"', data[:300])
-        if not m or not os.path.exists(DB):
+        if not m:
             return False
+        if not os.path.exists(DB):
+            # la pestaña leyó una base de datos que aquí no está: es de otra carpeta de datos (se cambió de carpeta o
+            # se salió de los datos de ejemplo con la pestaña abierta) y guardarla metería aquí aquel catálogo
+            return bool(m.group(1))
         with open(DB, "rb") as f:
             ini = f.read(300)
         a = re.search(rb'"updated"\s*:\s*"([^"]*)"', ini)
-        return bool(a) and a.group(1) != m.group(1)
+        return (a.group(1) if a else b"") != m.group(1)
     except OSError:
         return False
 
@@ -1853,28 +1857,98 @@ let sort = {k:"dateObs", dir:"desc"};
 const $ = id => document.getElementById(id);
 
 /* ============ Servidor local ============ */
-async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
+async function api(path, opts){
+  if (opts && opts.method && opts.method !== "GET") opts = Object.assign({}, opts, {headers: Object.assign({"X-Astro-Raiz": encodeURIComponent(ROOT_NAME)}, opts.headers || {})});
+  const r = await fetch(path, opts);
+  if (!r.ok){ const t = (await r.text()) || r.statusText; if (t === "otra_carpeta") otraCarpeta(); throw new Error(t); }
+  return r; }
+// ASTRO ha cambiado de carpeta de datos con esta pestaña abierta: ya no se guarda ni se importa nada desde ella
+function otraCarpeta(){
+  if (DB_AJENA === "carpeta") return;
+  DB_AJENA = "carpeta"; pararImportaciones();
+  toast("ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5). No se ha guardado nada desde ella.");
+}
+function pararImportaciones(){
+  try { VIGI.parar = true; } catch(_){}
+  try { if (DIR.activo){ DIR.activo = false; clearTimeout(DIR.timer); dirAlerta("bad", "La revisión en directo se ha parado", "Esta ventana ya no puede guardar: vuelve a cargarla (F5) y vuelve a empezar la sesión.", ""); } } catch(_){}
+}
 async function loadDb(){
-  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); DB_BASE = (data && data.updated) || ""; frames.forEach(f=>{ if (!f.id) f.id = uid(); }); arreglarCamaras(); await cargarRegTomas(); }
+  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); DB_BASE = (data && data.updated) || ""; frames.forEach(f=>{ if (!f.id) f.id = uid(); }); BASE_HUELLAS = huellasDe(frames); arreglarCamaras(); await cargarRegTomas(); }
   catch(e){ frames = []; DB_ILEGIBLE = true; toast("No se pudo leer lights.json: "+(e.message||e)); }
   evaluateAll();
   $("storeInfo").textContent = `Base de datos: ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas`;
 }
 let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0, DB_BASE = null, DB_AJENA = false;
+// Huella de cada ficha tal como está guardada: si otra pestaña guarda entre medias, se juntan las dos (lo que cambió
+// aquí, encima de lo guardado) en vez de dejar de guardar. Antes, la sesión en directo de toda una noche o lo importado
+// de las carpetas vigiladas se perdía al recargar.
+let BASE_HUELLAS = new Map();
+function huella(txt){ let h = 2166136261; for (let i = 0; i < txt.length; i++){ h ^= txt.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+// [lo que cuenta para la huella, la ficha entera]: la valoración (reasons, score, status) se recalcula en cada pestaña y
+// no es un cambio de nadie
+function partesFicha(f){
+  const {reasons, score, status, ...resto} = f; const base = JSON.stringify(resto);
+  let extra = "";
+  if (reasons !== undefined) extra += ',"reasons":' + JSON.stringify(reasons);
+  if (score !== undefined) extra += ',"score":' + JSON.stringify(score);
+  if (status !== undefined) extra += ',"status":' + JSON.stringify(status);
+  return [base, !extra ? base : base === "{}" ? "{" + extra.slice(1) + "}" : base.slice(0, -1) + extra + "}"];
+}
+function huellasDe(lista){ const m = new Map(); for (const f of lista) m.set(f.id, huella(partesFicha(f)[0])); return m; }
+async function juntarConGuardado(){
+  const data = await (await api("/api/db")).json();
+  const srv = Array.isArray(data) ? data : (data.frames || []);
+  const locPorId = new Map(frames.map(f => [f.id, f])), srvIds = new Set(srv.map(f => f.id));
+  const out = []; let propias = 0;
+  for (const f of srv){
+    const l = locPorId.get(f.id);
+    if (l){ if (BASE_HUELLAS.get(l.id) !== huella(partesFicha(l)[0])){ out.push(l); propias++; } else out.push(f); }
+    else if (!BASE_HUELLAS.has(f.id)) out.push(f);           // nueva de la otra pestaña
+    else propias++;                                           // borrada en esta
+  }
+  // las nuevas de esta pestaña (salvo las que la otra ya había añadido: la misma toma, por su ruta)
+  const rutas = new Set(); srv.forEach(f => { for (const r of [f.path, f.origen, f.desde]) if (r) rutas.add(r); });
+  for (const l of frames) if (!srvIds.has(l.id) && !BASE_HUELLAS.has(l.id) && ![l.path, l.origen, l.desde].some(r => r && rutas.has(r))){ out.push(l); propias++; }
+  const sel = selected && selected.id;
+  frames = out;
+  DB_BASE = (data && data.updated) || "";
+  BASE_HUELLAS = huellasDe(srv);
+  if (sel) selected = frames.find(f => f.id === sel) || null;
+  evaluateAll(); render();
+  return propias;
+}
 function scheduleSave(){ dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, 700); }
+// Devuelve true si ha quedado guardado (quien necesite saberlo, como la importación de un proyecto, lo mira)
 async function saveDb(){
-  if (saving){ scheduleSave(); return; }
+  if (saving){ scheduleSave(); return false; }
   // lights.json no se pudo leer al abrir: guardar ahora lo dejaría casi vacío; se conserva tal cual (y su copia .bak)
-  if (DB_ILEGIBLE){ toast("lights.json no se pudo leer al abrir ASTRO: no se guardan cambios para no perder tu catálogo. Cierra ASTRO y revisa el archivo (hay una copia en lights.json.bak)."); return; }
-  if (DB_AJENA){ toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); return; }
+  if (DB_ILEGIBLE){ toast("lights.json no se pudo leer al abrir ASTRO: no se guardan cambios para no perder tu catálogo. Cierra ASTRO y revisa el archivo (hay una copia en lights.json.bak)."); return false; }
+  if (DB_AJENA){ toast(DB_AJENA === "carpeta" ? "ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5)."
+      : "La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); return false; }
   saving = true; dirty = false;
   const ahora = new Date().toISOString();
-  try { await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:1, updated:ahora, base:DB_BASE, frames})}); DB_BASE = ahora;
+  let ok = false;
+  try {
+    const partes = frames.map(partesFicha), ids = frames.map(f => f.id);
+    await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: '{"version":1,"updated":' + JSON.stringify(ahora) + ',"base":' + JSON.stringify(DB_BASE) + ',"frames":[' + partes.map(x => x[1]).join(",") + "]}"});
+    DB_BASE = ahora; ok = true; saveDb.juntas = 0;
+    BASE_HUELLAS = new Map(ids.map((id, i) => [id, huella(partes[i][0])]));
     $("storeInfo").textContent = `Guardado en ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas · ${new Date().toLocaleTimeString(LOCALE)}`; fallosGuardar = 0; }
-  catch(e){ if (/otra_ventana/.test(e.message||"")){ DB_AJENA = true; toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); saving = false; return; }
+  catch(e){
+    if (/otra_ventana/.test(e.message||"")){
+      saving = false;
+      try { if ((saveDb.juntas = (saveDb.juntas || 0) + 1) > 3) throw new Error("demasiadas");
+        const n = await juntarConGuardado(); dirty = true;
+        toast(n ? "Se había guardado desde otra ventana de ASTRO: se ha juntado con los cambios de esta." : "Se había guardado desde otra ventana de ASTRO: esta se ha puesto al día.");
+        return await saveDb(); }
+      catch(_){ DB_AJENA = true; pararImportaciones(); toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); return false; }
+    }
+    if (e.message === "otra_carpeta"){ saving = false; return false; }
     toast("No se pudo guardar lights.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
   saving = false;
   if (dirty){ if (fallosGuardar){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, Math.min(30000, 2000 * fallosGuardar)); } else scheduleSave(); }
+  return ok;
 }
 window.addEventListener("beforeunload", e => { if (dirty || saving){ saveDb(); e.preventDefault(); e.returnValue=""; } });
 function safe(s){ return String(s||"").replace(/[\\/:*?"<>|]/g,"_").replace(/\s+/g," ").trim().slice(0,80) || "_"; }
@@ -1916,10 +1990,12 @@ async function _ingest(files, opts){
   const res = {added:0, dup:0, bad:0, hechas:[], fallidas:[]};
   files = files.filter(f => EXT_FITS.test(f.name) || EXT_XISF.test(f.name));
   if (!files.length){ if (!opts.silencioso) toast("No hay archivos FITS o XISF entre lo arrastrado"); return res; }
-  const copy = $("batchCopy").checked;
+  const copy = opts.silencioso ? false : $("batchCopy").checked;
   const prog = $("progress"), bar = prog.querySelector("i"); prog.style.display = "block"; if (!opts.conservarLog) $("log").innerHTML = "";
   let n = 0;
-  const batch = { obj:$("batchObj").value.trim(), tel:$("batchTel").value.trim(), cam:$("batchCam").value.trim(), note:$("batchNote").value.trim() };
+  // (lo escrito en «Añadir sesión» es para esa sesión: las importaciones silenciosas de las carpetas vigiladas no lo usan)
+  const batch = opts.silencioso ? {obj:"", tel:"", cam:"", note:""}
+    : { obj:$("batchObj").value.trim(), tel:$("batchTel").value.trim(), cam:$("batchCam").value.trim(), note:$("batchNote").value.trim() };
   const eqp = (opts && opts.equipo) || null;     // tomas de un equipo de un proyecto (nunca las de las carpetas vigiladas)
   const nuevas = [];
   // índices de lo que ya hay (con bibliotecas grandes, recorrer todas las fichas por cada archivo es lento)
@@ -1935,7 +2011,7 @@ async function _ingest(files, opts){
       res.dup++; if (f.ruta) res.hechas.push(f.ruta); addLog(`${f.name}: ya estaba en la base de datos`, "warn"); continue; }
     let rec;
     try { rec = await analyzeFile(f, batch); }
-    catch(e){ res.bad++; if (f.ruta) res.fallidas.push(f.ruta); addLog(`${f.name}: no se pudo procesar (${e.message||e})`, "bad"); console.error(e); continue; }
+    catch(e){ res.bad++; if (f.ruta && !e.transporte) res.fallidas.push(f.ruta); addLog(`${f.name}: no se pudo procesar (${e.message||e})`, "bad"); console.error(e); continue; }
     if (eqp){ rec.object = eqp.obj; rec.equipo_id = eqp.s.id; if (!rec.tel) rec.tel = eqp.s.tel || ""; if (!rec.cam) rec.cam = eqp.s.cam || ""; }
     else if (f.grupo && f.grupo.obj){         // de la carpeta de un proyecto en grupo: a ese proyecto y al equipo de su carpeta
       rec.object = f.grupo.obj;
@@ -1975,8 +2051,9 @@ class ArchivoDisco {
     a = Math.max(0, a||0); b = Math.min(size, b===undefined ? size : b);
     return { arrayBuffer: async () => {
       if (b <= a) return new ArrayBuffer(0);
-      const r = await api(url, {headers:{Range:`bytes=${a}-${b-1}`}});
-      const buf = await r.arrayBuffer();
+      let r, buf;
+      try { r = await api(url, {headers:{Range:`bytes=${a}-${b-1}`}}); buf = await r.arrayBuffer(); }
+      catch(e){ e.transporte = true; throw e; }       // no es la toma: es la red o el disco (se vuelve a probar otro día)
       return r.status === 206 ? buf : buf.slice(a, b);
     }};
   }
@@ -3398,12 +3475,13 @@ async function discard(list){
   list = list.filter(f=>!f.discarded); if (!list.length) return;
   if (list.length>1 && !confirm(`¿Descartar ${list.length} lights? Se mueven a la carpeta _Descartadas (se pueden recuperar).`)) return;
   let moved = 0;
-  for (const f of list){ if (f.path && !f.path.startsWith("_Descartadas/")){ try { await moveOnDisk(f, "_Descartadas/"+f.path); moved++; } catch(e){ toast("No se pudo mover "+f.name); } } f.discarded = true; }
+  // cada una queda apuntada nada más moverla: si se cierra la ventana a mitad, la base de datos sabe dónde está cada archivo
+  for (const f of list){ if (f.path && !f.path.startsWith("_Descartadas/")){ try { await moveOnDisk(f, "_Descartadas/"+f.path); moved++; } catch(e){ toast("No se pudo mover "+f.name); } } f.discarded = true; scheduleSave(); }
   historialTomas(list, "descartadas");
   evaluateAll(); scheduleSave(); render(); toast(`${list.length} descartadas${moved?" · "+moved+" movidas a _Descartadas":""}`);
 }
 async function restore(f){
-  if (f.path && f.path.startsWith("_Descartadas/")){ try { await moveOnDisk(f, f.path.slice("_Descartadas/".length)); } catch(e){ toast("No se pudo mover "+f.name); } }
+  if (f.path && f.path.startsWith("_Descartadas/")){ try { await moveOnDisk(f, f.path.slice("_Descartadas/".length)); scheduleSave(); } catch(e){ toast("No se pudo mover "+f.name); } }
   f.discarded = false; historialTomas([f], "recuperadas"); evaluateAll(); scheduleSave(); render(); toast("Recuperada");
 }
 function closePanel(){ selected = null; $("panel").classList.remove("open"); document.querySelectorAll("tr.sel").forEach(t=>t.classList.remove("sel")); }
@@ -7525,7 +7603,10 @@ async function incorporarProyecto(r){
     try { await api("/api/objetivos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(OBJETIVOS)}); } catch(_){}
   }
   if (r.coordenadas){ try { const c = await cfgPlan(); if (!(c.coords||{})[obj]) await guardarCfgPlan({coords: Object.assign({}, c.coords||{}, {[obj]: r.coordenadas})}); } catch(_){} }
-  evaluateAll(); scheduleSave(); render(); try { await saveDb(); } catch(_){}
+  evaluateAll(); render();
+  let guardado = false;
+  for (let i = 0; i < 20 && !guardado; i++){ guardado = await saveDb(); if (!guardado){ if (DB_AJENA || DB_ILEGIBLE) break; await new Promise(r => setTimeout(r, 500)); } }
+  if (!guardado){ scheduleSave(); toast("Las tomas del proyecto están en esta ventana, pero no se han podido guardar todavía: no cierres ASTRO."); return; }
   fetch("/api/proyecto/incorporado", {method:"POST"}).catch(()=>{});
   const sin = (r.tomas||[]).filter(x=>!x.path).length;
   $("projBody").innerHTML = `<h2>Importar un proyecto</h2><div class="status ok">✓ <span>Proyecto importado en</span> <b class="notr">${esc(obj)}</b></div>
@@ -14145,7 +14226,7 @@ def recorrer_tomas(carpeta, parar=lambda: False, cuenta=None, saltar=None, con_c
                         continue
                     reales.add(r)
                     it = {"ruta": e.path, "nombre": n, "size": st.st_size, "mtime": int(st.st_mtime * 1000),
-                          "carpeta": os.path.relpath(d, carpeta)}
+                          "carpeta": os.path.relpath(d, carpeta), "entera": bool(_ent)}
                     if cab is not None:
                         it["cab"] = cab
                     items.append(it)
@@ -14863,7 +14944,12 @@ def _vig_trabajo(carpetas, ident):
             if r is None:
                 return
             desde = (c.get("desde") or 0) * 1000
+            reciente = (time.time() - 120) * 1000
             for it in r[0]:
+                # una toma cortada o recién escrita (el Explorador o un disco en red la están copiando todavía) se deja
+                # para la próxima revisión: si no, se analizaba a medias y ya no se volvía a mirar
+                if not it.get("entera", True) or it["mtime"] > reciente:
+                    continue
                 if it["mtime"] >= desde:
                     it.update(copiar=bool(c.get("copiar")), raiz=c["ruta"], raiz_id=c.get("id"))
                     if grupo:
@@ -14928,17 +15014,30 @@ def importar_copiar(ruta, rel):
     if not importar_ok(ruta) or not dest:
         raise RuntimeError("ruta no válida")
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    dest = nombre_libre(dest)
-    tmp = dest + ".parcial"
-    try:
-        shutil.copy2(ruta, tmp)          # sigue el enlace: se copia el archivo de verdad
-        os.replace(tmp, dest)
-    except Exception:
+    with cerrojo_de(dest):
+        if os.path.isfile(dest):
+            # la misma toma (mismo tamaño y mismo principio, con la fecha): otra pestaña, o la sesión en directo, la
+            # acaba de copiar; se usa esa en vez de hacer «X (2)»
+            try:
+                with open(ruta, "rb") as fh:
+                    ini = fh.read(65536)
+                with open(dest, "rb") as fh:
+                    igual = os.path.getsize(dest) == os.path.getsize(ruta) and fh.read(len(ini)) == ini
+            except OSError:
+                igual = False
+            if igual:
+                return os.path.relpath(dest, ROOT).replace(os.sep, "/")
+        dest = nombre_libre(dest)
+        tmp = temporal_de(dest) + ".parcial"
         try:
-            os.remove(tmp)
-        except OSError:
-            pass
-        raise
+            shutil.copy2(ruta, tmp)          # sigue el enlace: se copia el archivo de verdad
+            reemplazar(tmp, dest)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
     return os.path.relpath(dest, ROOT).replace(os.sep, "/")
 
 
@@ -15931,7 +16030,8 @@ class H(BaseHTTPRequestHandler):
             with _VIG_LOCK:
                 d = {k: v for k, v in _VIG.items() if k != "items"}
                 if not _VIG["activo"]:
-                    d["items"] = _VIG["items"]
+                    # el lote se lo lleva una sola pestaña: con dos abiertas, las dos lo importaban (y lo copiaban dos veces)
+                    d["items"], _VIG["items"] = _VIG["items"], []
             return self._send(200, json.dumps(d, ensure_ascii=False))
         if p.path == "/api/archivo/estado":
             return self._send(200, json.dumps(archivo_estado(), ensure_ascii=False))
@@ -15976,6 +16076,11 @@ class H(BaseHTTPRequestHandler):
             return self._send(403, "host", "text/plain; charset=utf-8")
         if p.path.startswith("/api/movil") and not self._mismo_origen():
             return self._send(403, "origen", "text/plain; charset=utf-8")
+        # una pestaña que se abrió con otra carpeta de datos (ASTRO ha cambiado de carpeta, o se ha salido de los datos
+        # de ejemplo, con ella abierta) no cambia nada en esta
+        raiz = self.headers.get("X-Astro-Raiz")
+        if raiz is not None and os.path.normcase(os.path.abspath(urllib.parse.unquote(raiz))) != os.path.normcase(os.path.abspath(ROOT)):
+            return self._send(409, "otra_carpeta", "text/plain; charset=utf-8")
         # otra web abierta en el navegador no puede borrar, mover ni guardar nada aquí (el navegador pone su Origin)
         o = self.headers.get("Origin")
         if o and not re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$", o):
