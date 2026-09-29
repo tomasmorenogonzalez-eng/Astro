@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.28.4",
+  "es": [
+   "Eliminar varias tomas a la vez: marca sus casillas en «Todas las tomas» y pulsa «Eliminar seleccionadas». Solo se borran las copias que ASTRO guardó en su carpeta; tus archivos no se tocan.",
+   "En «Mis objetos», cada tarjeta tiene «Más opciones»: si el mismo objeto sale dos veces con el nombre escrito distinto (M31 y M 31), puedes juntarlos, y también eliminar un objeto. Antes de eliminar te pregunta dos veces.",
+   "Un proyecto terminado puede seguir creciendo: si le llegan tomas nuevas (M 31 este año y más datos el que viene), vuelve solo a «en curso» y queda anotado en su historial.",
+   "Biblioteca de calibración: los darks, bias o flat darks que salieron mal dejan de avisar en cuanto los repites bien con la misma cámara y los mismos ajustes. Salen como «ya sustituidos»."
+  ],
+  "en": [
+   "Delete several frames at once: tick them in «All frames» and click «Delete selected». Only the copies ASTRO kept in its own folder are deleted; your files are not touched.",
+   "In «My targets», every card has «More options»: if the same target shows up twice with its name written differently (M31 and M 31), you can merge them, and you can also delete a target. It asks twice before deleting.",
+   "A finished project can keep growing: if new frames arrive (M 31 this year and more data next year), it goes back to «in progress» by itself and it is noted in its history.",
+   "Calibration library: darks, bias or flat darks that came out wrong stop warning as soon as you redo them properly with the same camera and settings. They show as «already replaced»."
+  ],
+  "fr": [
+   "Supprimer plusieurs poses à la fois : cochez-les dans « Toutes les poses » et cliquez sur « Supprimer la sélection ». Seules les copies qu'ASTRO a gardées dans son dossier sont effacées ; vos fichiers ne sont pas touchés.",
+   "Dans « Mes objets », chaque carte propose « Plus d'options » : si le même objet apparaît deux fois avec un nom écrit différemment (M31 et M 31), vous pouvez les fusionner, et aussi supprimer un objet. Il vous le demande deux fois avant de supprimer.",
+   "Un projet terminé peut continuer à grandir : s'il reçoit de nouvelles poses (M 31 cette année et d'autres données l'an prochain), il repasse tout seul « en cours » et c'est noté dans son historique.",
+   "Bibliothèque de calibration : les darks, bias ou flat darks ratés cessent d'avertir dès que vous les refaites correctement avec la même caméra et les mêmes réglages. Ils apparaissent comme « déjà remplacés »."
+  ],
+  "de": [
+   "Mehrere Aufnahmen auf einmal löschen: Hake sie unter „Alle Aufnahmen“ an und klicke auf „Ausgewählte löschen“. Gelöscht werden nur die Kopien, die ASTRO in seinem Ordner abgelegt hat; deine Dateien bleiben unberührt.",
+   "Unter „Meine Objekte“ hat jede Karte „Weitere Optionen“: Taucht dasselbe Objekt zweimal mit unterschiedlich geschriebenem Namen auf (M31 und M 31), kannst du sie zusammenführen und auch ein Objekt löschen. Vor dem Löschen fragt ASTRO zweimal nach.",
+   "Ein abgeschlossenes Projekt kann weiter wachsen: Kommen neue Aufnahmen dazu (M 31 dieses Jahr und mehr Daten im nächsten), ist es von selbst wieder „in Arbeit“, und das steht in seinem Verlauf.",
+   "Kalibrierbibliothek: Misslungene Darks, Bias oder Flat-Darks warnen nicht mehr, sobald du sie mit derselben Kamera und denselben Einstellungen richtig wiederholst. Sie erscheinen als „bereits ersetzt“."
+  ],
+  "it": [
+   "Eliminare più pose alla volta: selezionale in «Tutte le pose» e fai clic su «Elimina selezionate». Si cancellano solo le copie che ASTRO ha salvato nella sua cartella; i tuoi file non vengono toccati.",
+   "In «I miei oggetti», ogni scheda ha «Altre opzioni»: se lo stesso oggetto compare due volte con il nome scritto in modo diverso (M31 e M 31), puoi unirli, e puoi anche eliminare un oggetto. Prima di eliminare te lo chiede due volte.",
+   "Un progetto terminato può continuare a crescere: se arrivano pose nuove (M 31 quest'anno e altri dati l'anno prossimo), torna da solo «in corso» e resta annotato nella sua cronologia.",
+   "Libreria di calibrazione: i dark, bias o flat dark venuti male smettono di avvisare appena li rifai bene con la stessa camera e le stesse impostazioni. Compaiono come «già sostituiti»."
+  ],
+  "pt": [
+   "Eliminar várias exposições de uma vez: marque-as em «Todas as exposições» e clique em «Eliminar selecionadas». Só se apagam as cópias que o ASTRO guardou na sua pasta; os seus ficheiros não são tocados.",
+   "Em «Os meus objetos», cada cartão tem «Mais opções»: se o mesmo objeto aparecer duas vezes com o nome escrito de forma diferente (M31 e M 31), pode juntá-los, e também eliminar um objeto. Antes de eliminar pergunta duas vezes.",
+   "Um projeto terminado pode continuar a crescer: se chegarem exposições novas (M 31 este ano e mais dados no próximo), volta sozinho a «em curso» e fica anotado no seu histórico.",
+   "Biblioteca de calibração: os darks, bias ou flat darks que saíram mal deixam de avisar assim que os repete bem com a mesma câmara e as mesmas definições. Aparecem como «já substituídos»."
+  ]
+ },
+ {
   "version": "0.28.3",
   "es": [
    "Arreglado el análisis de tránsitos de exoplanetas, que en la 0.28.2 fallaba siempre.",

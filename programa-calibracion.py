@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.15"
+VERSION_PROG = "2026.09.29.16"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -477,7 +477,7 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--accent-soft)}
 tbody tr.sel{background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent)}
 td.name{max-width:280px; overflow:hidden; text-overflow:ellipsis} td.num{text-align:right}
 .dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle}
-.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)} .dot.na{background:var(--line)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)} .dot.na{background:var(--line)} .dot.sust{background:var(--muted)}
 .tag{display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:700; background:var(--surface2)}
 .tag.master{background:var(--accent-soft); color:var(--accent)} .tag.cal{background:var(--ok-bg); color:var(--ok)}
 .empty{padding:50px 24px; text-align:center; color:var(--muted)} .empty b{display:block; color:var(--text); font-size:17px; margin-bottom:6px}
@@ -486,7 +486,7 @@ td.name{max-width:280px; overflow:hidden; text-overflow:ellipsis} td.num{text-al
 .panel.open{transform:none}
 .panel .close{position:absolute; top:14px; right:14px}
 .status{display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:8px; font-weight:700; margin:10px 0}
-.status.ok{background:var(--ok-bg); color:var(--ok)} .status.warn{background:var(--warn-bg); color:var(--warn)} .status.bad{background:var(--bad-bg); color:var(--bad)} .status.na{background:var(--surface2); color:var(--muted)}
+.status.ok{background:var(--ok-bg); color:var(--ok)} .status.warn{background:var(--warn-bg); color:var(--warn)} .status.bad{background:var(--bad-bg); color:var(--bad)} .status.na{background:var(--surface2); color:var(--muted)} .status.sust{background:var(--surface2); color:var(--muted); font-weight:500}
 .reasons{margin:8px 0 14px; padding-left:18px} .reasons li{margin:3px 0} .reasons li.bad{color:var(--bad)} .reasons li.warn{color:var(--warn)}
 .kv{display:grid; grid-template-columns:130px 1fr; gap:4px 12px; font-size:14px; margin:10px 0} .kv dt{color:var(--muted)} .kv dd{margin:0; word-break:break-all}
 .edit{display:grid; grid-template-columns:110px 1fr; gap:8px 10px; align-items:center; margin:12px 0}
@@ -528,7 +528,7 @@ details{margin-top:12px} details summary{cursor:pointer; color:var(--muted); fon
 .menuLista button:hover{background:var(--accent-soft)}.menuLista hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 .counts{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0 0 18px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}.tile b{display:block;font-size:26px;line-height:1.1}.tile span{color:var(--muted);font-size:13px}
-.tile.ok b{color:var(--ok)}.tile.warn b{color:var(--warn)}.tile.bad b{color:var(--bad)}.tile.dest{background:linear-gradient(135deg,#5B2C87,#7E4BB3);border:0;color:#fff}.tile.dest span{color:#E8DDF5}
+.tile.sust b{color:var(--muted)}.tile.ok b{color:var(--ok)}.tile.warn b{color:var(--warn)}.tile.bad b{color:var(--bad)}.tile.dest{background:linear-gradient(135deg,#5B2C87,#7E4BB3);border:0;color:#fff}.tile.dest span{color:#E8DDF5}
 .seccion{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 10px}
 .estadoGeneral{border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid var(--line);background:var(--surface)}
 .estadoGeneral .icono{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:24px;color:#fff;flex:none}
@@ -1031,7 +1031,7 @@ const TYPES = {
   light:"Light", calibrated:"Light calibrado", unknown:"Sin clasificar"
 };
 const TYPE_DIR = { bias:"01_Bias", dark:"02_Darks", flatdark:"03_FlatDarks", flat:"04_Flats", masterbias:"05_MasterBias", masterdark:"06_MasterDarks", masterflatdark:"07_MasterFlatDarks", masterflat:"08_MasterFlats", light:"09_Lights", calibrated:"10_Calibrados", unknown:"99_Sin_clasificar" };
-const STATUS = {ok:"Válido", warn:"Con avisos", bad:"Rechazable", na:"Sin analizar"};
+const STATUS = {ok:"Válido", warn:"Con avisos", bad:"Rechazable", na:"Sin analizar", sust:"Ya sustituida"};
 const DB_FILE = "biblioteca.json";
 
 let frames = [], selected = null;
@@ -1587,7 +1587,7 @@ function visible(){
   const q = filters.q.toLowerCase();
   return frames.filter(f =>
     (!VIEWS[view] || VIEWS[view].has(f.type)) &&
-    (!filters.status.size || filters.status.has(f.status)) && (!filters.type.size || filters.type.has(f.type)) &&
+    (!filters.status.size || filters.status.has(shownStatus(f))) && (!filters.type.size || filters.type.has(f.type)) &&
     (!filters.cam.size || filters.cam.has(f.cam||"")) && (!filters.tel.size || filters.tel.has(f.tel||"")) &&
     (!q || [f.name,f.filter,f.notes,f.cam,f.tel,f.object,f.path,TYPES[f.type]].join(" ").toLowerCase().includes(q))
   ).sort((a,b) => {
@@ -1604,32 +1604,64 @@ function keyVal(f,k){ if (k==="medPct") return f.stats ? f.stats.medPct : null; 
 function escribiendoEnFicha(){ const a = document.activeElement, pan = $("panel");
   return !!(a && pan && pan.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
 function render(){
+  calcSustituidas();
   renderCounts(); renderFilters(); renderTable(); renderLists();
   if (selected){ const f = frames.find(x=>x.id===selected); if (f){ if (!escribiendoEnFicha()) renderPanel(f); } else closePanel(); }
 }
 function renderCounts(){
-  const c = {ok:0,warn:0,bad:0,na:0}; frames.forEach(f=>c[f.status]++);
+  const c = {ok:0,warn:0,bad:0,na:0,sust:0}; frames.forEach(f=>c[shownStatus(f)]++);
   const masters = frames.filter(f=>/^master/.test(f.type)).length;
   const gb = frames.reduce((a,f)=>a+(f.path?(f.size||0):0),0)/1e9;
   $("counts").innerHTML = frames.length ? `<div class="tile dest"><b>${frames.length}</b><span>tomas en la biblioteca</span></div>
     <div class="tile"><b>${masters}</b><span>masters</span></div>
     <div class="tile"><b>${gb>=100?gb.toFixed(0):gb.toFixed(1).replace(".",",")} GB</b><span>en el disco</span></div>
-    <div class="tile ok"><b>${c.ok}</b><span>válidas</span></div><div class="tile warn"><b>${c.warn}</b><span>con avisos</span></div><div class="tile bad"><b>${c.bad}</b><span>rechazables</span></div>` : "";
-  $("btnPurge").disabled = !c.bad;
+    <div class="tile ok"><b>${c.ok}</b><span>válidas</span></div><div class="tile warn"><b>${c.warn}</b><span>con avisos</span></div><div class="tile bad"><b>${c.bad}</b><span>rechazables</span></div>${c.sust ? `<div class="tile sust" title="${esc(tr("Tomas que salieron mal pero que ya repetiste bien con los mismos ajustes: ya no cuentan como aviso"))}"><b>${c.sust}</b><span>ya sustituidas</span></div>` : ""}` : "";
+  $("btnPurge").disabled = !frames.some(f=>f.status==="bad");
   if ($("navNTomas")) $("navNTomas").textContent = frames.length || "";
   if (typeof renderInicio === "function") renderInicio();
 }
 function renderFilters(){
   const build = (el, key, labelOf, order) => {
-    const counts = {}; frames.forEach(f => { const v = f[key]||""; counts[v]=(counts[v]||0)+1; });
+    const counts = {}; frames.forEach(f => { const v = key === "status" ? shownStatus(f) : (f[key]||""); counts[v]=(counts[v]||0)+1; });
     const keys = order ? order.filter(k=>counts[k]!==undefined) : Object.keys(counts).sort();
     el.innerHTML = keys.map(k => `<label><input type="checkbox" data-f="${key}" value="${esc(k)}" ${filters[key].has(k)?"checked":""}> ${esc(labelOf(k))}<span class="n">${counts[k]}</span></label>`).join("") || `<span style="color:var(--muted);font-size:13px">—</span>`;
   };
-  build($("fStatus"), "status", k=>STATUS[k], ["ok","warn","bad","na"]);
+  build($("fStatus"), "status", k=>STATUS[k], ["ok","warn","bad","sust","na"]);
   build($("fType"), "type", k=>TYPES[k], Object.keys(TYPES));
   build($("fCam"), "cam", k=>k||"(sin cámara)");
   build($("fTel"), "tel", k=>k||"(sin telescopio)");
 }
+function etiquetaGrupo(f){
+  const b = f.type.replace("master","");
+  const p = [];
+  if (f.type==="calibrated") return (f.object||"sin objeto") + (f.filter?" · "+f.filter:"") + (f.dateObs?" · "+f.dateObs.slice(0,10):"");
+  if (b==="flat") p.push(f.tel||"—", f.filter||"sin filtro"); else { if (f.exp!==null) p.push(fmtExp(f.exp)+" s"); if (f.temp!==null && b!=="bias") p.push(Math.round(f.temp)+" °C"); }
+  if (b==="flat" && f.dateObs) p.push(f.dateObs.slice(0,10));
+  if (f.gain!==null) p.push("gain "+f.gain); if (f.offset!==null) p.push("offset "+f.offset); if (f.bin) p.push("bin "+f.bin);
+  return p.join(" · ") || "sin datos";
+}
+/* --- darks, bias y flat darks malos que ya se han repetido bien. Si unos darks salieron mal (una fuga de luz, la
+   montura moviéndose, la temperatura sin estabilizar…) y después, otro día, hiciste otros con la misma cámara y los
+   mismos ajustes que sí están bien, los viejos quedan «ya sustituidos»: siguen en la biblioteca (el apilado ya no los
+   usa) pero dejan de salir como aviso. Hacen falta al menos 3 tomas buenas posteriores (o un master bueno posterior
+   si el malo es un master). Se calcula en cada repintado; no se guarda. --- */
+let SUST = new Map();
+const TIPOS_SUST = /^(master)?(dark|bias|flatdark)$/;
+function cuandoToma(f){ return String(f.dateObs || f.added || "").slice(0, 10); }
+function calcSustituidas(){
+  SUST = new Map();
+  const cand = frames.filter(f => TIPOS_SUST.test(f.type));
+  for (const gl of groupBy(cand, f => (f.cam||"") + "\n" + f.type + "\n" + etiquetaGrupo(f)).values()){
+    const malas = gl.filter(f => f.status === "bad" || f.status === "warn"); if (!malas.length) continue;
+    for (const m of malas){
+      const dia = cuandoToma(m); if (!dia) continue;
+      const sirve = x => m.status === "bad" ? (x.status === "ok" || x.status === "warn") : x.status === "ok";
+      const nuevas = gl.filter(x => x !== m && sirve(x) && cuandoToma(x) > dia);
+      if (nuevas.length >= (m.type.startsWith("master") ? 1 : 3)) SUST.set(m.id, {n: nuevas.length, desde: nuevas.map(cuandoToma).sort()[0]});
+    }
+  }
+}
+function shownStatus(f){ return SUST.has(f.id) ? "sust" : f.status; }
 function renderMasters(){
   const box = $("mastersBox");
   const order = CARD_ORDER[view];
@@ -1638,15 +1670,7 @@ function renderMasters(){
   const list = frames.filter(f => order.includes(f.type));
   const cams = [...new Set(list.map(f=>f.cam||""))].sort();
   if (!cams.length){ box.innerHTML = `<div class="mcard"><h3>${order.map(t=>TYPES[t]).join(", ")}</h3><div class="none">Aún no hay archivos de este apartado en la biblioteca.</div></div>`; return; }
-  const label = f => {
-    const b = f.type.replace("master","");
-    const p = [];
-    if (f.type==="calibrated") return (f.object||"sin objeto") + (f.filter?" · "+f.filter:"") + (f.dateObs?" · "+f.dateObs.slice(0,10):"");
-    if (b==="flat") p.push(f.tel||"—", f.filter||"sin filtro"); else { if (f.exp!==null) p.push(fmtExp(f.exp)+" s"); if (f.temp!==null && b!=="bias") p.push(Math.round(f.temp)+" °C"); }
-    if (b==="flat" && f.dateObs) p.push(f.dateObs.slice(0,10));
-    if (f.gain!==null) p.push("gain "+f.gain); if (f.offset!==null) p.push("offset "+f.offset); if (f.bin) p.push("bin "+f.bin);
-    return p.join(" · ") || "sin datos";
-  };
+  const label = etiquetaGrupo;
   box.innerHTML = cams.map(cam => {
     const cl = list.filter(f=>(f.cam||"")===cam);
     return `<div class="mcard"><h3>${cam ? `<span class="notr">${esc(cam)}</span>` : "(sin cámara)"} <small>${cl.length} ${cl.length===1?"archivo":"archivos"}</small></h3>` + order.map(t => {
@@ -1654,7 +1678,8 @@ function renderMasters(){
       let rows = "";
       if (!tl.length) rows = `<div class="row" style="cursor:default"><span>${TYPES[t]}</span><span class="none">ninguno</span></div>`;
       else for (const [k, gl] of groupBy(tl, label)){
-        const worst = gl.some(f=>f.status==="bad")?"bad":gl.some(f=>f.status==="warn")?"warn":gl.some(f=>f.status==="ok")?"ok":"na";
+        const st = gl.map(shownStatus);
+        const worst = st.includes("bad")?"bad":st.includes("warn")?"warn":st.includes("ok")?"ok":st.includes("sust")?"sust":"na";
         const last = gl.map(f=>f.dateObs).filter(Boolean).sort().pop();
         rows += `<div class="row" data-cam="${esc(cam)}" data-type="${t}" data-k="${esc(k)}"><span><span class="dot ${worst}"></span><span>${TYPES[t]}</span>: <span class="notr">${esc(k.split(" · ").map(x => ["sin objeto","sin filtro","sin datos"].includes(x) ? tr(x) : x).join(" · "))}</span></span><span>${gl.length}${last?" · "+last.slice(0,10):""}</span></div>`;
       }
@@ -1673,7 +1698,7 @@ function renderTable(){
   $("empty").style.display = frames.length ? "none" : "block";
   document.querySelectorAll("th").forEach(th => th.classList.toggle("sorted", th.dataset.k===sort.k));
   $("tbody").innerHTML = list.map(f => `<tr data-id="${f.id}" tabindex="0" class="${f.id===selected?"sel":""}">
-    <td><span class="dot ${f.status}"></span>${STATUS[f.status]}</td>
+    <td><span class="dot ${shownStatus(f)}"></span>${STATUS[shownStatus(f)]}</td>
     <td><span class="tag ${f.type.startsWith("master")?"master":f.type==="calibrated"?"cal":""}">${TYPES[f.type]}</span></td>
     <td class="name notr" title="${esc(f.name)}">${esc(f.name)}</td><td class="notr">${esc(f.object||"—")}</td><td>${fmtDate(f.dateObs)}</td>
     <td class="notr">${esc(f.cam||"—")}</td><td class="notr">${esc(f.tel||"—")}</td><td class="notr">${esc(f.filter||"—")}</td>
@@ -1700,6 +1725,7 @@ function renderPanel(f){
     <button class="btn small close" id="pClose">Cerrar</button>
     <h2 style="padding-right:80px;word-break:break-all">${esc(f.name)}</h2>
     <div class="status ${f.status}"><span class="dot ${f.status}"></span>${STATUS[f.status]}${f.score!==null?` · ${f.score}/100`:""}</div>
+    ${SUST.has(f.id) ? `<div class="status sust"><span class="dot sust"></span><span>${esc(trLT("Ya sustituida: desde el {1} tienes {2} tomas buenas con la misma cámara y los mismos ajustes, así que esta ya no cuenta como aviso. El apilado no la usa; puedes eliminarla o dejarla.", "Already replaced: since {1} you have {2} good frames with the same camera and settings, so this one no longer counts as a warning. Stacking doesn't use it; you can delete it or keep it.", SUST.get(f.id).desde, SUST.get(f.id).n))}</span></div>` : ""}
     ${f.reasons.length ? `<ul class="reasons">${f.reasons.map(x=>typeof x === "string" ? {s:"na", t:x} : x).map(x=>`<li class="${x.s}">${esc(x.t)}</li>`).join("")}</ul>` : `<p style="color:var(--ok);margin:4px 0 12px">Cumple los mínimos: sin incidencias detectadas.</p>`}
     ${f.hist ? `<canvas class="hist" id="pHist" width="600" height="110"></canvas>` : ""}
     ${s ? `<dl class="kv">
@@ -1807,9 +1833,9 @@ function buildReport(){
     if (!raw("bias").length && !mst("bias").length && !raw("flatdark").length && !mst("flatdark").length) gaps.push("No hay bias ni flat darks para esta cámara");
     if (gaps.length) html += `<p class="gap"><b>Carencias:</b></p><ul>${gaps.map(g=>`<li class="gap">${esc(g)}</li>`).join("")}</ul>`;
   }
-  const rej = list.filter(f=>f.status==="bad");
+  const rej = list.filter(f=>f.status==="bad" && !SUST.has(f.id));
   if (rej.length) html += `<h2>Archivos rechazables (${rej.length})</h2><table><thead><tr><th>Archivo</th><th>Tipo</th><th>Cámara</th><th>Motivo</th></tr></thead><tbody>${rej.map(f=>`<tr><td class="notr">${esc(f.name)}</td><td>${TYPES[f.type]}</td><td class="notr">${esc(f.cam||"—")}</td><td>${esc(f.reasons.filter(x=>x.s==="bad").map(x=>x.t).join("; "))}</td></tr>`).join("")}</tbody></table>`;
-  const warns = list.filter(f=>f.status==="warn");
+  const warns = list.filter(f=>f.status==="warn" && !SUST.has(f.id));
   if (warns.length) html += `<h2>Con avisos (${warns.length})</h2><table><thead><tr><th>Archivo</th><th>Tipo</th><th>Avisos</th></tr></thead><tbody>${warns.map(f=>`<tr><td>${esc(f.name)}</td><td>${TYPES[f.type]}</td><td>${esc(f.reasons.map(x=>x.t).join("; "))}</td></tr>`).join("")}</tbody></table>`;
   html += `<p class="note notr" style="margin-top:20px">${trL("Criterios: se rechazan los bias con exposición superior a 0,01 s, nivel superior al 25% o saturación; los darks con nivel superior al 25% o saturación superior al 2%; los flats con mediana inferior al 10% o superior al 88% (lo ideal es 30–60%), además de valorar el viñeteo y el gradiente lateral; y los archivos calibrados con más del 5% de píxeles a cero. Se avisa de los masters con menos de 10 tomas y de los darks y bias de más de un año. Las estadísticas se calculan sobre una muestra de unos 400 000 píxeles.", "Criteria: bias frames are rejected if their exposure is above 0.01 s, their level above 25% or they are saturated; darks if their level is above 25% or saturation above 2%; flats if their median is below 10% or above 88% (ideally 30–60%), with vignetting and side-to-side gradient also rated; and calibrated files if more than 5% of their pixels are at zero. Masters with fewer than 10 frames and darks and bias older than a year get a warning. Statistics are computed on a sample of about 400,000 pixels.")}</p>`;
   const rep = $("report"); rep.innerHTML = html; rep.classList.add("show"); rep.scrollIntoView({behavior:"smooth"});
@@ -2542,6 +2568,7 @@ def _donar_astro():
 
 
 DIC_EN.update({"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "The database has been changed from another ASTRO window or tab: reload this one (F5) so as not to undo those changes."})
+DIC_EN.update({"Ya sustituida": "Already replaced", "ya sustituidas": "already replaced", "Tomas que salieron mal pero que ya repetiste bien con los mismos ajustes: ya no cuentan como aviso": "Frames that came out wrong but that you have since redone properly with the same settings: they no longer count as warnings"})   # 0.28.4
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 

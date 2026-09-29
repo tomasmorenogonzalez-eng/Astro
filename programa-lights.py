@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.51"
+VERSION_PROG = "2026.09.29.52"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -782,6 +782,9 @@ td.chk,th.chk{width:30px; cursor:default}
 .estados{display:flex;gap:12px;font-size:13px}
 .barra{height:8px;border-radius:5px;background:var(--line);overflow:hidden}.barra i{display:block;height:100%;background:var(--accent)}.barra.hecho i{background:var(--ok)}
 .ocard .pie{display:flex;gap:8px;margin-top:auto}.ocard details{font-size:13px}.ocard details summary{cursor:pointer;color:var(--muted)}
+.ocard .ogFila{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.ocard .ogConf{margin-top:8px;padding:10px 12px;border:1px solid var(--bad);border-radius:10px;background:var(--bad-bg,rgba(242,117,117,.08))}
+.ocard .ogConf b{color:var(--bad)}
 .ocard.sinobj{border-style:dashed}
 .bienvenida{display:none;text-align:center;padding:0 0 26px;background:var(--surface);border:2px dashed var(--line);border-radius:18px;overflow:hidden}
 .drop .ico{font-size:36px;color:var(--accent)}.bienvenida p{color:var(--muted);max-width:520px;margin:6px auto 0}
@@ -1297,7 +1300,7 @@ body.parpAbierto{overflow:hidden}
       <section>
         <div class="tools">
           <span id="shown" style="color:var(--muted)"></span><span class="spacer"></span>
-          <button class="btn" id="btnParpadeo" title="Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas">Parpadeo</button><button class="btn" id="btnLotes" style="display:none" title="Poner a la vez el objeto, el filtro, el telescopio, la cámara o el equipo del proyecto">Cambiar las seleccionadas…</button><button class="btn danger" id="btnDiscSel" style="display:none">Descartar seleccionadas</button><button class="btn danger" id="btnPurge">Descartar rechazadas</button>
+          <button class="btn" id="btnParpadeo" title="Pasa las tomas que se ven, una tras otra y alineadas, para cazar satélites, nubes o estrellas movidas">Parpadeo</button><button class="btn" id="btnLotes" style="display:none" title="Poner a la vez el objeto, el filtro, el telescopio, la cámara o el equipo del proyecto">Cambiar las seleccionadas…</button><button class="btn danger" id="btnDiscSel" style="display:none">Descartar seleccionadas</button><button class="btn danger" id="btnDelSel" style="display:none" title="Las quita de ASTRO. Solo se borran del disco las copias que ASTRO guardó en su carpeta">Eliminar seleccionadas</button><button class="btn danger" id="btnPurge">Descartar rechazadas</button>
         </div>
         <div class="tablewrap">
           <table id="table"><thead><tr>
@@ -3248,6 +3251,8 @@ function renderSessions(soloRepintar){
      ORDEN_OBJ==="objetivo" ? ((datos.get(b[0]).pct ?? -1) - (datos.get(a[0]).pct ?? -1)) || ultima(b[1]).localeCompare(ultima(a[1])) :
      ultima(b[1]).localeCompare(ultima(a[1]))));
   document.querySelectorAll("#ordenObj button").forEach(b=>b.classList.toggle("on", b.dataset.o===ORDEN_OBJ));
+  const porClaveObj = new Map();
+  for (const [obj] of byObj) if (obj !== "(sin objeto)"){ const k = claveObjeto(obj); if (!porClaveObj.has(k)) porClaveObj.set(k, []); porClaveObj.get(k).push(obj); }
   box.innerHTML = byObj.map(([obj, fl]) => {
     const {ok, porF, meta, cons, pct} = datos.get(obj), h = horasDe(ok), noches = [...new Set(ok.map(f=>f.night).filter(Boolean))].sort();
     const c = {ok:0,warn:0,bad:0,disc:0}; fl.forEach(f=>{ const s = shownStatus(f); if (c[s]!==undefined) c[s]++; });
@@ -3286,8 +3291,11 @@ function renderSessions(soloRepintar){
         <div class="pie"><span class="mini" title="${c.ok} válidas · ${c.warn} con avisos · ${c.bad} rechazables"><i style="width:${100*c.ok/tot}%;background:var(--ok)"></i><i style="width:${100*c.warn/tot}%;background:var(--warn)"></i><i style="width:${100*c.bad/tot}%;background:var(--bad)"></i></span>
           <button class="btn small" data-vertomas="${esc(obj)}">Tomas</button><button class="btn primary small" data-resumen="${esc(obj)}">Resumen</button></div>
         <details><summary>Sesiones (${new Set(fl.map(f=>(f.night||"?")+(f.filter||""))).size})</summary>${sesiones}</details>
+        ${gestionObjeto(obj, fl, (porClaveObj.get(claveObjeto(obj)) || []).filter(x => x !== obj))}
       </div></div>`;
   }).join("") + sinTomas.map(([k,o]) => tarjetaProyecto(k, o)).join("");
+  activarGestionObjeto(box);
+  retomarConTomasNuevas();
   box.querySelectorAll("[data-quitarp]").forEach(b => b.onclick = ev => { ev.preventDefault(); quitarProyecto(b.dataset.quitarp); });
   box.querySelectorAll("[data-varios]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); abrirVarios(b.dataset.varios); });
   box.querySelectorAll("[data-resumen]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); resumenObjeto(b.dataset.resumen); });
@@ -3296,6 +3304,61 @@ function renderSessions(soloRepintar){
   if (!soloRepintar){ pedirPortadas(byObj.map(x=>x[0]).filter(x=>x!=="(sin objeto)")); programarEstaNoche(); }
 }
 function fmtNum(h){ const v = h>=10 ? h.toFixed(0) : h.toFixed(1); return IDIOMA==="en" ? v : v.replace(".",","); }
+
+/* --- «Más opciones» de cada tarjeta de «Mis objetos»: juntar con el mismo objeto escrito de otra forma, o eliminarlo.
+   Eliminar pide confirmación dos veces (un apartado en la propia tarjeta y luego una pregunta final), porque es fácil
+   pulsarlo por error y no se puede deshacer. --- */
+const _GEST_ABIERTA = new Set();
+function gestionObjeto(obj, fl, gemelos){
+  const q = x => listaNombresTxt([x]), grupo = !!((OBJETIVOS[obj] || {}).grupo || {}).carpeta;
+  const n = fl.length, enAstro = fl.filter(f => f.path).length;
+  const juntar = gemelos.map(g => `<div class="ogFila"><span>${esc(trLT("Parece el mismo objeto que {1}.", "Looks like the same target as {1}.", q(g)))}</span>
+      <button class="btn small" data-ogjuntar="${esc(obj)}" data-con="${esc(g)}">${esc(trLT("Juntar con {1}", "Merge into {1}", q(g)))}</button></div>`).join("");
+  const aviso = grupo ? trLT("Es un proyecto en grupo: antes de eliminarlo, déjalo desde su botón de equipos.", "It's a group project: leave it from its setups button before deleting it.")
+    : (n === 1 ? trLT("Se quitará de ASTRO con su toma, su objetivo de horas y su historial.", "It will be removed from ASTRO together with its frame, its hours goal and its history.")
+        : trLT("Se quitará de ASTRO con sus {1} tomas, su objetivo de horas y su historial.", "It will be removed from ASTRO together with its {1} frames, its hours goal and its history.", nfmt(n))) + " " +
+      (enAstro ? trLT("{1} de esas tomas están guardadas en la carpeta de ASTRO y se borrarán de ahí.", "{1} of those frames are stored in ASTRO's folder and will be deleted from there.", nfmt(enAstro)) + " " : "") +
+      trLT("Tus archivos de fuera de esa carpeta y tus apilados no se tocan.", "Your files outside that folder and your stacks are not touched.");
+  const abierta = _GEST_ABIERTA.has(obj);
+  return `<details class="ogest" data-og="${esc(obj)}" ${abierta ? "open" : ""}><summary>${esc(trLT("Más opciones", "More options"))}</summary>
+    ${juntar}
+    <div class="ogFila"><button class="btn small danger" data-ogborrar="${esc(obj)}" ${grupo ? "disabled" : ""}>${esc(trLT("Eliminar este objeto…", "Delete this target…"))}</button></div>
+    <div class="ogConf" hidden><b>${esc(trLT("¿Seguro que quieres eliminar {1}?", "Are you sure you want to delete {1}?", q(obj)))}</b>
+      <div class="dato">${esc(aviso)}</div>
+      ${grupo ? "" : `<div class="ogFila"><button class="btn small danger" data-ogsi="${esc(obj)}">${esc(trLT("Sí, eliminarlo", "Yes, delete it"))}</button>
+      <button class="btn small" data-ogno="1">${esc(trLT("Cancelar", "Cancel"))}</button></div>`}</div>
+  </details>`;
+}
+function activarGestionObjeto(box){
+  box.querySelectorAll("details.ogest").forEach(d => d.ontoggle = () => { d.open ? _GEST_ABIERTA.add(d.dataset.og) : _GEST_ABIERTA.delete(d.dataset.og); });
+  box.querySelectorAll("[data-ogborrar]").forEach(b => b.onclick = ev => { ev.preventDefault();
+    const c = b.closest("details").querySelector(".ogConf"); c.hidden = false; b.disabled = true; c.scrollIntoView({block:"nearest"}); });
+  box.querySelectorAll("[data-ogno]").forEach(b => b.onclick = ev => { ev.preventDefault();
+    const d = b.closest("details"); d.querySelector(".ogConf").hidden = true; d.querySelector("[data-ogborrar]").disabled = false; });
+  box.querySelectorAll("[data-ogsi]").forEach(b => b.onclick = async ev => { ev.preventDefault();
+    const obj = b.dataset.ogsi, n = frames.filter(f => (f.object || "(sin objeto)") === obj).length;
+    // segunda pregunta: es fácil llegar hasta aquí sin querer
+    if (!confirm(trLT("Última comprobación: se eliminará {1} con sus {2} tomas. No se puede deshacer. ¿Eliminarlo?", "Last check: {1} will be deleted with its {2} frames. This can't be undone. Delete it?", listaNombresTxt([obj]), nfmt(n)))) return;
+    b.disabled = true; await eliminarObjeto(obj); });
+  box.querySelectorAll("[data-ogjuntar]").forEach(b => b.onclick = async ev => { ev.preventDefault();
+    const obj = b.dataset.ogjuntar, con = b.dataset.con, n = frames.filter(f => (f.object || "") === obj).length;
+    if (!confirm(trLT("¿Juntar las {1} tomas de {2} con {3}? Pasarán a llamarse {3}; sus horas, su estado y su historial también se juntan.", "Merge the {1} frames of {2} into {3}? They will be renamed {3}; their hours, status and history are merged too.", nfmt(n), listaNombresTxt([obj]), listaNombresTxt([con])))) return;
+    await cargarNoUnir(); const k = await unirObjetos([obj, con], con); _GEST_ABIERTA.delete(obj);
+    evaluateAll(); scheduleSave(); render();
+    toast(k === 1 ? trLT("1 toma junta en {1}", "1 frame merged into {1}", con) : trLT("{1} tomas juntas en {2}", "{1} frames merged into {2}", nfmt(k), con)); });
+}
+async function eliminarObjeto(obj){
+  const lista = frames.filter(f => (f.object || "(sin objeto)") === obj);
+  const n = await eliminarTomas(lista);
+  _GEST_ABIERTA.delete(obj);
+  if (filters.object && filters.object.has(obj)) filters.object.delete(obj);
+  try { OBJETIVOS = await (await api("/api/proyecto", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, olvidar:true})})).json(); } catch(_){}
+  try { const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({olvidar:obj})})).json();
+    ARC.estados = r.estados || {}; ARC.limites = r.limites || {}; if (ARC.hist) delete ARC.hist[obj]; } catch(_){}
+  ENCUADRE_CACHE.delete(obj);
+  render(); pintarSugerencia(true);
+  toast(trLT("{1} eliminado ({2} tomas)", "{1} deleted ({2} frames)", obj, nfmt(n)));
+}
 
 /* ============ «Esta noche» y la próxima buena noche de cada objeto ============ */
 let PROX = {}, _estaNocheT = null;
@@ -3469,8 +3532,7 @@ function renderPanel(f){
   if ($("pRestore")) $("pRestore").onclick = () => restore(f);
   if ($("pOrigen")) $("pOrigen").onclick = () => api("/api/importar/revelar", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ruta:f.origen})}).catch(()=>{});
   $("pDelete").onclick = async () => { if (!confirm(`¿Eliminar "${f.name}" de la base de datos${f.path?" y borrar el archivo del disco":""}? No se puede deshacer.`)) return;
-    await deleteFromDisk(f); if (f.thumb) await api("/api/delete", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path:f.thumb})}).catch(()=>{});
-    frames = frames.filter(x=>x.id!==f.id); closePanel(); evaluateAll(); scheduleSave(); render(); toast("Eliminada"); };
+    await eliminarTomas([f]); toast("Eliminada"); };
 }
 let PUERTO_CAL = null;
 async function pintarCalToma(f){
@@ -3493,6 +3555,24 @@ async function pintarCalToma(f){
   if (c.faltan && c.faltan.length) h += `<div class="note" style="line-height:1.5">${c.faltan.map(x=>`<span>${esc(x)}</span>`).join(" ")}${PUERTO_CAL ? ` <a href="${esc(urlCalibracion("#falta"))}">¿Qué me falta?</a>` : ""}</div>`;
   if (!c.biblioteca) h += `<div class="note">Tu biblioteca de calibración está vacía: añade allí tus darks, flats y bias y ASTRO elegirá los de cada toma.</div>`;
   el.innerHTML = h;
+}
+// Quita tomas de ASTRO: su ficha, su miniatura y, si ASTRO guardó una copia en su carpeta, esa copia. Lo que esté fuera
+// de la carpeta de ASTRO no se toca nunca (el servidor solo borra dentro de ella).
+async function eliminarTomas(list){
+  list = (list || []).filter(Boolean); if (!list.length) return 0;
+  const ids = new Set(list.map(f => f.id));
+  // un archivo o una miniatura que otra ficha también usa (la misma toma apuntada dos veces) no se borra
+  const quedan = frames.filter(x => !ids.has(x.id)), enUso = new Set(quedan.flatMap(x => [x.path, x.thumb]).filter(Boolean));
+  for (const f of list){
+    if (f.path && !enUso.has(f.path)) await deleteFromDisk(f);
+    if (f.thumb && !enUso.has(f.thumb)) await api("/api/delete", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path:f.thumb})}).catch(()=>{});
+    enUso.add(f.path); enUso.add(f.thumb);           // la misma ruta en dos de las que se borran: una sola vez
+  }
+  frames = frames.filter(x => !ids.has(x.id));      // (las que hayan llegado mientras tanto se quedan)
+  for (const id of ids) checked.delete(id);
+  if (selected && ids.has(selected)) closePanel();
+  evaluateAll(); scheduleSave(); render();
+  return list.length;
 }
 async function discard(list){
   list = list.filter(f=>!f.discarded); if (!list.length) return;
@@ -3847,7 +3927,7 @@ const openRow = tr => { if (!tr) return; selected = tr.dataset.id; renderTable()
 $("tbody").addEventListener("click", e => { if (e.target.closest("td.chk")) return; openRow(e.target.closest("tr")); });
 $("tbody").addEventListener("change", e => { const cb = e.target; if (!cb.dataset.chk) return; cb.checked ? checked.add(cb.dataset.chk) : checked.delete(cb.dataset.chk); updateShown(); });
 $("chkAll").onchange = e => { const vis = visible(); if (e.target.checked) vis.forEach(f=>checked.add(f.id)); else vis.forEach(f=>checked.delete(f.id)); renderTable(); };
-function updateShown(){ const n = visible().filter(f=>checked.has(f.id)).length; $("shown").textContent = `${visible().length} de ${frames.length} lights` + (n ? ` · ${n} seleccionadas` : ""); $("btnDiscSel").style.display = n ? "" : "none"; $("btnLotes").style.display = n ? "" : "none"; } $("tbody").addEventListener("keydown", e => { if (e.key==="Enter") openRow(e.target.closest("tr")); });
+function updateShown(){ const n = visible().filter(f=>checked.has(f.id)).length; $("shown").textContent = `${visible().length} de ${frames.length} lights` + (n ? ` · ${n} seleccionadas` : ""); $("btnDiscSel").style.display = n ? "" : "none"; $("btnDelSel").style.display = n ? "" : "none"; $("btnLotes").style.display = n ? "" : "none"; } $("tbody").addEventListener("keydown", e => { if (e.key==="Enter") openRow(e.target.closest("tr")); });
 document.addEventListener("keydown", e => { if (e.key==="Escape"){ closePanel(); $("renameBox").classList.remove("show"); } });
 $("btnReport").onclick = buildReport;
 $("btnCsv").onclick = () => saveToLibrary(["informes"], `lights-${new Date().toISOString().slice(0,10)}.csv`, toCsv(), "CSV");
@@ -3859,6 +3939,14 @@ $("jsonInput").onchange = async e => { const f = e.target.files[0]; e.target.val
   catch(err){ toast("El JSON no es una copia válida"); } };
 $("btnPurge").onclick = () => discard(frames.filter(f=>f.status==="bad" && !f.discarded));
 $("btnDiscSel").onclick = () => { const l = visible().filter(f=>checked.has(f.id)); discard(l); checked.clear(); };
+$("btnDelSel").onclick = async () => { const l = visible().filter(f=>checked.has(f.id)); if (!l.length) return;
+  const enAstro = l.filter(f=>f.path).length;
+  const msg = (l.length === 1 ? trLT("¿Eliminar 1 toma de ASTRO?", "Remove 1 frame from ASTRO?") : trLT("¿Eliminar {1} tomas de ASTRO?", "Remove {1} frames from ASTRO?", nfmt(l.length))) + "\n\n" +
+    (enAstro ? trLT("{1} están guardadas en la carpeta de ASTRO ({2}) y se borrarán también de ahí.", "{1} are stored in ASTRO's folder ({2}) and will be deleted from there too.", nfmt(enAstro), ROOT_NAME) + " " : "") +
+    trLT("Los archivos que tengas fuera de esa carpeta no se tocan. No se puede deshacer.", "Files outside that folder are not touched. This can't be undone.");
+  if (!confirm(msg)) return;
+  const n = await eliminarTomas(l); checked.clear(); updateShown();
+  toast(n === 1 ? trLT("1 toma eliminada", "1 frame removed") : trLT("{1} tomas eliminadas", "{1} frames removed", nfmt(n))); };
 $("btnFinder").onclick = () => api("/api/finder", {method:"POST"}).catch(()=>toast(/Win/i.test(navigator.platform||navigator.userAgent||"") ? "No se pudo abrir el Explorador de archivos" : "No se pudo abrir el Finder"));
 if (/Win/i.test(navigator.platform||navigator.userAgent||"")) $("btnFinder").textContent = "Abrir la carpeta en el Explorador de archivos";
 (async function init(){ try { OBJETIVOS = await (await api("/api/objetivos")).json(); } catch(_){}
@@ -4044,6 +4132,7 @@ async function arcCargarProyectos(forzar){
   try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.estados = r.estados || {}; ARC.apil = r.apilados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []); }
   catch(_){ ARC.apil = ARC.apil || {}; }
   finally { ARC.apilCargando = false; }
+  retomarConTomasNuevas();
   if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto();
 }
 /* --- historial del proyecto: cada noche (por sus tomas), cada apilado (por sus carpetas) y lo que se ha ido haciendo
@@ -4066,7 +4155,10 @@ function textoEventoHist(e){
   const n = nfmt(e.n || 0), uno = e.n === 1, noches = textoNochesHist(e.noches), conNoches = t => noches ? t + " (" + noches + ")" : t;
   switch (e.tipo){
     case "estado": return [trLT("Estado", "Status"), e.estado === "terminado" ? trLT("Lo diste por terminado", "You marked it finished")
-      : e.estado === "pausa" ? trLT("Lo pusiste en pausa", "You put it on hold") : trLT("Lo retomaste", "You picked it up again"), "evento"];
+      : e.estado === "pausa" ? trLT("Lo pusiste en pausa", "You put it on hold")
+      : e.motivo === "tomas_nuevas" ? (e.n === 1 ? trLT("Vuelve a estar en curso: ha llegado 1 toma nueva", "In progress again: 1 new frame arrived")
+          : trLT("Vuelve a estar en curso: han llegado {1} tomas nuevas", "In progress again: {1} new frames arrived", nfmt(e.n || 0)))
+      : trLT("Lo retomaste", "You picked it up again"), "evento"];
     case "limites": {
       const l = e.limites;
       if (!l) return [trLT("Límites", "Limits"), trLT("Quitaste los límites del proyecto", "You removed the project limits") + (e.fuera ? " · " + (e.fuera === 1 ? trLT("vuelve 1 toma al apilado", "1 frame goes back into the stack")
@@ -4136,6 +4228,24 @@ function htmlHistorial(obj, fl, ap){
     ${it.length > vis.length ? `<button class="btn small" data-arc-acc="historial">${esc(trLT("Ver todo el historial", "Show the whole history"))}</button>` : ""}`;
 }
 function estadoManual(obj){ try { return ((ARC.estados || {})[obj] || {}).estado || ""; } catch(_){ return ""; } }
+// Un proyecto terminado puede seguir creciendo (M 31 este año y más datos el que viene): si le llegan tomas hechas y
+// añadidas después de darlo por terminado, vuelve solo a «en curso» y lo apunta en su historial. Las tomas antiguas
+// que se importan más tarde (del Archivo, de otro disco) no cuentan: tienen que ser de una noche posterior.
+const _RETOMANDO = new Set();
+function retomarConTomasNuevas(){
+  const est = ARC.estados || {};
+  for (const [obj, e] of Object.entries(est)){
+    if (!e || e.estado !== "terminado" || !e.fecha || _RETOMANDO.has(obj)) continue;
+    const desde = e.desde || (e.fecha + "T23:59:59");
+    const nuevas = frames.filter(f => (f.object || "").trim() === obj && !f.discarded && (f.night || "") >= e.fecha && String(f.added || "") > desde);
+    if (!nuevas.length) continue;
+    _RETOMANDO.add(obj);
+    api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, estado:"", motivo:"tomas_nuevas", n:nuevas.length})})
+      .then(r => r.json()).then(r => { ARC.estados = r.estados || {}; if (ARC.hist) delete ARC.hist[obj];
+        toast(trLT("{1} vuelve a estar en curso: le han llegado tomas nuevas", "{1} is in progress again: new frames arrived", obj)); render(); })
+      .catch(() => {}).finally(() => setTimeout(() => _RETOMANDO.delete(obj), 60000));
+  }
+}
 async function arcPonerEstado(obj, estado){
   try {
     const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, estado})})).json();
@@ -8379,6 +8489,7 @@ def _donar_astro():
 
 
 DIC_EN.update({"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "The database has been changed from another ASTRO window or tab: reload this one (F5) so as not to undo those changes."})
+DIC_EN.update({"Eliminar seleccionadas": "Delete selected", "Las quita de ASTRO. Solo se borran del disco las copias que ASTRO guardó en su carpeta": "Removes them from ASTRO. Only the copies ASTRO kept in its own folder are deleted from disk"})   # 0.28.4
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
@@ -11648,6 +11759,11 @@ def _guardar_proyecto(d):
     if not isinstance(ob, dict):
         ob = {}
     x = dict(ob.get(nombre) or {})
+    if d.get("olvidar"):
+        # se ha eliminado el objeto: fuera todo lo suyo (horas, proyecto, equipos, lugar)
+        ob.pop(nombre, None)
+        guardar_json(OBJETIVOS_F, ob)
+        return ob
     if d.get("quitar"):
         x.pop("proyecto", None); x.pop("total", None); x.pop("equipos", None)
     else:
@@ -14910,6 +15026,19 @@ def _archivo_proyectos(d=None):
     est = v.get("estados") if isinstance(v.get("estados"), dict) else {}
     lim = v.get("limites") if isinstance(v.get("limites"), dict) else {}
     no_unir = [x for x in v.get("no_unir", []) if isinstance(x, str)] if isinstance(v.get("no_unir"), list) else []
+    if d and isinstance(d.get("olvidar"), str):
+        # el objeto se ha eliminado de ASTRO: fuera su estado, sus límites y su historial (si vuelve, empieza de cero)
+        obj = d["olvidar"].strip()
+        if obj:
+            est.pop(obj, None); lim.pop(obj, None)
+            h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
+            h.pop(obj, None)
+            v["estados"], v["limites"], v["historial"] = est, lim, h
+            foto = v.get("cal_foto")
+            if isinstance(foto, dict):
+                foto.pop(obj, None)
+            guardar_archivo_cfg(v)
+        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
     if d and isinstance(d.get("renombrar"), dict):
         # varios nombres del mismo objeto se unen en uno: su estado y sus límites pasan al que queda, si él no tiene
         hacia = str(d["renombrar"].get("hacia") or "").strip()
@@ -14964,11 +15093,16 @@ def _archivo_proyectos(d=None):
         elif obj:
             antes = (est.get(obj) or {}).get("estado", "")
             if d.get("estado") in ESTADOS_PROYECTO:
-                est[obj] = {"estado": d["estado"], "fecha": time.strftime("%Y-%m-%d")}
+                # «desde» (en UTC, como la hora a la que se añade cada toma) sirve para saber qué tomas llegan después
+                est[obj] = {"estado": d["estado"], "fecha": time.strftime("%Y-%m-%d"),
+                            "desde": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")}
             else:
                 est.pop(obj, None)
             if (est.get(obj) or {}).get("estado", "") != antes:
-                _historial(v, obj, "estado", {"estado": (est.get(obj) or {}).get("estado", ""), "antes": antes})
+                extra = {"estado": (est.get(obj) or {}).get("estado", ""), "antes": antes}
+                if d.get("motivo") == "tomas_nuevas":       # lo retoma ASTRO: han llegado tomas nuevas de un proyecto terminado
+                    extra.update(motivo="tomas_nuevas", n=int(_num(d.get("n"), 0, 10**7) or 0))
+                _historial(v, obj, "estado", extra)
             v["estados"] = est
             guardar_archivo_cfg(v)
     return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
