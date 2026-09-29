@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.28",
+  "es": [
+   "Ciencia estrena un bonus track, «Cien enlaces del cielo»: los cien sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre cada uno, buscador y filtro por tema.",
+   "Las tarjetas de Ciencia llevan de fondo astrofotos del autor, cada una relacionada con su bloque.",
+   "Apoya ASTRO: si te resulta útil, en la ventana de inicio y en «Acerca de ASTRO» hay un botón para donar con PayPal."
+  ],
+  "en": [
+   "Science gets a bonus track, «A hundred sky links»: the hundred astronomy and astrophotography sites worth keeping at hand, with a line on each, a search box and a topic filter.",
+   "The Science cards now have the author's astrophotos as backgrounds, each one related to its block.",
+   "Support ASTRO: if you find it useful, there's a button to donate with PayPal in the start window and in «About ASTRO»."
+  ],
+  "fr": [
+   "La Science reçoit un bonus track, « Cent liens du ciel » : les cent sites d'astronomie et d'astrophotographie qui méritent d'être gardés sous la main, avec une ligne sur chacun, une recherche et un filtre par thème.",
+   "Les cartes de la Science ont pour fond des astrophotos de l'auteur, chacune liée à son bloc.",
+   "Soutenir ASTRO : s'il vous est utile, un bouton permet de faire un don avec PayPal dans la fenêtre d'accueil et dans « À propos d'ASTRO »."
+  ],
+  "de": [
+   "Die Wissenschaft bekommt einen Bonustrack, „Hundert Links zum Himmel“: die hundert Astronomie- und Astrofotografie-Seiten, die man griffbereit haben sollte, mit einer Zeile zu jeder, Suche und Themenfilter.",
+   "Die Karten der Wissenschaft haben Astrofotos des Autors im Hintergrund, jedes passend zu seinem Block.",
+   "ASTRO unterstützen: Wenn es dir nützt, gibt es im Startfenster und unter „Über ASTRO“ einen Knopf, um mit PayPal zu spenden."
+  ],
+  "it": [
+   "La Scienza ha una bonus track, «Cento link del cielo»: i cento siti di astronomia e astrofotografia che vale la pena avere a portata di mano, con una riga su ciascuno, ricerca e filtro per tema.",
+   "Le schede della Scienza hanno come sfondo astrofoto dell'autore, ognuna legata al suo blocco.",
+   "Sostieni ASTRO: se ti è utile, nella finestra iniziale e in «Informazioni su ASTRO» c'è un pulsante per donare con PayPal."
+  ],
+  "pt": [
+   "A Ciência ganha uma faixa bónus, «Cem ligações do céu»: os cem sites de astronomia e astrofotografia que vale a pena ter à mão, com uma linha sobre cada um, pesquisa e filtro por tema.",
+   "Os cartões da Ciência têm como fundo astrofotografias do autor, cada uma relacionada com o seu bloco.",
+   "Apoiar o ASTRO: se lhe for útil, há um botão para doar com PayPal na janela inicial e em «Acerca do ASTRO»."
+  ]
+ },
+ {
   "version": "0.27",
   "es": [
    "Parpadeo: pasa las tomas una tras otra, a toda pantalla y alineadas por sus estrellas (también tras el giro de meridiano), para cazar satélites, nubes o estrellas movidas; con una tecla dejas una fuera del apilado o la descartas. Está en «Todas las tomas», en cada proyecto y en la ficha de cada toma.",
