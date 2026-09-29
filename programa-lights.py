@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.34"
+VERSION_PROG = "2026.09.29.35"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -15546,6 +15546,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._send(403, "host", "text/plain; charset=utf-8")
         if p.path == "/api/objetivos":
             ruta = os.path.join(ROOT, "objetivos.json")
             try:
@@ -15682,6 +15686,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._send(403, "host", "text/plain; charset=utf-8")
         if p.path.startswith("/api/movil") and not self._mismo_origen():
             return self._send(403, "origen", "text/plain; charset=utf-8")
         # otra web abierta en el navegador no puede borrar, mover ni guardar nada aquí (el navegador pone su Origin)

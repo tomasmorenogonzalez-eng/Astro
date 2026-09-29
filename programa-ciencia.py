@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.26"
+VERSION_PROG = "2026.09.29.27"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -6942,6 +6942,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._send(403, "host", "text/plain; charset=utf-8")
         qs = urllib.parse.parse_qs(p.query)
         _IDI_HILO.v = idioma_valido((qs.get("idioma") or [""])[0]) or None     # idioma de la página que pide el archivo
         try:
@@ -7190,6 +7194,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._send(403, "host", "text/plain; charset=utf-8")
         if not self._mismo_origen():
             return self._send(403, "origen", "text/plain; charset=utf-8")
         try:

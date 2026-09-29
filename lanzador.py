@@ -1614,6 +1614,10 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._enviar(403, "host", "text/plain; charset=utf-8")
         if p == "/api/ping":
             return self._json({"programa": "inicio", "version": VERSION_APP})
         if p == "/api/estado":
@@ -1642,6 +1646,10 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urllib.parse.urlparse(self.path).path
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._enviar(403, "host", "text/plain; charset=utf-8")
         # otra web abierta en el navegador no puede cambiar la carpeta de datos ni cerrar ASTRO
         o = self.headers.get("Origin")
         if o and not re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$", o):

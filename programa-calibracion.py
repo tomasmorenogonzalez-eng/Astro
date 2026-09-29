@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.5"
+VERSION_PROG = "2026.09.29.6"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -3557,6 +3557,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._send(403, "host", "text/plain; charset=utf-8")
         if p.path == "/api/disco/archivo":
             ruta = urllib.parse.parse_qs(p.query).get("ruta", [""])[0]
             if ruta not in _DISCO_OK or not os.path.isfile(ruta):
@@ -3625,6 +3629,10 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = urllib.parse.urlparse(self.path)
+        # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
+        # el navegador pone en Host su dominio y no 127.0.0.1
+        if not re.match(r"^(127\.0\.0\.1|localhost)(:\d+)?$", (self.headers.get("Host") or "127.0.0.1").strip().lower()):
+            return self._send(403, "host", "text/plain; charset=utf-8")
         # otra web abierta en el navegador no puede borrar ni mover nada aquí (el navegador pone su Origin)
         o = self.headers.get("Origin")
         if o and not re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?$", o):
