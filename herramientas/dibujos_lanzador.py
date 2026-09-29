@@ -1,13 +1,17 @@
 """Dibujos de la ventana de inicio de ASTRO (lanzador).
 
 Genera en ../imagenes/ la cabecera y una ilustración por cada apartado. Se dibujan a 3× y se reducen,
+para que salgan suaves. Las galaxias, nebulosas y campos de estrellas no se dibujan: son recortes de
+astrofotos reales de Tomás Moreno González (M 90, NGC 7000, NGC 2264, un cúmulo de Abell y el Tiburón),
+que están en herramientas/fotos/. Lo demás (tarjetas, telescopios, flechas, la Luna) sí es dibujo.
+Se dibujan a 3× y se reducen,
 para que salgan suaves. En ../imagenes/web/ deja las versiones para la aplicación web (a 2×, en JPG): la
 cabecera, cada dibujo suelto y una banda ancha por apartado para la cabecera de sus ventanas. Hace falta Pillow solo para fabricarlos (la aplicación usa los PNG ya hechos):
 
     python3 herramientas/dibujos_lanzador.py
 """
 import math, os, random
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 S = 3                                   # sobremuestreo
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -72,14 +76,45 @@ def mancha(im, caja, color, desenfoque, alfa=255):
     im.alpha_composite(capa.filter(ImageFilter.GaussianBlur(desenfoque)))
 
 
-def galaxia(im, cx, cy, rx, ry, angulo=-25, color=(235, 225, 255)):
-    capa = Image.new("RGBA", im.size, (0, 0, 0, 0))
-    d = ImageDraw.Draw(capa)
-    for k, a in ((1.0, 70), (0.7, 110), (0.42, 170), (0.2, 240)):
-        d.ellipse([cx - rx * k, cy - ry * k, cx + rx * k, cy + ry * k], fill=color + (a,))
-    capa = capa.rotate(angulo, center=(cx, cy), resample=Image.BICUBIC).filter(ImageFilter.GaussianBlur(rx * 0.12))
-    im.alpha_composite(capa)
-    ImageDraw.Draw(im).ellipse([cx - rx * 0.07, cy - rx * 0.07, cx + rx * 0.07, cy + rx * 0.07], fill=(255, 250, 235, 255))
+FOTOS = os.path.join(AQUI, "fotos")      # recortes de astrofotos reales de Tomás Moreno González
+FOTO_OBJETO = {"galaxia": "galaxia-m90.jpg", "nebulosa": "nebulosa-ngc7000.jpg", "cumulo": "cumulo-abell.jpg",
+               "ninguno": "campo-tiburon.jpg"}
+_FOTOS = {}
+
+
+def foto(nombre):
+    if nombre not in _FOTOS:
+        _FOTOS[nombre] = Image.open(os.path.join(FOTOS, nombre)).convert("RGB")
+    return _FOTOS[nombre]
+
+
+def recorte(nombre, w, h, cx=0.5, cy=0.5, zoom=1.0):
+    """La foto recortada con la proporción w:h alrededor de (cx, cy) y reducida a w × h; con zoom > 1 se acerca."""
+    im = foto(nombre)
+    W, H = im.size
+    cw = W / zoom
+    ch = cw * h / w
+    if ch > H / zoom:
+        ch = H / zoom
+        cw = ch * w / h
+    x0 = min(max(cx * W - cw / 2, 0), W - cw)
+    y0 = min(max(cy * H - ch / 2, 0), H - ch)
+    return im.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch))).resize((int(w), int(h)), Image.LANCZOS)
+
+
+def foto_en_cielo(im, nombre, caja, zoom=1.0, cx=0.5, cy=0.5, fuerza=1.0):
+    """Funde una foto real con el cielo dibujado, en modo trama (el negro de la foto no tapa el degradado) y con los
+    bordes difuminados, para que el objeto parezca estar en ese cielo."""
+    x0, y0, x1, y1 = [int(v) for v in caja]
+    w, h = x1 - x0, y1 - y0
+    f = recorte(nombre, w, h, cx, cy, zoom)
+    if fuerza != 1.0:
+        f = ImageEnhance.Brightness(f).enhance(fuerza)
+    mezcla = ImageChops.screen(im.crop((x0, y0, x1, y1)).convert("RGB"), f).convert("RGBA")
+    r = min(w, h) * 0.1                     # el difuminado no llega al borde del recorte: no se nota ningún rectángulo
+    m = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(m).ellipse([2.2 * r, 2.2 * r, w - 2.2 * r, h - 2.2 * r], fill=255)
+    im.paste(mezcla, (x0, y0), m.filter(ImageFilter.GaussianBlur(r)))
 
 
 def redondear(im, radio):
@@ -210,24 +245,17 @@ def flecha(im, puntos, color, grosor):
     d.polygon([(x1 + math.cos(ang) * grosor, y1 + math.sin(ang) * grosor), p1, p2], fill=color)
 
 
-def toma(im, x, y, w, h, semilla, objeto="galaxia", ruido=0.0, traza=False):
-    """Una toma en miniatura: cielo oscuro, estrellas y el objeto."""
+def toma(im, x, y, w, h, semilla, objeto="galaxia", ruido=0.0, traza=False, mono=False):
+    """Una toma en miniatura: un recorte de una astrofoto real, en gris si es de una cámara monocroma."""
     marco(im, x, y, w, h, relleno=(8, 8, 18))
-    sub = Image.new("RGBA", (int(w), int(h)), (8, 8, 18, 255))
-    estrellas(sub, int(w * h / (260 * S * S)) + 5, semilla, brillo=0.9, tam=0.7)
-    if objeto == "galaxia":
-        galaxia(sub, w * 0.52, h * 0.5, w * 0.3, h * 0.13, -30)
-    elif objeto == "nebulosa":
-        mancha(sub, [w * 0.2, h * 0.2, w * 0.8, h * 0.85], (220, 70, 110), w * 0.1, 200)
-        mancha(sub, [w * 0.35, h * 0.3, w * 0.7, h * 0.7], (90, 170, 220), w * 0.08, 140)
-    elif objeto == "cumulo":
-        rnd = random.Random(semilla + 7)
-        dd = ImageDraw.Draw(sub)
-        for _ in range(40):
-            a, r = rnd.uniform(0, 6.28), abs(rnd.gauss(0, w * 0.13))
-            px, py = w / 2 + r * math.cos(a), h / 2 + r * math.sin(a)
-            rr = rnd.choice([0.8, 1, 1.4]) * S
-            dd.ellipse([px - rr, py - rr, px + rr, py + rr], fill=(255, 245, 220, 255))
+    rnd = random.Random(semilla)
+    sub = recorte(FOTO_OBJETO.get(objeto, FOTO_OBJETO["ninguno"]), w, h, 0.5 + rnd.uniform(-0.05, 0.05),
+                  0.5 + rnd.uniform(-0.05, 0.05), 1.0 + rnd.uniform(0.0, 0.12))
+    if mono:
+        sub = ImageOps.colorize(ImageOps.autocontrast(ImageOps.grayscale(sub), cutoff=0.5), (4, 4, 10), (236, 234, 246))
+    if ruido:
+        sub = ImageEnhance.Brightness(sub).enhance(0.8)
+    sub = sub.convert("RGBA")
     if ruido:
         rnd = random.Random(semilla + 3)
         dd = ImageDraw.Draw(sub)
@@ -261,7 +289,7 @@ def cabecera():
     estrellas(im, 160, 12, zona=(0.45 * w * S, 0, w * S, h * S), brillo=0.5, tam=0.7)
     for x, y, r in ((0.62, 0.22, 2.2), (0.78, 0.62, 1.6), (0.9, 0.18, 2.6), (0.55, 0.75, 1.3), (0.97, 0.45, 1.5)):
         brillo_estrella(im, x * w * S, y * h * S, r * S)
-    galaxia(im, 0.84 * w * S, 0.4 * h * S, 70 * S, 20 * S, -28)
+    foto_en_cielo(im, "galaxia-m90.jpg", (0.84 * w * S - 96 * S, 0.4 * h * S - 50 * S, 0.84 * w * S + 96 * S, 0.4 * h * S + 50 * S), zoom=1.25)
     # colinas y un telescopio en silueta
     d = ImageDraw.Draw(im)
     pts = [(0, h * S)] + [(x * S, (h - 26 - 12 * math.sin(x / 60) - 8 * math.sin(x / 23)) * S) for x in range(0, w + 1, 10)] + [(w * S, h * S)]
@@ -366,7 +394,7 @@ def d_directo():
     d.ellipse([117 * S, 31 * S, 127 * S, 41 * S], fill=ROJO + (255,))
     # tomas que van llegando
     for i in range(3):
-        toma(im, (160 + i * 8) * S, (18 + i * 32) * S, 70 * S, 40 * S, 40 + i, ["galaxia", "galaxia", "galaxia"][i], traza=(i == 1))
+        toma(im, (160 + i * 8) * S, (18 + i * 32) * S, 70 * S, 40 * S, 40 + i, "galaxia", traza=(i == 1), mono=True)
     check(im, 238 * S, 22 * S, 7 * S, VERDE)
     cruz(im, 246 * S, 54 * S, 7 * S, ROJO)
     check(im, 254 * S, 86 * S, 7 * S, VERDE)
@@ -377,15 +405,12 @@ def d_apilar():
     w, h = TARJ
     im = fondo_tarjeta(5)
     for i in range(4):
-        toma(im, (18 + i * 12) * S, (18 + i * 14) * S, 70 * S, 48 * S, 50 + i, "galaxia", ruido=0.9)
+        toma(im, (18 + i * 12) * S, (18 + i * 14) * S, 70 * S, 48 * S, 50 + i, "galaxia", ruido=0.9, mono=True)
     flecha(im, [(118 * S, 66 * S), (146 * S, 66 * S)], ORO + (255,), 5 * S)
     # imagen final, limpia y más brillante
     x, y, fw, fh = 158 * S, 24 * S, 92 * S, 84 * S
     marco(im, x, y, fw, fh, relleno=(6, 6, 16))
-    sub = Image.new("RGBA", (fw, fh), (6, 6, 16, 255))
-    estrellas(sub, 22, 60, brillo=1.0, tam=0.8)
-    mancha(sub, [fw * 0.1, fh * 0.25, fw * 0.9, fh * 0.75], (120, 90, 200), fw * 0.08, 90)
-    galaxia(sub, fw * 0.5, fh * 0.5, fw * 0.36, fh * 0.14, -32, (255, 236, 215))
+    sub = recorte("galaxia-m90.jpg", fw, fh, 0.5, 0.5, 1.1).convert("RGBA")
     m = Image.new("L", sub.size, 0)
     ImageDraw.Draw(m).rounded_rectangle([0, 0, fw - 1, fh - 1], radius=6 * S, fill=255)
     im.paste(sub, (x, y), m)
@@ -455,9 +480,7 @@ def d_varios():
     AZUL, MORADO, AMBAR = (59, 130, 196), VIOLETA2, (217, 154, 30)
     # la nebulosa y los campos de cada equipo, el más pequeño en dorado
     cx, cy = 186 * S, 58 * S
-    mancha(im, [cx - 46 * S, cy - 30 * S, cx + 46 * S, cy + 30 * S], (220, 70, 120), 10 * S, 150)
-    mancha(im, [cx - 28 * S, cy - 18 * S, cx + 26 * S, cy + 20 * S], (90, 170, 230), 8 * S, 120)
-    estrellas(im, 14, 81, zona=(cx - 60 * S, cy - 40 * S, cx + 60 * S, cy + 40 * S), brillo=1.0, tam=0.9)
+    foto_en_cielo(im, "nebulosa-ngc7000.jpg", (cx - 74 * S, cy - 54 * S, cx + 74 * S, cy + 54 * S), zoom=1.1)
     d = ImageDraw.Draw(im)
     def discontinuo(x0, y0, x1, y1, color, paso=6):
         for (a, b) in (((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))):
@@ -579,9 +602,8 @@ def d_quefotografio():
     im = degradado(w, h, (14, 12, 38), (52, 34, 98))
     estrellas(im, 70, 12, brillo=0.85, tam=0.85)
     cx, cy = 150 * S, 60 * S
-    mancha(im, [cx - 50 * S, cy - 26 * S, cx + 50 * S, cy + 30 * S], (220, 70, 120), 11 * S, 150)
-    mancha(im, [cx - 24 * S, cy - 14 * S, cx + 30 * S, cy + 16 * S], (90, 170, 230), 8 * S, 120)
-    galaxia(im, 226 * S, 26 * S, 16 * S, 6 * S, -35)
+    foto_en_cielo(im, "nebulosa-ngc2264.jpg", (cx - 68 * S, cy - 48 * S, cx + 68 * S, cy + 50 * S), zoom=1.1)
+    foto_en_cielo(im, "galaxia-m90.jpg", (226 * S - 26 * S, 26 * S - 15 * S, 226 * S + 26 * S, 26 * S + 15 * S), zoom=1.3)
     d = ImageDraw.Draw(im)
     # campo de la cámara: esquinas marcadas y la cruz del centro
     x0, y0, x1, y1 = cx - 44 * S, cy - 30 * S, cx + 44 * S, cy + 30 * S
