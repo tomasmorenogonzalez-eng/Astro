@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.2"
+VERSION_PROG = "2026.09.29.3"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -195,16 +195,34 @@ def _L(es, en, idi=None):
     return v if v is not None else en
 
 
-def guardar_idioma(idioma):
-    ruta = os.path.join(DISCO, ".astro-config.json")
+def cambiar_cfg_comun(ruta, cambios):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
+    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
+    c = None
+    for _ in range(5):
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                c = json.load(f) or {}
+            break
+        except FileNotFoundError:
+            c = {}
+            break
+        except Exception:
+            time.sleep(0.05)
+    if not isinstance(c, dict):
+        return
+    c.update(cambios)
     try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            c = json.load(f) or {}
-    except Exception:
-        c = {}
-    c["idioma"] = idioma_valido(idioma) or "es"
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False)
+        tmp = "%s.%d.tmp" % (ruta, os.getpid())
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(c, f, ensure_ascii=False)
+        os.replace(tmp, ruta)
+    except OSError:
+        pass
+
+
+def guardar_idioma(idioma):
+    cambiar_cfg_comun(os.path.join(DISCO, ".astro-config.json"), {"idioma": idioma_valido(idioma) or "es"})
 
 
 _HTML_IDI = {}
@@ -239,15 +257,7 @@ def tema_actual():
 
 
 def guardar_tema(tema):
-    ruta = os.path.join(DISCO, ".astro-config.json")
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            c = json.load(f) or {}
-    except Exception:
-        c = {}
-    c["tema"] = tema if tema in ("dia", "noche", "rojo") else "dia"
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False)
+    cambiar_cfg_comun(os.path.join(DISCO, ".astro-config.json"), {"tema": tema if tema in ("dia", "noche", "rojo") else "dia"})
 
 
 def diagnostico():

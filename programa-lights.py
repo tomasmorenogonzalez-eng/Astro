@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.30"
+VERSION_PROG = "2026.09.29.31"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -221,16 +221,34 @@ def _L(es, en, idi=None):
     return v if v is not None else en
 
 
-def guardar_idioma(idioma):
-    ruta = os.path.join(DISCO, ".astro-config.json")
+def cambiar_cfg_comun(ruta, cambios):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
+    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
+    c = None
+    for _ in range(5):
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                c = json.load(f) or {}
+            break
+        except FileNotFoundError:
+            c = {}
+            break
+        except Exception:
+            time.sleep(0.05)
+    if not isinstance(c, dict):
+        return
+    c.update(cambios)
     try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            c = json.load(f) or {}
-    except Exception:
-        c = {}
-    c["idioma"] = idioma_valido(idioma) or "es"
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False)
+        tmp = "%s.%d.tmp" % (ruta, os.getpid())
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(c, f, ensure_ascii=False)
+        os.replace(tmp, ruta)
+    except OSError:
+        pass
+
+
+def guardar_idioma(idioma):
+    cambiar_cfg_comun(os.path.join(DISCO, ".astro-config.json"), {"idioma": idioma_valido(idioma) or "es"})
 
 
 _HTML_IDI = {}
@@ -357,15 +375,7 @@ def tema_actual():
 
 
 def guardar_tema(tema):
-    ruta = os.path.join(DISCO, ".astro-config.json")
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            c = json.load(f) or {}
-    except Exception:
-        c = {}
-    c["tema"] = tema if tema in ("dia", "noche", "rojo") else "dia"
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False)
+    cambiar_cfg_comun(os.path.join(DISCO, ".astro-config.json"), {"tema": tema if tema in ("dia", "noche", "rojo") else "dia"})
 
 
 def leer_prefs():
@@ -382,15 +392,7 @@ def leer_prefs():
 
 
 def guardar_pref(clave, valor):
-    ruta = os.path.join(DISCO, ".astro-config.json")
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            c = json.load(f) or {}
-    except Exception:
-        c = {}
-    c[clave] = valor
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False)
+    cambiar_cfg_comun(os.path.join(DISCO, ".astro-config.json"), {clave: valor})
 
 
 def diagnostico():
@@ -1813,7 +1815,9 @@ async function _ingest(files, opts){
   for (const f of files){
     if (opts.parar && opts.parar()) break;
     n++; bar.style.width = Math.round(100*n/files.length)+"%"; if (opts.progreso) opts.progreso(n, files.length);
-    if (frames.some(r => (r.name===f.name && r.size===f.size) || (f.ruta && r.origen===f.ruta))){ res.dup++; if (f.ruta) res.hechas.push(f.ruta); addLog(`${f.name}: ya estaba en la base de datos`, "warn"); continue; }
+    const mismos = frames.filter(r => r.name===f.name && r.size===f.size);
+    if ((f.ruta && frames.some(r => r.origen===f.ruta || r.desde===f.ruta)) || (mismos.length && mismaToma(mismos, await fechaRapida(f)))){
+      res.dup++; if (f.ruta) res.hechas.push(f.ruta); addLog(`${f.name}: ya estaba en la base de datos`, "warn"); continue; }
     let rec;
     try { rec = await analyzeFile(f, batch); }
     catch(e){ res.bad++; if (f.ruta) res.fallidas.push(f.ruta); addLog(`${f.name}: no se pudo procesar (${e.message||e})`, "bad"); console.error(e); continue; }
@@ -1864,8 +1868,18 @@ class ArchivoDisco {
 }
 async function copiarDesdeDisco(f, rec){
   const r = await api("/api/importar/copiar", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ruta:f.ruta, path:libPath(rec, f.name)})});
-  rec.path = (await r.json()).path;
+  rec.path = (await r.json()).path; rec.desde = f.ruta;     // de dónde se copió: para no volver a traerla
 }
+// fecha de una toma leyendo solo el principio del archivo (su cabecera)
+async function fechaRapida(f){
+  try {
+    const t = new TextDecoder("latin1").decode(await f.slice(0, 65536).arrayBuffer());
+    const m = t.match(/DATE-OBS\s*=\s*'([^']+)'/) || t.match(/DATE-LOC\s*=\s*'([^']+)'/) || t.match(/name="DATE-OBS"\s+value="'?([^"']+)/);
+    return m ? m[1].trim().slice(0, 19) : "";
+  } catch(_){ return ""; }
+}
+// ¿es la misma toma que alguna de estas (mismo nombre y tamaño)? Solo se da por otra si las fechas dicen que lo es
+function mismaToma(mismos, fecha){ return !fecha || mismos.some(r => !r.dateObs || String(r.dateObs).slice(0, 19) === fecha); }
 let _importando = false;
 async function importarDisco(ruta){
   if (_importando) return;
@@ -2187,7 +2201,10 @@ function umbrales(t){
 }
 function evaluateAll(lista = frames, t = tExig()){
   const groups = new Map();
-  for (const f of lista){ const k = sessionKey(f); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); }
+  // se compara cada toma con las de su sesión hechas con la misma exposición y gain: una de 60 s junto a otras de
+  // 300 s tiene menos estrellas y menos fondo sin que le pase nada
+  const clave = f => sessionKey(f) + "|" + (f.exp != null && isFinite(f.exp) ? (+f.exp).toFixed(1) : "") + "|" + (f.gain ?? "");
+  for (const f of lista){ const k = clave(f); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); }
   for (const [k, gl] of groups){
     const ref = gl.length>=3 ? { fwhm: med(gl.map(f=>f.fwhm)), bg: med(gl.map(f=>f.bgPct)), stars: med(gl.map(f=>f.starCount)), ecc: med(gl.map(f=>f.ecc)),
                                  snr: med(gl.map(f=>f.snr)), ruido: med(gl.map(f=>f.ruido)), n: gl.length } : null;
@@ -3750,13 +3767,18 @@ async function arcIndexar(ruta){
   if (e.error || ARC.parar){ ARC.indexando = null; renderArchivo(); if (e.error) toast(e.error); return; }
   const items = e.items || [], salt = e.saltadas || {};
   ARC.indexando.fase = "fichas"; ARC.indexando.total = items.length; ARC.indexando.hechas = 0; arcPintarProgreso();
-  const origenes = new Set(frames.map(f => f.origen).filter(Boolean)), nomTam = new Set(frames.map(f => f.name + "|" + f.size));
+  const origenes = new Set(frames.flatMap(f => [f.origen, f.desde]).filter(Boolean)), nomTam = new Map();
+  for (const f of frames){ const k = f.name + "|" + f.size; if (!nomTam.has(k)) nomTam.set(k, []); nomTam.get(k).push(f); }
   const nuevosObj = new Set(); let n = 0, dup = 0, sinObj = 0;
   for (let i = 0; i < items.length; i++){
     const it = items[i];
-    if (origenes.has(it.ruta) || nomTam.has(it.nombre + "|" + it.size)){ dup++; continue; }
-    const rec = recDesdeCabecera(it);
+    if (origenes.has(it.ruta)){ dup++; continue; }
+    const rec = recDesdeCabecera(it), k = it.nombre + "|" + it.size;
+    // mismo nombre y tamaño que otra: es la misma salvo que las fechas digan otra cosa (muchos programas repiten nombres)
+    const c = it.cab || {}, fe = (c["DATE-OBS"] || c["DATE-LOC"] || c["DATE"]) ? String(rec.dateObs || "").slice(0, 19) : "";
+    if (nomTam.has(k) && mismaToma(nomTam.get(k), fe)){ dup++; continue; }
     frames.push(rec); n++; origenes.add(it.ruta);
+    if (!nomTam.has(k)) nomTam.set(k, []); nomTam.get(k).push(rec);
     if (rec.object) nuevosObj.add(rec.object); else sinObj++;
     if (i % 1500 === 0){ ARC.indexando.hechas = i; arcPintarProgreso(); await esperar(0); }
   }
@@ -11533,7 +11555,8 @@ def grupo_enviar(obj, equipo_id, ids):
         src = dentro(f.get("path")) if f.get("path") else (f.get("origen") or "")
         if not src or not os.path.isfile(src) or _rp(src).startswith(real_g + os.sep):
             continue                                # sin archivo, o ya está en la carpeta del grupo
-        lista.append((src, os.path.join(carpeta, sub, _nombre_carpeta(f.get("night") or "sin_fecha"), os.path.basename(src))))
+        # la carpeta de cada equipo la escribe cualquiera del grupo: no puede sacar las tomas fuera de la del grupo
+        lista.append((src, _seguro_en(carpeta, sub, _nombre_carpeta(f.get("night") or "sin_fecha"), os.path.basename(src))))
     with _GRUPO_LOCK:
         if _GRUPO_ENV["activo"]:
             raise RuntimeError("Ya se están enviando tomas al grupo.")
@@ -14536,7 +14559,17 @@ def vigiladas_cambiar(d):
 def vigiladas_hechas(d):
     v = leer_vigiladas()
     v["hechas"] = v["hechas"] + [str(x) for x in (d.get("hechas") or []) if x]
-    v["fallidas"] = v["fallidas"] + [str(x) for x in (d.get("fallidas") or []) if x]
+    # una toma que falla se apunta con su tamaño, y solo si no se acaba de escribir: si la cámara aún la estaba
+    # guardando al revisar la carpeta, se vuelve a intentar la próxima vez (antes se quedaba fuera para siempre)
+    nuevas = []
+    for x in (d.get("fallidas") or []):
+        try:
+            st = os.stat(str(x))
+        except (OSError, ValueError):
+            continue
+        if time.time() - st.st_mtime >= 180:
+            nuevas.append("%s\x00%d" % (x, st.st_size))
+    v["fallidas"] = v["fallidas"] + nuevas
     guardar_vigiladas(v)
     return {"ok": True}
 
@@ -14556,12 +14589,20 @@ def vigiladas_revisar():
 def _vig_trabajo(carpetas, ident):
     try:
         v = leer_vigiladas()
-        conocidas = set(v["hechas"]) | set(v["fallidas"])
+        conocidas = set(v["hechas"])
+        # las que fallaron se saltan mientras sigan igual (si cambia su tamaño, se vuelve a probar)
+        fallo = {}
+        for x in v["fallidas"]:
+            if "\x00" in x:
+                r0, _, t0 = x.rpartition("\x00")
+                fallo[r0] = t0
         db = leer_json(DB, {"frames": []})
         frames = db.get("frames", []) if isinstance(db, dict) else (db or [])
         conocidas |= {f.get("origen") for f in frames if f.get("origen")}
-        por_nombre = {(f.get("name"), f.get("size")) for f in frames}
-        saltar = lambda ruta, n, sz: ruta in conocidas or (n, sz) in por_nombre
+        # (las de mismo nombre y tamaño que otra ya guardada no se saltan aquí: la página mira su fecha, porque muchos
+        # programas de captura repiten nombres cada noche y los FITS sin comprimir de una cámara miden todos lo mismo)
+        conocidas |= {f.get("desde") for f in frames if f.get("desde")}
+        saltar = lambda ruta, n, sz: ruta in conocidas or fallo.get(ruta) == str(sz)
         nuevos, faltan, proyectos = [], [], False
         for c in carpetas:
             if _VIG["id"] != ident:
@@ -15276,6 +15317,22 @@ def _destino_libre(ruta, tam):
     return f"{base}_{k}{ext}", True
 
 
+def _seguro_en(raiz, *partes):
+    """Une a raiz trozos de ruta que vienen de un proyecto importado sin dejar salir de ella: un proyecto roto o
+    preparado con «..», una ruta absoluta o una unidad (C:) no puede escribir fuera de las carpetas de ASTRO."""
+    limpias = []
+    for p in partes:
+        for t in str(p or "").replace("\\", "/").split("/"):
+            t = re.sub(r'[<>:"|?*\x00-\x1f]', "_", t.strip()).rstrip(". ")
+            if t and t not in (".", ".."):
+                limpias.append(t)
+    r0 = os.path.normpath(raiz)
+    dst = os.path.normpath(os.path.join(r0, *limpias))
+    if dst != r0 and not dst.startswith(r0.rstrip(os.sep) + os.sep):
+        raise RuntimeError("el proyecto trae una ruta no válida: " + "/".join(str(p) for p in partes))
+    return dst
+
+
 def trabajo_importar(ruta, objeto, opc):
     f = None
     try:
@@ -15293,13 +15350,13 @@ def trabajo_importar(ruta, objeto, opc):
             x.update(object=objeto, path="", thumb="", origen="")
             if opc.get("tomas") and f.hay(r.get("archivo_en_zip")):
                 nombre = r["archivo_en_zip"].split("/")[-1]
-                dst, copiar = _destino_libre(os.path.join(ROOT, safe_js(objeto), r.get("night") or "sin_fecha",
-                                                          safe_js(r.get("filter") or "sin_filtro"), nombre), f.tamano(r["archivo_en_zip"]))
+                dst, copiar = _destino_libre(_seguro_en(ROOT, safe_js(objeto), safe_js(r.get("night") or "sin_fecha"),
+                                                        safe_js(r.get("filter") or "sin_filtro"), nombre), f.tamano(r["archivo_en_zip"]))
                 x["path"] = os.path.relpath(dst, ROOT).replace(os.sep, "/")
                 if copiar:
                     trabajos.append((r["archivo_en_zip"], dst))
             if f.hay(r.get("miniatura_en_zip")):
-                dst, copiar = _destino_libre(os.path.join(ROOT, "_miniaturas", r["miniatura_en_zip"].split("/")[-1]), f.tamano(r["miniatura_en_zip"]))
+                dst, copiar = _destino_libre(_seguro_en(ROOT, "_miniaturas", r["miniatura_en_zip"].split("/")[-1]), f.tamano(r["miniatura_en_zip"]))
                 x["thumb"] = os.path.relpath(dst, ROOT).replace(os.sep, "/")
                 if copiar:
                     trabajos.append((r["miniatura_en_zip"], dst))
@@ -15313,12 +15370,12 @@ def trabajo_importar(ruta, objeto, opc):
                     if not f.hay(a.get("en_zip")):
                         continue
                     rel = (a.get("ruta") or a["en_zip"].split("/", 1)[-1]).replace("\\", "/")
-                    dst, copiar = _destino_libre(os.path.join(CALIB_ROOT, *rel.split("/")), f.tamano(a["en_zip"]))
+                    dst, copiar = _destino_libre(_seguro_en(CALIB_ROOT, rel), f.tamano(a["en_zip"]))
                     if not copiar and os.path.relpath(dst, CALIB_ROOT).replace(os.sep, "/") in conocidas:
                         continue           # ese archivo ya está en tu biblioteca
-                    if copiar and os.path.exists(os.path.join(CALIB_ROOT, *rel.split("/"))):
+                    if copiar and os.path.exists(_seguro_en(CALIB_ROOT, rel)):
                         # otro archivo distinto con el mismo nombre: el importado va aparte
-                        dst, copiar = _destino_libre(os.path.join(CALIB_ROOT, "Importados", safe_js(objeto), *rel.split("/")), f.tamano(a["en_zip"]))
+                        dst, copiar = _destino_libre(_seguro_en(CALIB_ROOT, "Importados", safe_js(objeto), rel), f.tamano(a["en_zip"]))
                         if not copiar and os.path.relpath(dst, CALIB_ROOT).replace(os.sep, "/") in conocidas:
                             continue
                     relnuevo = os.path.relpath(dst, CALIB_ROOT).replace(os.sep, "/")
@@ -15340,12 +15397,12 @@ def trabajo_importar(ruta, objeto, opc):
                 arch = [x for x in (a.get("archivos") or []) if f.hay(x)]
                 if not arch:
                     continue
-                base = os.path.join(APIL_ROOT, seguro(objeto), a.get("fecha") or "importado")
+                base = _seguro_en(APIL_ROOT, seguro(objeto), safe_js(a.get("fecha") or "importado"))
                 if os.path.exists(base):
                     base += "_importado"
                 for x in arch:
                     sub = x.split("/", 2)[-1] if x.count("/") >= 2 else x.split("/")[-1]
-                    trabajos.append((x, os.path.join(base, *sub.split("/"))))
+                    trabajos.append((x, _seguro_en(base, sub)))
                 n_apil += 1
         PROY.update(total=len(trabajos), total_bytes=sum(f.tamano(n) for n, _ in trabajos))
         for nombre, dst in trabajos:

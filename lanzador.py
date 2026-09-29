@@ -314,18 +314,36 @@ def T(clave):
     return TXT.get(IDIOMA["v"], TXT["es"])[clave]
 
 
+def cambiar_cfg_comun(ruta, cambios):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
+    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
+    c = None
+    for _ in range(5):
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                c = json.load(f) or {}
+            break
+        except FileNotFoundError:
+            c = {}
+            break
+        except Exception:
+            time.sleep(0.05)
+    if not isinstance(c, dict):
+        return
+    c.update(cambios)
+    try:
+        tmp = "%s.%d.tmp" % (ruta, os.getpid())
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(c, f, ensure_ascii=False)
+        os.replace(tmp, ruta)
+    except OSError:
+        pass
+
+
 def compartir_idioma(datos):
     """El idioma elegido lo usan también los dos programas (se guarda en la carpeta de datos)."""
-    ruta = os.path.join(datos, ".astro-config.json")
     try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            c = json.load(f) or {}
-    except Exception:
-        c = {}
-    c["idioma"] = IDIOMA["v"]
-    try:
-        with open(ruta, "w", encoding="utf-8") as f:
-            json.dump(c, f, ensure_ascii=False)
+        cambiar_cfg_comun(os.path.join(datos, ".astro-config.json"), {"idioma": IDIOMA["v"]})
     except Exception:
         pass
 

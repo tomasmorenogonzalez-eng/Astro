@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.23"
+VERSION_PROG = "2026.09.29.24"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -97,12 +97,34 @@ def _cfg_comun():
         return {}
 
 
+def cambiar_cfg_comun(ruta, cambios):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
+    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
+    c = None
+    for _ in range(5):
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                c = json.load(f) or {}
+            break
+        except FileNotFoundError:
+            c = {}
+            break
+        except Exception:
+            time.sleep(0.05)
+    if not isinstance(c, dict):
+        return
+    c.update(cambios)
+    try:
+        tmp = "%s.%d.tmp" % (ruta, os.getpid())
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(c, f, ensure_ascii=False)
+        os.replace(tmp, ruta)
+    except OSError:
+        pass
+
+
 def _guardar_cfg_comun(clave, valor):
-    ruta = os.path.join(DISCO, ".astro-config.json")
-    c = _cfg_comun()
-    c[clave] = valor
-    with open(ruta, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False)
+    cambiar_cfg_comun(os.path.join(DISCO, ".astro-config.json"), {clave: valor})
 
 
 def idioma_actual():
