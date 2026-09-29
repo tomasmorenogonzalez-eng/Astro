@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.14"
+VERSION_PROG = "2026.09.29.15"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -280,17 +280,24 @@ def cambiar_cfg_comun(ruta, cambios):
     (un disco desconectado a media escritura), se aparta como .dañado y se sigue con su copia o desde cero: antes ya no
     se volvía a guardar ninguna preferencia."""
     with cerrojo_de(ruta):
-        c = None
+        c, ilegible = None, False
         for _ in range(5):
             try:
                 with open(ruta, "r", encoding="utf-8") as f:
                     c = json.load(f) or {}
+                ilegible = False
                 break
             except FileNotFoundError:
                 c = {}
                 break
-            except Exception:
+            except OSError:
+                ilegible = True              # bloqueado un momento (antivirus, OneDrive…) o disco que no responde
                 time.sleep(0.05)
+            except ValueError:
+                ilegible = False             # JSON roto: eso sí es un archivo estropeado
+                time.sleep(0.05)
+        if ilegible:
+            return                           # no se puede leer, pero no está roto: no se pisa con una copia vieja
         if not isinstance(c, dict):
             try:
                 with open(ruta + ".bak", "r", encoding="utf-8") as f:
@@ -1036,7 +1043,7 @@ const CARD_ORDER = { masters:["bias","masterbias","masterdark","masterflatdark",
 const $ = id => document.getElementById(id);
 
 /* ============ Almacenamiento: servidor local que escribe en el disco ============ */
-const ROOT_NAME = "__ROOT__";
+const ROOT_NAME = __ROOT_JSON__;
 async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
 async function loadDb(){
   try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); DB_BASE = (data && data.updated) || ""; arreglarCamaras(); }
@@ -1192,7 +1199,7 @@ async function importarDelArchivo(){
   if (!r) return;
   // solo se da por hecho si ha entrado todo y está guardado: si faltaba una carpeta (disco sin conectar) o falló
   // alguna copia, se vuelve a ofrecer la próxima vez (las que ya entraron salen como repetidas)
-  if (!d.faltan && !r.bad && await guardarYa()){ try { await api("/api/disco/pendiente_archivo/hecho", {method:"POST"}); } catch(_){} }
+  if (!d.faltan && !r.bad && await guardarYa()){ try { await api("/api/disco/pendiente_archivo/hecho", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({marca: d.marca || ""})}); } catch(_){} }
   // resumen por cámara: qué ha entrado de cada una
   const nuevos = frames.filter(f => !antes.has(f.id)), porCam = new Map();
   for (const f of nuevos){ const k = f.cam || trLT("cámara sin nombre", "unnamed camera"); if (!porCam.has(k)) porCam.set(k, {}); const t = porCam.get(k); t[f.type] = (t[f.type] || 0) + 1; }
@@ -2526,7 +2533,7 @@ function informarProblema(){
 </script>
 </body>
 </html>
-'''.replace("__ROOT__", ROOT)
+'''.replace("__ROOT_JSON__", json.dumps(ROOT).replace("</", "<\\/")).replace("__ROOT__", ROOT.replace("&", "&amp;").replace("<", "&lt;"))
 def _donar_astro():
     """El enlace de donaciones que pasa la aplicación (solo PayPal); vacío si no hay."""
     import re as _re
@@ -3526,7 +3533,12 @@ def pendiente_archivo(contar=False):
             vistos.add(r)
             items.append({"ruta": r, "nombre": os.path.basename(r), "size": st.st_size, "mtime": int(st.st_mtime * 1000)})
     _DISCO_OK.update(x["ruta"] for x in items)
-    return {"items": items, "dirs": len(dirs), "archivos": len(sueltos), "faltan": faltan}
+    return {"items": items, "dirs": len(dirs), "archivos": len(sueltos), "faltan": faltan, "marca": _marca_arch(d)}
+
+
+def _marca_arch(d):
+    """Qué lista se ha importado: si el Control de lights añade algo mientras tanto, la marca cambia y no se borra."""
+    return "%s|%d|%d" % (d.get("fecha") or "", len(d.get("dirs") or []), len(d.get("archivos") or []))
 
 
 def listar_disco(carpeta, maximo=20000):
@@ -3574,15 +3586,12 @@ def _db_cambiada(data):
     la marca «updated» de lo que leyó; si la del archivo es otra, guardar ahora borraría lo que hizo la otra pestaña."""
     try:
         m = re.search(rb'"base"\s*:\s*"([^"]*)"', data[:300])
-        if not m:
+        if not m or not os.path.exists(DB):
             return False
-        if not os.path.exists(DB):
-            # la pestaña leyó una biblioteca que aquí no está: es de otra carpeta de datos
-            return bool(m.group(1))
         with open(DB, "rb") as f:
             ini = f.read(300)
         a = re.search(rb'"updated"\s*:\s*"([^"]*)"', ini)
-        return (a.group(1) if a else b"") != m.group(1)
+        return bool(a) and a.group(1) != m.group(1)
     except OSError:
         return False
 
@@ -3629,6 +3638,12 @@ class H(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
         except Exception as e:
+            if not isinstance(e, RuntimeError):     # RuntimeError es un aviso para la persona; lo demás, un fallo
+                try:                                  # que conviene ver en la ventana del programa
+                    import traceback as _tb
+                    _tb.print_exc()
+                except Exception:
+                    pass
             if not self._respondido:
                 try:
                     self._send(500, str(e) or type(e).__name__, "text/plain; charset=utf-8")
@@ -3807,11 +3822,17 @@ class H(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(p.query)
         try:
             if p.path == "/api/disco/pendiente_archivo/hecho":
+                try:
+                    marca = json.loads(self._body() or b"{}").get("marca")
+                except Exception:
+                    marca = None
                 with cerrojo_de(ARCH_PEND):
-                    try:
-                        os.remove(ARCH_PEND)
-                    except OSError:
-                        pass
+                    d = leer_json(ARCH_PEND, {})
+                    if not marca or not isinstance(d, dict) or _marca_arch(d) == marca:
+                        try:
+                            os.remove(ARCH_PEND)
+                        except OSError:
+                            pass
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/importar/pendiente/hecho":
                 hechas = set(json.loads(self._body() or b"{}").get("rutas") or [])

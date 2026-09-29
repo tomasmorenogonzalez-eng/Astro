@@ -411,17 +411,24 @@ def cambiar_cfg_comun(ruta, cambios):
     (un disco desconectado a media escritura), se aparta como .dañado y se sigue con su copia o desde cero: antes ya no
     se volvía a guardar ninguna preferencia."""
     with cerrojo_de(ruta):
-        c = None
+        c, ilegible = None, False
         for _ in range(5):
             try:
                 with open(ruta, "r", encoding="utf-8") as f:
                     c = json.load(f) or {}
+                ilegible = False
                 break
             except FileNotFoundError:
                 c = {}
                 break
-            except Exception:
+            except OSError:
+                ilegible = True              # bloqueado un momento (antivirus, OneDrive…) o disco que no responde
                 time.sleep(0.05)
+            except ValueError:
+                ilegible = False             # JSON roto: eso sí es un archivo estropeado
+                time.sleep(0.05)
+        if ilegible:
+            return                           # no se puede leer, pero no está roto: no se pisa con una copia vieja
         if not isinstance(c, dict):
             try:
                 with open(ruta + ".bak", "r", encoding="utf-8") as f:

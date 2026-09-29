@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
 # ASTRO · Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
 # y Agrupación Astronómica de Miguelturra (C.Real).
-import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urllib.parse, time
+import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urllib.parse, time, traceback
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.50"
+VERSION_PROG = "2026.09.29.51"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
 ROOT = os.path.join(DISCO, "Lights")
 DIBUJOS_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes", "web")
 DB = os.path.join(ROOT, "lights.json")
+# identificador de la carpeta de datos, para que una pestaña abierta con otra carpeta no cambie nada en esta
+import hashlib as _hl
+CARPETA_ID = _hl.sha1(os.path.normcase(os.path.abspath(ROOT)).encode("utf-8", "surrogatepass")).hexdigest()[:16]
 _DB_LOCK = threading.Lock()
 
 
@@ -98,17 +101,15 @@ def _db_cambiada(data):
     """¿Se ha guardado la base de datos desde otra pestaña después de que esta la leyera? La página manda en «base»
     la marca «updated» de lo que leyó; si la del archivo es otra, guardar ahora borraría lo que hizo la otra pestaña."""
     try:
+        # (una pestaña abierta con otra carpeta de datos la para la cabecera X-Astro-Carpeta; aquí, si lights.json no
+        # está, se guarda lo de la pestaña: es la única copia que queda)
         m = re.search(rb'"base"\s*:\s*"([^"]*)"', data[:300])
-        if not m:
+        if not m or not os.path.exists(DB):
             return False
-        if not os.path.exists(DB):
-            # la pestaña leyó una base de datos que aquí no está: es de otra carpeta de datos (se cambió de carpeta o
-            # se salió de los datos de ejemplo con la pestaña abierta) y guardarla metería aquí aquel catálogo
-            return bool(m.group(1))
         with open(DB, "rb") as f:
             ini = f.read(300)
         a = re.search(rb'"updated"\s*:\s*"([^"]*)"', ini)
-        return (a.group(1) if a else b"") != m.group(1)
+        return bool(a) and a.group(1) != m.group(1)
     except OSError:
         return False
 
@@ -326,17 +327,24 @@ def cambiar_cfg_comun(ruta, cambios):
     (un disco desconectado a media escritura), se aparta como .dañado y se sigue con su copia o desde cero: antes ya no
     se volvía a guardar ninguna preferencia."""
     with cerrojo_de(ruta):
-        c = None
+        c, ilegible = None, False
         for _ in range(5):
             try:
                 with open(ruta, "r", encoding="utf-8") as f:
                     c = json.load(f) or {}
+                ilegible = False
                 break
             except FileNotFoundError:
                 c = {}
                 break
-            except Exception:
+            except OSError:
+                ilegible = True              # bloqueado un momento (antivirus, OneDrive…) o disco que no responde
                 time.sleep(0.05)
+            except ValueError:
+                ilegible = False             # JSON roto: eso sí es un archivo estropeado
+                time.sleep(0.05)
+        if ilegible:
+            return                           # no se puede leer, pero no está roto: no se pisa con una copia vieja
         if not isinstance(c, dict):
             try:
                 with open(ruta + ".bak", "r", encoding="utf-8") as f:
@@ -1855,7 +1863,7 @@ const DEFAULT_CAMS = ["ASI6200MM Pro","ASI2600MC Pro","ASI533MM Pro","ASI678MM",
 const DEFAULT_TELS = ["RC 355 GSO f/8","Esprit 120 ED","Askar 160 APO","Askar FRA 400","Sharpstar 120 ED","Svbony SV555","Celestron C11","Celestron C8","PlaneWave 17\""];
 const CAM_ALIASES = [[/ASI\s*6200/i,"ASI6200MM Pro"],[/ASI\s*2600/i,"ASI2600MC Pro"],[/ASI\s*533/i,"ASI533MM Pro"],[/ASI\s*678/i,"ASI678MM"],[/ASI\s*174/i,"ASI174MM mini"],[/K-?1/i,"Pentax K-1 II"]];
 const STATUS = {ok:"Válida", warn:"Con avisos", bad:"Rechazable", na:"Sin analizar", disc:"Descartada"};
-const DB_FILE = "lights.json", ROOT_NAME = "__ROOT__";
+const DB_FILE = "lights.json", ROOT_NAME = __ROOT_JSON__, CARPETA_ID = "__CARPETA_ID__";
 let frames = [], selected = null, checked = new Set();
 let filters = {status:new Set(), object:new Set(), filter:new Set(), cam:new Set(), q:""};
 let sort = {k:"dateObs", dir:"desc"};
@@ -1863,7 +1871,7 @@ const $ = id => document.getElementById(id);
 
 /* ============ Servidor local ============ */
 async function api(path, opts){
-  if (opts && opts.method && opts.method !== "GET") opts = Object.assign({}, opts, {headers: Object.assign({"X-Astro-Raiz": encodeURIComponent(ROOT_NAME)}, opts.headers || {})});
+  if (opts && opts.method && opts.method !== "GET") opts = Object.assign({}, opts, {headers: Object.assign({"X-Astro-Carpeta": CARPETA_ID}, opts.headers || {})});
   const r = await fetch(path, opts);
   if (!r.ok){ const t = (await r.text()) || r.statusText; if (t === "otra_carpeta") otraCarpeta(); throw new Error(t); }
   return r; }
@@ -1900,15 +1908,20 @@ function partesFicha(f){
   return [base, !extra ? base : base === "{}" ? "{" + extra.slice(1) + "}" : base.slice(0, -1) + extra + "}"];
 }
 function huellasDe(lista){ const m = new Map(); for (const f of lista) m.set(f.id, huella(partesFicha(f)[0])); return m; }
+// pone en la ficha de esta pestaña lo guardado (el mismo objeto: quien lo tenga a mano sigue cambiando el que se guarda)
+function copiarEnFicha(dest, orig){ for (const k of Object.keys(dest)) if (!(k in orig)) delete dest[k]; return Object.assign(dest, orig); }
 async function juntarConGuardado(){
   const data = await (await api("/api/db")).json();
   const srv = Array.isArray(data) ? data : (data.frames || []);
+  // sin nada guardado (lights.json movido, restaurado o en cuarentena del antivirus) no se da nada por borrado:
+  // se queda todo lo de esta pestaña
+  if (!srv.length && frames.length){ DB_BASE = (data && data.updated) || ""; BASE_HUELLAS = new Map(); return frames.length; }
   const locPorId = new Map(frames.map(f => [f.id, f])), srvIds = new Set(srv.map(f => f.id));
-  const out = []; let propias = 0;
+  const out = []; let propias = 0, nuevasOtra = 0;
   for (const f of srv){
     const l = locPorId.get(f.id);
-    if (l){ if (BASE_HUELLAS.get(l.id) !== huella(partesFicha(l)[0])){ out.push(l); propias++; } else out.push(f); }
-    else if (!BASE_HUELLAS.has(f.id)) out.push(f);           // nueva de la otra pestaña
+    if (l){ if (BASE_HUELLAS.get(l.id) !== huella(partesFicha(l)[0])){ out.push(l); propias++; } else out.push(copiarEnFicha(l, f)); }
+    else if (!BASE_HUELLAS.has(f.id)){ out.push(f); nuevasOtra++; }    // nueva de la otra pestaña
     else propias++;                                           // borrada en esta
   }
   // las nuevas de esta pestaña (salvo las que la otra ya había añadido: la misma toma, por su ruta)
@@ -1917,6 +1930,7 @@ async function juntarConGuardado(){
   frames = out;
   DB_BASE = (data && data.updated) || "";
   BASE_HUELLAS = huellasDe(srv);
+  if (nuevasOtra) frames.forEach(f => { if (!Object.prototype.hasOwnProperty.call(f, "_reg")) ponerReg(f); });
   evaluateAll(); render();
   return propias;
 }
@@ -8015,7 +8029,7 @@ async function mostrarAnalisis(){
     INTEG.res.set(a.carpeta, res);
   }
   // mientras se medía se eligió otro análisis (u otro objeto): este se queda guardado, pero no se pinta encima
-  if (!$("igResCuerpo") || (INTEG.datos.analisis || [])[INTEG.idx] !== a) return;
+  if (!$("igResCuerpo") || ((INTEG.datos.analisis || [])[INTEG.idx] || {}).carpeta !== a.carpeta) return;
   $("igResCuerpo").className = "";
   $("igResCuerpo").innerHTML = equilibrioColor(res) + res.map(tarjetaFiltro).join("") +
     ((a.avisos || []).length ? `<ul class="reasons">${a.avisos.map(x => `<li class="warn">${esc(x)}</li>`).join("")}</ul>` : "") +
@@ -8356,7 +8370,7 @@ function informarProblema(){
 </script>
 </body>
 </html>
-'''.replace("__ROOT__", ROOT)
+'''.replace("__ROOT_JSON__", json.dumps(ROOT).replace("</", "<\\/")).replace("__CARPETA_ID__", CARPETA_ID).replace("__ROOT__", ROOT.replace("&", "&amp;").replace("<", "&lt;"))
 def _donar_astro():
     """El enlace de donaciones que pasa la aplicación (solo PayPal); vacío si no hay."""
     import re as _re
@@ -11686,7 +11700,9 @@ def _limpiar_setup(e):
 GRUPO_JSON = "astro-proyecto.json"
 GRUPO_FORMATO = "astro-proyecto-en-grupo"
 _GRUPO_ENV = {"activo": False, "total": 0, "hechos": 0, "copiados": 0, "saltados": 0, "bytes": 0, "error": "", "fallidos": 0}
-_GRUPO_LOCK = cerrojo_de(OBJETIVOS_F)       # el mismo que el de objetivos.json: nadie lo cambia a la vez
+# (el trabajo con la carpeta compartida, que puede ser lento o estar desconectada, va con su propio cerrojo; el de
+# objetivos.json solo se toma un momento, para escribir el proyecto)
+_GRUPO_LOCK = threading.RLock()
 
 
 def _nombre_carpeta(s):
@@ -11720,8 +11736,21 @@ def _grupo_objetivos():
     return ob if isinstance(ob, dict) else {}
 
 
-def _grupo_guardar_objetivos(ob):
-    guardar_json(OBJETIVOS_F, ob)
+def _grupo_guardar_objetivos(ob, obj=None):
+    """Guarda en objetivos.json el proyecto «obj» tal como está en «ob», sin tocar los demás (se vuelven a leer con su
+    cerrojo: mientras se trabajaba con la carpeta del grupo, la página o otro proyecto pueden haber cambiado algo)."""
+    with cerrojo_de(OBJETIVOS_F):
+        if obj is None:
+            guardar_json(OBJETIVOS_F, ob)
+            return
+        ahora = leer_json(OBJETIVOS_F, {})
+        if not isinstance(ahora, dict):
+            ahora = {}
+        if obj in ob:
+            ahora[obj] = ob[obj]
+        else:
+            ahora.pop(obj, None)
+        guardar_json(OBJETIVOS_F, ahora)
 
 
 def _grupo_de(ob, carpeta):
@@ -11789,7 +11818,7 @@ def grupo_escribir(obj):
         x = dict(x, equipos=equipos)
         x["grupo"] = dict(g, carpeta=carpeta, carpetas=carpetas, vistos=[e["id"] for e in equipos], leido=d["actualizado"])
         ob[obj] = x
-        _grupo_guardar_objetivos(ob)
+        _grupo_guardar_objetivos(ob, obj)
         return d
 
 
@@ -11833,7 +11862,7 @@ def grupo_fusionar(carpeta, crear=False):
         x["grupo"] = dict(g, carpeta=carpeta, carpetas=dict(d.get("carpetas") or {}), vistos=sorted(rid), leido=d.get("actualizado"))
         x["actualizado"] = _dt.datetime.now().isoformat(timespec="seconds")
         ob[obj] = x
-        _grupo_guardar_objetivos(ob)
+        _grupo_guardar_objetivos(ob, obj)
     if nuevos_aqui:
         try:
             grupo_escribir(obj)
@@ -11890,7 +11919,7 @@ def grupo_crear(obj, carpeta):
             g.pop("leido", None)
         x["grupo"] = g
         ob[obj] = x
-        _grupo_guardar_objetivos(ob)
+        _grupo_guardar_objetivos(ob, obj)
     if ya:
         grupo_fusionar(carpeta)
     grupo_escribir(obj)
@@ -11916,7 +11945,7 @@ def grupo_dejar(obj):
         x = dict(ob.get(obj) or {})
         g = x.pop("grupo", None) or {}
         ob[obj] = x
-        _grupo_guardar_objetivos(ob)
+        _grupo_guardar_objetivos(ob, obj)
     if g.get("carpeta"):
         with cerrojo_de(VIGILADAS_CFG):
             v = leer_vigiladas()
@@ -11991,7 +12020,14 @@ def grupo_enviar(obj, equipo_id, ids):
 def guardar_equipos(d):
     """Crea o cambia un proyecto con varios equipos: el objeto, sus horas y los equipos que participan."""
     with cerrojo_de(OBJETIVOS_F):
-        return _guardar_equipos(d)
+        ob, nombre, x = _guardar_equipos(d)
+    if (x.get("grupo") or {}).get("carpeta"):
+        try:
+            grupo_escribir(nombre)            # los socios verán los cambios en la carpeta compartida
+            ob = _grupo_objetivos()
+        except Exception:
+            traceback.print_exc()
+    return ob
 
 
 def _guardar_equipos(d):
@@ -12034,13 +12070,7 @@ def _guardar_equipos(d):
     x.update(proyecto=p, equipos=equipos, actualizado=_dt.datetime.now().isoformat(timespec="seconds"))
     ob[nombre] = x
     guardar_json(OBJETIVOS_F, ob)
-    if (x.get("grupo") or {}).get("carpeta"):
-        try:
-            grupo_escribir(nombre)            # los socios verán los cambios en la carpeta compartida
-            ob = _grupo_objetivos()
-        except Exception:
-            pass
-    return ob
+    return ob, nombre, x
 
 
 def _es(x, dec=1):
@@ -14483,13 +14513,13 @@ def archivo_cal_enviar():
     dirs, arch = cp.get("dirs") or [], cp.get("archivos") or []
     if not dirs and not arch:
         return {"ok": False, "dirs": 0, "archivos": 0}
-    with cerrojo_de(ARCH_CAL_PEND):
-        prev = leer_json(ARCH_CAL_PEND, {})
-    prev = prev if isinstance(prev, dict) else {}
-    d = {"dirs": list(dict.fromkeys((prev.get("dirs") or []) + dirs)),
-         "archivos": list(dict.fromkeys((prev.get("archivos") or []) + arch)), "fecha": time.strftime("%Y-%m-%d %H:%M")}
     os.makedirs(CALIB_ROOT, exist_ok=True)
-    guardar_json(ARCH_CAL_PEND, d, indent=None)
+    with cerrojo_de(ARCH_CAL_PEND):              # leer y escribir juntos: la Biblioteca puede estar recogiéndolo a la vez
+        prev = leer_json(ARCH_CAL_PEND, {})
+        prev = prev if isinstance(prev, dict) else {}
+        d = {"dirs": list(dict.fromkeys((prev.get("dirs") or []) + dirs)),
+             "archivos": list(dict.fromkeys((prev.get("archivos") or []) + arch)), "fecha": time.strftime("%Y-%m-%d %H:%M")}
+        guardar_json(ARCH_CAL_PEND, d, indent=None)
     v.pop("cal_pendiente", None)
     guardar_archivo_cfg(v)
     return {"ok": True, "dirs": len(d["dirs"]), "archivos": len(d["archivos"])}
@@ -15081,11 +15111,14 @@ def _vig_trabajo(carpetas, ident):
             if r is None:
                 return
             desde = (c.get("desde") or 0) * 1000
-            reciente = (time.time() - 120) * 1000
+            ahora_ms = time.time() * 1000
             for it in r[0]:
-                # una toma cortada o recién escrita (el Explorador o un disco en red la están copiando todavía) se deja
-                # para la próxima revisión: si no, se analizaba a medias y ya no se volvía a mirar
-                if not it.get("entera", True) or it["mtime"] > reciente:
+                # una toma recién escrita (el Explorador o un disco en red la están copiando todavía) se deja para la
+                # próxima revisión: si no, se analizaba a medias y ya no se volvía a mirar. Si parece cortada se espera
+                # media hora, pero no para siempre (hay archivos buenos que la cabecera no deja medir), y una fecha del
+                # futuro (reloj de la cámara o del portátil mal puesto) no la deja fuera
+                edad = ahora_ms - it["mtime"]
+                if 0 <= edad < (120000 if it.get("entera", True) else 1800000):
                     continue
                 if it["mtime"] >= desde:
                     it.update(copiar=bool(c.get("copiar")), raiz=c["ruta"], raiz_id=c.get("id"))
@@ -15975,6 +16008,12 @@ class H(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
         except Exception as e:
+            if not isinstance(e, RuntimeError):     # RuntimeError es un aviso para la persona; lo demás, un fallo
+                try:                                  # que conviene ver en la ventana del programa
+                    import traceback as _tb
+                    _tb.print_exc()
+                except Exception:
+                    pass
             if not self._respondido:
                 try:
                     self._send(500, str(e) or type(e).__name__, "text/plain; charset=utf-8")
@@ -16215,8 +16254,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(403, "origen", "text/plain; charset=utf-8")
         # una pestaña que se abrió con otra carpeta de datos (ASTRO ha cambiado de carpeta, o se ha salido de los datos
         # de ejemplo, con ella abierta) no cambia nada en esta
-        raiz = self.headers.get("X-Astro-Raiz")
-        if raiz is not None and os.path.normcase(os.path.abspath(urllib.parse.unquote(raiz))) != os.path.normcase(os.path.abspath(ROOT)):
+        carpeta = self.headers.get("X-Astro-Carpeta")
+        if carpeta is not None and carpeta != CARPETA_ID:
             return self._send(409, "otra_carpeta", "text/plain; charset=utf-8")
         # otra web abierta en el navegador no puede borrar, mover ni guardar nada aquí (el navegador pone su Origin)
         o = self.headers.get("Origin")
