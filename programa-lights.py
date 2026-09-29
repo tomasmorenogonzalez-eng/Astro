@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.43"
+VERSION_PROG = "2026.09.29.44"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -10253,6 +10253,13 @@ def _hora(ts):
     return time.strftime("%H:%M", time.localtime(ts))
 
 
+def _mediodia_lugar(dia, lon):
+    """Instante (s) del mediodía solar medio del lugar ese día. Cada noche va de mediodía a mediodía del lugar, no del
+    ordenador: con un telescopio remoto lejos (Nuevo México visto desde España) la noche se partía en dos."""
+    import calendar
+    return calendar.timegm((dia.year, dia.month, dia.day, 12, 0, 0)) - float(lon) * 240.0
+
+
 def _fecha_noche():
     """La fecha de «esta noche»: de madrugada (hasta las 8) sigue siendo la noche que empezó ayer por la tarde."""
     return (_dt.datetime.now() - _dt.timedelta(hours=8)).date()
@@ -10270,7 +10277,7 @@ def noches(objetos, lat, lon, dias=30, alt_min=30.0, desde=None, horizonte=None)
     salida = []
     for d in range(int(dias)):
         dia = hoy + _dt.timedelta(days=d)
-        t0 = time.mktime((dia.year, dia.month, dia.day, 12, 0, 0, 0, 0, -1))
+        t0 = _mediodia_lugar(dia, lon)
         oscuro, luna_osc = [], []
         por_obj = {n: {"horas": 0.0, "ancha": 0.0, "ha": 0.0, "oiii": 0.0, "alt_max": -90.0, "sep_min": 180.0,
                        "ventana": [None, None], "v_ancha": [None, None], "v_ha": [None, None], "v_oiii": [None, None]}
@@ -10338,7 +10345,7 @@ def curva_noche(ra, dec, lat, lon, alt_min=30.0, horizonte=None, fecha=None):
     r, d = _m.radians(float(ra)), _m.radians(float(dec))
     hz = horizonte_puntos(horizonte)
     dia = _dt.date.fromisoformat(fecha) if fecha else _fecha_noche()
-    t0 = time.mktime((dia.year, dia.month, dia.day, 12, 0, 0, 0, 0, -1))
+    t0 = _mediodia_lugar(dia, lon)
     pts = []
     for k in range(24 * 60 // PASO_MIN + 1):
         ts = t0 + k * PASO_MIN * 60
