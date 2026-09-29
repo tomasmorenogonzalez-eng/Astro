@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.7"
+VERSION_PROG = "2026.09.29.8"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -927,7 +927,7 @@ function acercaDe(){
 /* ============ Equipo conocido ============ */
 const DEFAULT_CAMS = ["ASI6200MM Pro","ASI2600MC Pro","ASI533MM Pro","ASI678MM","ASI174MM mini","Pentax K-1 II","SX Oculus PRO"];
 const DEFAULT_TELS = ["RC 355 GSO f/8","Esprit 120 ED","Askar 160 APO","Askar FRA 400","Sharpstar 120 ED","Svbony SV555","Celestron C11","Celestron C8","PlaneWave 17\""];
-const CAM_ALIASES = [[/6200/,"ASI6200MM Pro"],[/2600/,"ASI2600MC Pro"],[/533/,"ASI533MM Pro"],[/678/,"ASI678MM"],[/174/,"ASI174MM mini"],[/K-?1/i,"Pentax K-1 II"],[/oculus/i,"SX Oculus PRO"]];
+const CAM_ALIASES = [[/ASI\s*6200/i,"ASI6200MM Pro"],[/ASI\s*2600/i,"ASI2600MC Pro"],[/ASI\s*533/i,"ASI533MM Pro"],[/ASI\s*678/i,"ASI678MM"],[/ASI\s*174/i,"ASI174MM mini"],[/K-?1/i,"Pentax K-1 II"],[/oculus/i,"SX Oculus PRO"]];
 
 const TYPES = {
   bias:"Bias", dark:"Dark", flatdark:"Flat dark", flat:"Flat",
@@ -2868,7 +2868,8 @@ def candidatos_master():
             cal = next((c for c in sets if c["tipo"] == "flatdark" and _compat(c, s["cam"], s["bin"])
                         and c["exp"] is not None and s["exp"] is not None
                         and abs(c["exp"] - s["exp"]) <= max(0.05, 0.1 * s["exp"])
-                        and (s["gain"] is None or c["gain"] is None or c["gain"] == s["gain"])), None) \
+                        and (s["gain"] is None or c["gain"] is None or c["gain"] == s["gain"])
+                        and (s["offset"] is None or c["offset"] is None or c["offset"] == s["offset"])), None) \
                 or hay_bias(sets, s["cam"], s["bin"], s["gain"], s["offset"])
         out.append({"id": s["id"], "tipo": s["tipo"], "desc": s["desc"], "n": s["n"], "en_disco": len(existentes),
                     "hecho": s["id"] in hechos, "calibrador": cal["desc"] if cal else "",

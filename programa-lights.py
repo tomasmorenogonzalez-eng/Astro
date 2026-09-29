@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.39"
+VERSION_PROG = "2026.09.29.40"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1755,7 +1755,7 @@ function analyzeLight(p){
 
 const DEFAULT_CAMS = ["ASI6200MM Pro","ASI2600MC Pro","ASI533MM Pro","ASI678MM","ASI174MM mini","Pentax K-1 II"];
 const DEFAULT_TELS = ["RC 355 GSO f/8","Esprit 120 ED","Askar 160 APO","Askar FRA 400","Sharpstar 120 ED","Svbony SV555","Celestron C11","Celestron C8","PlaneWave 17\""];
-const CAM_ALIASES = [[/6200/,"ASI6200MM Pro"],[/2600/,"ASI2600MC Pro"],[/533/,"ASI533MM Pro"],[/678/,"ASI678MM"],[/174/,"ASI174MM mini"],[/K-?1/i,"Pentax K-1 II"]];
+const CAM_ALIASES = [[/ASI\s*6200/i,"ASI6200MM Pro"],[/ASI\s*2600/i,"ASI2600MC Pro"],[/ASI\s*533/i,"ASI533MM Pro"],[/ASI\s*678/i,"ASI678MM"],[/ASI\s*174/i,"ASI174MM mini"],[/K-?1/i,"Pentax K-1 II"]];
 const STATUS = {ok:"Válida", warn:"Con avisos", bad:"Rechazable", na:"Sin analizar", disc:"Descartada"};
 const DB_FILE = "lights.json", ROOT_NAME = "__ROOT__";
 let frames = [], selected = null, checked = new Set();
@@ -8465,8 +8465,9 @@ def ncam(s):
     return re.sub(r"[^a-z0-9]", "", str(s or "").lower().replace("zwo", ""))
 
 
-_ALIAS_CAM = [(r"6200", "ASI6200MM Pro"), (r"2600", "ASI2600MC Pro"), (r"533", "ASI533MM Pro"), (r"678", "ASI678MM"),
-              (r"174", "ASI174MM mini"), (r"(?i)K-?1", "Pentax K-1 II"), (r"(?i)oculus", "SX Oculus PRO")]
+# (solo las ZWO: «QHY533C» o «Atik 16200» no son la ASI533 ni la ASI6200)
+_ALIAS_CAM = [(r"(?i)ASI\s*6200", "ASI6200MM Pro"), (r"(?i)ASI\s*2600", "ASI2600MC Pro"), (r"(?i)ASI\s*533", "ASI533MM Pro"),
+              (r"(?i)ASI\s*678", "ASI678MM"), (r"(?i)ASI\s*174", "ASI174MM mini"), (r"(?i)K-?1", "Pentax K-1 II"), (r"(?i)oculus", "SX Oculus PRO")]
 
 
 def canon_cam(s):
@@ -8833,7 +8834,7 @@ def elegir_flat(sets, rec):
             dias = 60
         pen += min(dias, 365) * 0.05 + (0 if s["master"] else 0.1)
         if s.get("tel") and rec.get("tel") and not mismo_nombre(s["tel"], rec.get("tel")):
-            pen += 50            # flats de otro telescopio: solo si no hay otros
+            pen += 1000          # flats de otro telescopio: solo si no hay otros (también peor que unos girados del mismo)
         if mejor is None or pen < mejor[0]:
             mejor = (pen, s)
     if mejor:
@@ -8850,11 +8851,14 @@ def elegir_flat(sets, rec):
 def calibrador_flat(sets, flat, rec):
     if flat is None or flat["master"]:
         return None
-    for s in sets:   # dark flats de la misma exposición
-        if s["tipo"] == "flatdark" and compatible(s, rec) and s["exp"] is not None and flat["exp"] is not None \
-                and abs(s["exp"] - flat["exp"]) <= max(0.05, 0.1 * flat["exp"]) \
-                and (flat["gain"] is None or s["gain"] is None or s["gain"] == flat["gain"]):
-            return s
+    # dark flats de la misma exposición, gain y offset (con otro offset el nivel de fondo es otro); si hay varios,
+    # los de exposición más parecida
+    cands = [s for s in sets if s["tipo"] == "flatdark" and compatible(s, rec) and s["exp"] is not None and flat["exp"] is not None
+             and abs(s["exp"] - flat["exp"]) <= max(0.05, 0.1 * flat["exp"])
+             and (flat["gain"] is None or s["gain"] is None or s["gain"] == flat["gain"])
+             and (flat["offset"] is None or s["offset"] is None or s["offset"] == flat["offset"])]
+    if cands:
+        return min(cands, key=lambda s: (abs(s["exp"] - flat["exp"]), 0 if s["master"] else 1))
     return elegir_bias(sets, flat["gain"], flat["offset"], rec)
 
 
@@ -8936,6 +8940,7 @@ def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
         elif len(equipos) > 1 and len({e["bayer"] for e in equipos}) > 1:
             avisos.append("mezcla cámaras en color y monocromas: se apila cada equipo por separado")
         filtros.append({"filtro": filt, "n": n, "exp": sum(num(r.get("exp")) or 0 for r in ls),
+                        "_px": sum((num(r.get("w")) or 9576) * (num(r.get("h")) or 6388) for r in ls),   # cada toma con su tamaño
                         "grupos": lista, "avisos": sorted(set(avisos)), "bayer": any(es_bayer(r) for r in ls),
                         "w": ls[0].get("w"), "h": ls[0].get("h"), "apilable": n >= 2,
                         "equipos": [{k: v for k, v in e.items() if not k.startswith("_")} for e in equipos], "_equipos": equipos,
@@ -8948,10 +8953,11 @@ def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
         libre = 0
     # lo que ocupa el filtro más grande: en color (OSC) cada toma calibrada pasa a tener 3 canales, y con varios
     # grupos de calibración Siril hace además una copia al unirlos
-    def peso_filtro(f):
-        return f["n"] * (3 if f.get("bayer") else 1) * (3.2 / 2.2 if len(f.get("grupos") or []) > 1 else 1)
-    max_n = max([peso_filtro(f) for f in filtros] or [0])
-    necesita32, necesita16 = estimar_bytes(max_n, w, h, 32), estimar_bytes(max_n, w, h, 16)
+    # (con los píxeles de cada toma: en un proyecto con varias cámaras, el filtro con más tomas no es el que más ocupa)
+    def peso_filtro(f, bits):
+        return int(f["_px"] * (3 if f.get("bayer") else 1) * (3.2 / 2.2 if len(f.get("grupos") or []) > 1 else 1) * bits / 8 * 2.2)
+    necesita32 = max([peso_filtro(f, 32) for f in filtros] or [0])
+    necesita16 = max([peso_filtro(f, 16) for f in filtros] or [0])
     return {"objeto": objeto, "siril": siril, "siril_version": ver, "filtros": filtros, "excluidas": excluidas,
             "noches_fuera": sorted(noches_fuera),
             "n_total": n_total, "libre": libre, "necesita32": necesita32, "necesita16": necesita16,
