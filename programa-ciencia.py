@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.25"
+VERSION_PROG = "2026.09.29.26"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -692,7 +692,12 @@ def instante_medio(cab):
     avg = fecha_fits(cab.get("DATE-AVG"))
     if avg:
         return avg, exp
-    ini = fecha_fits(cab.get("DATE-OBS") or cab.get("DATE_OBS"))
+    d_obs = str(cab.get("DATE-OBS") or cab.get("DATE_OBS") or "").strip()
+    if d_obs and "T" not in d_obs and " " not in d_obs:
+        # solo la fecha: la hora va en otra clave (programas antiguos y conversores de réflex); sin ella no hay instante
+        hora = next((str(cab.get(k)).strip() for k in ("TIME-OBS", "UTSTART", "UT", "UT-START", "TIME_OBS") if cab.get(k)), "")
+        d_obs = d_obs[:10] + "T" + hora if re.match(r"^\d{1,2}:\d{2}", hora) else ""
+    ini = fecha_fits(d_obs)
     if not ini:
         mjd = num(cab.get("MJD-OBS"))
         if mjd:
@@ -1394,7 +1399,8 @@ def _medir_cielo(img, info, progreso):
             avisos.append("la Luna estaba sobre el horizonte (%d %% iluminada)" % cond["luna_ilum"])
     exp = num(info.get("exp")) or 0.0
     zp_adu = zp_tot + 2.5 * math.log10(s_adu) if info.get("escala_adu") else None
-    zp_s = zp_adu + 2.5 * math.log10(exp) if zp_adu is not None and exp > 0 else None
+    # m = ZP_adu − 2,5·log10(ADU en la toma) = ZP_1s − 2,5·log10(ADU por segundo)  ⇒  ZP_1s = ZP_adu − 2,5·log10(t)
+    zp_s = zp_adu - 2.5 * math.log10(exp) if zp_adu is not None and exp > 0 else None
 
     estrellas = []
     for m in medidas:
@@ -2653,8 +2659,11 @@ def calcular_variable(serie, sel):
     est = {e["id"]: e for e in serie["estrellas"]}
     comps_ids = [e["id"] for e in serie["estrellas"][1:]]
     tomas = serie["tomas"]
-    sat = 1.0 if all(t.get("flotante") for t in tomas) else (65535.0 if all(t.get("bits") == 16 for t in tomas) else None)
-    no_lineal = 0.85 * sat if sat else None
+    def no_lineal_de(t):
+        # el techo de cada toma: 1,0 si está calibrada (coma flotante) y 65535 si es de 16 bits sin calibrar; en una serie
+        # con unas y otras, un techo común dejaba sin marcar las estrellas saturadas de las calibradas
+        s_ = 1.0 if t.get("flotante") else (65535.0 if t.get("bits") == 16 else None)
+        return 0.85 * s_ if s_ else None
 
     def g_nat(t):
         g = num(t.get("gain"))
@@ -2669,7 +2678,7 @@ def calcular_variable(serie, sel):
         f, sd, nap, nan_, pico = m[0], m[1], m[2], m[3], m[4]
         g = g_nat(t)
         var = nap * sd * sd * (1 + nap / max(nan_, 1)) + (f / g if g else 0.0)
-        return {"m": -2.5 * math.log10(f), "e": 1.0857 * math.sqrt(var) / f if var > 0 else 0.0, "sat": bool(no_lineal and pico > no_lineal), "snr": f / math.sqrt(var) if var > 0 else 0}
+        return {"m": -2.5 * math.log10(f), "e": 1.0857 * math.sqrt(var) / f if var > 0 else 0.0, "sat": bool(no_lineal_de(t) and pico > no_lineal_de(t)), "snr": f / math.sqrt(var) if var > 0 else 0}
 
     # estadística de cada estrella de comparación a lo largo de la serie
     tabla = []
@@ -2692,11 +2701,11 @@ def calcular_variable(serie, sel):
         if o:
             aprox.append(mv["m"] + sorted(o)[len(o) // 2])
     m_var = sorted(aprox)[len(aprox) // 2] if aprox else None
-    elegidas = [c for c in (sel.get("comps") or []) if c in est]
+    elegidas = [c for c in (sel.get("comps") or []) if c in est and c != "VAR"]     # la variable no se compara consigo
     if not elegidas:
         cand = sorted(utiles, key=lambda c: abs(c["mag"] - m_var) if m_var is not None else 0)
         elegidas = [c["id"] for c in cand[:6]]
-    check = sel.get("check") if sel.get("check") in est else None
+    check = sel.get("check") if sel.get("check") in est and sel.get("check") != "VAR" else None
     if not check:
         resto = [c for c in sorted(utiles, key=lambda c: abs(c["mag"] - m_var) if m_var is not None else 0) if c["id"] not in elegidas]
         check = resto[0]["id"] if resto else None
@@ -3380,8 +3389,11 @@ def calcular_exo(serie, sel):
     est = {e["id"]: e for e in serie["estrellas"]}
     tomas = [t for t in serie["tomas"] if t.get("bjd_tdb")]
     nap = len(serie["factores"])
-    sat = 1.0 if all(t.get("flotante") for t in tomas) else (65535.0 if all(t.get("bits") == 16 for t in tomas) else None)
-    no_lineal = 0.8 * sat if sat else None
+    def no_lineal_de(t):
+        # el techo de cada toma: 1,0 si está calibrada (coma flotante) y 65535 si es de 16 bits sin calibrar; en una serie
+        # con unas y otras, un techo común dejaba sin marcar las estrellas saturadas de las calibradas
+        s_ = 1.0 if t.get("flotante") else (65535.0 if t.get("bits") == 16 else None)
+        return 0.8 * s_ if s_ else None
 
     def g_nat(t):
         g = num(t.get("gain"))
@@ -3396,7 +3408,7 @@ def calcular_exo(serie, sel):
         f, sd, n_ap, n_an, pico = m[0][a], m[1], m[2][a], m[3], m[4]
         g = g_nat(t)
         var = n_ap * sd * sd * (1 + n_ap / max(n_an, 1)) + (f / g if g else 0.0)
-        return f, var, bool(no_lineal and pico + 0 > no_lineal)
+        return f, var, bool(no_lineal_de(t) and pico > no_lineal_de(t))
 
     comps_todas = [e["id"] for e in serie["estrellas"][1:]]
     # estrellas de comparación que valen: medidas y sin saturar en casi todas las tomas, y no marcadas como variables
@@ -4416,8 +4428,11 @@ def calcular_rr(serie, sel):
     est = {e["id"]: e for e in serie["estrellas"]}
     tomas = [t for t in serie["tomas"] if t.get("hjd")]
     nap = len(serie["factores"])
-    sat = 1.0 if all(t.get("flotante") for t in tomas) else (65535.0 if all(t.get("bits") == 16 for t in tomas) else None)
-    no_lineal = 0.8 * sat if sat else None
+    def no_lineal_de(t):
+        # el techo de cada toma: 1,0 si está calibrada (coma flotante) y 65535 si es de 16 bits sin calibrar; en una serie
+        # con unas y otras, un techo común dejaba sin marcar las estrellas saturadas de las calibradas
+        s_ = 1.0 if t.get("flotante") else (65535.0 if t.get("bits") == 16 else None)
+        return 0.8 * s_ if s_ else None
 
     def g_nat(t):
         g = num(t.get("gain"))
@@ -4432,7 +4447,7 @@ def calcular_rr(serie, sel):
         f, sd, n_ap, n_an, pico = m[0][a], m[1], m[2][a], m[3], m[4]
         g = g_nat(t)
         var = n_ap * sd * sd * (1 + n_ap / max(n_an, 1)) + (f / g if g else 0.0)
-        return f, var, bool(no_lineal and pico > no_lineal)
+        return f, var, bool(no_lineal_de(t) and pico > no_lineal_de(t))
 
     comps_todas = [e["id"] for e in serie["estrellas"][1:]]
     utiles = []
