@@ -15532,9 +15532,16 @@ def trabajo_importar(ruta, objeto, opc):
                 if not arch:
                     continue
                 base0 = _seguro_en(APIL_ROOT, seguro(objeto), safe_js(a.get("fecha") or "importado"))
-                base, k = base0, 1
+                subs = [(x, x.split("/", 2)[-1] if x.count("/") >= 2 else x.split("/")[-1]) for x in arch]
+                base, k, ya = base0, 1, False
                 while os.path.exists(base):            # nunca dentro de una carpeta de apilado que ya existe
+                    # ¿es este mismo apilado, ya importado otra vez? (mismos archivos, mismos tamaños): no se repite
+                    if all(_tam(_seguro_en(base, sb)) == f.tamano(x) for x, sb in subs):
+                        ya = True
+                        break
                     base = base0 + ("_importado" if k == 1 else "_importado_%d" % k); k += 1
+                if ya:
+                    continue
                 for x in arch:
                     sub = x.split("/", 2)[-1] if x.count("/") >= 2 else x.split("/")[-1]
                     trabajos.append((x, _seguro_en(base, sub)))
