@@ -3011,7 +3011,10 @@
 "Rueda o botones para acercar, arrastra para moverte y pulsa un proyecto para abrirlo.": "Molette ou boutons pour zoomer, faites glisser pour vous déplacer et cliquez sur un projet pour l'ouvrir.",
 "Con astrometría": "Avec astrométrie",
 "Por las coordenadas de sus tomas": "D'après les coordonnées de ses poses",
-"Por el catálogo": "D'après le catalogue"
+"Por el catálogo": "D'après le catalogue",
+"automática (30 % de la amplitud; 20 % si sube muy deprisa)": "automatique (30 % de l'amplitude ; 20 % si elle monte très vite)",
+"automática (20 %: sube muy deprisa)": "automatique (20 % : elle monte très vite)",
+"el 20 % porque sube muy deprisa: en el # % del periodo": "20 % car elle monte très vite : en # % de la période"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",

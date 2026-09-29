@@ -3011,7 +3011,10 @@
 "Rueda o botones para acercar, arrastra para moverte y pulsa un proyecto para abrirlo.": "Mausrad oder Tasten zum Zoomen, ziehen zum Verschieben und ein Projekt anklicken, um es zu öffnen.",
 "Con astrometría": "Mit Astrometrie",
 "Por las coordenadas de sus tomas": "Nach den Koordinaten seiner Aufnahmen",
-"Por el catálogo": "Nach dem Katalog"
+"Por el catálogo": "Nach dem Katalog",
+"automática (30 % de la amplitud; 20 % si sube muy deprisa)": "automatisch (30 % der Amplitude; 20 %, wenn er sehr schnell ansteigt)",
+"automática (20 %: sube muy deprisa)": "automatisch (20 %: er steigt sehr schnell an)",
+"el 20 % porque sube muy deprisa: en el # % del periodo": "20 %, weil er sehr schnell ansteigt: in # % der Periode"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

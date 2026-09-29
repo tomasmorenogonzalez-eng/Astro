@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.19"
+VERSION_PROG = "2026.09.29.20"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -4436,6 +4436,11 @@ def calcular_rr(serie, sel):
                "masa_aire": t.get("masa_aire"), "archivo": t["archivo"]} for t, f, e in pts if f > 0]
     puntos.sort(key=lambda x: x["hjd"])
     frac = num(sel.get("frac")) or None
+    frac_elegida, frac_auto = frac, ""
+    if frac is None and num(rr.get("subida")) and num(rr["subida"]) <= 13:
+        # RRab que suben muy deprisa (en el 13 % del periodo o menos): el pico es tan agudo que con el 30 % de la
+        # amplitud entran puntos de la subida y de la bajada que el polinomio no sigue; con el 20 %, el error es real
+        frac, frac_auto = 0.2, "subida"
     grado = int(sel["grado"]) if sel.get("grado") not in (None, "", 0, "0") else None
 
     def beta_de_comps(a, cs):
@@ -4512,7 +4517,7 @@ def calcular_rr(serie, sel):
             "rms_mmag": round(aj["rms"] * 1000, 1), "escala_err": round(aj["escala_err"], 2), "cadencia_min": round(aj["cadencia"] * 1440, 2),
             "bloque": aj["bloque"], "n_boot": aj["n_boot"], "bic": aj["bic"], "t_grados": aj["t_grados"], "pesos_grados": aj["pesos_grados"], "limpio": aj["limpio"],
             "beta": round(aj["beta"], 2), "beta_comps": round(beta_c, 2), "err_pb": round(aj["err_pb"], 6) if aj["err_pb"] is not None else None,
-            "n": len(puntos), "zp": round(zp, 3), "frac_elegida": frac, "grado_elegido": grado, "comps_elegidas": bool(elegidas),
+            "n": len(puntos), "zp": round(zp, 3), "frac_elegida": frac_elegida, "frac_auto": frac_auto, "grado_elegido": grado, "comps_elegidas": bool(elegidas),
             "apertura_elegida": ap_sel is not None and str(ap_sel) != "",
             "puntos": [{"jd": round(x["jd"], 6), "hjd": round(x["hjd"], 6), "bjd": round(x["bjd"], 6) if x.get("bjd") else None, "mag": round(x["mag"], 4),
                         "err": round(x["err"], 4), "ajuste": x["ajuste"], "masa_aire": x["masa_aire"], "archivo": x["archivo"]} for x in puntos],
@@ -7844,6 +7849,9 @@ DIC_EN.update({
     "Elige la sesión con las tomas de la estrella (unas tres horas seguidas alrededor del máximo). ASTRO busca sus elementos en el VSX, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el máximo y calcula su O−C.": "Choose the session with the frames of the star (about three hours in a row around the maximum). ASTRO looks up its elements in the VSX, chooses Gaia comparison stars, calibrates and measures every frame, fits the maximum and computes its O−C.",
     "Ventana del ajuste": "Fit window",
     "automática (30 % de la amplitud)": "automatic (30% of the amplitude)",
+    "automática (30 % de la amplitud; 20 % si sube muy deprisa)": "automatic (30% of the amplitude; 20% if it rises very fast)",
+    "automática (20 %: sube muy deprisa)": "automatic (20%: it rises very fast)",
+    "el 20 % porque sube muy deprisa: en el # % del periodo": "20% because it rises very fast: in #% of the period",
     "# % de la amplitud": "#% of the amplitude",
     "Polinomio": "Polynomial",
     "el que mejor encaje (BIC)": "the best fit (BIC)",
@@ -8304,7 +8312,7 @@ th{background:var(--surface);font-weight:700}
             <span class="note" id="rEstrellaInfo"></span>
           </div>
           <div class="opciones">
-            <label title="Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la amplitud por debajo del pico.">Ventana del ajuste <select id="rFrac"><option value="">automática (30 % de la amplitud)</option><option value="0.2">20 % de la amplitud</option><option value="0.3">30 % de la amplitud</option><option value="0.4">40 % de la amplitud</option><option value="0.5">50 % de la amplitud</option></select></label>
+            <label title="Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la amplitud por debajo del pico.">Ventana del ajuste <select id="rFrac"><option value="">automática (30 % de la amplitud; 20 % si sube muy deprisa)</option><option value="0.2">20 % de la amplitud</option><option value="0.3">30 % de la amplitud</option><option value="0.4">40 % de la amplitud</option><option value="0.5">50 % de la amplitud</option></select></label>
             <label>Polinomio <select id="rGrado"><option value="">el que mejor encaje (BIC)</option><option value="3">grado 3</option><option value="4">grado 4</option><option value="5">grado 5</option><option value="6">grado 6</option></select></label>
             <label>Tu nombre para GEOS <input id="rObservador" class="notr" placeholder="T. Moreno" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
             <span style="flex:1"></span>
@@ -9571,7 +9579,7 @@ async function verRR(id, calcNuevo){
           <td class="num">${x.saturada > 0.1 ? `<span class="chip warn">saturada</span>` : numEs(100 * x.presente, 0) + " %"}</td></tr>`).join("")}</tbody></table></div>
         <div class="opciones">
           <label>Apertura <select id="dApertura"><option value="">${esc(tr("la de menos dispersión"))}</option>${s.factores.map((f, i) => `<option value="${i}" ${c.apertura_elegida && c.apertura === i ? "selected" : ""}>${numEs(f, 1)} × FWHM</option>`).join("")}</select></label>
-          <label>Ventana <select id="dFrac"><option value="">${esc(tr("automática (30 % de la amplitud)"))}</option>${[0.2, 0.3, 0.4, 0.5].map(f => `<option value="${f}" ${c.frac_elegida === f ? "selected" : ""}>${esc(tr("# % de la amplitud").replace("#", numEs(100 * f, 0)))}</option>`).join("")}</select></label>
+          <label>Ventana <select id="dFrac"><option value="">${esc(rr.subida && rr.subida <= 13 ? tr("automática (20 %: sube muy deprisa)") : tr("automática (30 % de la amplitud)"))}</option>${[0.2, 0.3, 0.4, 0.5].map(f => `<option value="${f}" ${c.frac_elegida === f ? "selected" : ""}>${esc(tr("# % de la amplitud").replace("#", numEs(100 * f, 0)))}</option>`).join("")}</select></label>
           <label>Polinomio <select id="dGrado"><option value="">${esc(tr("el que mejor encaje (BIC)"))}</option>${[3, 4, 5, 6].map(g => `<option value="${g}" ${c.grado_elegido === g ? "selected" : ""}>${esc(tr("grado"))} ${g}</option>`).join("")}</select></label>
           <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
         <div class="pie">ASTRO elige la apertura con menos dispersión y quita las comparaciones que bailan más de lo que explica su ruido o cambian despacio (variables). Puedes marcar las tuyas, cambiar la ventana del ajuste o el grado del polinomio, y recalcular.</div></div>
@@ -9589,7 +9597,7 @@ async function verRR(id, calcNuevo){
       <dt>Máximo previsto</dt><dd><span class="notr">HJD ${c.c_hjd.toFixed(5)} · ${isoDeJd(c.c_jd).slice(11, 19)} UTC</span> · <span>ciclo</span> <span class="notr">${c.ciclo}</span></dd>
       <dt>O−C</dt><dd><span class="notr">${(c.oc > 0 ? "+" : "") + c.oc.toFixed(5)} d · ${mas(c.oc_min)} min · ${(c.oc_fase > 0 ? "+" : "") + numEs(c.oc_fase, 3)} P</span></dd>
       <dt>BJD_TDB</dt><dd class="notr">${c.tmax_bjd != null ? c.tmax_bjd.toFixed(5) : "—"}</dd>
-      <dt>Ajuste</dt><dd><span>polinomio de grado</span> <span class="notr">${c.grado}</span> · <span class="notr">${c.n_ajuste}</span> <span>puntos, hasta el</span> <span class="notr">${numEs(100 * c.frac, 0)} %</span> <span>de la amplitud</span> (<span class="notr">${numEs(c.amplitud, 2)} mag</span>) <span>por debajo del pico</span></dd>
+      <dt>Ajuste</dt><dd><span>polinomio de grado</span> <span class="notr">${c.grado}</span> · <span class="notr">${c.n_ajuste}</span> <span>puntos, hasta el</span> <span class="notr">${numEs(100 * c.frac, 0)} %</span> <span>de la amplitud</span> (<span class="notr">${numEs(c.amplitud, 2)} mag</span>) <span>por debajo del pico</span>${c.frac_auto === "subida" ? ` <span class="note">(${esc(tr("el 20 % porque sube muy deprisa: en el # % del periodo").replace("#", numEs(rr.subida, 0)))})</span>` : ""}</dd>
       ${gradosTxt ? `<dt>Instante con cada grado</dt><dd>${gradosTxt}</dd>` : ""}
       <dt>Error del instante</dt><dd>${errAzar != null ? `<span>el mayor entre el remuestreo por bloques de</span> <span class="notr">${c.bloque}</span> <span>puntos (por β</span> <span class="notr">${numEs(c.beta, 2)}</span><span>) y las «cuentas de rosario»:</span> <span class="notr">${tiempoErr(c.err_boot * c.beta)} · ${c.err_pb != null ? tiempoErr(c.err_pb) : "—"}</span>; <span>con la diferencia entre grados</span> (<span class="notr">${tiempoErr(c.err_grado)}</span>), <span class="notr">± ${tiempoErr(c.tmax_err)}</span>` : esc(tr("no se puede calcular: la serie no ve el máximo entero"))}</dd>
       <dt>Curva</dt><dd><span class="notr">${c.n}</span> <span>tomas medidas, una cada</span> <span class="notr">${numEs(c.cadencia_min, 1)} min</span> · <span class="notr">${numEs(c.antes_min, 0)}</span> <span>min antes y</span> <span class="notr">${numEs(c.despues_min, 0)}</span> <span>después del máximo</span> · <span>dispersión frente a lo que explica el ruido:</span> <span class="notr">× ${numEs(c.escala_err, 1)}</span></dd>
