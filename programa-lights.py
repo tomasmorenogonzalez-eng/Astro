@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.38"
+VERSION_PROG = "2026.09.29.39"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -15679,7 +15679,7 @@ class H(BaseHTTPRequestHandler):
                 "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0),
                 "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
         if p.path == "/api/ping":
-            return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG}))
+            return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG, "integrado": INTEGRADO}))
         q = urllib.parse.parse_qs(p.query)
         if p.path == "/":
             return self._send(200, html_idioma(HTML, idioma_valido(idioma_actual()) or idioma_de_cabecera(self.headers.get("Accept-Language"))).replace("__TEMA__", tema_actual()), "text/html; charset=utf-8")

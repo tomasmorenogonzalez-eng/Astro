@@ -1039,6 +1039,19 @@ def _enlace(padre, texto, orden):
     return l
 
 
+def _no_escribible(d):
+    """"" si se puede escribir en la carpeta de datos; si no (disco de solo lectura, NTFS en el Mac, tarjeta bloqueada,
+    permisos cambiados), el motivo: sin esto los tres programas fallaban al arrancar y ASTRO no volvía a abrirse."""
+    try:
+        prueba = os.path.join(d, ".astro-prueba")
+        with open(prueba, "w") as f:
+            f.write("ok")
+        os.remove(prueba)
+        return ""
+    except Exception as e:
+        return T("no_usar") % e
+
+
 def carpeta_datos():
     c = leer_config()
     if c.get("ejemplo"):
@@ -1046,11 +1059,14 @@ def carpeta_datos():
         if d:
             return d
     datos = c.get("datos")
-    if datos and os.path.isdir(datos):
+    err = _no_escribible(datos) if datos and os.path.isdir(datos) else ""
+    if datos and os.path.isdir(datos) and not err:
         return datos
     while True:
         if datos and not os.path.isdir(datos):   # p. ej. disco externo desconectado
             datos = bienvenida(T("no_encuentro") % datos)
+        elif err:
+            datos, err = bienvenida(err), ""
         else:
             datos = bienvenida()
         if datos != EJEMPLO:
@@ -1074,7 +1090,8 @@ def carpeta_datos():
 
 def ya_abierto():
     c = leer_config()
-    pi = (c.get("puertos") or {}).get("inicio")
+    pu = c.get("puertos") if isinstance(c.get("puertos"), dict) else {}
+    pi = pu.get("inicio")
     if pi and (ping(pi) or {}).get("programa") == "inicio":
         # ASTRO ya está abierto en su ventana: se trae delante
         try:
@@ -1082,11 +1099,43 @@ def ya_abierto():
         except Exception:
             pass
         return True
-    p = (c.get("puertos") or {}).get("lights")
-    if p and (ping(p) or {}).get("programa") == "lights":
+    p = pu.get("lights")
+    r = ping(p) if p else None
+    # solo si es el de ASTRO (un Control de lights abierto aparte, en ese mismo puerto, no cuenta)
+    if r and r.get("programa") == "lights" and r.get("integrado") is not False:
         webbrowser.open(url(p))
         return True
     return False
+
+
+_CERROJO = {}
+
+
+def una_sola_vez():
+    """Un solo ASTRO a la vez: dos dobles clics seguidos arrancaban dos (instalando o actualizando a la vez, y con
+    dos juegos de programas escribiendo en la misma carpeta de datos). Devuelve False si ya hay otro."""
+    try:
+        f = open(os.path.join(carpeta_config(), "astro.lock"), "a+")
+    except OSError:
+        return True
+    fin = time.time() + 15            # al reiniciarse, la copia nueva espera a que la anterior se cierre
+    while True:
+        try:
+            if ES_WIN:
+                import msvcrt
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _CERROJO["f"] = f
+            return True
+        except OSError:
+            if ya_abierto():
+                return False
+            if time.time() > fin:
+                return False
+            time.sleep(0.5)
 
 
 def salir_astro():
@@ -1825,10 +1874,12 @@ def carpeta_datos_app():
         if d:
             return d
     datos = c.get("datos")
-    if datos and os.path.isdir(datos):
+    err = _no_escribible(datos) if datos and os.path.isdir(datos) else ""
+    if datos and os.path.isdir(datos) and not err:
         return datos
     while True:
-        eleccion = _pedir_bienvenida(T("no_encuentro") % datos if datos and not os.path.isdir(datos) else None)
+        eleccion = _pedir_bienvenida(T("no_encuentro") % datos if datos and not os.path.isdir(datos) else (err or None))
+        err = ""
         if eleccion != EJEMPLO:
             break
         c = leer_config(); c["ejemplo"] = True; guardar_config(c)
@@ -2083,7 +2134,7 @@ def main():
         except Exception:
             pass
     limpiar_restos()
-    if ya_abierto():
+    if ya_abierto() or not una_sola_vez():
         return
     instalar_si_hace_falta()
     wv = cargar_webview()
