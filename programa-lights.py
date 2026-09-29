@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.27"
+VERSION_PROG = "2026.09.29.28"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8845,6 +8845,7 @@ def correr_siril(siril, script_txt, nombre):
     p = lanzar_siril([siril, "-s", ruta], cwd=JOB["_w"])
     _PROC["p"] = p
     resumen = {"registradas": None, "fallidas": None, "fallo": False}
+    previas, motivo = [], []
     for linea in p.stdout:
         linea = linea.rstrip()
         if not linea or "Reading sequence failed" in linea or linea.startswith(("closing pipes", "status:")):
@@ -8859,6 +8860,9 @@ def correr_siril(siril, script_txt, nombre):
             resumen["fallidas"], resumen["registradas"] = int(m.group(1)), int(m.group(2))
         if "Script execution failed" in linea or "Error in line" in linea:
             resumen["fallo"] = True
+        if "Error in line" in linea and not motivo:
+            motivo = [x for x in previas[-1:] if not x.startswith(("Ejecutando", "Running", "Executing"))] + [linea]
+        previas = (previas + [linea])[-3:]
         if JOB["cancelar"]:
             p.terminate()
     p.wait()
@@ -8866,8 +8870,23 @@ def correr_siril(siril, script_txt, nombre):
     if JOB["cancelar"]:
         raise RuntimeError("Cancelado")
     if p.returncode != 0 or resumen["fallo"]:
-        raise RuntimeError(f"Siril ha fallado en «{nombre}». Mira las últimas líneas del registro.")
+        raise RuntimeError(f"Siril ha fallado en «{nombre}». Mira las últimas líneas del registro." + (" Siril: " + " ".join(motivo) if motivo else ""))
     return resumen
+
+
+def pasos_resample(factor):
+    """Siril solo acepta en «resample» factores entre 0,2 y 5 (con una cámara de 9576 px, reducir a 1200 px es 0,125):
+    los más extremos se hacen en varios pasos iguales. Devuelve la lista de factores."""
+    if not factor or factor <= 0:
+        return []
+    k = 1
+    while k < 8 and not (0.2005 <= factor ** (1.0 / k) <= 4.99):
+        k += 1
+    return [factor ** (1.0 / k)] * k
+
+
+def lineas_resample(factor, extra=""):
+    return [f"resample {f:.4f}{extra}" for f in pasos_resample(factor)]
 
 
 def enlazar(archivos, carpeta, pref="f"):
@@ -9046,8 +9065,9 @@ def alinear_a_referencia(siril, W, nombre, items, giros=None):
         nw, nh = int(it["w"]), int(it["h"])
         L.append(f"load {q(it['ruta'])}")
         if abs(factor - 1) > 0.02:
-            L.append(f"resample {factor:.4f}")
-            nw, nh = int(round(nw * factor)), int(round(nh * factor))
+            for fp in pasos_resample(factor):
+                L.append(f"resample {fp:.4f}")
+                nw, nh = int(round(nw * fp)), int(round(nh * fp))
         d = _separacion_centros(it["centro"], R["centro"]) / R["escala"] if it.get("centro") and R.get("centro") else 0
         lado = int(math.hypot(R["w"], R["h"]) * 1.08 + 2 * d + 24)
         if lado < min(nw, nh):
@@ -9354,7 +9374,7 @@ def trabajo_integracion(plan, filtros_elegidos):
                 L = ["requires 1.2.0", "set32bits", f"cd {q(d)}", f"link s {qo('-out=', seq)}", f"cd {q(seq)}",
                      f"stack s {_rechazo_n(len(sub))} -norm=addscale {qo('-out=', tmp)}", f"load {q(tmp)}"]
                 if factor < 0.99:
-                    L.append(f"resample {factor:.4f} -interp=area")
+                    L += lineas_resample(factor, " -interp=area")
                 L.append(f"save {q(peq)}")
                 correr_siril(siril, "\n".join(L) + "\n", f"parcial_{F}_{k}")
                 parciales.append({"tomas": len(sub), "horas": round(len(sub) * exp_media / 3600, 3),
@@ -9377,7 +9397,10 @@ def trabajo_integracion(plan, filtros_elegidos):
         JOB["estado"] = "cancelado" if str(ex) == "Cancelado" else "error"
         JOB["error"] = str(ex)
         if not informe["filtros"]:
-            shutil.rmtree(OUT, ignore_errors=True)
+            # la carpeta no sale en la lista (no tiene integracion.json), pero el registro de Siril se queda para verlo
+            for n in os.listdir(OUT) if os.path.isdir(OUT) else []:
+                if n != "registro_siril.txt":
+                    shutil.rmtree(os.path.join(OUT, n), ignore_errors=True) if os.path.isdir(os.path.join(OUT, n)) else borrar(OUT, n)
     finally:
         try:
             JOB["_logf"].close()
@@ -9523,7 +9546,7 @@ def _guardar_vista(lineas, nombre_o, ancho, tif=True):
     f = min(1.0, 1200.0 / ancho) if ancho else 1.0
     lineas += ([f"savetif o_{nombre_o} -deflate"] if tif else []) + [f"savejpg o_{nombre_o} 90"]
     if f < 0.999:
-        lineas.append("resample %.4f" % f)
+        lineas += lineas_resample(f)
     lineas.append(f"savejpg m_{nombre_o} 85")
     return lineas
 
