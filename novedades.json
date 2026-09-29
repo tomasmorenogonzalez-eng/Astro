@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.28.3",
+  "es": [
+   "Arreglado el análisis de tránsitos de exoplanetas, que en la 0.28.2 fallaba siempre.",
+   "Tus datos, más a salvo: proyectos, lugares, carpetas vigiladas y avisos se guardan con copia de seguridad, y dos ventanas de ASTRO abiertas a la vez ya no se pisan: lo cambiado en una se junta con lo de la otra.",
+   "Lo que escribes en la ficha de una toma ya no se borra cuando llega otra en la sesión en directo, y guardar el lugar ya no pierde su SQM ni su Bortle.",
+   "Las tomas en color de sensores grandes (ASI2600MC y otras) se miden sin el damero que dependía del color del cielo, «Próximas noches» enseña el tramo seguido más largo de cada objeto y hay muchos arreglos más en Siril, WhatsApp y Ciencia."
+  ],
+  "en": [
+   "Fixed the exoplanet transit analysis, which always failed in 0.28.2.",
+   "Your data is safer: projects, sites, watched folders and alerts are saved with a backup copy, and two ASTRO windows open at the same time no longer overwrite each other: changes made in one are merged with the other's.",
+   "What you type in a frame's panel is no longer wiped when another frame arrives during a live session, and saving your site no longer loses its SQM or Bortle.",
+   "Colour frames from large sensors (ASI2600MC and others) are measured without the checkerboard that depended on the sky's colour, «Next nights» shows each target's longest continuous window, and there are many more fixes in Siril, WhatsApp and Science."
+  ],
+  "fr": [
+   "Correction de l'analyse des transits d'exoplanètes, qui échouait toujours dans la 0.28.2.",
+   "Vos données sont plus en sécurité : projets, sites, dossiers surveillés et alertes sont enregistrés avec une copie de sauvegarde, et deux fenêtres d'ASTRO ouvertes en même temps ne s'écrasent plus : les changements faits dans l'une sont fusionnés avec ceux de l'autre.",
+   "Ce que vous tapez dans la fiche d'une pose n'est plus effacé quand une autre arrive pendant une session en direct, et enregistrer votre site ne perd plus son SQM ni son Bortle.",
+   "Les poses couleur des grands capteurs (ASI2600MC et autres) sont mesurées sans le damier qui dépendait de la couleur du ciel, « Prochaines nuits » montre la plus longue plage continue de chaque objet, et bien d'autres corrections dans Siril, WhatsApp et la Science."
+  ],
+  "de": [
+   "Die Analyse von Exoplaneten-Transits funktioniert wieder; in 0.28.2 schlug sie immer fehl.",
+   "Deine Daten sind sicherer: Projekte, Standorte, überwachte Ordner und Benachrichtigungen werden mit einer Sicherungskopie gespeichert, und zwei gleichzeitig geöffnete ASTRO-Fenster überschreiben sich nicht mehr: Änderungen im einen werden mit denen des anderen zusammengeführt.",
+   "Was du in das Datenblatt einer Aufnahme schreibst, wird nicht mehr gelöscht, wenn während einer Live-Sitzung eine neue Aufnahme ankommt, und beim Speichern des Standorts gehen SQM und Bortle nicht mehr verloren.",
+   "Farbaufnahmen großer Sensoren (ASI2600MC und andere) werden ohne das Schachbrettmuster gemessen, das von der Himmelsfarbe abhing, «Nächste Nächte» zeigt für jedes Objekt das längste zusammenhängende Zeitfenster, und es gibt viele weitere Korrekturen in Siril, WhatsApp und Wissenschaft."
+  ],
+  "it": [
+   "Corretta l'analisi dei transiti di esopianeti, che nella 0.28.2 falliva sempre.",
+   "I tuoi dati sono più al sicuro: progetti, luoghi, cartelle sorvegliate e avvisi vengono salvati con una copia di sicurezza, e due finestre di ASTRO aperte insieme non si sovrascrivono più: le modifiche fatte in una si uniscono a quelle dell'altra.",
+   "Ciò che scrivi nella scheda di uno scatto non viene più cancellato quando ne arriva un altro durante una sessione dal vivo, e salvare il luogo non perde più il suo SQM né il suo Bortle.",
+   "Gli scatti a colori dei sensori grandi (ASI2600MC e altri) si misurano senza la scacchiera che dipendeva dal colore del cielo, «Prossime notti» mostra per ogni oggetto la finestra continua più lunga, e ci sono molte altre correzioni in Siril, WhatsApp e Scienza."
+  ],
+  "pt": [
+   "Corrigida a análise de trânsitos de exoplanetas, que na 0.28.2 falhava sempre.",
+   "Os seus dados estão mais seguros: projetos, locais, pastas vigiadas e avisos são guardados com cópia de segurança, e duas janelas do ASTRO abertas ao mesmo tempo já não se sobrepõem: o que se muda numa junta-se ao da outra.",
+   "O que escreve na ficha de uma exposição já não se apaga quando chega outra durante uma sessão em direto, e guardar o local já não perde o seu SQM nem o seu Bortle.",
+   "As exposições a cores de sensores grandes (ASI2600MC e outros) são medidas sem o xadrez que dependia da cor do céu, «Próximas noites» mostra a janela contínua mais longa de cada objeto, e há muitas mais correções no Siril, no WhatsApp e na Ciência."
+  ]
+ },
+ {
   "version": "0.28.2",
   "es": [
    "Apilado más fiable con Siril: funciona aunque hayas cambiado en Siril la extensión o la compresión de los archivos (sin tocar tus ajustes), acepta tomas XISF con Siril 1.4, sigue con los demás filtros si falla uno y enseña el motivo que da Siril.",

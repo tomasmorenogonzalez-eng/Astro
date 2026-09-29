@@ -3038,7 +3038,15 @@
 "Exposición larga para un bias": "Exposition longue pour un bias",
 "Son los límites de la exigencia normal: con la que tienes elegida ({1}) se aprietan o se aflojan en proporción.": "Ce sont les limites à l'exigence normale : avec celle que vous avez choisie ({1}), elles sont resserrées ou assouplies en proportion.",
 "{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.": "{1} noms seraient en double : ils recevront _2, _3… Ajoutez {n} ou {camera} au modèle pour les distinguer.",
-"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "La base de données a été modifiée depuis une autre fenêtre ou un autre onglet d'ASTRO : rechargez celui-ci (F5) pour ne pas annuler ces changements."
+"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "La base de données a été modifiée depuis une autre fenêtre ou un autre onglet d'ASTRO : rechargez celui-ci (F5) pour ne pas annuler ces changements.",
+"Se había guardado desde otra ventana de ASTRO: se ha juntado con los cambios de esta.": "Une autre fenêtre d'ASTRO avait enregistré entre-temps : c'est fusionné avec les changements de celle-ci.",
+"Se había guardado desde otra ventana de ASTRO: esta se ha puesto al día.": "Une autre fenêtre d'ASTRO avait enregistré entre-temps : celle-ci a été mise à jour.",
+"ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5). No se ha guardado nada desde ella.": "ASTRO utilise maintenant un autre dossier de données : rechargez cette fenêtre (F5). Rien n'a été enregistré depuis celle-ci.",
+"ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5).": "ASTRO utilise maintenant un autre dossier de données : rechargez cette fenêtre (F5).",
+"La revisión en directo se ha parado": "La revue en direct s'est arrêtée",
+"Esta ventana ya no puede guardar: vuelve a cargarla (F5) y vuelve a empezar la sesión.": "Cette fenêtre ne peut plus enregistrer : rechargez-la (F5) et relancez la session.",
+"Las tomas del proyecto están en esta ventana, pero no se han podido guardar todavía: no cierres ASTRO.": "Les poses du projet sont dans cette fenêtre, mais n'ont pas encore pu être enregistrées : ne fermez pas ASTRO.",
+"Espera a que termine de preparar el apilado de este objeto": "Attendez que l'empilement de cet objet soit prêt"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",

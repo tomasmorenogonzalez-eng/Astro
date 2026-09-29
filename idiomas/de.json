@@ -3038,7 +3038,15 @@
 "Exposición larga para un bias": "Lange Belichtung für ein Bias",
 "Son los límites de la exigencia normal: con la que tienes elegida ({1}) se aprietan o se aflojan en proporción.": "Das sind die Grenzen bei normaler Strenge: Mit der von dir gewählten ({1}) werden sie entsprechend enger oder lockerer.",
 "{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.": "{1} Namen kämen doppelt vor: Sie bekommen _2, _3 … Füge {n} oder {camera} zum Muster hinzu, um sie zu unterscheiden.",
-"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "Die Datenbank wurde in einem anderen ASTRO-Fenster oder -Tab geändert: Lade dieses neu (F5), damit diese Änderungen nicht verloren gehen."
+"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "Die Datenbank wurde in einem anderen ASTRO-Fenster oder -Tab geändert: Lade dieses neu (F5), damit diese Änderungen nicht verloren gehen.",
+"Se había guardado desde otra ventana de ASTRO: se ha juntado con los cambios de esta.": "In einem anderen ASTRO-Fenster wurde inzwischen gespeichert: Es wurde mit den Änderungen in diesem zusammengeführt.",
+"Se había guardado desde otra ventana de ASTRO: esta se ha puesto al día.": "In einem anderen ASTRO-Fenster wurde inzwischen gespeichert: Dieses wurde aktualisiert.",
+"ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5). No se ha guardado nada desde ella.": "ASTRO verwendet jetzt einen anderen Datenordner: Lade dieses Fenster neu (F5). Aus ihm wurde nichts gespeichert.",
+"ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5).": "ASTRO verwendet jetzt einen anderen Datenordner: Lade dieses Fenster neu (F5).",
+"La revisión en directo se ha parado": "Die Live-Prüfung wurde gestoppt",
+"Esta ventana ya no puede guardar: vuelve a cargarla (F5) y vuelve a empezar la sesión.": "Dieses Fenster kann nicht mehr speichern: Lade es neu (F5) und starte die Sitzung erneut.",
+"Las tomas del proyecto están en esta ventana, pero no se han podido guardar todavía: no cierres ASTRO.": "Die Aufnahmen des Projekts sind in diesem Fenster, konnten aber noch nicht gespeichert werden: Schließe ASTRO nicht.",
+"Espera a que termine de preparar el apilado de este objeto": "Warte, bis das Stacken dieses Objekts vorbereitet ist"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

@@ -3038,7 +3038,15 @@
 "Exposición larga para un bias": "Esposizione lunga per un bias",
 "Son los límites de la exigencia normal: con la que tienes elegida ({1}) se aprietan o se aflojan en proporción.": "Sono i limiti con la severità normale: con quella che hai scelto ({1}) si stringono o si allentano in proporzione.",
 "{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.": "{1} nomi sarebbero ripetuti: avranno _2, _3… Aggiungi {n} o {camera} allo schema per distinguerli.",
-"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "Il database è stato modificato da un'altra finestra o scheda di ASTRO: ricarica questa (F5) per non annullare quelle modifiche."
+"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "Il database è stato modificato da un'altra finestra o scheda di ASTRO: ricarica questa (F5) per non annullare quelle modifiche.",
+"Se había guardado desde otra ventana de ASTRO: se ha juntado con los cambios de esta.": "Nel frattempo si era salvato da un'altra finestra di ASTRO: è stato unito con le modifiche di questa.",
+"Se había guardado desde otra ventana de ASTRO: esta se ha puesto al día.": "Nel frattempo si era salvato da un'altra finestra di ASTRO: questa è stata aggiornata.",
+"ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5). No se ha guardado nada desde ella.": "ASTRO ora usa un'altra cartella dei dati: ricarica questa finestra (F5). Da questa non è stato salvato nulla.",
+"ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5).": "ASTRO ora usa un'altra cartella dei dati: ricarica questa finestra (F5).",
+"La revisión en directo se ha parado": "La revisione dal vivo si è fermata",
+"Esta ventana ya no puede guardar: vuelve a cargarla (F5) y vuelve a empezar la sesión.": "Questa finestra non può più salvare: ricaricala (F5) e ricomincia la sessione.",
+"Las tomas del proyecto están en esta ventana, pero no se han podido guardar todavía: no cierres ASTRO.": "Gli scatti del progetto sono in questa finestra, ma non è ancora stato possibile salvarli: non chiudere ASTRO.",
+"Espera a que termine de preparar el apilado de este objeto": "Aspetta che l'impilamento di questo oggetto sia pronto"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",
