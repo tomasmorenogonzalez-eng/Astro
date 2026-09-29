@@ -86,7 +86,8 @@ REGISTRO = os.path.join(carpeta_config(), "registro.txt")
 def leer_config():
     try:
         with open(CONFIG, "r", encoding="utf-8") as f:
-            return json.load(f)
+            c = json.load(f)
+        return c if isinstance(c, dict) else {}         # un archivo roto (null, una lista) no impide arrancar
     except Exception:
         return {}
 
@@ -159,6 +160,10 @@ def reiniciar():
 
 
 def _reiniciar_ya():
+    try:                                   # (al cambiar de carpeta o de idioma con un apilado en marcha)
+        parar_siril_lights()
+    except Exception:
+        pass
     if getattr(sys, "frozen", False):
         # la aplicación empaquetada se abre otra vez como un programa nuevo, sin las variables internas del
         # empaquetador: con os.execv, en Windows la copia nueva buscaba los archivos que la anterior borra al cerrarse
@@ -1087,6 +1092,11 @@ def ya_abierto():
 def salir_astro():
     """Cierra ASTRO. Antes se para Siril si estaba apilando: es otro programa y, si no, seguiría trabajando solo
     (y llenando el disco) sin nadie que lo espere."""
+    parar_siril_lights()
+    os._exit(0)
+
+
+def parar_siril_lights():
     try:
         p = int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0)
         if p:
@@ -1094,7 +1104,6 @@ def salir_astro():
                                                           method="POST"), timeout=5).close()
     except Exception:
         pass
-    os._exit(0)
 
 
 def arrancar(datos):
@@ -1271,6 +1280,16 @@ TXT_DONAR = {
     "pt": {"donar_t": "Apoiar o ASTRO", "donar_d": "O ASTRO é gratuito. Se lhe for útil, pode ajudar a que continue a crescer com um donativo.", "donar_btn": "Doar com PayPal"},
 }
 for _l, _d in TXT_DONAR.items():
+    TXT[_l].update(_d)
+TXT_REV = {
+    "es": {"carpeta_interna": "es una carpeta interna de ASTRO (la de los datos de ejemplo, la de su configuración o la de la aplicación): lo que guardaras ahí se borraría. Elige otra."},
+    "en": {"carpeta_interna": "it is one of ASTRO's own folders (the example data, its settings or the application): anything you saved there would be deleted. Choose another one."},
+    "fr": {"carpeta_interna": "c'est un dossier interne d'ASTRO (celui des données d'exemple, de sa configuration ou de l'application) : ce que vous y enregistreriez serait effacé. Choisissez-en un autre."},
+    "de": {"carpeta_interna": "das ist ein interner Ordner von ASTRO (der mit den Beispieldaten, den Einstellungen oder der Anwendung): Was du dort speicherst, würde gelöscht. Wähle einen anderen."},
+    "it": {"carpeta_interna": "è una cartella interna di ASTRO (quella dei dati di esempio, della sua configurazione o dell'applicazione): ciò che vi salvassi verrebbe cancellato. Scegline un'altra."},
+    "pt": {"carpeta_interna": "é uma pasta interna do ASTRO (a dos dados de exemplo, a da sua configuração ou a da aplicação): o que lá guardasse seria apagado. Escolha outra."},
+}
+for _l, _d in TXT_REV.items():
     TXT[_l].update(_d)
 
 
@@ -1582,9 +1601,22 @@ def _dlg_archivo(titulo="", tipos=()):
     return r or ""
 
 
+def _es_carpeta_interna(ruta):
+    """¿Está dentro de una carpeta de ASTRO? (los datos de ejemplo se borran al volver a verlos)"""
+    r = os.path.normcase(os.path.realpath(ruta))
+    for base in (carpeta_ejemplo(), carpeta_config(), ruta_app() or ""):
+        if base:
+            b = os.path.normcase(os.path.realpath(base))
+            if r == b or r.startswith(b.rstrip(os.sep) + os.sep):
+                return True
+    return os.path.exists(os.path.join(ruta, ".astro-ejemplo"))
+
+
 def _validar_carpeta(ruta):
     """Normaliza la carpeta de datos elegida y comprueba que se puede usar; devuelve (ruta, error)."""
     ruta = normalizar_datos((ruta or "").strip())
+    if ruta and _es_carpeta_interna(ruta):
+        return ruta, T("no_usar") % T("carpeta_interna")
     try:
         os.makedirs(ruta, exist_ok=True)
         prueba = os.path.join(ruta, ".astro-prueba")

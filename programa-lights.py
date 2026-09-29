@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.37"
+VERSION_PROG = "2026.09.29.38"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -11335,7 +11335,10 @@ def guardar_proyecto(d):
 def _limpiar_setup(e):
     t = lambda k, n=60: str(e.get(k) or "").strip()[:n]
     ent = lambda k, lo, hi: int(_num(e.get(k), lo, hi) or 0) or None
-    s = {"id": re.sub(r"[^A-Za-z0-9]", "", str(e.get("id") or ""))[:16] or ("e" + os.urandom(4).hex()),
+    # sin id (un archivo de grupo escrito a mano o por otra versión): uno fijo sacado del equipo, no uno al azar en
+    # cada lectura (salía repetido y el proyecto ya no se podía guardar)
+    fijo = "e" + hashlib.md5(("%s|%s|%s" % (e.get("quien"), e.get("tel"), e.get("cam"))).encode("utf-8")).hexdigest()[:8]
+    s = {"id": re.sub(r"[^A-Za-z0-9]", "", str(e.get("id") or ""))[:16] or fijo,
          "quien": t("quien", 40), "tel": t("tel"), "red": t("red", 40), "cam": t("cam"),
          "tel_id": t("tel_id", 24), "red_id": t("red_id", 24), "cam_id": t("cam_id", 24),
          "focal": _num(e.get("focal"), 20, 20000), "diam": _num(e.get("diam"), 10, 2000),
@@ -11422,13 +11425,14 @@ def grupo_escribir(obj):
         vistos = set(g.get("vistos") or [])
         locales = list(x.get("equipos") or [])
         ids = {e.get("id") for e in locales}
-        otros = [e for e in (antes.get("equipos") or []) if isinstance(e, dict) and e.get("id") not in ids and e.get("id") not in vistos]
         equipos = list(locales)
-        for e in otros:
+        for e in (antes.get("equipos") or []):          # (se comparan los id ya limpios, como se guardan)
             try:
-                equipos.append(_limpiar_setup(e))
+                le = _limpiar_setup(e) if isinstance(e, dict) else None
             except Exception:
                 continue
+            if le and le["id"] not in ids and le["id"] not in vistos:
+                equipos.append(le); ids.add(le["id"])
         carpetas = dict(antes.get("carpetas") or {})
         carpetas.update(g.get("carpetas") or {})
         usadas = set(carpetas.values())
@@ -11614,8 +11618,11 @@ def grupo_enviar(obj, equipo_id, ids):
         src = dentro(f.get("path")) if f.get("path") else (f.get("origen") or "")
         if not src or not os.path.isfile(src) or _rp(src).startswith(real_g + os.sep):
             continue                                # sin archivo, o ya está en la carpeta del grupo
-        # la carpeta de cada equipo la escribe cualquiera del grupo: no puede sacar las tomas fuera de la del grupo
-        lista.append((src, _seguro_en(carpeta, sub, _nombre_carpeta(f.get("night") or "sin_fecha"), os.path.basename(src))))
+        # la carpeta de cada equipo la escribe cualquiera del grupo: no puede sacar las tomas fuera de la del grupo.
+        # Cada filtro en su carpeta: «L/Light_0001.fits» y «R/Light_0001.fits» iban al mismo archivo
+        noche = _nombre_carpeta(f.get("night") or "sin_fecha")
+        lista.append((src, _seguro_en(carpeta, sub, noche, _nombre_carpeta(f.get("filter") or "sin_filtro"), os.path.basename(src)),
+                      _seguro_en(carpeta, sub, noche, os.path.basename(src))))
     with _GRUPO_LOCK:
         if _GRUPO_ENV["activo"]:
             raise RuntimeError("Ya se están enviando tomas al grupo.")
@@ -11623,10 +11630,17 @@ def grupo_enviar(obj, equipo_id, ids):
 
     def trabajo():
         try:
-            for src, dest in lista:
+            for src, dest, antigua in lista:
                 try:
                     tam = os.path.getsize(src)
-                    if os.path.isfile(dest) and os.path.getsize(dest) == tam:
+                    with open(src, "rb") as fh:
+                        ini = fh.read(65536)
+                    # ya enviada (aquí, o donde se dejaban antes, sin la carpeta del filtro): se salta; si hay otra
+                    # distinta con el mismo nombre, esta va numerada (antes se saltaba o se pisaba)
+                    ya = [r for r in (antigua, dest) if os.path.isfile(r) and _destino_libre(r, tam, ini) == (r, False)]
+                    if not ya:
+                        dest, _nueva = _destino_libre(dest, tam, ini)
+                    if ya or not _nueva:
                         _GRUPO_ENV["saltados"] += 1
                     else:
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -15235,7 +15249,7 @@ def trabajo_exportar(objeto, opc, extra):
                 if PROY["cancelar"]:
                     raise RuntimeError("Cancelado")
                 PROY["texto"] = zdest
-                zi = _zip.ZipInfo.from_file(ruta, zdest)
+                zi = _zip.ZipInfo.from_file(ruta, zdest, strict_timestamps=False)   # archivos con fecha de 1970 (reloj sin poner)
                 # las imágenes apenas se comprimen: se guardan tal cual (mucho más rápido)
                 zi.compress_type = _zip.ZIP_STORED if zdest.lower().endswith((".fits", ".fit", ".fts", ".xisf", ".jpg", ".tif", ".tiff")) else _zip.ZIP_DEFLATED
                 with open(ruta, "rb") as src, z.open(zi, "w", force_zip64=True) as dst:
@@ -15336,19 +15350,34 @@ class _Fuente:
         """Copia un archivo del proyecto a su sitio (primero como .parcial, para no dejar archivos a medias)."""
         os.makedirs(os.path.dirname(destino), exist_ok=True)
         tmp = destino + ".parcial"
-        src = self.z.open(nombre) if self.z is not None else open(os.path.join(self.base, *nombre.split("/")), "rb")
-        with src, open(tmp, "wb") as dst:
-            while True:
-                blq = src.read(1 << 20)
-                if not blq:
-                    break
-                dst.write(blq); PROY["bytes"] += len(blq)
-                if PROY["cancelar"]:
-                    break
-        if PROY["cancelar"]:
-            os.remove(tmp)
-            raise RuntimeError("Cancelado")
+        try:
+            src = self.z.open(nombre) if self.z is not None else open(os.path.join(self.base, *nombre.split("/")), "rb")
+            with src, open(tmp, "wb") as dst:
+                while True:
+                    blq = src.read(1 << 20)
+                    if not blq:
+                        break
+                    dst.write(blq); PROY["bytes"] += len(blq)
+                    if PROY["cancelar"]:
+                        break
+            if PROY["cancelar"]:
+                raise RuntimeError("Cancelado")
+        except BaseException:
+            try:                         # (un ZIP dañado o un disco lleno no dejan un .parcial de varios GB)
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
         os.replace(tmp, destino)
+
+    def inicio(self, nombre, n=65536):
+        """Los primeros bytes de un archivo del proyecto (para ver si es el mismo que uno que ya hay)."""
+        try:
+            src = self.z.open(nombre) if self.z is not None else open(os.path.join(self.base, *nombre.split("/")), "rb")
+            with src:
+                return src.read(n)
+        except Exception:
+            return None
 
     def cerrar(self):
         if self.z is not None:
@@ -15393,15 +15422,27 @@ def leer_proyecto(ruta):
         f.cerrar()
 
 
-def _destino_libre(ruta, tam):
-    """(ruta, copiar): si ya hay un archivo igual se reutiliza; si hay otro distinto con ese nombre, se numera."""
+def _destino_libre(ruta, tam, ini=None):
+    """(ruta, copiar): si ya hay un archivo igual se reutiliza; si hay otro distinto con ese nombre, se numera.
+    «Igual» es del mismo tamaño y, si se da «ini» (sus primeros bytes: la cabecera, con la fecha de la toma), con el
+    mismo principio: dos tomas de la misma cámara miden lo mismo aunque sean de noches distintas."""
+    def igual(r):
+        if _tam(r) != tam:
+            return False
+        if ini is None:
+            return True
+        try:
+            with open(r, "rb") as fh:
+                return fh.read(len(ini)) == ini
+        except OSError:
+            return False
     if not os.path.exists(ruta):
         return ruta, True
-    if _tam(ruta) == tam:
+    if igual(ruta):
         return ruta, False
     base, ext = os.path.splitext(ruta); k = 2
     while os.path.exists(f"{base}_{k}{ext}"):
-        if _tam(f"{base}_{k}{ext}") == tam:
+        if igual(f"{base}_{k}{ext}"):
             return f"{base}_{k}{ext}", False
         k += 1
     return f"{base}_{k}{ext}", True
@@ -15441,12 +15482,14 @@ def trabajo_importar(ruta, objeto, opc):
             if opc.get("tomas") and f.hay(r.get("archivo_en_zip")):
                 nombre = r["archivo_en_zip"].split("/")[-1]
                 dst, copiar = _destino_libre(_seguro_en(ROOT, safe_js(objeto), safe_js(r.get("night") or "sin_fecha"),
-                                                        safe_js(r.get("filter") or "sin_filtro"), nombre), f.tamano(r["archivo_en_zip"]))
+                                                        safe_js(r.get("filter") or "sin_filtro"), nombre), f.tamano(r["archivo_en_zip"]),
+                                             f.inicio(r["archivo_en_zip"]))
                 x["path"] = os.path.relpath(dst, ROOT).replace(os.sep, "/")
                 if copiar:
                     trabajos.append((r["archivo_en_zip"], dst))
             if f.hay(r.get("miniatura_en_zip")):
-                dst, copiar = _destino_libre(_seguro_en(ROOT, "_miniaturas", r["miniatura_en_zip"].split("/")[-1]), f.tamano(r["miniatura_en_zip"]))
+                dst, copiar = _destino_libre(_seguro_en(ROOT, "_miniaturas", r["miniatura_en_zip"].split("/")[-1]), f.tamano(r["miniatura_en_zip"]),
+                                             f.inicio(r["miniatura_en_zip"]))
                 x["thumb"] = os.path.relpath(dst, ROOT).replace(os.sep, "/")
                 if copiar:
                     trabajos.append((r["miniatura_en_zip"], dst))
@@ -15460,12 +15503,13 @@ def trabajo_importar(ruta, objeto, opc):
                     if not f.hay(a.get("en_zip")):
                         continue
                     rel = (a.get("ruta") or a["en_zip"].split("/", 1)[-1]).replace("\\", "/")
-                    dst, copiar = _destino_libre(_seguro_en(CALIB_ROOT, rel), f.tamano(a["en_zip"]))
+                    ini_a = f.inicio(a["en_zip"])
+                    dst, copiar = _destino_libre(_seguro_en(CALIB_ROOT, rel), f.tamano(a["en_zip"]), ini_a)
                     if not copiar and os.path.relpath(dst, CALIB_ROOT).replace(os.sep, "/") in conocidas:
                         continue           # ese archivo ya está en tu biblioteca
                     if copiar and os.path.exists(_seguro_en(CALIB_ROOT, rel)):
                         # otro archivo distinto con el mismo nombre: el importado va aparte
-                        dst, copiar = _destino_libre(_seguro_en(CALIB_ROOT, "Importados", safe_js(objeto), rel), f.tamano(a["en_zip"]))
+                        dst, copiar = _destino_libre(_seguro_en(CALIB_ROOT, "Importados", safe_js(objeto), rel), f.tamano(a["en_zip"]), ini_a)
                         if not copiar and os.path.relpath(dst, CALIB_ROOT).replace(os.sep, "/") in conocidas:
                             continue
                     relnuevo = os.path.relpath(dst, CALIB_ROOT).replace(os.sep, "/")
@@ -15487,9 +15531,10 @@ def trabajo_importar(ruta, objeto, opc):
                 arch = [x for x in (a.get("archivos") or []) if f.hay(x)]
                 if not arch:
                     continue
-                base = _seguro_en(APIL_ROOT, seguro(objeto), safe_js(a.get("fecha") or "importado"))
-                if os.path.exists(base):
-                    base += "_importado"
+                base0 = _seguro_en(APIL_ROOT, seguro(objeto), safe_js(a.get("fecha") or "importado"))
+                base, k = base0, 1
+                while os.path.exists(base):            # nunca dentro de una carpeta de apilado que ya existe
+                    base = base0 + ("_importado" if k == 1 else "_importado_%d" % k); k += 1
                 for x in arch:
                     sub = x.split("/", 2)[-1] if x.count("/") >= 2 else x.split("/")[-1]
                     trabajos.append((x, _seguro_en(base, sub)))
