@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.27"
+VERSION_PROG = "2026.09.29.28"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2072,7 +2072,12 @@ def config_ciencia():
 def guardar_config_ciencia(**kw):
     c = config_ciencia()
     c.update({k: v for k, v in kw.items() if v is not None})
-    escribir_json(CONFIG_CIENCIA, c)
+    try:
+        escribir_json(CONFIG_CIENCIA, c)
+    except OSError as e:
+        # no poder guardar las preferencias (disco expulsado, archivo bloqueado) no puede dejar una medida
+        # «Empezando» para siempre: se sigue sin guardarlas
+        print("No se han podido guardar las preferencias de Ciencia:", e)
     return c
 
 
@@ -2617,10 +2622,12 @@ def trabajo_variable(p):
                  "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon")},
                  "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
                  "siril": ver}
+        # primero el cálculo: si falla (p. ej. sin estrellas de comparación útiles), no queda una serie a medias que
+        # luego no se puede abrir
+        calc = calcular_variable(serie, {"agrupar": int(p.get("agrupar") or 1)})
         d = os.path.join(VARIABLES_DIR, serie["id"])
         os.makedirs(d, exist_ok=True)
         escribir_json(os.path.join(d, "serie.json"), serie)
-        calc = calcular_variable(serie, {"agrupar": int(p.get("agrupar") or 1)})
         guardar_calculo(serie, calc)
         JOB["resultados"].append(serie["id"])
         JOB["texto"], JOB["archivo"] = "Terminado", ""
@@ -3691,9 +3698,9 @@ def trabajo_exo(p):
                  "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
                  "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
         d = os.path.join(EXO_DIR, serie["id"])
-        os.makedirs(d, exist_ok=True)
-        escribir_json(os.path.join(d, "serie.json"), serie)
         calc = calcular_exo(serie, {"tendencia": p.get("tendencia"), "geometria_libre": bool(p.get("geometria_libre"))})
+        os.makedirs(d, exist_ok=True)       # (después del cálculo: si falla, no queda una serie que no se puede abrir)
+        escribir_json(os.path.join(d, "serie.json"), serie)
         guardar_exo(serie, calc)
         JOB["resultados"].append(serie["id"])
         JOB["texto"], JOB["archivo"] = "Terminado", ""
@@ -5656,6 +5663,8 @@ def _fotometria_campo(ruta, wcs, est, plano=None):
         r, rin, rout = max(2.0, 1.5 * fw), max(3.5 * fw, 1.5 * fw + 3), max(5.5 * fw, 1.5 * fw + 8)
         out = {}
         for e in est:
+            if JOB["cancelar"]:
+                raise Cancelado()
             pp = wcs.cielo_a_pix(e["ra_f"], e["dec_f"])
             if not pp or not (rout + 2 < pp[0] < img.w - rout - 2 and rout + 2 < pp[1] < img.h - rout - 2):
                 continue
@@ -5710,6 +5719,8 @@ def trabajo_hr(p):
         w, h = int(num(h0.get("NAXIS1"))), int(num(h0.get("NAXIS2")))
         ra_c, dec_c = w0.pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0)
         radio = max(separacion(ra_c, dec_c, *w0.pix_a_cielo(x, y)) for x, y in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)))
+        if JOB["cancelar"]:
+            raise Cancelado()
         JOB["hechos"], JOB["texto"], JOB["archivo"] = 2, "Consultando el catálogo Gaia", ""
         cat = gaia_campo(ra_c, dec_c, radio * 1.02, gmax=19.0)
         fecha = fecha_fits(h0.get("DATE-OBS")) or _dt.datetime.utcnow()
@@ -5720,6 +5731,8 @@ def trabajo_hr(p):
                 continue
             ra, dec = posicion_en(e, anio)
             est.append(dict(e, ra_f=ra, dec_f=dec))
+        if JOB["cancelar"]:
+            raise Cancelado()
         JOB["texto"] = "Midiendo las estrellas"
         if color_unica:
             JOB["archivo"] = "canal azul"
@@ -6431,6 +6444,18 @@ def iniciar_espectro(p):
     threading.Thread(target=trabajo_espectro, args=(p,), daemon=True).start()
 
 
+_GRIEGAS = dict(zip("αβγδεζηθικλμνξοπρστυφχψω", ["alf", "bet", "gam", "del", "eps", "zet", "eta", "tet", "iot", "kap", "lam",
+                                                   "mu.", "nu.", "ksi", "omi", "pi.", "rho", "sig", "sig", "tau", "ups", "phi",
+                                                   "chi", "psi", "ome"]))
+
+
+def _ascii_fits(v):
+    """Los textos de una cabecera FITS solo pueden llevar ASCII: «Aldebarán» → «Aldebaran», «α Lyr» → «alf Lyr»."""
+    import unicodedata
+    t = "".join(_GRIEGAS.get(ch, ch) for ch in str(v))
+    return unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode("ascii")
+
+
 def fits_espectro(serie, c):
     """Espectro 1D en FITS con la longitud de onda lineal (CRVAL1/CDELT1 en Å), como piden ISIS, VSpec o BASS."""
     lam = c["lambda"]
@@ -6450,7 +6475,7 @@ def fits_espectro(serie, c):
         elif isinstance(v, float):
             L.append("%-8s= %20.10G" % (k, v))
         else:
-            L.append("%-8s= '%s'" % (k, str(v).replace("'", " ")[:66]))
+            L.append("%-8s= '%s'" % (k, _ascii_fits(v).replace("'", " ")[:66]))
     L.append("END")
     cab = "".join(x[:80].ljust(80) for x in L)
     cab += " " * (-len(cab) % 2880)
@@ -6922,6 +6947,10 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         for k, v in (extra or {}).items():
+            m = re.search(r'filename="([^"]*)"', v) if k.lower() == "content-disposition" else None
+            if m:          # «α Lyr»: las cabeceras HTTP solo admiten Latin-1; el nombre de verdad va aparte, en UTF-8
+                nom = m.group(1)
+                v = 'attachment; filename="%s"; filename*=UTF-8\'\'%s' % (_ascii_fits(nom) or "ASTRO", urllib.parse.quote(nom))
             self.send_header(k, v)
         self.end_headers()
         try:
@@ -9333,7 +9362,9 @@ async function cargarSeries(){
 }
 async function verSerie(id, calcNuevo){
   let d; try { d = await (await api("/api/variables/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
-  const s = d.serie, c = calcNuevo || d.calculo; VAR.actual = {s, c};
+  const s = d.serie, c = calcNuevo || d.calculo;
+  if (!c){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  VAR.actual = {s, c};
   const vsx = s.vsx || {};
   const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
   const ck = c.check_dif != null ? `${c.check_dif > 0 ? "+" : ""}${numEs(c.check_dif, 3)} · σ ${numEs(c.check_disp, 3)}` : "—";
@@ -9502,7 +9533,9 @@ async function cargarSeriesExo(){
 function tiempoErr(d){ const s = d * 86400; return s < 120 ? numEs(s, 0) + "\u00a0s" : numEs(s / 60, 1) + "\u00a0min"; }
 async function verExo(id, calcNuevo){
   let d; try { d = await (await api("/api/exo/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
-  const s = d.serie, c = calcNuevo || d.calculo, pl = s.planeta; EXO.actual = {s, c};
+  const s = d.serie, c = calcNuevo || d.calculo, pl = s.planeta;
+  if (!c){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  EXO.actual = {s, c};
   const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
   const TEND = {lineal: "lineal en el tiempo", cuadratica: "cuadrática en el tiempo", masa_aire: "con la masa de aire"};
   const box = $("detalleBox");
