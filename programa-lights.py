@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.33"
+VERSION_PROG = "2026.09.29.34"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -14763,7 +14763,8 @@ def estado_publico():
 
 
 def dentro(rel):
-    rel = urllib.parse.unquote(rel or "").replace("\\", "/").strip("/")
+    # (sin unquote: lo que llega ya viene decodificado; decodificarlo otra vez cambiaba «toma_%41.fit» por «toma_A.fit»)
+    rel = (rel or "").replace("\\", "/").strip("/")
     if not rel or ".." in rel.split("/"):
         return None
     dest = os.path.normpath(os.path.join(ROOT, rel))
@@ -15439,9 +15440,10 @@ def trabajo_importar(ruta, objeto, opc):
         if fichas_cal:
             pend = leer_json(PENDIENTE_CAL, {"frames": []})
             pend["frames"] = (pend.get("frames") or []) + fichas_cal
-            with open(PENDIENTE_CAL + ".tmp", "w", encoding="utf-8") as fh:
+            tmp_p = "%s.%d.tmp" % (PENDIENTE_CAL, os.getpid())
+            with open(tmp_p, "w", encoding="utf-8") as fh:
                 json.dump(pend, fh, ensure_ascii=False)
-            os.replace(PENDIENTE_CAL + ".tmp", PENDIENTE_CAL)
+            os.replace(tmp_p, PENDIENTE_CAL)
         PROY.update(estado="ok", resultado={"objeto": objeto, "tomas": nuevas, "duplicadas": dup, "calibracion": n_cal, "apilados": n_apil,
                                             "objetivo": (p.get("objeto") or {}).get("objetivo"),
                                             "coordenadas": (p.get("objeto") or {}).get("coordenadas_a_mano"),

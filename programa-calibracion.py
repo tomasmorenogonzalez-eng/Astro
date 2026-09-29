@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.4"
+VERSION_PROG = "2026.09.29.5"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -951,21 +951,38 @@ const ROOT_NAME = "__ROOT__";
 async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
 async function loadDb(){
   try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); arreglarCamaras(); }
-  catch(e){ frames = []; toast("No se pudo leer biblioteca.json: "+(e.message||e)); }
+  catch(e){ frames = []; DB_ILEGIBLE = true; toast("No se pudo leer biblioteca.json: "+(e.message||e)); }
   $("storeInfo").textContent = `Base de datos: ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas`;
 }
-let saveTimer = null, saving = false, dirty = false;
+let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0, BIB_LISTA = false;
 function scheduleSave(){ dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, 700); }
+// guarda y dice si ha ido bien (false también si ya se estaba guardando: se guarda después)
 async function saveDb(){
-  if (saving){ scheduleSave(); return; }
+  if (saving){ scheduleSave(); return false; }
+  // biblioteca.json no se pudo leer al abrir: guardar ahora la dejaría casi vacía; se conserva tal cual (y su copia .bak)
+  if (DB_ILEGIBLE){ toast("biblioteca.json no se pudo leer al abrir ASTRO: no se guardan cambios para no perder la biblioteca. Cierra ASTRO y revisa el archivo (hay una copia en biblioteca.json.bak)."); return false; }
   saving = true; dirty = false;
+  let ok = false;
   try {
     await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:2, updated:new Date().toISOString(), frames})});
     $("storeInfo").textContent = `Base de datos guardada en ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas · ${new Date().toLocaleTimeString(LOCALE)}`;
-  } catch(e){ toast("No se pudo guardar biblioteca.json: "+(e.message||e)); }
+    ok = true; fallosGuardar = 0;
+  } catch(e){ toast("No se pudo guardar biblioteca.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
   saving = false;
-  if (dirty) scheduleSave();
+  if (dirty){ if (fallosGuardar){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, Math.min(30000, 2000 * fallosGuardar)); } else scheduleSave(); }
+  return ok;
 }
+async function guardarYa(){ for (let i = 0; saving && i < 300; i++) await new Promise(r => setTimeout(r, 100)); return await saveDb(); }
+// fecha de una toma leyendo solo el principio del archivo (su cabecera)
+async function fechaRapida(f){
+  try {
+    const t = new TextDecoder("latin1").decode(await f.slice(0, 65536).arrayBuffer());
+    const m = t.match(/DATE-OBS\s*=\s*'([^']+)'/) || t.match(/DATE-LOC\s*=\s*'([^']+)'/) || t.match(/name="DATE-OBS"\s+value="'?([^"']+)/);
+    return m ? m[1].trim().slice(0, 19) : "";
+  } catch(_){ return ""; }
+}
+// ¿es la misma toma que alguna de estas (mismo nombre y tamaño)? Solo se da por otra si las fechas dicen que lo es
+function mismaToma(mismos, fecha){ return !fecha || mismos.some(r => !r.dateObs || String(r.dateObs).slice(0, 19) === fecha); }
 window.addEventListener("beforeunload", e => { if (dirty || saving){ saveDb(); e.preventDefault(); e.returnValue=""; } });
 
 function safe(s){ return String(s||"").replace(/[\\/:*?"<>|]/g,"_").replace(/\s+/g," ").trim().slice(0,80) || "_"; }
@@ -1052,7 +1069,9 @@ async function ingest(files, opc = {}){
   for (const f of files){
     n++; bar.style.width = Math.round(100*n/files.length)+"%";
     try {
-      if (frames.some(r => r.name===f.name && r.size===f.size)){ dup++; addLog(`${f.name}: ya estaba en la biblioteca`, "warn"); continue; }
+      // mismo nombre y tamaño: la misma, salvo que su fecha diga otra cosa (Ekos y otros repiten nombres cada noche)
+      const mismos = frames.filter(r => r.name===f.name && r.size===f.size);
+      if (mismos.length && mismaToma(mismos, await fechaRapida(f))){ dup++; addLog(`${f.name}: ya estaba en la biblioteca`, "warn"); continue; }
       const rec = await analyzeFile(f, batch);
       if (copy) await copyIntoLibrary(f, rec);
       frames.push(rec); added++; scheduleSave();
@@ -1080,7 +1099,9 @@ async function importarDelArchivo(){
     "Calibration found in the Archive: {1} files. Each one is sorted by its header (type, camera, exposure, temperature and gain) and copied into the library.", items.length), "ok");
   const r = await ingest(items.map(it => new ArchivoDisco(it)), {copiar:true, batch:{tel:"", cam:"", note:""}});
   if (!r) return;
-  try { await api("/api/disco/pendiente_archivo/hecho", {method:"POST"}); } catch(_){}
+  // solo se da por hecho si ha entrado todo y está guardado: si faltaba una carpeta (disco sin conectar) o falló
+  // alguna copia, se vuelve a ofrecer la próxima vez (las que ya entraron salen como repetidas)
+  if (!d.faltan && !r.bad && await guardarYa()){ try { await api("/api/disco/pendiente_archivo/hecho", {method:"POST"}); } catch(_){} }
   // resumen por cámara: qué ha entrado de cada una
   const nuevos = frames.filter(f => !antes.has(f.id)), porCam = new Map();
   for (const f of nuevos){ const k = f.cam || trLT("cámara sin nombre", "unnamed camera"); if (!porCam.has(k)) porCam.set(k, {}); const t = porCam.get(k); t[f.type] = (t[f.type] || 0) + 1; }
@@ -1308,10 +1329,13 @@ function canonType(s, isMaster, isCal){
   return master ? "master"+base : base;
 }
 function guessTypeFromName(name){
-  const n = name.toLowerCase(); const master = /master/.test(n);
+  // los ajustes de la cámara que llevan muchos nombres («gain100», «offset50») no dicen el tipo de toma, y un light
+  // de un objeto como «Dark Shark» es un light: se mira antes
+  const n = name.toLowerCase().replace(/(gain|offset)=?\d+/g, " "); const master = /master/.test(n);
   const cal = /_c\.(xisf|fits?)$|_c_|calibrat|_cal\b/.test(n);
   let base = "unknown";
-  if (/bias|offset/.test(n)) base = "bias";
+  if (/(^|[^a-z])light/.test(n)) base = "light";
+  else if (/bias|offset/.test(n)) base = "bias";
   else if (/flat.?dark|dark.?flat/.test(n)) base = "flatdark";
   else if (/dark/.test(n)) base = "dark";
   else if (/flat/.test(n)) base = "flat";
@@ -1749,7 +1773,7 @@ $("btnPurge").onclick = () => deleteFrames(frames.filter(f=>f.status==="bad"));
 $("btnFinder").onclick = () => api("/api/finder", {method:"POST"}).catch(()=>toast("No se pudo abrir el Finder"));
 
 (async function init(){ try { REGLAS = (await (await api("/api/config")).json()).reglas_tel || []; } catch(_){}
-  await loadDb(); if (revisarGrupos()) scheduleSave(); render(); recogerImportados();
+  await loadDb(); BIB_LISTA = true; if (revisarGrupos()) scheduleSave(); render(); recogerImportados(); mastersFondo();
   if (location.hash === "#falta"){ try { history.replaceState(null, "", location.pathname); } catch(_){} $("btnFaltan").click(); }
   else if (location.hash === "#importar-archivo"){ try { history.replaceState(null, "", location.pathname); } catch(_){} importarDelArchivo(); }
   else avisoPendienteArchivo(); })();
@@ -1766,15 +1790,16 @@ async function recogerImportados(){
     if (!f.id || ids.has(f.id)) f.id = uid();
     ids.add(f.id); rutas.add(f.path); frames.push(f); n++;
   }
-  if (n){ revisarGrupos(); scheduleSave(); render(); await saveDb();
+  if (n){ revisarGrupos(); render();
+    if (!await guardarYa()) return;          // sin guardar, lo pendiente se queda para la próxima vez
     toast(n === 1 ? "1 archivo de calibración añadido desde un proyecto importado" : `${n} archivos de calibración añadidos desde un proyecto importado`); }
   try { await api("/api/importar/pendiente/hecho", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({rutas: hechas})}); } catch(_){}
 }
-window.addEventListener("focus", ()=>{ if (typeof frames !== "undefined") recogerImportados(); });
+window.addEventListener("focus", ()=>{ if (BIB_LISTA) recogerImportados(); });     // no antes de haber leído la biblioteca
 
 /* ============ ¿Qué me falta? ============ */
 function abrirCal(t){ $("calTitle").textContent=t; $("calBody").innerHTML='<div class="nota" style="color:var(--muted)">Cargando…</div>'; $("calBox").classList.add("show"); }
-$("calClose").onclick = ()=>{ $("calBox").classList.remove("show"); clearTimeout(window._mt); };
+$("calClose").onclick = ()=>{ $("calBox").classList.remove("show"); clearTimeout(window._mt); clearTimeout(window._mf); mastersFondo(); };
 const EST = {falta:["falta","Falta"], gain:["parcial","Solo otro gain"], angulo:["parcial","Otro ángulo"], fecha:["parcial","Otra época"], ok:["ok","Cubierto"]};
 let FALTAN = null;
 $("btnFaltan").onclick = async ()=>{
@@ -1803,6 +1828,7 @@ $("btnMasters").onclick = async ()=>{
   abrirCal("Crear masters con Siril");
   try { await saveDb(); } catch(_){}
   const e = await (await api("/api/masters/estado")).json();
+  añadirCreados(e);
   if (e.activo){ masterPoll(); return; }
   let d; try { d = await (await api("/api/masters")).json(); } catch(err){ $("calBody").innerHTML=`<div class="status bad">${esc(err.message)}</div>`; return; }
   const TIPO = {bias:"Bias", dark:"Darks", flatdark:"Dark flats", flat:"Flats"};
@@ -1822,15 +1848,24 @@ $("btnMasters").onclick = async ()=>{
   };
 };
 let MASTERS_AÑADIDOS = new Set();
+// añadir a la biblioteca los masters ya creados (también los que salieron con esta ventana cerrada)
+function añadirCreados(e){
+  let nuevos = 0;
+  for (const r of (e.creados || [])){ if (MASTERS_AÑADIDOS.has(r.id) || frames.some(f=>f.id===r.id || (r.path && f.path===r.path))) continue;
+    MASTERS_AÑADIDOS.add(r.id); frames.push(r); nuevos++;
+    for (const f of frames) if ((r.fuentes || []).includes(f.id)) f.enMaster = r.path; }
+  if (nuevos){ scheduleSave(); render(); }
+}
+async function mastersFondo(){
+  if ($("calBox").classList.contains("show")) return;
+  let e; try { e = await (await api("/api/masters/estado")).json(); } catch(_){ return; }
+  añadirCreados(e);
+  if (e.activo) window._mf = setTimeout(mastersFondo, 5000);
+}
 async function masterPoll(){
   clearTimeout(window._mt);
   let e; try { e = await (await api("/api/masters/estado")).json(); } catch(_){ window._mt=setTimeout(masterPoll,3000); return; }
-  // añadir a la biblioteca los masters ya creados
-  let nuevos = 0;
-  for (const r of e.creados){ if (MASTERS_AÑADIDOS.has(r.id) || frames.some(f=>f.id===r.id)) continue;
-    MASTERS_AÑADIDOS.add(r.id); frames.push(r); nuevos++;
-    for (const f of frames) if (r.fuentes.includes(f.id)) f.enMaster = r.path; }
-  if (nuevos){ scheduleSave(); render(); }
+  añadirCreados(e);
   const pct = e.total ? Math.round(100*e.hechos/e.total) : 0;
   $("calBody").innerHTML = `<h3 style="margin:0">${esc(e.texto)}</h3><div class="nota" style="color:var(--muted)"><span>${e.hechos} de ${e.total}</span>${e.sub ? ` · <span>${esc(e.sub)}</span>` : ""}</div><div class="kbar"><i style="width:${pct}%"></i></div>
     ${e.creados.length?`<div class="status ok">✓ ${e.creados.length===1 ? "1 master añadido a la biblioteca" : `${e.creados.length} masters añadidos a la biblioteca`}</div><ul>${e.creados.map(r=>`<li class="notr">${esc(r.path)}</li>`).join("")}</ul>`:""}
@@ -3409,13 +3444,38 @@ def listar_disco(carpeta, maximo=20000):
     return items, False
 
 def dentro(rel):
-    rel = urllib.parse.unquote(rel or "").replace("\\", "/").strip("/")
+    # (sin unquote: lo que llega ya viene decodificado; decodificarlo otra vez convertía «dark_%41.fit» en «dark_A.fit»)
+    rel = (rel or "").replace("\\", "/").strip("/")
     if not rel or ".." in rel.split("/"):
         return None
     dest = os.path.normpath(os.path.join(ROOT, rel))
     if not dest.startswith(os.path.normpath(ROOT) + os.sep):
         return None
     return dest
+
+_DB_LOCK = threading.Lock()
+
+
+def guardar_db(data):
+    """Escribe biblioteca.json de forma segura: una escritura a la vez, a un temporal que se fuerza a disco, y la
+    versión anterior se queda en biblioteca.json.bak (si un corte de luz o un disco lleno estropea la nueva, no se pierde)."""
+    with _DB_LOCK:
+        tmp = "%s.%d.tmp" % (DB, os.getpid())
+        with open(tmp, "wb") as f:
+            f.write(data); f.flush()
+            try: os.fsync(f.fileno())
+            except OSError: pass
+        if os.path.exists(DB):
+            try:
+                with open(DB, "rb") as f0:
+                    viejo = f0.read()
+                json.loads(viejo)                  # solo se guarda de copia una versión que se pueda leer
+                with open(DB + ".bak", "wb") as fb:
+                    fb.write(viejo)
+            except Exception:
+                pass
+        os.replace(tmp, DB)
+
 
 def nombre_libre(dest):
     base, ext = os.path.splitext(dest); n = 1
@@ -3593,18 +3653,17 @@ class H(BaseHTTPRequestHandler):
                 d = leer_json(PENDIENTE, {"frames": []})
                 resto = [x for x in d.get("frames") or [] if x.get("path") not in hechas]
                 if resto:
-                    with open(PENDIENTE + ".tmp", "w", encoding="utf-8") as f:
+                    tmp_p = "%s.%d.tmp" % (PENDIENTE, os.getpid())
+                    with open(tmp_p, "w", encoding="utf-8") as f:
                         json.dump({"frames": resto}, f, ensure_ascii=False)
-                    os.replace(PENDIENTE + ".tmp", PENDIENTE)
+                    os.replace(tmp_p, PENDIENTE)
                 elif os.path.exists(PENDIENTE):
                     os.remove(PENDIENTE)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/save":
                 data = self._body()
                 json.loads(data)  # comprobar que es JSON válido antes de escribir
-                tmp = DB + ".tmp"
-                with open(tmp, "wb") as f: f.write(data)
-                os.replace(tmp, DB)
+                guardar_db(data)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/disco/elegir":
                 ruta, fallo = elegir_carpeta_cal()
