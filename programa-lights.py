@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.40"
+VERSION_PROG = "2026.09.29.41"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8816,8 +8816,37 @@ def elegir_bias(sets, gain, off, rec):
     return mejor[1] if mejor else None
 
 
+_REGLAS_TEL = {"mt": None, "r": []}
+
+
+def tel_toma(rec):
+    """El telescopio de una toma con las reglas de la Biblioteca de calibración («Equipos»): la cabecera suele traer
+    la montura, y la Biblioteca ya guarda los flats con el tubo de verdad; sin esto no casaban."""
+    tel = str(rec.get("tel") or "")
+    ruta = os.path.join(CALIB_ROOT, "config.json")
+    try:
+        mt = os.path.getmtime(ruta)
+    except OSError:
+        return tel
+    if _REGLAS_TEL["mt"] != mt:
+        c = leer_json(ruta, {})
+        _REGLAS_TEL.update(mt=mt, r=[r for r in ((c.get("reglas_tel") if isinstance(c, dict) else None) or []) if isinstance(r, dict)])
+    f = str(rec.get("dateObs") or rec.get("night") or "")[:10]
+    for r in _REGLAS_TEL["r"]:
+        de = "" if r.get("de") == "__sin__" else (r.get("de") or "")
+        if de.strip().lower() != tel.strip().lower():
+            continue
+        if r.get("desde") and f and f < r["desde"]:
+            continue
+        if r.get("hasta") and f and f > r["hasta"]:
+            continue
+        return r.get("a") or tel
+    return tel
+
+
 def elegir_flat(sets, rec):
     filt, rot, dia = nfiltro(rec.get("filter")), rotacion(rec), fecha(rec)
+    rec = dict(rec, tel=tel_toma(rec))
     mejor, avisos = None, []
     for s in sets:
         if s["tipo"] != "flat" or s["filtro"] != filt or not compatible(s, rec):
