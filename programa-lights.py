@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.36"
+VERSION_PROG = "2026.09.29.37"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -13,6 +13,21 @@ ROOT = os.path.join(DISCO, "Lights")
 DIBUJOS_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes", "web")
 DB = os.path.join(ROOT, "lights.json")
 _DB_LOCK = threading.Lock()
+
+
+def _db_cambiada(data):
+    """¿Se ha guardado la base de datos desde otra pestaña después de que esta la leyera? La página manda en «base»
+    la marca «updated» de lo que leyó; si la del archivo es otra, guardar ahora borraría lo que hizo la otra pestaña."""
+    try:
+        m = re.search(rb'"base"\s*:\s*"([^"]*)"', data[:300])
+        if not m or not os.path.exists(DB):
+            return False
+        with open(DB, "rb") as f:
+            ini = f.read(300)
+        a = re.search(rb'"updated"\s*:\s*"([^"]*)"', ini)
+        return bool(a) and a.group(1) != m.group(1)
+    except OSError:
+        return False
 
 
 def guardar_db(data):
@@ -1751,21 +1766,24 @@ const $ = id => document.getElementById(id);
 /* ============ Servidor local ============ */
 async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
 async function loadDb(){
-  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); frames.forEach(f=>{ if (!f.id) f.id = uid(); }); arreglarCamaras(); await cargarRegTomas(); }
+  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); DB_BASE = (data && data.updated) || ""; frames.forEach(f=>{ if (!f.id) f.id = uid(); }); arreglarCamaras(); await cargarRegTomas(); }
   catch(e){ frames = []; DB_ILEGIBLE = true; toast("No se pudo leer lights.json: "+(e.message||e)); }
   evaluateAll();
   $("storeInfo").textContent = `Base de datos: ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas`;
 }
-let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0;
+let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0, DB_BASE = null, DB_AJENA = false;
 function scheduleSave(){ dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, 700); }
 async function saveDb(){
   if (saving){ scheduleSave(); return; }
   // lights.json no se pudo leer al abrir: guardar ahora lo dejaría casi vacío; se conserva tal cual (y su copia .bak)
   if (DB_ILEGIBLE){ toast("lights.json no se pudo leer al abrir ASTRO: no se guardan cambios para no perder tu catálogo. Cierra ASTRO y revisa el archivo (hay una copia en lights.json.bak)."); return; }
+  if (DB_AJENA){ toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); return; }
   saving = true; dirty = false;
-  try { await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:1, updated:new Date().toISOString(), frames})});
+  const ahora = new Date().toISOString();
+  try { await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:1, updated:ahora, base:DB_BASE, frames})}); DB_BASE = ahora;
     $("storeInfo").textContent = `Guardado en ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas · ${new Date().toLocaleTimeString(LOCALE)}`; fallosGuardar = 0; }
-  catch(e){ toast("No se pudo guardar lights.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
+  catch(e){ if (/otra_ventana/.test(e.message||"")){ DB_AJENA = true; toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); saving = false; return; }
+    toast("No se pudo guardar lights.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
   saving = false;
   if (dirty){ if (fallosGuardar){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, Math.min(30000, 2000 * fallosGuardar)); } else scheduleSave(); }
 }
@@ -8133,6 +8151,7 @@ def _donar_astro():
     return u if _re.match(r"^https://(www\.)?(paypal\.me|paypal\.com)/[\w\-./?=&%~+#]+$", u) else ""
 
 
+DIC_EN.update({"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "The database has been changed from another ASTRO window or tab: reload this one (F5) so as not to undo those changes."})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
@@ -15789,6 +15808,8 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/save":
                 data = self._body()
                 json.loads(data)  # comprobar que es JSON válido antes de escribir
+                if _db_cambiada(data):
+                    return self._send(409, "otra_ventana", "text/plain; charset=utf-8")
                 guardar_db(data)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/upload":

@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.6"
+VERSION_PROG = "2026.09.29.7"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -950,24 +950,26 @@ const $ = id => document.getElementById(id);
 const ROOT_NAME = "__ROOT__";
 async function api(path, opts){ const r = await fetch(path, opts); if (!r.ok) throw new Error((await r.text())||r.statusText); return r; }
 async function loadDb(){
-  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); arreglarCamaras(); }
+  try { const data = await (await api("/api/db")).json(); frames = Array.isArray(data) ? data : (data.frames||[]); DB_BASE = (data && data.updated) || ""; arreglarCamaras(); }
   catch(e){ frames = []; DB_ILEGIBLE = true; toast("No se pudo leer biblioteca.json: "+(e.message||e)); }
   $("storeInfo").textContent = `Base de datos: ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas`;
 }
-let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0, BIB_LISTA = false;
+let saveTimer = null, saving = false, dirty = false, DB_ILEGIBLE = false, fallosGuardar = 0, BIB_LISTA = false, DB_BASE = null, DB_AJENA = false;
 function scheduleSave(){ dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, 700); }
 // guarda y dice si ha ido bien (false también si ya se estaba guardando: se guarda después)
 async function saveDb(){
   if (saving){ scheduleSave(); return false; }
   // biblioteca.json no se pudo leer al abrir: guardar ahora la dejaría casi vacía; se conserva tal cual (y su copia .bak)
   if (DB_ILEGIBLE){ toast("biblioteca.json no se pudo leer al abrir ASTRO: no se guardan cambios para no perder la biblioteca. Cierra ASTRO y revisa el archivo (hay una copia en biblioteca.json.bak)."); return false; }
+  if (DB_AJENA){ toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); return false; }
   saving = true; dirty = false;
-  let ok = false;
+  let ok = false; const ahora = new Date().toISOString();
   try {
-    await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:2, updated:new Date().toISOString(), frames})});
+    await api("/api/save", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({version:2, updated:ahora, base:DB_BASE, frames})}); DB_BASE = ahora;
     $("storeInfo").textContent = `Base de datos guardada en ${ROOT_NAME}/${DB_FILE} · ${frames.length} fichas · ${new Date().toLocaleTimeString(LOCALE)}`;
     ok = true; fallosGuardar = 0;
-  } catch(e){ toast("No se pudo guardar biblioteca.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
+  } catch(e){ if (/otra_ventana/.test(e.message||"")){ DB_AJENA = true; toast("La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios."); saving = false; return false; }
+    toast("No se pudo guardar biblioteca.json: "+(e.message||e)); dirty = true; fallosGuardar++; }
   saving = false;
   if (dirty){ if (fallosGuardar){ clearTimeout(saveTimer); saveTimer = setTimeout(saveDb, Math.min(30000, 2000 * fallosGuardar)); } else scheduleSave(); }
   return ok;
@@ -2434,6 +2436,7 @@ def _donar_astro():
     return u if _re.match(r"^https://(www\.)?(paypal\.me|paypal\.com)/[\w\-./?=&%~+#]+$", u) else ""
 
 
+DIC_EN.update({"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "The database has been changed from another ASTRO window or tab: reload this one (F5) so as not to undo those changes."})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
@@ -3456,6 +3459,21 @@ def dentro(rel):
 _DB_LOCK = threading.Lock()
 
 
+def _db_cambiada(data):
+    """¿Se ha guardado la base de datos desde otra pestaña después de que esta la leyera? La página manda en «base»
+    la marca «updated» de lo que leyó; si la del archivo es otra, guardar ahora borraría lo que hizo la otra pestaña."""
+    try:
+        m = re.search(rb'"base"\s*:\s*"([^"]*)"', data[:300])
+        if not m or not os.path.exists(DB):
+            return False
+        with open(DB, "rb") as f:
+            ini = f.read(300)
+        a = re.search(rb'"updated"\s*:\s*"([^"]*)"', ini)
+        return bool(a) and a.group(1) != m.group(1)
+    except OSError:
+        return False
+
+
 def guardar_db(data):
     """Escribe biblioteca.json de forma segura: una escritura a la vez, a un temporal que se fuerza a disco, y la
     versión anterior se queda en biblioteca.json.bak (si un corte de luz o un disco lleno estropea la nueva, no se pierde)."""
@@ -3671,6 +3689,8 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/save":
                 data = self._body()
                 json.loads(data)  # comprobar que es JSON válido antes de escribir
+                if _db_cambiada(data):
+                    return self._send(409, "otra_ventana", "text/plain; charset=utf-8")
                 guardar_db(data)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/disco/elegir":

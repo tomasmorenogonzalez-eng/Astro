@@ -3037,7 +3037,8 @@
 "Donar con PayPal": "Faire un don avec PayPal",
 "Exposición larga para un bias": "Exposition longue pour un bias",
 "Son los límites de la exigencia normal: con la que tienes elegida ({1}) se aprietan o se aflojan en proporción.": "Ce sont les limites à l'exigence normale : avec celle que vous avez choisie ({1}), elles sont resserrées ou assouplies en proportion.",
-"{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.": "{1} noms seraient en double : ils recevront _2, _3… Ajoutez {n} ou {camera} au modèle pour les distinguer."
+"{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.": "{1} noms seraient en double : ils recevront _2, _3… Ajoutez {n} ou {camera} au modèle pour les distinguer.",
+"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "La base de données a été modifiée depuis une autre fenêtre ou un autre onglet d'ASTRO : rechargez celui-ci (F5) pour ne pas annuler ces changements."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",
