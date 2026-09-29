@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ASTRO · Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
 # y Agrupación Astronómica de Miguelturra (C.Real).
-import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, time
+import os, sys, json, math, socket, subprocess, threading, webbrowser, urllib.parse, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 
@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.10"
+VERSION_PROG = "2026.09.29.11"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2553,8 +2553,13 @@ def leer_json(ruta, defecto):
 
 
 def num(v):
+    """Número de una cabecera o de la página: None si falta o no lo es. También «nan» e «inf», que float() acepta y
+    luego rompían los round() de la calibración (un flat con ROTATANG = NaN dejaba sin apilar todos los objetos)."""
     try:
-        return None if v is None or v == "" else float(v)
+        if v is None or v == "" or isinstance(v, bool):
+            return None
+        x = float(v.replace(",", ".")) if isinstance(v, str) else float(v)
+        return x if math.isfinite(x) else None
     except Exception:
         return None
 
@@ -3599,6 +3604,31 @@ def nombre_libre(dest):
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
+    # Cualquier error inesperado se contesta con un 500 y su texto (antes se cortaba la conexión sin respuesta y la
+    # página solo decía que había fallado la petición)
+    def send_response(self, *a, **k):
+        self._respondido = True
+        return super().send_response(*a, **k)
+
+    def _con_red(self, metodo):
+        self._respondido = False
+        try:
+            metodo()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        except Exception as e:
+            if not self._respondido:
+                try:
+                    self._send(500, str(e) or type(e).__name__, "text/plain; charset=utf-8")
+                except Exception:
+                    pass
+
+    def do_GET(self):
+        self._con_red(self._do_GET)
+
+    def do_POST(self):
+        self._con_red(self._do_POST)
+
     def _send(self, code, body, ctype="application/json; charset=utf-8", cache=False):
         if isinstance(body, str): body = body.encode("utf-8")
         self.send_response(code)
@@ -3669,7 +3699,7 @@ class H(BaseHTTPRequestHandler):
                     break
                 self.wfile.write(blq); enviado += len(blq)
 
-    def do_GET(self):
+    def _do_GET(self):
         p = urllib.parse.urlparse(self.path)
         # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
         # el navegador pone en Host su dominio y no 127.0.0.1
@@ -3741,7 +3771,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, '{"version":2,"frames":[]}')
         self._send(404, "no encontrado", "text/plain; charset=utf-8")
 
-    def do_POST(self):
+    def _do_POST(self):
         p = urllib.parse.urlparse(self.path)
         # otra web que hace que su dominio apunte a este ordenador (DNS rebinding) no puede leer ni cambiar nada:
         # el navegador pone en Host su dominio y no 127.0.0.1
