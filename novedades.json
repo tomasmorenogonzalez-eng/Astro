@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.28.1",
+  "es": [
+   "Arreglo: «¿Sigo con este filtro?» fallaba siempre con cámaras de sensor muy grande (de más de unos 7000 píxeles de ancho), y la miniatura de la vista previa del apilado, a partir de unos 6000. Ya funcionan, y si Siril falla, el mensaje dice el motivo."
+  ],
+  "en": [
+   "Fix: «Should I keep going with this filter?» always failed with very large sensors (wider than about 7000 pixels), and so did the stack preview thumbnail above about 6000. Both work now, and if Siril fails, the message says why."
+  ],
+  "fr": [
+   "Correction : « Je continue avec ce filtre ? » échouait toujours avec les capteurs très grands (plus de 7000 pixels de large environ), tout comme la miniature de l'aperçu de l'empilement au-delà de 6000 environ. Tout fonctionne maintenant et, si Siril échoue, le message en donne la raison."
+  ],
+  "de": [
+   "Korrektur: „Mit diesem Filter weitermachen?“ schlug bei sehr großen Sensoren (breiter als etwa 7000 Pixel) immer fehl, ebenso das Vorschaubild des Stacks ab etwa 6000. Beides funktioniert jetzt, und wenn Siril scheitert, nennt die Meldung den Grund."
+  ],
+  "it": [
+   "Correzione: «Continuo con questo filtro?» falliva sempre con sensori molto grandi (più larghi di circa 7000 pixel), e così la miniatura dell'anteprima dell'impilamento oltre circa 6000. Ora funzionano e, se Siril fallisce, il messaggio dice il perché."
+  ],
+  "pt": [
+   "Correção: «Continuo com este filtro?» falhava sempre com sensores muito grandes (com mais de cerca de 7000 píxeis de largura), tal como a miniatura da pré-visualização do empilhamento a partir de cerca de 6000. Agora funcionam e, se o Siril falhar, a mensagem diz porquê."
+  ]
+ },
+ {
   "version": "0.28",
   "es": [
    "Ciencia estrena un bonus track, «Cien enlaces del cielo»: los cien sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre cada uno, buscador y filtro por tema.",
