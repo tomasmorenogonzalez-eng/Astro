@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.53"
+VERSION_PROG = "2026.09.30.1"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1247,6 +1247,7 @@ body.parpAbierto{overflow:hidden}
     <button class="nav" id="btnCriterio"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Criterio de calidad</span></button>
     <button class="nav" id="btnRegistros" title="Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M8.5 15h2l1.5-3.5 2 6 1.3-2.5H17"/></svg><span>Registros de la ASIAIR</span></button>
     <button class="nav" id="btnRename"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Renombrar por lotes</span></button>
+    <button class="nav" id="btnCursos" title="Los cursos de astrofotografía de Tomás Moreno, adaptados a tu equipo"><svg class="i" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 11.5h5"/></svg><span>Cursos (bonus)</span></button>
     <div class="pieLat">
       <div class="temas" id="temas"><button data-t="dia" title="Aspecto claro, para el día"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Día</span></button><button data-t="noche" title="Aspecto oscuro, para la noche"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Noche</span></button><button data-t="rojo" title="Todo en rojo, para usarlo junto al telescopio sin perder la adaptación a la oscuridad"><i></i><span>Rojo</span></button></div>
       <button class="nav notr" id="btnIdioma" onclick="cambiarIdioma()" title="Idioma"></button>
@@ -7814,6 +7815,50 @@ $("btnVariosMenu").onclick = ()=>{ $("menuLista").classList.remove("show"); abri
 $("btnVarios").onclick = ()=> abrirVarios("");
 $("btnGrupoMenu").onclick = ()=>{ $("menuLista").classList.remove("show"); grupoUnirse(); };
 $("btnCriterio").onclick = ()=> abrirCriterio("");
+$("btnCursos").onclick = ()=> abrirCursos();
+
+/* ============ Cursos de astrofotografía (bonus): llegan en un paquete aparte y se abren con tu equipo ============ */
+function abrirEnNavegador(u){
+  u = new URL(u, location.href).href;
+  const a = window.pywebview && window.pywebview.api;
+  if (a && a.abrir_url) a.abrir_url(u); else window.open(u, "_blank", "noopener");
+}
+async function abrirCursos(){
+  let e = {}; try { e = await (await api("/api/cursos/estado")).json(); } catch(_){}
+  let conEquipo = true; try { const d = EQ || (await cargarEquipo()).equipo; conEquipo = !!((d.telescopios||[]).length && (d.camaras||[]).length); } catch(_){}
+  let box = $("cursosBox");
+  if (!box){ box = document.createElement("div"); box.className = "modal"; box.id = "cursosBox"; box.innerHTML = `<div class="box" style="width:min(620px,100%)"><div id="cursosBody"></div></div>`; document.body.appendChild(box); }
+  const lista = trLT("procesado con Siril y PixInsight (tres niveles y scripts), captura planetaria y gran campo con paisaje, con sus cuadernos, presentaciones y calculadoras",
+    "processing with Siril and PixInsight (three levels and scripts), planetary imaging and wide field with landscape, with their workbooks, slides and calculators");
+  let h = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>${esc(trLT("Cursos de astrofotografía", "Astrophotography courses"))}</h2><button class="btn small" id="cursosCerrar">${esc(tr("Cerrar"))}</button></div>
+    <p>${esc(trLT("Los cursos de Tomás Moreno: {1}.", "Tomás Moreno's courses: {1}.", lista))}</p>
+    <p>${esc(trLT("ASTRO los adapta a tu equipo de «Mi equipo»: campos, escalas, exposiciones, muestreo planetario y los ejemplos resueltos se recalculan con tus telescopios, cámaras y objetivos.", "ASTRO adapts them to your gear in «My equipment»: fields, image scales, exposures, planetary sampling and the worked examples are recalculated with your telescopes, cameras and lenses."))}</p>`;
+  if (!conEquipo) h += `<div class="status warn">${esc(trLT("Pon tus telescopios y cámaras en «Mi equipo» para que los cursos se adapten a ellos.", "Add your telescopes and cameras in «My equipment» so the courses adapt to them."))}</div>`;
+  if (e.instalado){
+    h += `<div class="status ok">${esc(trLT("Instalados (paquete del {1}).", "Installed (package from {1}).", e.fecha || "—"))}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px"><button class="btn" id="cursosInstalar">${esc(trLT("Actualizar el paquete…", "Update the package…"))}</button><button class="btn primary" id="cursosAbrir">${esc(trLT("Abrir los cursos", "Open the courses"))}</button></div>`;
+  } else {
+    h += `<div style="border:1px solid var(--line);border-left:4px solid #F2C14E;border-radius:12px;padding:12px 14px;margin:10px 0">
+        <b>${esc(trLT("Un regalo para quien apoya ASTRO", "A gift for ASTRO supporters"))}</b>
+        <div class="note">${esc(trLT("Si apoyas ASTRO con 10 € o más, te llevas los cursos completos. Llegan en un archivo .zip: guárdalo y elígelo aquí.", "If you support ASTRO with €10 or more, you get the full courses. They come as a .zip file: save it and choose it here."))}</div>
+        ${e.url ? `<div style="margin-top:8px"><button class="btn" id="cursosConseguir" style="background:#FFC439;border-color:#FFC439;color:#111">${esc(trLT("Conseguir los cursos", "Get the courses"))}</button></div>`
+                : `<div class="note" style="margin-top:6px">${esc(trLT("Para conseguirlos, escribe a", "To get them, write to"))} <b class="notr">toms101972@hotmail.com</b></div>`}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px"><button class="btn primary" id="cursosInstalar">${esc(trLT("Ya tengo el paquete: elegirlo…", "I have the package: choose it…"))}</button></div>`;
+  }
+  $("cursosBody").innerHTML = h;
+  box.classList.add("show");
+  $("cursosCerrar").onclick = () => box.classList.remove("show");
+  if ($("cursosAbrir")) $("cursosAbrir").onclick = () => { abrirEnNavegador("/cursos/index.html"); box.classList.remove("show"); };
+  if ($("cursosConseguir")) $("cursosConseguir").onclick = () => abrirEnNavegador(e.url);
+  $("cursosInstalar").onclick = async () => {
+    const b = $("cursosInstalar"); b.disabled = true; b.textContent = trLT("Instalando…", "Installing…");
+    try {
+      const r = await (await api("/api/cursos/instalar", {method:"POST"})).json();
+      if (r.cancelado){ if (r.fallo) toast(trLT("No se ha podido abrir la ventana para elegir el archivo", "The window to choose the file could not be opened")); return abrirCursos(); }
+      toast(trLT("Cursos instalados", "Courses installed")); abrirCursos();
+    } catch(err){ toast(String(err.message || err)); abrirCursos(); }
+  };
+}
 $("btnIndicadores").onclick = ()=> abrirIndicadores(filters.object.size === 1 ? [...filters.object][0] : "");
 $("btnResumen").onclick = ()=> abrirWhatsApp(false, "resumen");
 $("critCerrar").onclick = ()=> { $("critBox").classList.remove("show"); CRIT = null; };
@@ -8506,6 +8551,7 @@ def _donar_astro():
 
 DIC_EN.update({"La base de datos se ha cambiado desde otra ventana o pestaña de ASTRO: vuelve a cargar esta (F5) para no deshacer esos cambios.": "The database has been changed from another ASTRO window or tab: reload this one (F5) so as not to undo those changes."})
 DIC_EN.update({"Eliminar seleccionadas": "Delete selected", "Las quita de ASTRO. Solo se borran del disco las copias que ASTRO guardó en su carpeta": "Removes them from ASTRO. Only the copies ASTRO kept in its own folder are deleted from disk"})   # 0.28.4
+DIC_EN.update({"Cursos (bonus)": "Courses (bonus)", "Los cursos de astrofotografía de Tomás Moreno, adaptados a tu equipo": "Tomás Moreno's astrophotography courses, adapted to your gear"})   # cursos
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
@@ -10851,7 +10897,8 @@ def guardar_equipo(d):
     en = idioma_actual() == "en"         # nombres por defecto de las piezas sin nombre, en el idioma del programa
     out = {"telescopios": [], "reductores": [], "camaras": [], "filtros": [], "opciones": {}}
     for t in d.get("telescopios") or []:
-        diam, focal = _num(t.get("diam"), 10, 2000), _num(t.get("focal"), 20, 30000)
+        obj = t.get("tipo") == "objetivo"                # un 14 mm f/2,8 tiene 5 mm de abertura: los objetivos de foto también caben
+        diam, focal = _num(t.get("diam"), 1 if obj else 10, 2000), _num(t.get("focal"), 5 if obj else 20, 30000)
         if not diam or not focal:
             continue
         out["telescopios"].append({"id": str(t.get("id") or _nid("t"))[:20], "nombre": str(t.get("nombre") or "").strip()[:60] or "%g/%g" % (diam, focal),
@@ -13213,6 +13260,144 @@ def qr_svg(texto, borde=4):
     trazos = "".join("M%d %dh1v1h-1z" % (x + borde, y + borde) for y, fila in enumerate(m) for x, v in enumerate(fila) if v)
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" shape-rendering="crispEdges" role="img">'
             '<rect width="%d" height="%d" fill="#fff"/><path d="%s" fill="#000"/></svg>' % (n, n, n, n, trazos))
+
+
+# ═════════════════ CURSOS DE ASTROFOTOGRAFÍA (BONUS) ═════════════════
+# Los cursos de Tomás Moreno llegan en un paquete aparte (a quien apoya ASTRO): no van en el programa, que es público.
+# ASTRO lo guarda en <datos>/Cursos y lo sirve con el equipo de «Mi equipo» dentro, para que los cursos se adapten
+# a él (campos, escalas, exposiciones, muestreo y los ejemplos resueltos).
+CURSOS_DIR = os.path.join(DISCO, "Cursos")
+CURSOS_FORMATO = "astrocitas-cursos"
+CURSOS_URL = (os.environ.get("ASTRO_CURSOS_URL") or "").strip()        # dónde conseguirlos (la tienda de Astrocitas)
+_TIPOS_CURSO = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+                ".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml",
+                ".txt": "text/plain; charset=utf-8", ".json": "application/json", ".webp": "image/webp"}
+
+
+def _cursos_base():
+    """La carpeta del paquete instalado (la que tiene su manifest.json), o None."""
+    if not os.path.isdir(CURSOS_DIR):
+        return None
+    for d in [CURSOS_DIR] + sorted(os.path.join(CURSOS_DIR, x) for x in os.listdir(CURSOS_DIR)):
+        m = leer_json(os.path.join(d, "manifest.json"), None) if os.path.isdir(d) else None
+        if isinstance(m, dict) and m.get("formato") == CURSOS_FORMATO:
+            return d
+    return None
+
+
+def cursos_estado():
+    b = _cursos_base()
+    m = leer_json(os.path.join(b, "manifest.json"), {}) if b else {}
+    return {"instalado": bool(b), "fecha": (m or {}).get("fecha") or "", "titulo": (m or {}).get("titulo") or "", "url": CURSOS_URL}
+
+
+def elegir_zip_cursos():
+    texto = _L("Elige el paquete de los cursos (.zip)", "Choose the courses package (.zip)")
+    r = _dialogo_ventana("archivo", texto, ("ZIP (*.zip)",))
+    if r is not None:
+        return r, False
+    ruta, fallo = "", True
+    try:
+        if ES_MAC:
+            r = subprocess.run(["osascript", "-e", "activate", "-e",
+                                'POSIX path of (choose file with prompt "%s" of type {"zip", "public.zip-archive"})' % texto],
+                               capture_output=True, text=True, timeout=600)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0 and not re.search(r"cancel|-128", r.stderr or "", re.I)
+        elif ES_WIN:
+            ps = ("Add-Type -AssemblyName System.Windows.Forms;"
+                  "$f=New-Object System.Windows.Forms.OpenFileDialog;"
+                  "$f.Title='" + texto.replace("'", "’") + "';$f.Filter='ZIP (*.zip)|*.zip';"
+                  "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
+                  "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.FileName}")
+            r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
+                               timeout=600, encoding="utf-8", errors="replace", **SIN_VENTANA)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0
+        else:
+            r = subprocess.run(["zenity", "--file-selection", "--title=" + texto, "--file-filter=*.zip"], capture_output=True, text=True, timeout=600)
+            ruta, fallo = r.stdout.strip(), False
+    except Exception:
+        pass
+    return ruta, fallo
+
+
+def cursos_instalar(ruta):
+    """Comprueba que el ZIP es el paquete de los cursos y lo deja en <datos>/Cursos (sustituye al anterior)."""
+    import zipfile as _zf
+    if not ruta or not os.path.isfile(ruta):
+        raise RuntimeError(_L("No encuentro ese archivo.", "I can't find that file."))
+    try:
+        z = _zf.ZipFile(ruta)
+    except Exception:
+        raise RuntimeError(_L("Ese archivo no es un ZIP.", "That file is not a ZIP."))
+    with z:
+        nombres = [n for n in z.namelist() if not n.startswith("__MACOSX/") and "/._" not in "/" + n]
+        man = [n for n in nombres if n.rstrip("/").split("/")[-1] == "manifest.json" and n.count("/") <= 1]
+        ok = False
+        for n in man:
+            try:
+                ok = json.loads(z.read(n).decode("utf-8")).get("formato") == CURSOS_FORMATO
+            except Exception:
+                ok = False
+            if ok:
+                break
+        if not ok:
+            raise RuntimeError(_L("Ese ZIP no es el paquete de los cursos de astrofotografía.", "That ZIP is not the astrophotography courses package."))
+        total = sum(i.file_size for i in z.infolist())
+        if total > 2 * 1024 ** 3:
+            raise RuntimeError(_L("El paquete es demasiado grande.", "The package is too big."))
+        tmp = CURSOS_DIR + ".nuevo"
+        shutil.rmtree(tmp, ignore_errors=True)
+        os.makedirs(tmp, exist_ok=True)
+        base = os.path.realpath(tmp)
+        for i in z.infolist():
+            n = i.filename
+            if n not in nombres or n.endswith("/"):
+                continue
+            dest = os.path.realpath(os.path.join(tmp, *[x for x in n.split("/") if x not in ("", ".", "..")]))
+            if not dest.startswith(base + os.sep):
+                continue                                   # nada fuera de la carpeta de los cursos
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with z.open(i) as src, open(dest, "wb") as out:
+                shutil.copyfileobj(src, out)
+    viejo = CURSOS_DIR + ".viejo"
+    shutil.rmtree(viejo, ignore_errors=True)
+    if os.path.isdir(CURSOS_DIR):
+        os.replace(CURSOS_DIR, viejo)
+    os.replace(tmp, CURSOS_DIR)
+    shutil.rmtree(viejo, ignore_errors=True)
+    return cursos_estado()
+
+
+def cursos_equipo_js():
+    """El equipo de «Mi equipo» y el cielo del lugar activo, para que los cursos se adapten (nada más: ni rutas ni claves)."""
+    eq = leer_equipo()
+    lg = lugar_activo_srv(leer_planificador()) or {}
+    datos = {"equipo": {k: eq.get(k) or [] for k in ("telescopios", "reductores", "camaras", "filtros")},
+             "lugar": {"nombre": lg.get("nombre") or "", "sqm": lg.get("sqm"), "bortle": lg.get("bortle"), "lat": lg.get("lat")}}
+    return "<script>window.ASTRO_EQUIPO=%s;</script>" % json.dumps(datos, ensure_ascii=False).replace("</", "<\\/")
+
+
+def cursos_archivo(rel):
+    """(contenido, tipo) de un archivo del paquete; en las páginas va dentro el equipo del alumno."""
+    b = _cursos_base()
+    if not b:
+        return None
+    base = os.path.realpath(b)
+    dest = os.path.realpath(os.path.join(base, *[x for x in urllib.parse.unquote(rel).split("/") if x not in ("", ".", "..")]))
+    if not (dest == base or dest.startswith(base + os.sep)) or not os.path.isfile(dest):
+        return None
+    ext = os.path.splitext(dest)[1].lower()
+    with open(dest, "rb") as f:
+        dat = f.read()
+    if ext == ".html":
+        h = dat.decode("utf-8", "replace")
+        m = re.search(r"<head[^>]*>", h, re.I)
+        js = cursos_equipo_js()
+        h = h[:m.end()] + js + h[m.end():] if m else js + h
+        dat = h.encode("utf-8")
+    return dat, _TIPOS_CURSO.get(ext, "application/octet-stream")
 
 
 # ═════════════════ LA SESIÓN EN DIRECTO EN EL MÓVIL ═════════════════
@@ -16280,6 +16465,13 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, html_idioma(HTML, idioma_valido(idioma_actual()) or idioma_de_cabecera(self.headers.get("Accept-Language"))).replace("__TEMA__", tema_actual()), "text/html; charset=utf-8")
         if p.path.startswith("/img/"):
             return self._dibujo(p.path[5:])
+        if p.path == "/cursos" or p.path.startswith("/cursos/"):
+            r = cursos_archivo(p.path[len("/cursos/"):] or "index.html")
+            if not r:
+                return self._send(404, "no encontrado", "text/plain; charset=utf-8")
+            return self._send(200, r[0], r[1])
+        if p.path == "/api/cursos/estado":
+            return self._send(200, json.dumps(cursos_estado(), ensure_ascii=False))
         if p.path == "/file":
             dest = dentro(q.get("path", [""])[0])
             if dest and os.path.isfile(dest):
@@ -16570,6 +16762,14 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/proyecto/cancelar":
                 PROY["cancelar"] = True
                 return self._send(200, '{"ok":true}')
+            if p.path == "/api/cursos/instalar":
+                ruta, fallo = elegir_zip_cursos()
+                if not ruta:
+                    return self._send(200, json.dumps({"cancelado": True, "fallo": bool(fallo)}))
+                try:
+                    return self._send(200, json.dumps(cursos_instalar(ruta), ensure_ascii=False))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/proyecto/elegir_archivo":
                 ruta, fallo = elegir_archivo_proyecto()
                 return self._send(200, json.dumps({"ruta": ruta, "fallo": fallo}, ensure_ascii=False))

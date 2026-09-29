@@ -143,6 +143,16 @@ def _paypal(t):
 
 # donaciones: el enlace de PayPal de donar.txt; si está vacío, ASTRO no enseña el apartado
 DONAR = _paypal(os.environ.get("ASTRO_DONAR") or _texto_recurso("donar.txt", ""))
+# cursos de astrofotografía (bonus para quien apoya ASTRO): dónde conseguirlos, en cursos.txt (Ko-fi, Gumroad o PayPal)
+def _tienda(t):
+    for l in (t or "").splitlines():
+        l = l.strip()
+        if l and not l.startswith("#") and re.match(r"^https://([\w-]+\.)?(ko-fi\.com|gumroad\.com|paypal\.me|paypal\.com)/[\w\-./?=&%~+#]*$", l):
+            return l
+    return ""
+
+
+CURSOS_URL = _tienda(os.environ.get("ASTRO_CURSOS_URL") or _texto_recurso("cursos.txt", ""))
 # versión de prueba: si la versión lo dice («0.9-beta») o es anterior a la 1.0
 ES_BETA = "beta" in VERSION_APP.lower() or tuple(int(x) for x in (re.findall(r"\d+", VERSION_APP) or ["0"])[:1]) < (1,)
 
@@ -1277,6 +1287,7 @@ def arrancar(datos):
     os.environ["ASTRO_BETA"] = "1" if ES_BETA else "0"
     os.environ["ASTRO_CONTACTO"] = CONTACTO
     os.environ["ASTRO_DONAR"] = DONAR
+    os.environ["ASTRO_CURSOS_URL"] = CURSOS_URL
     os.environ["ASTRO_IDIOMA"] = IDIOMA["v"]
     os.environ["ASTRO_EJEMPLO"] = "1" if MODO["ejemplo"] else "0"
     os.environ["ASTRO_REGISTRO"] = REGISTRO

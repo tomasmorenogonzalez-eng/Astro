@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.28.5",
+  "es": [
+   "Cursos de astrofotografía de Tomás Moreno (procesado, planetaria y gran campo) como regalo para quien apoya ASTRO con 10 € o más: se abren desde «Cursos (bonus)» y se adaptan a tu equipo de «Mi equipo», con campos, escalas, exposiciones, muestreo y los ejemplos resueltos recalculados.",
+   "«Mi equipo» admite ya objetivos de fotografía de focal corta (un 14 mm, un 24 mm…).",
+   "Los deslizadores del criterio de calidad enseñan su porcentaje encima del botón."
+  ],
+  "en": [
+   "Tomás Moreno's astrophotography courses (processing, planetary and wide field) as a gift for anyone supporting ASTRO with €10 or more: open them from «Courses (bonus)» and they adapt to your gear in «My equipment», with fields, image scales, exposures, sampling and the worked examples recalculated.",
+   "«My equipment» now accepts short camera lenses (a 14 mm, a 24 mm…).",
+   "The quality criteria sliders show their percentage above the handle."
+  ],
+  "fr": [
+   "Les cours d'astrophotographie de Tomás Moreno (traitement, planétaire et grand champ), offerts à ceux qui soutiennent ASTRO avec 10 € ou plus : ils s'ouvrent depuis « Cours (bonus) » et s'adaptent à votre équipement de « Mon équipement », avec champs, échelles, expositions, échantillonnage et exemples résolus recalculés.",
+   "« Mon équipement » accepte désormais les objectifs photo courts (un 14 mm, un 24 mm…).",
+   "Les curseurs du critère de qualité affichent leur pourcentage au-dessus du bouton."
+  ],
+  "de": [
+   "Die Astrofotografie-Kurse von Tomás Moreno (Bearbeitung, Planeten und Weitwinkel) als Geschenk für alle, die ASTRO mit 10 € oder mehr unterstützen: Sie öffnen sich unter „Kurse (Bonus)“ und passen sich deiner Ausrüstung aus „Meine Ausrüstung“ an – Bildfelder, Maßstäbe, Belichtungen, Abtastung und Rechenbeispiele werden neu berechnet.",
+   "„Meine Ausrüstung“ nimmt jetzt auch kurze Fotoobjektive auf (14 mm, 24 mm …).",
+   "Die Schieberegler des Qualitätskriteriums zeigen ihren Prozentwert über dem Regler."
+  ],
+  "it": [
+   "I corsi di astrofotografia di Tomás Moreno (elaborazione, planetaria e grande campo) in regalo a chi sostiene ASTRO con 10 € o più: si aprono da «Corsi (bonus)» e si adattano alla tua attrezzatura di «La mia attrezzatura», con campi, scale, esposizioni, campionamento ed esempi svolti ricalcolati.",
+   "«La mia attrezzatura» accetta ora obiettivi fotografici corti (un 14 mm, un 24 mm…).",
+   "I cursori del criterio di qualità mostrano la percentuale sopra il cursore."
+  ],
+  "pt": [
+   "Os cursos de astrofotografia de Tomás Moreno (processamento, planetária e grande campo) como oferta para quem apoia o ASTRO com 10 € ou mais: abrem-se em «Cursos (bónus)» e adaptam-se ao seu equipamento de «O meu equipamento», com campos, escalas, exposições, amostragem e os exemplos resolvidos recalculados.",
+   "«O meu equipamento» já aceita objetivas fotográficas curtas (uma 14 mm, uma 24 mm…).",
+   "Os deslizadores do critério de qualidade mostram a percentagem por cima do botão."
+  ]
+ },
+ {
   "version": "0.28.4",
   "es": [
    "Eliminar varias tomas a la vez: marca sus casillas en «Todas las tomas» y pulsa «Eliminar seleccionadas». Solo se borran las copias que ASTRO guardó en su carpeta; tus archivos no se tocan.",
