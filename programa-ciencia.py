@@ -90,7 +90,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.30"
+VERSION_PROG = "2026.09.29.31"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1208,15 +1208,21 @@ def fwhm_hfr(img, x, y, radio):
 
 
 def ajuste_lineal(xs, ys, pesos=None):
-    """Recta y = a + b·x por mínimos cuadrados (ponderados). Devuelve (a, b)."""
+    """Recta y = a + b·x por mínimos cuadrados (ponderados). Devuelve (a, b).
+    Se calcula con x centrada en su media: con fechas julianas (2,46 millones de días en una noche de unas horas) las
+    sumas de x² perdían toda la precisión y la pendiente salía cualquier cosa."""
     w = pesos or [1.0] * len(xs)
-    sw = sum(w); sx = sum(wi * x for wi, x in zip(w, xs)); sy = sum(wi * y for wi, y in zip(w, ys))
-    sxx = sum(wi * x * x for wi, x in zip(w, xs)); sxy = sum(wi * x * y for wi, x, y in zip(w, xs, ys))
-    d = sw * sxx - sx * sx
-    if not d:
+    sw = sum(w)
+    if not sw:
+        return 0.0, 0.0
+    x0 = sum(wi * x for wi, x in zip(w, xs)) / sw
+    sy = sum(wi * y for wi, y in zip(w, ys))
+    sxx = sum(wi * (x - x0) ** 2 for wi, x in zip(w, xs))
+    sxy = sum(wi * (x - x0) * y for wi, x, y in zip(w, xs, ys))
+    if not sxx:
         return sy / sw, 0.0
-    b = (sw * sxy - sx * sy) / d
-    return (sy - b * sx) / sw, b
+    b = sxy / sxx
+    return sy / sw - b * x0, b
 
 
 def punto_cero(estrellas, color0=None):
@@ -1901,7 +1907,10 @@ def preparar(item, siril, ver_siril, W, lugar_elegido, hechos):
                       "lat": (lugar or {}).get("lat"), "lon": (lugar or {}).get("lon"), "de": "cabecera" if lugar is lg and lg else "ASTRO"}
     ficha["fecha"] = fecha.strftime("%Y-%m-%dT%H:%M:%S") if fecha else ""
     ficha["exp"] = exp
-    ficha["noche"] = ficha.get("noche") or ((fecha - _dt.timedelta(hours=12)).strftime("%Y-%m-%d") if fecha else "")
+    # la noche va de mediodía a mediodía del lugar (la fecha es UTC): con «UTC − 12 h», en Japón o Australia una misma
+    # noche se partía en dos a las 21:00 y las tomas de las 20:00 caían en el día anterior
+    lon_ = num((lugar or {}).get("lon"))
+    ficha["noche"] = ficha.get("noche") or ((fecha + _dt.timedelta(hours=(lon_ or 0.0) / 15.0 - 12)).strftime("%Y-%m-%d") if fecha else "")
 
     resuelta = _ya_resuelta(h) and ruta.lower().endswith(EXT_FITS)
     calibrar = tipo == "toma" and any((cal or {}).get(k) for k in ("dark", "bias", "flat"))
@@ -5512,7 +5521,8 @@ def archivo_ades(serie, calc):
           "! detector %s" % det]
     L += ["# comment", "! line Astrometry by ASTRO (Ciencia %s): plate constants from Gaia DR3 stars, windowed centroids." % VERSION_PROG]
     if codigo == "XXX" and lg.get("lat") is not None:
-        L.append("! line New observer. Long. %.5f E, Lat. %.5f, Alt. %.0f m (WGS84)." % (lg["lon"], lg["lat"], lg.get("alt") or 0))
+        # el Minor Planet Center pide la longitud de 0 a 360° hacia el este (-3,87 era «-3.87 E»; es 356,13 E)
+        L.append("! line New observer. Long. %.5f E, Lat. %.5f, Alt. %.0f m (WGS84)." % (lg["lon"] % 360, lg["lat"], lg.get("alt") or 0))
     cab = ["permID", "provID", "trkSub", "mode", "stn", "obsTime", "ra", "dec", "rmsRA", "rmsDec", "astCat", "mag", "rmsMag", "band", "photCat", "notes", "remarks"]
     filas = []
     for o in calc["objetos"]:

@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.48"
+VERSION_PROG = "2026.09.29.49"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1667,7 +1667,11 @@ function acercaDe(){
 /* ============ Análisis de lights: fondo, estrellas, trazas ============ */
 function analyzeLight(p){
   const {w, h, sampler:get} = p;
-  const bin = Math.max(p.bayer ? 2 : 1, Math.ceil(Math.max(w, h) / 3000));
+  // en una toma en color sin revelar (Bayer) el agrupado tiene que ser par: con 3×3 (sensores de 6001 a 9000 píxeles,
+  // como la ASI2600MC) cada bloque mezclaba rojo, verde y azul en distinta proporción y el fondo salía como un damero
+  // que dependía del color del cielo (con contaminación lumínica, menos estrellas, menos SNR y más alargamiento)
+  let bin = Math.max(p.bayer ? 2 : 1, Math.ceil(Math.max(w, h) / 3000));
+  if (p.bayer && bin % 2) bin++;
   const bw = Math.floor(w/bin), bh = Math.floor(h/bin);
   const img = new Float32Array(bw*bh), satMask = new Uint8Array(bw*bh);
   // rango de saturación
@@ -2663,7 +2667,9 @@ function angCabecera(f){
   const h = f.header || {};
   for (const k of ["ROTATANG", "ROTATOR", "ROTANGLE", "POSANGLE", "ROTPA"]) if (h[k] != null && isFinite(+h[k])) return {v: ((+h[k] % 360) + 360) % 360, de: "rotador"};
   if (h.CROTA2 != null && isFinite(+h.CROTA2)) return {v: ((+h.CROTA2 % 360) + 360) % 360, de: "astrometria"};
-  if (h.CD1_1 != null && h.CD2_1 != null && isFinite(+h.CD1_1)) return {v: ((Math.atan2(+h.CD2_1, +h.CD1_1)*180/Math.PI % 360) + 360) % 360, de: "astrometria"};
+  // con solo la matriz CD (la astrometría de astrometry.net, por ejemplo), el mismo ángulo que CROTA2: atan2(−CD1_2, CD2_2)
+  // (antes salía girado 180°: la misma imagen, 0° con CROTA2 y 180° con la matriz)
+  if (h.CD1_2 != null && h.CD2_2 != null && isFinite(+h.CD1_2) && isFinite(+h.CD2_2)) return {v: ((Math.atan2(-h.CD1_2, +h.CD2_2)*180/Math.PI % 360) + 360) % 360, de: "astrometria"};
   return null;
 }
 function htmlEncuadre(obj){
@@ -3299,7 +3305,7 @@ async function pintarEstaNoche(){
   const hero = $("estaNoche"); if (!hero) return;
   if (!frames.length){ hero.style.display = "none"; return; }
   const c = await cfgPlan();
-  const hoy = new Date(), fecha = sinSept(hoy.toLocaleDateString(LOCALE, {weekday:"short", day:"numeric", month:"short"}));
+  const hoy = new Date(Date.now() - 8*3600e3), fecha = sinSept(hoy.toLocaleDateString(LOCALE, {weekday:"short", day:"numeric", month:"short"}));
   if (!c.lugar){
     hero.className = "hero heroVacio" + (VISTA_ACTUAL !== "objetos" ? " oculto" : ""); hero.style.display = "";
     hero.innerHTML = `<div class="hcol"><div class="hlab">Esta noche</div><div class="hfecha">${esc(fecha)}</div></div>
@@ -6855,7 +6861,9 @@ async function abrirQueFotografio(){
   if (!c.lugar){ body.innerHTML = formLugarHTML(c); activarLugar(body, abrirQueFotografio); return; }
   const eqs = equiposDeTomas(); let eqSel = lsLeer("astroQfEquipo") || "0";
   if (eqSel !== "manual" && !eqs[+eqSel]) eqSel = eqs.length ? "0" : "manual";
-  const hoy = new Date(), dias = [...Array(7)].map((_,i)=>{ const d = new Date(hoy); d.setDate(d.getDate()+i); return d; });
+  // «esta noche» sigue siendo la de ayer hasta las 8 de la mañana (como en el resto de ASTRO): a la 1:30 se estaba
+  // planificando ya la noche siguiente, y el plan para N.I.N.A. salía con esa fecha
+  const hoy = new Date(Date.now() - 8*3600e3), dias = [...Array(7)].map((_,i)=>{ const d = new Date(hoy); d.setDate(d.getDate()+i); return d; });
   body.innerHTML = `<div class="qfCab">
       <label>Noche <select id="qfFecha">${dias.map((d,i)=>`<option value="${fechaISO(d)}">${i===0?"Esta noche · ":""}${esc(sinSept(d.toLocaleDateString(LOCALE,{weekday:"short",day:"numeric",month:"short"})))}</option>`).join("")}</select></label>
       <label>Lugar ${selectorLugares(c, "qfLugar")}</label>
@@ -10458,7 +10466,7 @@ def noches(objetos, lat, lon, dias=30, alt_min=30.0, desde=None, horizonte=None)
         t0 = _mediodia_lugar(dia, lon)
         oscuro, luna_osc = [], []
         por_obj = {n: {"horas": 0.0, "ancha": 0.0, "ha": 0.0, "oiii": 0.0, "alt_max": -90.0, "sep_min": 180.0,
-                       "ventana": [None, None], "v_ancha": [None, None], "v_ha": [None, None], "v_oiii": [None, None]}
+                       "ventana": [], "v_ancha": [], "v_ha": [], "v_oiii": []}
                    for n, _, _ in objs}
         ilum_med, creciente = None, None
         for k in range(24 * 60 // PASO_MIN + 1):
@@ -10493,12 +10501,11 @@ def noches(objetos, lat, lon, dias=30, alt_min=30.0, desde=None, horizonte=None)
                     o["sep_min"] = sep
                 h = PASO_MIN / 60.0
                 o["horas"] += h
-                o["ventana"] = [o["ventana"][0] or ts, ts + paso]
+                _tramo(o["ventana"], ts, paso)
                 for clase in ("ancha", "ha", "oiii"):
                     if filtro_sirve(clase, malt, ilum, sep):
                         o[clase] += h
-                        v = o["v_" + clase]
-                        o["v_" + clase] = [v[0] or ts, ts + paso]
+                        _tramo(o["v_" + clase], ts, paso)
         noche = {"fecha": dia.isoformat(), "horas_oscuras": round(len(oscuro) * PASO_MIN / 60.0, 1),
                  "t_ini": int(oscuro[0]) if oscuro else None, "t_fin": int(oscuro[-1] + paso) if oscuro else None,
                  "inicio": _hora(oscuro[0]) if oscuro else "", "fin": _hora(oscuro[-1] + paso) if oscuro else "",
@@ -10509,12 +10516,33 @@ def noches(objetos, lat, lon, dias=30, alt_min=30.0, desde=None, horizonte=None)
                  "objetos": {}}
         for n, o in por_obj.items():
             x = {k: (round(v, 1) if isinstance(v, float) else v) for k, v in o.items() if not k.startswith("v") }
-            x["desde"] = _hora(o["ventana"][0]) if o["ventana"][0] else ""
-            x["hasta"] = _hora(o["ventana"][1]) if o["ventana"][1] else ""
-            x["ventanas"] = {c: "%s–%s" % (_hora(o["v_" + c][0]), _hora(o["v_" + c][1])) for c in ("ancha", "ha", "oiii") if o["v_" + c][0]}
+            # la ventana es el tramo seguido más largo: un objeto que está alto al anochecer y otra vez antes del
+            # amanecer salía «19:34–06:54» con 1,8 h útiles, como si se pudiera fotografiar toda la noche
+            v = _tramo_largo(o["ventana"])
+            x["desde"] = _hora(v[0]) if v else ""
+            x["hasta"] = _hora(v[1]) if v else ""
+            if len(o["ventana"]) > 1:
+                x["tramos"] = ["%s–%s" % (_hora(a), _hora(b)) for a, b in o["ventana"]]
+            x["ventanas"] = {}
+            for c in ("ancha", "ha", "oiii"):
+                vc = _tramo_largo(o["v_" + c])
+                if vc:
+                    x["ventanas"][c] = "%s–%s" % (_hora(vc[0]), _hora(vc[1]))
             noche["objetos"][n] = x
         salida.append(noche)
     return salida
+
+
+def _tramo(tramos, ts, paso):
+    """Añade el instante ts a la lista de tramos seguidos [inicio, fin]."""
+    if tramos and tramos[-1][1] == ts:
+        tramos[-1][1] = ts + paso
+    else:
+        tramos.append([ts, ts + paso])
+
+
+def _tramo_largo(tramos):
+    return max(tramos, key=lambda t: t[1] - t[0]) if tramos else None
 
 
 def curva_noche(ra, dec, lat, lon, alt_min=30.0, horizonte=None, fecha=None):
