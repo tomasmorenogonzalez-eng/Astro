@@ -5,7 +5,7 @@ import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, t
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.8"
+VERSION_PROG = "2026.09.29.9"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2778,10 +2778,23 @@ def hay_flat(sets, cam, binn, tel, filt, rot, d):
     return mejor
 
 
+def _utilizable(s, xisf_ok):
+    """¿Lo puede usar el apilado? (el mismo criterio que en el Control de lights: el archivo tiene que estar en el
+    disco, en FITS, o en XISF con Siril 1.4, y de tomas sueltas hacen falta 3). Si no, el informe no lo da por bueno."""
+    exts = (".fits", ".fit", ".fts", ".xisf") if xisf_ok else (".fits", ".fit", ".fts")
+    ok = [r for r in s["recs"] if r.get("path") and r["path"].lower().endswith(exts) and os.path.isfile(os.path.join(ROOT, r["path"]))]
+    return bool(ok) if s["master"] else len(ok) >= 3
+
+
 def que_falta():
     lib = leer_json(DB, {"frames": []})
     frames = lib if isinstance(lib, list) else lib.get("frames", [])
-    sets = conjuntos(frames)
+    try:
+        _sir, _ver = buscar_siril()
+        xisf_ok = tuple(int(x) for x in re.findall(r"\d+", _ver or "")[:2]) >= (1, 4)
+    except Exception:
+        xisf_ok = False
+    sets = [s for s in conjuntos(frames) if _utilizable(s, xisf_ok)]
     ldb = leer_json(LIGHTS_DB, None)
     if ldb is None:
         return {"ok": False, "error": "No encuentro la base de datos de ASTRO (Lights/lights.json en la carpeta de datos)."}

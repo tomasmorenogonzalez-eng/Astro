@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.41"
+VERSION_PROG = "2026.09.29.42"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8792,9 +8792,13 @@ def elegir_dark(sets, rec):
             pen += abs(temp - s["temp"])
         pen += 0 if s["master"] else 0.2
         pen -= min(s["n"], 200) * 0.001
+        # un master sin cámara, gain, offset o temperatura (importado de otro programa) no puede ganar a uno que se
+        # sabe que coincide
+        pen += 3 * sum(1 for a_, b_ in ((gain, s["gain"]), (temp, s["temp"]), (off, s["offset"]), (cam_clave(rec), s["cam"]))
+                       if a_ is not None and a_ != "" and (b_ is None or b_ == ""))
         if mejor is None or pen < mejor[0]:
             mejor = (pen, s)
-    if mejor and mejor[0] >= 10:
+    if mejor and gain is not None and mejor[1]["gain"] is not None and mejor[1]["gain"] != gain:
         avisos.append(f"dark con gain {mejor[1]['gain']:g} para tomas de gain {gain:g}")
     return (mejor[1] if mejor else None), avisos
 
