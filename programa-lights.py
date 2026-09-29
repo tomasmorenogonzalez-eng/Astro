@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.47"
+VERSION_PROG = "2026.09.29.48"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8249,7 +8249,9 @@ $("drop").addEventListener("drop", ()=>{ _arr = 0; document.body.classList.remov
     a.addEventListener("click", () => { a.href = urlCalibracion(); });      // con lo que esté abierto en ese momento
     a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg><span>Biblioteca de calibración</span>'; $("navCalib").replaceWith(a); }
   const hr = document.createElement("hr"), b = document.createElement("button"); b.textContent = "Salir de ASTRO";
-  b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return; try { await fetch("/api/salir",{method:"POST",body:"{}"}); } catch(_){}
+  b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return;
+    try { if (dirty || saving){ clearTimeout(saveTimer); for (let i = 0; i < 20 && saving; i++) await new Promise(r => setTimeout(r, 150)); await saveDb(); } } catch(_){}   // lo último que se cambió, guardado antes de cerrar
+    try { await fetch("/api/salir",{method:"POST",body:"{}"}); } catch(_){}
     document.body.innerHTML = '<div style="padding:60px;text-align:center;font:18px system-ui">ASTRO se ha cerrado. Ya puedes cerrar esta pestaña.</div>'; };
   $("menuLista").append(hr, b);
   const v = document.createElement("div"); v.className = "version"; v.textContent = tr("versión") + " " + e.version; document.querySelector(".pieLat").append(v);
@@ -11475,43 +11477,86 @@ def enviar_whatsapp(tel, apikey, texto):
     return ok, txt[:300]
 
 
+_AVISOS_MEM = {"plan": "", "resumen": "", "intentos": {}}   # lo ya enviado hoy, también en memoria
+
+
 def _avisador():
-    """Cada tarde, a la hora elegida, manda por WhatsApp el plan de la noche (si ASTRO está abierto)."""
+    """Cada tarde, a la hora elegida, manda por WhatsApp el plan de la noche; y por la mañana, si se pide, el resumen de
+    la noche anterior (si ASTRO está abierto). Lo enviado se apunta también en memoria: con el disco lleno avisos.json
+    no se podía escribir y el mensaje se repetía cada 45 segundos toda la noche."""
     while True:
         time.sleep(45)
         try:
-            a = leer_avisos()
-            if not (a.get("telefono") and a.get("apikey")):
-                continue
-            hoy = _dt.date.today().isoformat()
-            # por la mañana, el resumen de la noche anterior (si hubo tomas)
-            if a.get("resumen_activo") and a.get("resumen_ultimo") != hoy and time.strftime("%H:%M") >= (a.get("resumen_hora") or "09:00"):
-                ayer = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
-                if ayer in noches_con_tomas():
-                    txt, _n = mensaje_resumen(ayer)
-                    ok, resp = enviar_whatsapp(a["telefono"], a["apikey"], txt)
-                    guardar_avisos(resumen_ultimo=hoy, resumen_resultado=("enviado a las " + time.strftime("%H:%M")) if ok else ("error: " + resp))
-                else:
-                    guardar_avisos(resumen_ultimo=hoy, resumen_resultado="anoche no hubo tomas")
-                a = leer_avisos()
-            if not a.get("activo"):
-                continue
-            if a.get("ultimo") == hoy or time.strftime("%H:%M") < (a.get("hora") or "18:00"):
-                continue
-            if a.get("dia_intentos") == hoy and ((a.get("intentos") or 0) >= 3 or time.time() - (a.get("t_intento") or 0) < 600):
-                continue                   # como mucho 3 intentos al día, separados 10 minutos
-            txt, nubes = texto_aviso()
-            if a.get("solo_despejado") and nubes is not None and nubes > 60:
-                guardar_avisos(ultimo=hoy, resultado="no enviado: se espera nublado (%d %%)" % round(nubes))
-                continue
+            _avisador_vuelta()
+        except Exception as e:
+            try:          # que se vea por qué no llega (antes el error se tragaba y se reintentaba cada 45 s sin decir nada)
+                guardar_avisos(resultado="error: %s" % (str(e)[:200] or type(e).__name__))
+            except Exception:
+                pass
+            time.sleep(600)
+
+
+def _puede_intentar(tipo, hoy):
+    """Como mucho 3 intentos al día de cada mensaje, separados 10 minutos."""
+    dia, n, t = _AVISOS_MEM["intentos"].get(tipo, ("", 0, 0.0))
+    return dia != hoy or (n < 3 and time.time() - t >= 600)
+
+
+def _apuntar_intento(tipo, hoy):
+    dia, n, _t = _AVISOS_MEM["intentos"].get(tipo, ("", 0, 0.0))
+    n = (n if dia == hoy else 0) + 1
+    _AVISOS_MEM["intentos"][tipo] = (hoy, n, time.time())
+    return n
+
+
+def _avisador_vuelta():
+    a = leer_avisos()
+    if not (a.get("telefono") and a.get("apikey")):
+        return
+    hoy = _dt.date.today().isoformat()
+    ahora = time.strftime("%H:%M")
+    # por la mañana, el resumen de la noche anterior (si hubo tomas); si falla (el Mac se despierta antes que la wifi),
+    # se vuelve a probar dos veces más, cada 10 minutos
+    if (a.get("resumen_activo") and a.get("resumen_ultimo") != hoy and _AVISOS_MEM["resumen"] != hoy
+            and ahora >= (a.get("resumen_hora") or "09:00") and _puede_intentar("resumen", hoy)):
+        ayer = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
+        if ayer in noches_con_tomas():
+            n = _apuntar_intento("resumen", hoy)
+            txt, _n = mensaje_resumen(ayer)
             ok, resp = enviar_whatsapp(a["telefono"], a["apikey"], txt)
-            n = (a.get("intentos") or 0) + 1 if a.get("dia_intentos") == hoy else 1
             if ok:
-                guardar_avisos(ultimo=hoy, resultado="enviado a las " + time.strftime("%H:%M"), intentos=0, dia_intentos=hoy)
+                _AVISOS_MEM["resumen"] = hoy
+                guardar_avisos(resumen_ultimo=hoy, resumen_resultado="enviado a las " + time.strftime("%H:%M"))
+            elif n >= 3:
+                _AVISOS_MEM["resumen"] = hoy
+                guardar_avisos(resumen_ultimo=hoy, resumen_resultado="error: " + resp)
             else:
-                guardar_avisos(resultado="error: " + resp, intentos=n, dia_intentos=hoy, t_intento=time.time())
-        except Exception:
-            pass
+                guardar_avisos(resumen_resultado="error: " + resp)
+        else:
+            _AVISOS_MEM["resumen"] = hoy
+            guardar_avisos(resumen_ultimo=hoy, resumen_resultado="anoche no hubo tomas")
+        a = leer_avisos()
+    if not a.get("activo"):
+        return
+    if a.get("ultimo") == hoy or _AVISOS_MEM["plan"] == hoy or ahora < (a.get("hora") or "18:00"):
+        return
+    if a.get("dia_intentos") == hoy and ((a.get("intentos") or 0) >= 3 or time.time() - (a.get("t_intento") or 0) < 600):
+        return
+    if not _puede_intentar("plan", hoy):
+        return
+    _apuntar_intento("plan", hoy)
+    txt, nubes = texto_aviso()
+    if a.get("solo_despejado") and nubes is not None and nubes > 60:
+        _AVISOS_MEM["plan"] = hoy
+        guardar_avisos(ultimo=hoy, resultado="no enviado: se espera nublado (%d %%)" % round(nubes))
+        return
+    ok, resp = enviar_whatsapp(a["telefono"], a["apikey"], txt)
+    n = (a.get("intentos") or 0) + 1 if a.get("dia_intentos") == hoy else 1
+    if ok:
+        _AVISOS_MEM["plan"] = hoy
+        guardar_avisos(ultimo=hoy, resultado="enviado a las " + time.strftime("%H:%M"), intentos=0, dia_intentos=hoy)
+    else:
+        guardar_avisos(resultado="error: " + resp, intentos=n, dia_intentos=hoy, t_intento=time.time())
 
 
 def guardar_proyecto(d):
@@ -12443,7 +12488,7 @@ def elegir_carpeta(texto=None, con_fallo=False):
         elif ES_WIN:
             ps = ("Add-Type -AssemblyName System.Windows.Forms;"
                   "$f=New-Object System.Windows.Forms.FolderBrowserDialog;"
-                  "$f.Description='" + texto + "';$f.ShowNewFolderButton=$false;"
+                  "$f.Description='" + texto.replace("'", "’") + "';$f.ShowNewFolderButton=$false;"
                   "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
                   "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.SelectedPath}")
             r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
@@ -13727,7 +13772,7 @@ def _releer_registros(idx):
                     texto = _decodificar_reg(f.read())
                 cont = leer_autorun(texto) if a.get("tipo") == "autorun" else leer_phd2(texto)
                 _json_atomico(os.path.join(REG_DATOS, canon + ".json"), cont)
-                _REG["datos"][canon] = cont
+                _reg_cache(canon, cont)
             except (OSError, ValueError):
                 pass
         idx["version"] = REG_VERSION
@@ -13739,10 +13784,22 @@ def _releer_registros(idx):
         _REG["calc"] = None
 
 
+def _reg_cache(canon, cont):
+    """Guarda en memoria un registro ya leído; como mucho los 60 últimos (con cientos de registros de PHD2, tenerlos
+    todos en memoria llegaba a cientos de MB)."""
+    d = _REG["datos"]
+    d.pop(canon, None)
+    d[canon] = cont
+    while len(d) > 60:
+        d.pop(next(iter(d)))
+    return cont
+
+
 def _reg_datos(canon):
-    if canon not in _REG["datos"]:
-        _REG["datos"][canon] = leer_json(os.path.join(REG_DATOS, canon + ".json"), None)
-    return _REG["datos"][canon]
+    d = _REG["datos"]
+    if canon in d:
+        return _reg_cache(canon, d[canon])
+    return _reg_cache(canon, leer_json(os.path.join(REG_DATOS, canon + ".json"), None))
 
 
 def _json_atomico(ruta, obj):
@@ -13798,7 +13855,7 @@ def importar_registro(nombre, datos, origen=""):
         idx["version"] = REG_VERSION
         _json_atomico(REG_IDX, idx)
         _REG["idx_mt"] = os.path.getmtime(REG_IDX)
-        _REG["datos"][canon] = cont
+        _reg_cache(canon, cont)
         _REG["calc"] = None
         return dict(res, nombre=canon, tipo=tipo)
 
@@ -14655,6 +14712,10 @@ def _resolver_toma(siril, ver, r, pista):
         p = lanzar_siril(orden_siril(siril, guion, W), cwd=W)
         _ASTROM_P["p"] = p
         ultimas, t0 = [], time.time()
+        # los 5 minutos de límite cuentan aunque Siril no escriba nada (una descarga de catálogo que no termina)
+        reloj = threading.Timer(300, lambda: p.poll() is None and p.terminate())
+        reloj.daemon = True
+        reloj.start()
         for linea in p.stdout:
             linea = re.sub(r"^log:\s*", "", linea.rstrip())
             if linea and not linea.startswith(("progress:", "status:", "closing pipes")):
@@ -14662,6 +14723,7 @@ def _resolver_toma(siril, ver, r, pista):
             if ASTROM["cancelar"] or time.time() - t0 > 300:
                 p.terminate()
         p.wait()
+        reloj.cancel()
         _ASTROM_P["p"] = None
         if ASTROM["cancelar"]:
             raise RuntimeError("Cancelado")
@@ -14680,9 +14742,23 @@ def _resolver_toma(siril, ver, r, pista):
         shutil.rmtree(W, ignore_errors=True)
 
 
+_ASTROM_LOCK = threading.Lock()
+
+
 def astrometria_resolver(d):
-    if ASTROM["activo"]:
-        raise RuntimeError("Ya se están resolviendo otras tomas.")
+    # se reserva antes de buscar Siril y leer la base de datos: con un doble clic o dos pestañas arrancaban dos a la vez
+    with _ASTROM_LOCK:
+        if ASTROM["activo"]:
+            raise RuntimeError("Ya se están resolviendo otras tomas.")
+        ASTROM["activo"] = True
+    try:
+        return _astrometria_resolver(d)
+    except Exception:
+        ASTROM["activo"] = False
+        raise
+
+
+def _astrometria_resolver(d):
     siril, ver = buscar_siril()
     if not siril:
         raise RuntimeError("No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.")
@@ -16128,7 +16204,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(portadas(json.loads(self._body() or b"{}").get("objetos") or []), ensure_ascii=False))
         if p.path == "/api/salir":
             self._send(200, '{"ok":true}')
-            threading.Thread(target=lambda: (parar_siril(), time.sleep(0.3), os._exit(0)), daemon=True).start()
+            threading.Thread(target=lambda: (parar_todos_siril(), time.sleep(0.3), os._exit(0)), daemon=True).start()
             return
         q = urllib.parse.parse_qs(p.query)
         try:
@@ -16587,7 +16663,7 @@ def instancia_abierta():
         with _ureq.urlopen("http://127.0.0.1:%d/api/ping" % int(d["port"]), timeout=1.5) as r:
             info = json.loads(r.read().decode("utf-8"))
         if info.get("programa") == PROGRAMA_ID:
-            return int(d["port"]), info.get("version", "0")
+            return int(d["port"]), info.get("version", "0"), bool(info.get("integrado"))
     except Exception:
         pass
     return None
@@ -16597,8 +16673,10 @@ def comprobar_instancia():
     act = instancia_abierta()
     if not act:
         return
-    puerto, ver = act
-    if _v(ver) >= _v(VERSION_PROG):
+    puerto, ver, integrado = act
+    # el que está abierto va dentro de la aplicación ASTRO: pedirle que se cierre cerraría la aplicación entera (con
+    # un apilado o una sesión en directo en marcha), así que se usa ese aunque sea de una versión anterior
+    if integrado or _v(ver) >= _v(VERSION_PROG):
         print("=" * 62)
         print("  %s ya estaba abierto: te llevo a su pestaña." % NOMBRE_PROG)
         print("  Puedes cerrar esta ventana.")
@@ -16624,6 +16702,19 @@ def registrar_instancia(puerto):
 if not INTEGRADO:
     instalar_actualizacion()
     comprobar_instancia()
+
+
+# Al cerrar o reiniciar ASTRO (desde el lanzador o desde «Cerrar ASTRO» de cualquier programa) se paran los Siril de
+# los tres programas: cada uno apunta aquí cómo parar los suyos (en la aplicación comparten proceso)
+def parar_todos_siril():
+    for f in list(_builtins.__dict__.get("_ASTRO_AL_SALIR") or []):
+        try:
+            f()
+        except Exception:
+            pass
+
+
+_builtins.__dict__.setdefault("_ASTRO_AL_SALIR", []).append(lambda: (parar_siril(), astrometria_parar()))
 
 
 port = int(os.environ.get("ASTRO_PUERTO_" + PROGRAMA_ID.upper()) or 0) or puerto_libre()

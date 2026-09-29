@@ -1018,6 +1018,12 @@ def preparar_ejemplo():
     carpeta real donde el paquete dice __ASTRO_EJEMPLO__."""
     import zipfile
     destino = carpeta_ejemplo()
+    # nunca se borra una carpeta en la que estén los datos de verdad (si alguien la eligió como carpeta de datos)
+    real = leer_config().get("datos") or ""
+    if real:
+        r_, d_ = os.path.normcase(os.path.realpath(real)), os.path.normcase(os.path.realpath(destino))
+        if r_ == d_ or r_.startswith(d_.rstrip(os.sep) + os.sep):
+            raise RuntimeError(T("no_usar") % T("carpeta_interna"))
     shutil.rmtree(destino, ignore_errors=True)
     with zipfile.ZipFile(os.path.join(recursos(), "demo", "astro-ejemplo.zip")) as z:
         z.extractall(destino)
@@ -1149,16 +1155,22 @@ def carpeta_datos():
             return d
     datos = c.get("datos")
     err = _no_escribible(datos) if datos and os.path.isdir(datos) else ""
+    # una carpeta de ASTRO (la de los datos de ejemplo se borra entera cada vez que se vuelven a ver) no vale
+    if datos and not err and _es_carpeta_interna(datos):
+        err = T("no_usar") % T("carpeta_interna")
     if datos and os.path.isdir(datos) and not err:
         return datos
     while True:
-        if datos and not os.path.isdir(datos):   # p. ej. disco externo desconectado
-            datos = bienvenida(T("no_encuentro") % datos)
-        elif err:
+        if err:
             datos, err = bienvenida(err), ""
+        elif datos and not os.path.isdir(datos):   # p. ej. disco externo desconectado
+            datos = bienvenida(T("no_encuentro") % datos)
         else:
             datos = bienvenida()
         if datos != EJEMPLO:
+            if _es_carpeta_interna(normalizar_datos(datos)):
+                err = T("no_usar") % T("carpeta_interna")
+                continue
             break
         c = leer_config(); c["ejemplo"] = True; guardar_config(c)
         d = _datos_ejemplo()
@@ -1235,6 +1247,13 @@ def salir_astro():
 
 
 def parar_siril_lights():
+    # los Siril de los tres programas (el apilado, la astrometría, los masters de la biblioteca y las medidas de
+    # Ciencia): cada programa apunta cómo parar los suyos
+    for f in list(_builtins.__dict__.get("_ASTRO_AL_SALIR") or []):
+        try:
+            f()
+        except Exception:
+            pass
     try:
         p = int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0)
         if p:
@@ -1341,6 +1360,9 @@ def _ventana_inicio(datos, puertos):
             _tarjeta(fila_t, dib, T(t), T(d), orden, con_texto=not baja).pack(side="left", padx=8, pady=8, anchor="n")
     def cambiar():
         r = filedialog.askdirectory(title=T("nueva_carpeta"), initialdir=datos)
+        if r and _es_carpeta_interna(normalizar_datos(r)):
+            messagebox.showerror("ASTRO", T("no_usar") % T("carpeta_interna"))
+            return
         if r and messagebox.askyesno("ASTRO", T("reiniciar_q") % normalizar_datos(r)):
             cc = leer_config(); cc["datos"] = normalizar_datos(r); cc.pop("ejemplo", None); guardar_config(cc); reiniciar()
 

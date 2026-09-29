@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.12"
+VERSION_PROG = "2026.09.29.13"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2453,7 +2453,9 @@ setTimeout(estadoGeneral, 800);
   const p = e["lights"];
   if (p) ponerVolverAstro(p);
   const hr = document.createElement("hr"), b = document.createElement("button"); b.textContent = "Salir de ASTRO";
-  b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return; try { await fetch("/api/salir",{method:"POST",body:"{}"}); } catch(_){}
+  b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return;
+    try { if (dirty || saving){ clearTimeout(saveTimer); for (let i = 0; i < 20 && saving; i++) await new Promise(r => setTimeout(r, 150)); await saveDb(); } } catch(_){}   // lo último que se cambió, guardado antes de cerrar
+    try { await fetch("/api/salir",{method:"POST",body:"{}"}); } catch(_){}
     document.body.innerHTML = '<div style="padding:60px;text-align:center;font:18px system-ui">ASTRO se ha cerrado. Ya puedes cerrar esta pestaña.</div>'; };
   $("menuLista").append(hr, b);
   const v = document.createElement("div"); v.className = "version"; v.textContent = tr("versión") + " " + e.version; document.querySelector(".pieLat").append(v);
@@ -3475,7 +3477,7 @@ def elegir_carpeta_cal():
             fallo = not ruta and r.returncode != 0 and not re.search(r"cancel|-128", r.stderr or "", re.I)
         elif ES_WIN:
             ps = ("Add-Type -AssemblyName System.Windows.Forms;$f=New-Object System.Windows.Forms.FolderBrowserDialog;"
-                  "$f.Description='" + texto + "';$f.ShowNewFolderButton=$false;"
+                  "$f.Description='" + texto.replace("'", "’") + "';$f.ShowNewFolderButton=$false;"
                   "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
                   "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.SelectedPath}")
             r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
@@ -3720,7 +3722,7 @@ class H(BaseHTTPRequestHandler):
                 "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0),
                 "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
         if p.path == "/api/ping":
-            return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG}))
+            return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG, "integrado": INTEGRADO}))
         if p.path == "/":
             return self._send(200, html_idioma(HTML, idioma_valido(idioma_actual()) or idioma_de_cabecera(self.headers.get("Accept-Language"))).replace("__TEMA__", tema_actual()), "text/html; charset=utf-8")
         if p.path.startswith("/img/"):
@@ -3793,7 +3795,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, '{"ok":true}')
         if p.path == "/api/salir":
             self._send(200, '{"ok":true}')
-            threading.Thread(target=lambda: (_parar_siril_todo(), time.sleep(0.3), os._exit(0)), daemon=True).start()
+            threading.Thread(target=lambda: (_parar_siril_todo(), parar_todos_siril(), time.sleep(0.3), os._exit(0)), daemon=True).start()
             return
         q = urllib.parse.parse_qs(p.query)
         try:
@@ -4013,7 +4015,7 @@ def instancia_abierta():
         with _ureq.urlopen("http://127.0.0.1:%d/api/ping" % int(d["port"]), timeout=1.5) as r:
             info = json.loads(r.read().decode("utf-8"))
         if info.get("programa") == PROGRAMA_ID:
-            return int(d["port"]), info.get("version", "0")
+            return int(d["port"]), info.get("version", "0"), bool(info.get("integrado"))
     except Exception:
         pass
     return None
@@ -4023,8 +4025,10 @@ def comprobar_instancia():
     act = instancia_abierta()
     if not act:
         return
-    puerto, ver = act
-    if _v(ver) >= _v(VERSION_PROG):
+    puerto, ver, integrado = act
+    # el que está abierto va dentro de la aplicación ASTRO: pedirle que se cierre cerraría la aplicación entera (con
+    # un apilado o una sesión en directo en marcha), así que se usa ese aunque sea de una versión anterior
+    if integrado or _v(ver) >= _v(VERSION_PROG):
         print("=" * 62)
         print("  %s ya estaba abierto: te llevo a su pestaña." % NOMBRE_PROG)
         print("  Puedes cerrar esta ventana.")
@@ -4050,6 +4054,29 @@ def registrar_instancia(puerto):
 if not INTEGRADO:
     instalar_actualizacion()
     comprobar_instancia()
+
+
+# Al cerrar o reiniciar ASTRO (desde el lanzador o desde «Cerrar ASTRO» de cualquier programa) se paran los Siril de
+# los tres programas: cada uno apunta aquí cómo parar los suyos (en la aplicación comparten proceso)
+def parar_todos_siril():
+    for f in list(_builtins.__dict__.get("_ASTRO_AL_SALIR") or []):
+        try:
+            f()
+        except Exception:
+            pass
+
+
+def _parar_siril_propio():
+    JOBM["cancelar"] = True
+    pr = _PM.get("p")
+    if pr is not None:
+        try:
+            pr.terminate()
+        except Exception:
+            pass
+
+
+_builtins.__dict__.setdefault("_ASTRO_AL_SALIR", []).append(_parar_siril_propio)
 
 
 port = int(os.environ.get("ASTRO_PUERTO_" + PROGRAMA_ID.upper()) or 0) or puerto_libre()

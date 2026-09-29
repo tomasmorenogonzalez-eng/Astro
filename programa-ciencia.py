@@ -90,7 +90,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.29"
+VERSION_PROG = "2026.09.29.30"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -7020,7 +7020,7 @@ def elegir_archivo():
         elif ES_WIN:
             ps = ("Add-Type -AssemblyName System.Windows.Forms;"
                   "$f=New-Object System.Windows.Forms.OpenFileDialog;"
-                  "$f.Title='" + texto + "';$f.Filter='FITS (*.fit;*.fits;*.fts)|*.fit;*.fits;*.fts';"
+                  "$f.Title='" + texto.replace("'", "’") + "';$f.Filter='FITS (*.fit;*.fits;*.fts)|*.fit;*.fits;*.fts';"
                   "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
                   "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.FileName}")
             r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
@@ -10611,6 +10611,8 @@ def arrancar():
         sys.exit(1)
     for d in (ROOT, CIELO_DIR, CATALOGOS, VARIABLES_DIR):
         os.makedirs(d, exist_ok=True)
+    # al cerrar o reiniciar ASTRO, el Siril de una medida en marcha se para también (antes seguía trabajando solo)
+    _builtins.__dict__.setdefault("_ASTRO_AL_SALIR", []).append(cancelar)
     port = int(os.environ.get("ASTRO_PUERTO_" + PROGRAMA_ID.upper()) or 0) or puerto_libre()
     srv = ThreadingHTTPServer(("127.0.0.1", port), H)
     try:
