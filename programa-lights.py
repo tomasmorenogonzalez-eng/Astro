@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.52"
+VERSION_PROG = "2026.09.29.53"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -638,7 +638,12 @@ details{margin-top:12px} details summary{cursor:pointer; color:var(--muted); fon
 .addEquipo[hidden]{display:none}
 .critSec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .critSec h3{margin:0;font-size:15px}
-.critSlider{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)} .critSlider input{flex:1;min-width:120px;accent-color:var(--accent)}
+.critSlider{display:flex;align-items:flex-end;gap:12px;font-size:13px;color:var(--muted)} .critSlider input{flex:1;min-width:120px;accent-color:var(--accent)}
+.critSlider > span{padding-bottom:2px}
+.desl{flex:1;min-width:120px;position:relative;padding-top:28px;display:flex}
+.desl input{width:100%;margin:0}
+.desl output{position:absolute;top:0;transform:translateX(-50%);background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:800;line-height:1.5;padding:1px 8px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}
+.desl output::after{content:"";position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);border:4px solid transparent;border-bottom:0;border-top-color:var(--accent)}
 .critNivel{font-weight:700;font-size:15px;color:var(--accent)}
 .critCuentas{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:14px;align-items:center;font-variant-numeric:tabular-nums}
 .critFotos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px}
@@ -6845,7 +6850,7 @@ function pintarCriterio(){
     <div class="varFila"><label>Objeto <select id="critObj"><option value="">Todos los objetos</option>${objs.map(o=>`<option value="${esc(o)}" ${o===c.obj?"selected":""} class="notr">${esc(o)}</option>`).join("")}</select></label></div>
     <section class="critSec">
       <h3>Exigencia de la valoración</h3>
-      <div class="critSlider"><span>Más permisiva</span><input type="range" id="critExig" min="-100" max="100" step="5" value="${c.exig}" aria-label="${esc(tr("Exigencia de la valoración"))}"><span>Más estricta</span></div>
+      <div class="critSlider"><span>Más permisiva</span><span class="desl"><output for="critExig"></output><input type="range" id="critExig" min="-100" max="100" step="5" value="${c.exig}" aria-label="${esc(tr("Exigencia de la valoración"))}"></span><span>Más estricta</span></div>
       <div class="critNivel" id="critNivel"></div>
       <div id="critExigRes"></div>
       <div class="critBotones"><span class="note" style="flex:1">La exigencia vale para todas tus tomas, también las que añadas después.</span>
@@ -6853,23 +6858,34 @@ function pintarCriterio(){
     </section>
     ${c.obj ? `<section class="critSec">
       <h3><span>Quedarte con las mejores de</span> <span class="notr">${esc(c.obj)}</span></h3>
-      <div class="critSlider"><span>Todas</span><input type="range" id="critCorte" min="0" max="50" step="1" value="${pct0}" aria-label="${esc(tr("Porcentaje de tomas que se quitan"))}"><span>Quitar el 50 %</span></div>
+      <div class="critSlider"><span>Todas</span><span class="desl"><output for="critCorte"></output><input type="range" id="critCorte" min="0" max="50" step="1" value="${pct0}" aria-label="${esc(tr("Porcentaje de tomas que se quitan"))}"></span><span>Quitar el 50 %</span></div>
       <div id="critCorteRes"></div>
       <div class="critBotones"><span class="note" style="flex:1">Se quitan las peores de cada filtro (y de cada equipo), comparadas con su propia sesión. No se borran: quedan fuera del apilado y puedes volver a incluirlas.</span>
         ${hayCorte(c.obj) ? `<button class="btn" id="critQuitar">Quitar el corte</button>` : ""}<button class="btn primary" id="critAplicar">Aplicar el corte</button></div>
     </section>` : `<div class="note">Elige un objeto para quedarte solo con sus mejores tomas (por ejemplo, quitar el peor 10 % de cada filtro).</div>`}`;
   $("critObj").onchange = () => { c.obj = $("critObj").value; c.corte = null; pintarCriterio(); };
   let pend = 0;
-  $("critExig").oninput = () => { c.exig = +$("critExig").value; cancelAnimationFrame(pend); pend = requestAnimationFrame(actualizarExig); };
-  $("critNormal").onclick = () => { c.exig = 0; $("critExig").value = 0; actualizarExig(); };
+  const pctExig = v => v === 0 ? fmtPct(0) : (v > 0 ? "+" : "−") + fmtPct(Math.abs(v));
+  marcarDesl($("critExig"), pctExig);
+  $("critExig").oninput = () => { c.exig = +$("critExig").value; marcarDesl($("critExig"), pctExig); cancelAnimationFrame(pend); pend = requestAnimationFrame(actualizarExig); };
+  $("critNormal").onclick = () => { c.exig = 0; $("critExig").value = 0; marcarDesl($("critExig"), pctExig); actualizarExig(); };
   $("critGuardar").onclick = () => guardarExig(c.exig);
   if (c.obj){
-    $("critCorte").oninput = () => { c.corte = +$("critCorte").value; cancelAnimationFrame(pend); pend = requestAnimationFrame(actualizarCorte); };
+    marcarDesl($("critCorte"), fmtPct);
+    $("critCorte").oninput = () => { c.corte = +$("critCorte").value; marcarDesl($("critCorte"), fmtPct); cancelAnimationFrame(pend); pend = requestAnimationFrame(actualizarCorte); };
     $("critAplicar").onclick = () => aplicarCorte(c.obj, +$("critCorte").value);
     if ($("critQuitar")) $("critQuitar").onclick = () => aplicarCorte(c.obj, 0);
     actualizarCorte();
   }
   actualizarExig();
+}
+// el porcentaje encima del deslizador, siguiendo al botón (el botón mide unos 16 px: en los extremos no se sale)
+function fmtPct(v){ return IDIOMA === "en" ? v + "%" : v + " %"; }
+function marcarDesl(inp, fmt){
+  const o = inp && inp.parentElement.querySelector("output"); if (!o) return;
+  const min = +inp.min, max = +inp.max, p = max > min ? (+inp.value - min) / (max - min) : 0, txt = fmt(+inp.value);
+  o.textContent = txt; o.style.left = `calc(${(p * 100).toFixed(2)}% + ${((0.5 - p) * 16).toFixed(1)}px)`;
+  inp.setAttribute("aria-valuetext", txt);
 }
 function actualizarExig(){
   const c = CRIT; if (!c || !$("critExigRes")) return;
