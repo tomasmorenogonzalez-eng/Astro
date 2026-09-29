@@ -38,7 +38,9 @@ def _texto_recurso(nombre, defecto=""):
 
 
 # versión y repositorio de GitHub: los escribe la fábrica automática al publicar
-VERSION_APP = _texto_recurso("version.txt", "1.0")
+# sin version.txt: desde el código, «1.0»; fabricada en casa, «0.0» (así no pisa la versión publicada que haya
+# instalada ni hace que las publicadas de después se crean más viejas que ella)
+VERSION_APP = _texto_recurso("version.txt", "0.0" if getattr(sys, "frozen", False) else "1.0")
 REPO = os.environ.get("ASTRO_REPO") or _texto_recurso("repo.txt", "")
 URL_ACTUALIZACION = os.environ.get("ASTRO_URL_ACTUALIZACION") or (
     "https://api.github.com/repos/%s/releases/latest" % REPO if REPO else "")
@@ -158,6 +160,11 @@ def reiniciar():
 
 def _reiniciar_ya():
     if getattr(sys, "frozen", False):
+        # la aplicación empaquetada se abre otra vez como un programa nuevo, sin las variables internas del
+        # empaquetador: con os.execv, en Windows la copia nueva buscaba los archivos que la anterior borra al cerrarse
+        r = ruta_app()
+        if r:
+            _relanzar(r)
         os.execv(sys.executable, [sys.executable])
     os.execv(sys.executable, [sys.executable, os.path.abspath(__file__)])
 
@@ -514,7 +521,9 @@ def _v(t):
 def _env_limpio():
     """Entorno sin las variables internas del empaquetador: si se heredan, la copia
     reiniciada reutilizaría los archivos de la versión anterior."""
-    return {k: v for k, v in os.environ.items() if not (k.startswith("_PYI") or k.startswith("_MEI"))}
+    env = {k: v for k, v in os.environ.items() if not (k.startswith("_PYI") or k.startswith("_MEI"))}
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"      # PyInstaller 6.9 o posterior: arrancar como un programa nuevo
+    return env
 
 
 def _relanzar(ruta):
@@ -557,12 +566,19 @@ def _sin_cuarentena(ruta):
 
 
 def _accesos_windows(exe):
+    q = lambda t: str(t).replace("'", "''")            # un apóstrofo en la ruta (C:\Users\O'Brien) rompía la orden
     ps = ("$w = New-Object -ComObject WScript.Shell; "
           "foreach ($d in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) { "
           "$s = $w.CreateShortcut((Join-Path $d 'ASTRO.lnk')); $s.TargetPath = '%s'; $s.IconLocation = '%s'; "
-          "$s.WorkingDirectory = '%s'; $s.Description = 'ASTRO'; $s.Save() }") % (exe, exe, os.path.dirname(exe))
-    subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps],
-                   capture_output=True, creationflags=0x08000000)
+          "$s.WorkingDirectory = '%s'; $s.Description = 'ASTRO'; $s.Save() }") % (q(exe), q(exe), q(os.path.dirname(exe)))
+    r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps],
+                       capture_output=True, creationflags=0x08000000)
+    if r.returncode == 0:
+        # apuntado: con el Escritorio en OneDrive no está en ~/Desktop y se volvía a crear en cada arranque
+        try:
+            c = leer_config(); c["accesos"] = exe; guardar_config(c)
+        except Exception:
+            pass
 
 
 def instalar_si_hace_falta():
@@ -572,8 +588,15 @@ def instalar_si_hace_falta():
     dest_dir = carpeta_instalacion()
     destino = os.path.join(dest_dir, "ASTRO.app" if ES_MAC else ("ASTRO.exe" if ES_WIN else "ASTRO"))
     if os.path.normcase(os.path.realpath(actual)) == os.path.normcase(os.path.realpath(destino)):
-        if ES_WIN and not os.path.exists(os.path.join(os.path.expanduser("~"), "Desktop", "ASTRO.lnk")):
+        if ES_WIN and leer_config().get("accesos") != destino and \
+                not os.path.exists(os.path.join(os.path.expanduser("~"), "Desktop", "ASTRO.lnk")):
             _accesos_windows(destino)
+        try:                # la que está instalada es esta (por si una actualización no llegó a terminar)
+            c = leer_config()
+            if c.get("version_instalada") != VERSION_APP:
+                c["version_instalada"] = VERSION_APP; guardar_config(c)
+        except Exception:
+            pass
         return
     try:
         os.makedirs(dest_dir, exist_ok=True)
@@ -733,6 +756,23 @@ def _descargar(url, destino, progreso=None):
             f.write(b); hecho += len(b)
             if progreso and total:
                 progreso(hecho / total)
+    if total and hecho != total:
+        raise IOError("la descarga se ha cortado (%d de %d bytes)" % (hecho, total))
+
+
+def _paquete_valido(ruta):
+    """Que lo descargado sea de verdad la aplicación (y no una página de error o un archivo a medias)."""
+    try:
+        if os.path.getsize(ruta) < 5 * 1024 * 1024:
+            return False
+        if ES_WIN:
+            with open(ruta, "rb") as f:
+                return f.read(2) == b"MZ"
+        if ES_MAC:
+            return zipfile.is_zipfile(ruta)
+        return True
+    except OSError:
+        return False
 
 
 def actualizar(tag, url, progreso=None):
@@ -741,22 +781,40 @@ def actualizar(tag, url, progreso=None):
     tmp = tempfile.mkdtemp(prefix="astro-")
     paquete = os.path.join(tmp, nombre_paquete())
     _descargar(url, paquete, progreso)
-    c = leer_config(); c["version_instalada"] = tag; guardar_config(c)
+    if not _paquete_valido(paquete):
+        raise IOError("lo descargado no es la aplicación completa")
     if ES_MAC:
         subprocess.run(["ditto", "-x", "-k", paquete, tmp], check=True)
         nueva = os.path.join(tmp, "ASTRO.app")
-        guion = ('while kill -0 %d 2>/dev/null; do sleep 0.3; done; rm -rf "%s"; mv "%s" "%s"; '
-                 'xattr -dr com.apple.quarantine "%s"; open -n "%s"') % (os.getpid(), actual, nueva, actual, actual, actual)
+        if not os.path.isfile(os.path.join(nueva, "Contents", "MacOS", "ASTRO")):
+            raise IOError("el paquete descargado no trae ASTRO.app")
+        c = leer_config(); c["version_instalada"] = tag; guardar_config(c)
+        # la anterior se aparta y solo se borra si la nueva ha quedado en su sitio; si no, vuelve la de antes
+        viejo = os.path.join(os.path.dirname(actual), ".ASTRO-anterior-%d.app" % os.getpid())
+        guion = ('while kill -0 %d 2>/dev/null; do sleep 0.3; done; '
+                 'if mv "%s" "%s"; then if mv "%s" "%s"; then rm -rf "%s"; else mv "%s" "%s"; fi; fi; '
+                 'xattr -dr com.apple.quarantine "%s"; open -n "%s"') % (os.getpid(), actual, viejo, nueva, actual, viejo,
+                                                                         viejo, actual, actual, actual)
         subprocess.Popen(["/bin/bash", "-c", guion], start_new_session=True, env=_env_limpio())
         os._exit(0)
     if ES_WIN:
+        try:
+            os.remove(actual + ".viejo")
+        except OSError:
+            pass
         os.replace(actual, actual + ".viejo")      # Windows deja renombrar el programa en marcha
-        shutil.move(paquete, actual)
+        try:
+            shutil.move(paquete, actual)
+        except Exception:
+            os.replace(actual + ".viejo", actual)  # si no se pudo poner la nueva, vuelve la de antes
+            raise
+        c = leer_config(); c["version_instalada"] = tag; guardar_config(c)
         _sin_cuarentena(actual)
         _relanzar(actual)
     shutil.move(paquete, actual + ".nuevo")
     os.chmod(actual + ".nuevo", 0o755)
     os.replace(actual + ".nuevo", actual)
+    c = leer_config(); c["version_instalada"] = tag; guardar_config(c)
     _relanzar(actual)
 
 
@@ -1026,6 +1084,19 @@ def ya_abierto():
     return False
 
 
+def salir_astro():
+    """Cierra ASTRO. Antes se para Siril si estaba apilando: es otro programa y, si no, seguiría trabajando solo
+    (y llenando el disco) sin nadie que lo espere."""
+    try:
+        p = int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0)
+        if p:
+            urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:%d/api/apilado/cancelar" % p, data=b"{}",
+                                                          method="POST"), timeout=5).close()
+    except Exception:
+        pass
+    os._exit(0)
+
+
 def arrancar(datos):
     os.environ["ASTRO_DISCO"] = datos
     os.environ["ASTRO_INTEGRADO"] = "1"
@@ -1059,10 +1130,10 @@ def ventana_control(datos, puertos):
             while True:
                 time.sleep(3600)
         except KeyboardInterrupt:
-            os._exit(0)
+            salir_astro()
     while _ventana_inicio(datos, puertos):     # al cambiar de idioma, la ventana se vuelve a dibujar
         pass
-    os._exit(0)
+    salir_astro()
 
 
 def _ventana_inicio(datos, puertos):
@@ -1127,7 +1198,7 @@ def _ventana_inicio(datos, puertos):
             cc = leer_config(); cc["datos"] = normalizar_datos(r); cc.pop("ejemplo", None); guardar_config(cc); reiniciar()
 
     pie = tk.Frame(c, bg=FONDO); pie.pack(fill="x", pady=(12, 0))
-    _boton(pie, T("salir"), lambda: os._exit(0)).pack(side="right")
+    _boton(pie, T("salir"), salir_astro).pack(side="right")
     _boton(pie, T("cambiar"), cambiar).pack(side="right", padx=8)
     if DONAR:
         _boton(pie, T("donar_btn"), abrir(DONAR)).pack(side="right")
@@ -1144,7 +1215,7 @@ def _ventana_inicio(datos, puertos):
         _enlace(enl, T("app_ventana"), a_ventana).pack(side="left", padx=(20, 0))
     tk.Label(izq, text=T("datos_en") + (T("ejemplo_carpeta") if MODO["ejemplo"] else datos), bg=FONDO, fg=GRIS, font=("Helvetica", 11), anchor="w", wraplength=520,
              justify="left").pack(fill="x", anchor="w", pady=(2, 0))
-    w.protocol("WM_DELETE_WINDOW", lambda: os._exit(0) if messagebox.askyesno("ASTRO", T("cerrar_q")) else None)
+    w.protocol("WM_DELETE_WINDOW", lambda: salir_astro() if messagebox.askyesno("ASTRO", T("cerrar_q")) else None)
     w.mainloop()
     return estado["cambio"]
 
@@ -1631,7 +1702,12 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
         if p == "/api/mostrar":
             w = VENTANA_APP["w"]
             try:
-                w.restore(); w.show()
+                w.show()
+                # en Windows, «restore» deja en pequeño una ventana que estaba a toda la pantalla
+                if ES_WIN and VENTANA_APP.get("max"):
+                    w.maximize()
+                else:
+                    w.restore()
                 w.on_top = True
                 threading.Timer(0.6, lambda: setattr(w, "on_top", False)).start()
             except Exception:
@@ -1639,7 +1715,7 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
             return self._json({"ok": True})
         if p == "/api/salir":
             self._json({"ok": True})
-            threading.Timer(0.2, lambda: os._exit(0)).start()
+            threading.Timer(0.2, salir_astro).start()
             return
         return self._json({"error": "no"}, 404)
 
@@ -1659,9 +1735,12 @@ def servir_paginas_app():
 
 
 def _abrir_url_externa(u):
-    """window.open y los enlaces de correo, desde dentro de la ventana: al navegador o al programa de correo."""
+    """window.open y los enlaces de correo, desde dentro de la ventana: al navegador o al programa de correo.
+    Solo páginas web y correo: un enlace file:// o de otro tipo podría abrir un programa del ordenador."""
+    if not re.match(r"^(https?://|mailto:)", str(u or "").strip(), re.I):
+        return False
     try:
-        webbrowser.open(str(u))
+        webbrowser.open(str(u).strip())
     except Exception:
         pass
     return True
@@ -1878,7 +1957,7 @@ def main_ventana(webview):
                   gui=gui, localization=textos)
     if VENTANA_APP.get("reiniciar"):
         _reiniciar_ya()
-    os._exit(0)
+    salir_astro()
 
 
 def prueba_de_arranque(salida):
@@ -1953,6 +2032,11 @@ def main():
     # en la aplicación no hay consola: lo que se escribiría se guarda en un registro
     if getattr(sys, "frozen", False) or sys.stdout is None:
         try:
+            if os.path.getsize(REGISTRO) > 4 * 1024 * 1024:     # no crece sin fin: se guarda el anterior y se empieza otro
+                os.replace(REGISTRO, REGISTRO[:-4] + "-anterior.txt")
+        except OSError:
+            pass
+        try:
             f = open(REGISTRO, "a", encoding="utf-8", buffering=1)
             sys.stdout = sys.stderr = f
             print("\n=== ASTRO %s · %s ===" % (VERSION_APP, time.strftime("%Y-%m-%d %H:%M:%S")))
@@ -1973,6 +2057,14 @@ def main():
             traceback.print_exc()
             print("La ventana propia no se ha podido abrir; se sigue con el navegador:", e)
             VENTANA_APP["w"] = None
+            # en el navegador, los programas usan sus propios diálogos y no el botón «Inicio» de la ventana
+            os.environ.pop("ASTRO_PUERTO_INICIO", None)
+            try:
+                import builtins
+                if hasattr(builtins, "ASTRO_DIALOGOS"):
+                    del builtins.ASTRO_DIALOGOS
+            except Exception:
+                pass
     comprobar_actualizacion()
     datos = carpeta_datos()
     preparar_novedades()

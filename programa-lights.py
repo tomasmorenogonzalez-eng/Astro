@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.31"
+VERSION_PROG = "2026.09.29.32"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -11982,6 +11982,24 @@ DIRECTO_CFG = os.path.join(ROOT, "directo.json")
 DIR_SALTAR = re.compile(r"^(preview|previews|live|live ?stack(ing)?|thumbnails?|thumbs?|bias(es)?|offsets?|darks?|flats?|"
                         r"dark ?flats?|flat ?darks?|snapshots?|_miniaturas|\.miniaturas|vista previa|"
                         r"\$recycle\.bin|system volume information|lost\+found)$", re.I)
+_LIGHT_CAB = {}
+
+
+def _es_light_cab(ruta):
+    """¿La cabecera dice que es un light? (solo se mira en los archivos cuyo nombre parece de calibración)"""
+    try:
+        st = os.stat(ruta)
+    except OSError:
+        return False
+    k = (ruta, st.st_size, st.st_mtime)
+    if k not in _LIGHT_CAB:
+        if len(_LIGHT_CAB) > 50000:
+            _LIGHT_CAB.clear()
+        t = info_toma(ruta, st.st_size)[0]
+        _LIGHT_CAB[k] = "light" in t or t in ("science", "object")
+    return _LIGHT_CAB[k]
+
+
 RE_CAL_ARCHIVO = re.compile(r"^(bias|dark|flat|flatdark|darkflat|dark_flat|flat_dark|offset|snapshot)[_\- ]", re.I)
 DIR_REPASO_S = 300          # cada 5 minutos se relee todo, por si la red ha ocultado algún cambio
 _DIR = {"carpeta": "", "sesion": 0, "cache": {}, "base": {}, "ignorar": {}, "pend": {}, "listos": [], "dados": set(),
@@ -12289,7 +12307,7 @@ def _escanear(carpeta, completo=False, inicial=False):
                 if e.is_dir(follow_symlinks=False):
                     if prof < 7 and not DIR_SALTAR.match(n) and _rp(e.path) not in excl:
                         subs.append(e.path)
-                elif n.lower().endswith(EXT_LIGHT) and not RE_CAL_ARCHIVO.match(n):
+                elif n.lower().endswith(EXT_LIGHT) and (not RE_CAL_ARCHIVO.match(n) or _es_light_cab(e.path)):
                     st = e.stat()
                     archivos[n] = (st.st_size, st.st_mtime)
             except OSError:
@@ -13523,6 +13541,13 @@ def registros_de_carpeta(carpeta, maximo=400):
 def registro_visto(ruta):
     """Al recorrer una carpeta de tomas (añadir sesión o carpetas vigiladas) se añaden los registros que haya."""
     try:
+        # si ya está guardado con el mismo tamaño no se vuelve a leer (los de PHD2 pueden pesar decenas de MB y las
+        # carpetas vigiladas se recorren a menudo)
+        nombre = os.path.basename(ruta)
+        prev = reg_indice()["archivos"].get(_canon_reg(nombre))
+        chn = bool(re.search(r"_CHN\.txt$", nombre, re.I))
+        if prev and ((not prev.get("chn") and chn) or (prev.get("tam") == os.path.getsize(ruta) and prev.get("chn") == chn)):
+            return
         with open(ruta, "rb") as f:
             importar_registro(os.path.basename(ruta), f.read(), ruta)
     except Exception:
@@ -13884,7 +13909,9 @@ def recorrer_tomas(carpeta, parar=lambda: False, cuenta=None, saltar=None, con_c
                         continue
                     if not n.lower().endswith(EXT_LIGHT):
                         continue
-                    if RE_CAL_ARCHIVO.match(n):
+                    # «Dark_…», «Flat_…»: calibración, salvo que la cabecera diga que es un light
+                    # (objetos como «Dark Shark» o «Dark Horse» empiezan igual)
+                    if RE_CAL_ARCHIVO.match(n) and not _es_light_cab(e.path):
                         salt["calibracion"] += 1
                         if len(salt["cal_archivos"]) < 30000:
                             salt["cal_archivos"].append(e.path)

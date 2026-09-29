@@ -5,7 +5,7 @@ import os, sys
 
 # version.txt y repo.txt los crea la fábrica de GitHub al publicar (permiten la actualización automática)
 import re
-VERSION = open("version.txt").read().strip() if os.path.exists("version.txt") else "1.0"
+VERSION = open("version.txt").read().strip() if os.path.exists("version.txt") else "0.0"
 VERSION_MAC = ".".join(re.findall(r"\d+", VERSION)[:3]) or "1.0"     # el Mac solo admite números
 extras = [(f, ".") for f in ("version.txt", "repo.txt", "contacto.txt", "donar.txt") if os.path.exists(f)]
 

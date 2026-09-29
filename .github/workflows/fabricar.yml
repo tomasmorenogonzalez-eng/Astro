@@ -208,6 +208,16 @@ jobs:
         with:
           path: paquetes
           merge-multiple: true
+      - name: Comprobar los paquetes
+        shell: bash
+        run: |
+          ls -la paquetes
+          for f in ASTRO-Mac-AppleSilicon.zip ASTRO-Windows.exe; do
+            if [ ! -s "paquetes/$f" ]; then echo "::error::Falta $f: no se publica."; exit 1; fi
+          done
+          if [ ! -s paquetes/ASTRO-Mac-Intel.zip ]; then
+            echo "::warning::Falta ASTRO-Mac-Intel.zip (ha fallado la fabricación para Mac Intel): la versión se publica sin él y los Mac Intel seguirán con la anterior hasta la próxima."
+          fi
       - uses: softprops/action-gh-release@v2
         with:
           files: paquetes/*
