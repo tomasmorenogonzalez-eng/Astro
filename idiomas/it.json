@@ -3035,7 +3035,9 @@
 "Apoya ASTRO": "Sostieni ASTRO",
 "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO è gratuito. Se ti è utile, puoi aiutarlo a continuare a crescere con una donazione.",
 "Donar con PayPal": "Dona con PayPal",
-"Exposición larga para un bias": "Esposizione lunga per un bias"
+"Exposición larga para un bias": "Esposizione lunga per un bias",
+"Son los límites de la exigencia normal: con la que tienes elegida ({1}) se aprietan o se aflojan en proporción.": "Sono i limiti con la severità normale: con quella che hai scelto ({1}) si stringono o si allentano in proporzione.",
+"{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.": "{1} nomi sarebbero ripetuti: avranno _2, _3… Aggiungi {n} o {camera} allo schema per distinguerli."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",

@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.35"
+VERSION_PROG = "2026.09.29.36"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1566,6 +1566,9 @@ function analyzeLight(p){
   let full = 65535;
   if (p.isFloat){ let mx = 0; for (let i=0;i<w*h;i+=Math.max(1, Math.floor(w*h/200000))){ const v=get(i); if (v>mx) mx=v; } full = mx<=1.05 ? 1 : (mx<=65535 ? 65535 : mx); }
   else if (Math.abs(p.bitpix)===8) full = 255;
+  else if (Math.abs(p.bitpix)===32){   // enteros de 32 bits: pueden traer datos de 16 bits tal cual o multiplicados por 65536
+    let mx = 0; for (let i=0;i<w*h;i+=Math.max(1, Math.floor(w*h/200000))){ const v=get(i); if (v>mx) mx=v; }
+    full = mx<=65535 ? 65535 : 4294967295; }
   const satT = full*0.97, inv = 1/(bin*bin);
   for (let y=0; y<bh; y++){
     for (let x=0; x<bw; x++){
@@ -2053,7 +2056,11 @@ async function analyzeFile(file, batch){
   return rec;
 }
 function uid(){ return "l"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function nightOf(d){ if (!d) return ""; const t = new Date(d); if (isNaN(t)) return d.slice(0,10); t.setHours(t.getHours()-12); return t.toISOString().slice(0,10); }
+// noche de una toma: la fecha (en la hora de este ordenador) de la tarde en que empezó. DATE-OBS va en UTC: antes se
+// leía como hora local, y lejos de Europa (América, Australia) una misma noche se partía en dos
+function nightOf(d){ if (!d) return ""; const s = String(d); if (s.length <= 10) return s.slice(0,10);
+  const t = new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(s) ? s : s + "Z"); if (isNaN(t)) return s.slice(0,10);
+  t.setTime(t.getTime() - 12*3600e3); return fechaISO(t); }
 
 async function makeThumb(rec, a){
   const W = 900, sc = W/a.bw, H = Math.round(a.bh*sc);
@@ -2160,6 +2167,8 @@ function extractMeta(h){
   m.exp = numOrNull(g("EXPTIME","EXPOSURE","EXP")); m.temp = numOrNull(g("CCD-TEMP","CCD_TEMP","CCDTEMP")); m.gain = numOrNull(g("GAIN")); m.offset = numOrNull(g("OFFSET","BLKLEVEL"));
   const bx = g("XBINNING","BINX"), by = g("YBINNING","BINY"); m.bin = bx ? `${bx}x${by||bx}` : "";
   m.filter = String(g("FILTER","FILTER1")||""); m.object = String(g("OBJECT","TARGET")||"").trim(); m.dateObs = String(g("DATE-OBS","DATE-LOC","DATE")||"").slice(0,19);
+  // DATE-OBS va en UTC; si solo hay DATE-LOC (hora local), se pasa a UTC para que todas las fechas sean iguales
+  if (!g("DATE-OBS") && g("DATE-LOC") && /T\d/.test(m.dateObs)){ const t = new Date(m.dateObs); if (!isNaN(t)) m.dateObs = t.toISOString().slice(0,19); }
   m.cam = canonCam(String(g("INSTRUME","CAMERA")||"")); m.tel = String(g("TELESCOP","TELESCOPE")||"").trim(); if (/^(unknown|none|telescope)$/i.test(m.tel)) m.tel = "";
   return m;
 }
@@ -2977,7 +2986,8 @@ function renderFilters(){
 }
 function renderCounts(){
   const c = {ok:0,warn:0,bad:0,na:0,disc:0}; frames.forEach(f=>c[shownStatus(f)]++);
-  const keptExp = frames.filter(f=>!f.discarded && f.status!=="bad").reduce((a,f)=>a+(f.exp||0),0);
+  // útil = lo que entra en el apilado (como en «Mis objetos»): sin las que dejaste fuera
+  const keptExp = frames.filter(f=>!f.discarded && f.status!=="bad" && !f.fuera).reduce((a,f)=>a+(f.exp||0),0);
   const objs = new Set(frames.map(f=>f.object).filter(Boolean)).size;
   const h = keptExp/3600, tot = Math.max(1, c.ok + c.warn + c.bad);
   $("navNObj").textContent = objs || ""; $("navNTomas").textContent = frames.length || "";
@@ -3033,7 +3043,7 @@ function renderSessions(soloRepintar){
       const kept = gl.filter(f=>!f.discarded && f.status!=="bad"), cc = {ok:0,warn:0,bad:0}; gl.forEach(f=>{ const s = shownStatus(f); if (cc[s]!==undefined) cc[s]++; });
       const fw = med(kept.map(f=>f.fwhm));
       return `<div class="row" data-obj="${esc(obj)}" data-night="${esc(gl[0].night||"")}" data-filter="${esc(gl[0].filter||"")}" title="Ver estas tomas">
-        <span>${esc(k)}<div class="m">${gl.length} toma${gl.length!==1?"s":""} · ${fmtH(horasDe(kept))}${fw?" · FWHM "+fw.toFixed(1):""}</div></span>
+        <span>${esc(k)}<div class="m">${gl.length} toma${gl.length!==1?"s":""} · ${fmtH(horasDe(kept.filter(f=>!f.fuera)))}${fw?" · FWHM "+fw.toFixed(1):""}</div></span>
         <span><span class="dot ok"></span>${cc.ok} <span class="dot warn"></span>${cc.warn} <span class="dot bad"></span>${cc.bad}</span></div>`; }).join("");
     if (obj==="(sin objeto)") return `<div class="ocard sinobj"><div class="cuerpo"><h3>Tomas sin objeto</h3>
       <div class="dato">${fl.length===1 ? "1 toma que no sabe a qué objeto pertenece. Asígnale uno para poder apilarla." : `${fl.length} tomas que no saben a qué objeto pertenecen. Asígnales uno para poder apilarlas.`}</div>
@@ -3528,7 +3538,7 @@ function buildReport(){
     html += `<h2>${obj==="(sin objeto)" ? esc(obj) : `<span class="notr">${esc(obj)}</span>`}</h2><table><thead><tr><th>Noche</th><th>Filtro</th><th>Tomas</th><th>Válidas</th><th>Avisos</th><th>Rechaz.</th><th>Descart.</th><th>Exp. útil</th><th>FWHM med.</th><th>Alarg. med.</th><th>Con trazas</th></tr></thead><tbody>`;
     for (const [k, gl] of [...groupBy(fl, f=>(f.night||"?")+"|"+(f.filter||""))].sort((a,b)=>a[0].localeCompare(b[0]))){
       const kept = gl.filter(f=>!f.discarded && f.status!=="bad"); const c = {ok:0,warn:0,bad:0,disc:0}; gl.forEach(f=>{ const s=shownStatus(f); if (c[s]!==undefined) c[s]++; });
-      html += `<tr><td>${k.split("|")[0]}</td><td class="notr">${esc(k.split("|")[1] ? nomFiltro(k.split("|")[1]) : "—")}</td><td>${gl.length}</td><td>${c.ok}</td><td>${c.warn}</td><td>${c.bad}</td><td>${c.disc}</td><td>${(kept.reduce((a,f)=>a+(f.exp||0),0)/3600).toFixed(2)} h</td><td>${(med(kept.map(f=>f.fwhm))||0).toFixed(2)}</td><td>${(med(kept.map(f=>f.ecc))||0).toFixed(2)}</td><td>${gl.filter(f=>f.trailCount>0).length}</td></tr>`;
+      html += `<tr><td>${k.split("|")[0]}</td><td class="notr">${esc(k.split("|")[1] ? nomFiltro(k.split("|")[1]) : "—")}</td><td>${gl.length}</td><td>${c.ok}</td><td>${c.warn}</td><td>${c.bad}</td><td>${c.disc}</td><td>${(kept.filter(f=>!f.fuera).reduce((a,f)=>a+(f.exp||0),0)/3600).toFixed(2)} h</td><td>${(med(kept.map(f=>f.fwhm))||0).toFixed(2)}</td><td>${(med(kept.map(f=>f.ecc))||0).toFixed(2)}</td><td>${gl.filter(f=>f.trailCount>0).length}</td></tr>`;
     }
     html += `</tbody></table>`;
   }
@@ -3536,7 +3546,7 @@ function buildReport(){
   if (rej.length) html += `<h2>Rechazables y descartadas (${rej.length})</h2><table><thead><tr><th>Archivo</th><th>Objeto</th><th>Noche</th><th>Motivo</th></tr></thead><tbody>${rej.map(f=>`<tr><td class="notr">${esc(f.name)}</td><td class="notr">${esc(f.object||"—")}</td><td>${f.night||"—"}</td><td>${esc(f.reasons.filter(x=>x.s==="bad").map(x=>x.t).join("; ")||(f.discarded?"descartada a mano":""))}</td></tr>`).join("")}</tbody></table>`;
   const warns = list.filter(f=>f.status==="warn" && !f.discarded);
   if (warns.length) html += `<h2>Con avisos (${warns.length})</h2><table><thead><tr><th>Archivo</th><th>Avisos</th></tr></thead><tbody>${warns.map(f=>`<tr><td class="notr">${esc(f.name)}</td><td>${esc(f.reasons.map(x=>x.t).join("; "))}</td></tr>`).join("")}</tbody></table>`;
-  html += `<p class="note notr" style="margin-top:20px">${trL("Criterios: se rechazan las tomas con menos de 15 estrellas; con alargamiento mediano superior a 0,78 (o 0,22 por encima del resto de la sesión); con 3 o más trazas o una longitud total de trazas superior a 1,2 diagonales; con FWHM de más de 1,8 veces la mediana de la sesión; con fondo por encima del 45% del rango o más de 2,2 veces el de la sesión; o con menos del 30% de las estrellas de la sesión. El alargamiento se mide por momentos sobre las 300 estrellas no saturadas más brillantes; las trazas, como estructuras lineales finas a 5σ y a 1,6σ tras suavizar.", "Criteria: frames are rejected if they have fewer than 15 stars; a median elongation above 0.78 (or 0.22 above the rest of the session); 3 or more trails or a total trail length above 1.2 diagonals; an FWHM more than 1.8 times the session median; a background above 45% of the range or more than 2.2 times the session's; or fewer than 30% of the session's stars. Elongation is measured from image moments on the 300 brightest unsaturated stars; trails are detected as thin linear structures at 5σ and at 1.6σ after smoothing.")}</p>`;
+  html += `<p class="note notr" style="margin-top:20px">${trL("Criterios: se rechazan las tomas con menos de 15 estrellas; con alargamiento mediano superior a 0,78 (o 0,22 por encima del resto de la sesión); con 3 o más trazas o una longitud total de trazas superior a 1,2 diagonales; con FWHM de más de 1,8 veces la mediana de la sesión; con fondo por encima del 45% del rango o más de 2,2 veces el de la sesión; o con menos del 30% de las estrellas de la sesión. El alargamiento se mide por momentos sobre las 300 estrellas no saturadas más brillantes; las trazas, como estructuras lineales finas a 5σ y a 1,6σ tras suavizar.", "Criteria: frames are rejected if they have fewer than 15 stars; a median elongation above 0.78 (or 0.22 above the rest of the session); 3 or more trails or a total trail length above 1.2 diagonals; an FWHM more than 1.8 times the session median; a background above 45% of the range or more than 2.2 times the session's; or fewer than 30% of the session's stars. Elongation is measured from image moments on the 300 brightest unsaturated stars; trails are detected as thin linear structures at 5σ and at 1.6σ after smoothing.")}${EXIGENCIA ? " " + trLT("Son los límites de la exigencia normal: con la que tienes elegida ({1}) se aprietan o se aflojan en proporción.", "These are the limits at normal strictness: with the one you have chosen ({1}) they are tightened or loosened accordingly.", (EXIGENCIA > 0 ? "+" : "") + EXIGENCIA) : ""}</p>`;
   const rep = $("report"); rep.innerHTML = html; rep.classList.add("show"); rep.scrollIntoView({behavior:"smooth"});
   $("repClose").onclick = () => rep.classList.remove("show");
   $("repSave").onclick = () => saveToLibrary(["informes"], `${IDIOMA!=="es"?"lights-report":"informe-lights"}-${new Date().toISOString().slice(0,10)}.html`, `<!DOCTYPE html><html lang="${IDIOMA}"><head><meta charset="utf-8"><title>${tr("Informe de lights")}</title><style>body{font-family:sans-serif;max-width:1100px;margin:30px auto;padding:0 20px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border-bottom:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#eee}.note{color:#666;font-size:13px}.noprint{display:none}</style></head><body>${trHTML(html)}</body></html>`, "Informe");
@@ -3548,7 +3558,10 @@ async function saveToLibrary(dirParts, name, data, label){
 function toCsv(){
   const cols = ["status","discarded","name","object","night","dateObs","filter","cam","tel","exp","gain","offset","temp","bin","w","h","fwhm","ecc","eccCenter","eccCorners","coherence","starCount","satStars","trailCount","trailLen","bgPct","ruido","snr","score","path","notes","reasons"];
   const sep = IDIOMA === "en" ? "," : ";";
-  const row = f => cols.map(k => { let v = k==="reasons" ? (f.reasons||[]).map(x=>tr(x.t)).join(" | ") : k==="status" ? tr(STATUS[shownStatus(f)]) : f[k]; v = v===null||v===undefined ? "" : String(v); return /[",;\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(sep);
+  // con «;» (Excel en español, francés, alemán…) los decimales van con coma: si no, Excel los lee como texto o fechas
+  const row = f => cols.map(k => { let v = k==="reasons" ? (f.reasons||[]).map(x=>tr(x.t)).join(" | ") : k==="status" ? tr(STATUS[shownStatus(f)]) : f[k];
+    v = v===null||v===undefined ? "" : (typeof v === "number" && sep === ";" ? String(v).replace(".", ",") : String(v));
+    return /[",;\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(sep);
   return "\uFEFF"+cols.join(sep)+"\n"+visible().map(row).join("\n");
 }
 
@@ -3565,21 +3578,25 @@ function renameTargets(){ const vis = visible(); const sel = vis.filter(f=>check
 function renamePlan(){
   const pat = $("renPattern").value, perSession = $("renPerSession").checked, start = Number($("renStart").value)||0, pad = Number($("renPad").value)||3;
   const list = renameTargets().slice().sort((a,b)=>(a.dateObs||"").localeCompare(b.dateObs||"") || String(a.name||"").localeCompare(String(b.name||"")));
-  const counters = {}; const plan = [];
+  const counters = {}; const plan = [], usados = new Map();
   for (const f of list){
     const key = perSession ? sessionKey(f) : "all"; counters[key] = (counters[key]??start-1)+1;
     const ext = (String(f.name||"").match(/\.[^.]+$/)||[".fits"])[0];
     let base = pat.replace(/\{(\w+)\}/g, (m,k) => { k = TOK_ALIAS[k] || k; return k==="n" ? String(counters[key]).padStart(pad,"0") : (TOKENS[k] ? String(TOKENS[k](f)) : m); });
     base = safe(base.replace(/\s+/g,"_")).replace(/_+/g,"_").replace(/^_|_$/g,"") || "light";
-    plan.push({f, name: base+ext});
+    // dos tomas no pueden acabar con el mismo nombre (dos cámaras la misma noche, o un nombre tan largo que se corta
+    // el número): la repetida lleva _2, _3…
+    const k = (base+ext).toLowerCase(), n = (usados.get(k) || 0) + 1; usados.set(k, n);
+    plan.push({f, name: n > 1 ? base + "_" + n + ext : base+ext, repetido: n > 1});
   }
   return plan;
 }
 function renderRenamePreview(){
   const plan = renamePlan(); const sel = visible().filter(f=>checked.has(f.id)).length;
   $("renScope").textContent = sel ? `Se renombrarán las ${plan.length} tomas seleccionadas.` : `No hay selección: se renombrarán las ${plan.length} tomas visibles (usa los filtros o las casillas para acotar).`;
-  const noDisk = plan.filter(p=>!p.f.path).length;
-  $("renPreview").innerHTML = plan.slice(0,8).map(p=>`<div><span class="notr">${esc(p.f.name)}</span><span class="to notr">→ ${esc(p.name)}</span></div>`).join("") + (plan.length>8?`<div><span>… y ${plan.length-8} más</span><span></span></div>`:"") + (noDisk?`<div style="color:var(--warn)"><span>${noDisk} no están copiadas en el disco: solo cambiará su ficha</span><span></span></div>`:"");
+  const noDisk = plan.filter(p=>!p.f.path).length, rep = plan.filter(p=>p.repetido).length;
+  $("renPreview").innerHTML = plan.slice(0,8).map(p=>`<div><span class="notr">${esc(p.f.name)}</span><span class="to notr">→ ${esc(p.name)}</span></div>`).join("") + (plan.length>8?`<div><span>… y ${plan.length-8} más</span><span></span></div>`:"") + (noDisk?`<div style="color:var(--warn)"><span>${noDisk} no están copiadas en el disco: solo cambiará su ficha</span><span></span></div>`:"") +
+    (rep?`<div style="color:var(--warn)"><span>${esc(trLT("{1} nombres saldrían repetidos: llevarán _2, _3… Añade {n} o {camara} al patrón para distinguirlos.", "{1} names would be repeated: they get _2, _3… Add {n} or {camera} to the pattern to tell them apart.", rep))}</span><span></span></div>`:"");
 }
 $("renTokens").innerHTML = Object.keys(TOKENS).concat(["n"]).map(k=>{ const t = _EN_R ? (TOK_EN[k]||k) : k; return `<button type="button" class="notr" data-tok="{${t}}">{${t}}</button>`; }).join("");
 $("renTokens").onclick = e => { const b = e.target.closest("button"); if (!b) return; const inp = $("renPattern"); const s = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0,s)+b.dataset.tok+inp.value.slice(inp.selectionEnd??s); inp.focus(); renderRenamePreview(); };
@@ -4900,7 +4917,9 @@ function pendientesDe(obj){   // filtros con objetivo y horas que faltan
 }
 async function calcularNoches(objs, dias){
   const c = await cfgPlan(); if (!c.lugar) return null;
-  const key = JSON.stringify([objs, dias, c.lugar, c.alt_min, c.horizonte||null]); if (NOCHES_CACHE.has(key)) return NOCHES_CACHE.get(key);
+  // con la fecha (de «esta noche»): si ASTRO se queda abierto de un día para otro, se vuelve a calcular
+  const hoyN = new Date(Date.now() - 8*3600e3).toDateString();
+  const key = JSON.stringify([objs, dias, c.lugar, c.alt_min, c.horizonte||null, hoyN]); if (NOCHES_CACHE.has(key)) return NOCHES_CACHE.get(key);
   const r = await (await api("/api/noches",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({objetos:objs, lat:c.lugar.lat, lon:c.lugar.lon, dias, alt_min:c.alt_min||30})})).json();
   NOCHES_CACHE.set(key, r); return r;
@@ -5379,7 +5398,7 @@ async function dirCiclo(){
 async function dirReanudar(){   // ASTRO se ha reiniciado: se vuelve a vigilar la misma carpeta sin perder lo de esta noche
   const horas = Math.max(0.2, (Date.now() - DIR.inicio)/3.6e6 + 0.2);
   try { const r = await (await api("/api/directo/iniciar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({carpeta:DIR.carpeta, horas, despierto:DIR.op.despierto})})).json();
-    DIR.sesion = r.sesion; DIR.desde = 0; DIR.cola = []; DIR.hechos = new Set();
+    DIR.sesion = r.sesion; DIR.desde = 0; DIR.cola = []; DIR.hechos = new Set(); DIR.fallos = {};   // los números vuelven a empezar
     dirAlerta("info", "ASTRO se ha reiniciado: la revisión sigue con la misma carpeta.", "", "", {sonar:false, notificar:false});
   } catch(err){ if (!DIR.redCaida){ DIR.redCaida = true; dirAlerta("bad", "No llego a la carpeta de las tomas: ¿se ha cortado la red o se ha desconectado el disco?", String(err.message||err), ""); } }
 }
@@ -5401,8 +5420,18 @@ async function dirProcesarCola(){
 }
 async function dirProcesar(it){
   const previa = !!it.previa;
-  if (DIR.tomas.some(t => t.nombre===it.nombre && t.size===it.size)) return true;     // ya revisada (p. ej. tras reiniciar ASTRO)
-  let rec = frames.find(r => r.name===it.nombre && r.size===it.size);
+  // ya revisada (p. ej. tras reiniciar ASTRO): por su ruta; «L/0001.fits» y «R/0001.fits» son tomas distintas
+  if (DIR.tomas.some(t => (t.ruta && it.ruta) ? t.ruta === it.ruta : (t.nombre===it.nombre && t.size===it.size))) return true;
+  let rec = it.ruta ? frames.find(r => r.origen===it.ruta || r.desde===it.ruta) : null;
+  if (!rec){
+    // mismo nombre y tamaño que una ya guardada: es esa solo si la fecha de su cabecera coincide (muchos programas
+    // repiten los nombres cada noche)
+    const mismos = frames.filter(r => r.name===it.nombre && r.size===it.size);
+    if (mismos.length){
+      const fe = await fechaRapida(new ArchivoDisco({ruta: it.ruta, url: "/api/directo/archivo?ruta="+encodeURIComponent(it.ruta), nombre: it.nombre, size: it.size, mtime: it.mtime}));
+      if (mismaToma(mismos, fe)) rec = fe ? (mismos.find(r => String(r.dateObs||"").slice(0,19) === fe) || mismos[0]) : mismos[0];
+    }
+  }
   if (!rec){
     let file;
     try {
@@ -5414,7 +5443,7 @@ async function dirProcesar(it){
       return false;
     }
     if (DIR.op.guardar){
-      try { await copyIntoLibrary(file, rec); frames.push(rec); scheduleSave(); }
+      try { await copyIntoLibrary(file, rec); rec.desde = it.ruta; frames.push(rec); scheduleSave(); }
       catch(err){ dirAlerta("warn", "No se pudo guardar la toma en ASTRO", String(err.message||err), it.nombre, {sonar:false, notificar:false}); }
     } else if (rec.thumb){ api("/api/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:rec.thumb})}).catch(()=>{}); rec.thumb = ""; }
   }
@@ -5423,7 +5452,7 @@ async function dirProcesar(it){
   grupo.push(rec);
   const ref = grupo.length>=3 ? { fwhm: med(grupo.map(f=>f.fwhm)), bg: med(grupo.map(f=>f.bgPct)), stars: med(grupo.map(f=>f.starCount)), ecc: med(grupo.map(f=>f.ecc)), n: grupo.length } : null;
   if (!rec.discarded) evaluate(rec, ref);
-  const t = {i:it.i, nombre:it.nombre, size:it.size, mtime:it.mtime, llegada:Date.now(), previa, rec};
+  const t = {i:it.i, ruta:it.ruta, nombre:it.nombre, size:it.size, mtime:it.mtime, llegada:Date.now(), previa, rec};
   DIR.tomas.push(t); DIR.tomas.sort((a,b)=>a.mtime-b.mtime);
   if (!previa){ DIR.ultimaLlegada = Date.now(); dirValorarAvisos(t); }
   if (DIR.op.guardar){ evaluateAll(); render(); }
@@ -6442,7 +6471,8 @@ function tarjetaCrit(f, titulo){
     ${motivo ? `<div class="note">${esc(motivo.t)}</div>` : ""}</div>`;
 }
 function hayCorte(obj){ return frames.some(f => (f.object||"").trim() === obj && f.fuera === "corte"); }
-function candidatasCorte(obj){ return frames.filter(f => (f.object||"").trim() === obj && buenaCalidad(f) && (!f.fuera || f.fuera === "corte")); }
+// (solo las ya analizadas: una sin medir tiene la nota de 50 y se iba la primera, aunque fuera de las mejores)
+function candidatasCorte(obj){ return frames.filter(f => (f.object||"").trim() === obj && buenaCalidad(f) && f.starCount != null && (!f.fuera || f.fuera === "corte")); }
 function corteActual(obj){ const l = candidatasCorte(obj), n = l.filter(f=>f.fuera==="corte").length; return l.length ? Math.round(100*n/l.length) : 0; }
 function calcularCorte(obj, pct){
   // las peores de cada equipo y cada filtro, comparadas con su propia sesión (una noche de Ha no se mide con una de L)
@@ -10160,6 +10190,11 @@ def _hora(ts):
     return time.strftime("%H:%M", time.localtime(ts))
 
 
+def _fecha_noche():
+    """La fecha de «esta noche»: de madrugada (hasta las 8) sigue siendo la noche que empezó ayer por la tarde."""
+    return (_dt.datetime.now() - _dt.timedelta(hours=8)).date()
+
+
 def noches(objetos, lat, lon, dias=30, alt_min=30.0, desde=None, horizonte=None):
     """Para cada noche: oscuridad, Luna y horas útiles de cada objeto por clase de filtro.
     Con horizonte local, un objeto solo cuenta cuando asoma por encima de los árboles o las casas."""
@@ -10167,7 +10202,7 @@ def noches(objetos, lat, lon, dias=30, alt_min=30.0, desde=None, horizonte=None)
     hz = horizonte_puntos(horizonte)
     objs = [(o["nombre"], _m.radians(float(o["ra"])), _m.radians(float(o["dec"]))) for o in objetos
             if o.get("ra") is not None and o.get("dec") is not None]
-    hoy = _dt.date.fromtimestamp(desde) if desde else _dt.date.today()
+    hoy = _dt.date.fromtimestamp(desde) if desde else _fecha_noche()
     paso = PASO_MIN * 60
     salida = []
     for d in range(int(dias)):
@@ -10239,7 +10274,7 @@ def curva_noche(ra, dec, lat, lon, alt_min=30.0, horizonte=None, fecha=None):
     la, lo = _m.radians(lat), _m.radians(lon)
     r, d = _m.radians(float(ra)), _m.radians(float(dec))
     hz = horizonte_puntos(horizonte)
-    dia = _dt.date.fromisoformat(fecha) if fecha else _dt.date.today()
+    dia = _dt.date.fromisoformat(fecha) if fecha else _fecha_noche()
     t0 = time.mktime((dia.year, dia.month, dia.day, 12, 0, 0, 0, 0, -1))
     pts = []
     for k in range(24 * 60 // PASO_MIN + 1):
@@ -10677,7 +10712,7 @@ def sugerir(fecha=None):
             return os.path.getmtime(p)
         except OSError:
             return 0
-    k = (fecha or _dt.date.today().isoformat(), mt(EQUIPO_CFG), mt(PLANIF), mt(OBJETIVOS_F), mt(DB), idioma_actual())
+    k = (fecha or _fecha_noche().isoformat(), mt(EQUIPO_CFG), mt(PLANIF), mt(OBJETIVOS_F), mt(DB), idioma_actual())
     x = _SUG_CACHE.get("k")
     if x and x[0] == k and time.time() - x[1] < 900:
         return x[2]
@@ -12317,10 +12352,13 @@ def _escanear(carpeta, completo=False, inicial=False):
         caliente = (ahora + 60) if (not inicial and (c is None or c["mtime"] != mt)) else (c["caliente"] if c else 0)
         cache[d] = {"mtime": mt, "archivos": archivos, "subs": subs, "caliente": caliente}
         pila.extend((s, prof + 1) for s in subs)
-        if time.time() - t0 > 90:
+        # la primera vez no hay límite: todo lo que ya había tiene que quedar como visto (si no, las tomas viejas de
+        # las carpetas que no dio tiempo a mirar llegarían luego como nuevas)
+        if not inicial and time.time() - t0 > 90:
             break
-    for d in [d for d in cache if d not in vistas]:
-        del cache[d]
+    if not pila:                    # solo si se ha recorrido todo: una carpeta que ya no está se olvida
+        for d in [d for d in cache if d not in vistas]:
+            del cache[d]
     out = {}
     for d in vistas:
         c = cache.get(d)
