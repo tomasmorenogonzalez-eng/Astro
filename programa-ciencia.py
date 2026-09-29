@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.21"
+VERSION_PROG = "2026.09.29.22"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8210,6 +8210,18 @@ th{background:var(--surface);font-weight:700}
 .enlEtq{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:5px;padding:1px 6px;line-height:1.6}
 .enlEtq.g{background:var(--ok-bg);color:var(--ok)} .enlEtq.p{border:1px solid var(--line2);color:var(--muted)} .enlEtq.s{background:var(--oro-soft);color:var(--oro)}
 .enlPie{margin-top:30px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+/* ===== tarjetas de Ciencia con una foto de fondo (fotos de Tomás Moreno González) ===== */
+.bloque.foto{position:relative;overflow:hidden;isolation:isolate;min-height:270px;justify-content:flex-end;background:#120E22;border-color:rgba(255,255,255,.06);color:#F5F2FC}
+.bloque.foto::before{content:"";position:absolute;inset:0;z-index:-2;background:var(--foto) center/cover no-repeat;transition:transform .6s ease}
+.bloque.foto::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(12,9,24,0) 0%,rgba(12,9,24,.04) 28%,rgba(12,9,24,.62) 56%,rgba(12,9,24,.92) 100%)}
+.bloque.foto:hover{border-color:var(--accent)} .bloque.foto:hover::before{transform:scale(1.05)}
+.bloque.foto b{color:#FFFFFF;text-shadow:0 1px 10px rgba(0,0,0,.7)}
+.bloque.foto .d{color:rgba(245,242,252,.88);text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.bloque.foto .ic{background:rgba(255,255,255,.16);color:#FFFFFF;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.bloque.foto .chip{background:rgba(255,255,255,.16);color:#FFFFFF}
+.bloque.foto .chip.ya{background:rgba(93,203,149,.24);color:#A7EBC8}
+.bloque.foto .chip.oro,.bloque.foto.bonus .ic{background:rgba(242,193,78,.24);color:#F7D682}
+@media (prefers-reduced-motion: reduce){ .bloque.foto::before{transition:none} .bloque.foto:hover::before{transform:none} }
 </style>
 </head>
 <body>
@@ -8830,9 +8842,9 @@ function pintarNav(){
   $("navBloques").innerHTML = ORDEN.map(id => { const b = BL(id);
     return `<button class="nav" data-vista="bloque" data-b="${b.id}"><span class="ic">${icono(b.id)}</span><span class="notr">${esc(T(b).titulo)}</span>${b.estado === "ya" ? '<span class="ya" title="Ya disponible"></span>' : '<span class="pronto">pronto</span>'}</button>`; }).join("");
   $("bloques").innerHTML = ORDEN.map(id => { const b = BL(id);
-    return `<button class="bloque" data-b="${b.id}"><span class="cab"><span class="ic">${icono(b.id)}</span><b class="notr">${esc(T(b).titulo)}</b></span>
+    return `<button class="bloque foto" data-b="${b.id}" style="--foto:url('/img/ciencia-${b.id}.jpg')"><span class="cab"><span class="ic">${icono(b.id)}</span><b class="notr">${esc(T(b).titulo)}</b></span>
       <span class="d notr">${esc(T(b).corto)}</span>${b.estado === "ya" ? '<span class="chip ya">Ya disponible</span>' : '<span class="chip">En preparación</span>'}</button>`; }).join("")
-    + `<button class="bloque bonus notr" data-vista="enlaces"><span class="cab"><span class="ic">${ENL_ICONO}</span><b>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</b></span>
+    + `<button class="bloque foto bonus notr" data-vista="enlaces" style="--foto:url('/img/ciencia-enlaces.jpg')"><span class="cab"><span class="ic">${ENL_ICONO}</span><b>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</b></span>
       <span class="d">${esc(trLT("Los cien sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre para qué sirve cada uno.", "The hundred astronomy and astrophotography sites worth keeping at hand, with a line on what each one is for."))}</span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></button>`;
   $("navBonus").innerHTML = `<div class="grupo">${esc(trLT("Bonus track", "Bonus track"))}</div><button class="nav" data-vista="enlaces"><span class="ic">${ENL_ICONO}</span><span>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</span></button>`;
   document.querySelectorAll("[data-vista]").forEach(x => x.onclick = () => ir(x.dataset.vista, x.dataset.b));
