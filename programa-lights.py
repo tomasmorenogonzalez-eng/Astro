@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.26"
+VERSION_PROG = "2026.09.29.27"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1343,6 +1343,13 @@ body.parpAbierto{overflow:hidden}
 <script>
 /* ============ Idiomas: español (original), inglés, francés, alemán, italiano y portugués ============ */
 const VERSION_ACTUAL = "__VERSION__";
+const DONAR_ASTRO = __DONAR__;   // enlace de donaciones (PayPal) que pasa la aplicación; vacío: no se enseña
+function bloqueDonar(){
+  if (!DONAR_ASTRO) return "";
+  return `<div style="border:1px solid var(--line);border-left:4px solid #F2C14E;border-radius:12px;padding:12px 14px;width:100%;display:flex;flex-direction:column;gap:6px;align-items:center">
+    <b>${tr("Apoya ASTRO")}</b><div class="note">${tr("ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.")}</div>
+    <a class="btn" href="${DONAR_ASTRO}" target="_blank" rel="noopener" style="background:#FFC439;border-color:#FFC439;color:#111;text-decoration:none">${tr("Donar con PayPal")}</a></div>`;
+}
 const IDIOMAS_ASTRO = {es:"Español", en:"English", fr:"Français", de:"Deutsch", it:"Italiano", pt:"Português"};
 const IDIOMA = (v => IDIOMAS_ASTRO[v] ? v : (l => IDIOMAS_ASTRO[l] ? l : "en")((navigator.language||"es").slice(0,2).toLowerCase()))("__IDIOMA__");
 
@@ -1519,6 +1526,7 @@ function acercaDe(){
     <p style="margin:10px 0 4px">Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, y apila con Siril.</p>
     <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;margin-top:6px"><div style="color:var(--muted);font-size:13px">Programa creado por</div>
       <b style="font-size:16px">Tomás Moreno González</b><div style="font-size:13.5px;margin-top:2px">Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real).</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Agrupación Astronómica de Miguelturra (C.Real)" title="Agrupación Astronómica de Miguelturra (C.Real)" onerror="this.remove()"></div></div>
+    ${bloqueDonar()}
     <div><button class="btn primary" onclick="this.closest('.modal').remove()">${tr("Cerrar")}</button></div></div>`;
   d.onclick = e => { if (e.target === d) d.remove(); };
   document.body.appendChild(d);
@@ -8034,7 +8042,15 @@ function informarProblema(){
 </body>
 </html>
 '''.replace("__ROOT__", ROOT)
-HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2)
+def _donar_astro():
+    """El enlace de donaciones que pasa la aplicación (solo PayPal); vacío si no hay."""
+    import re as _re
+    u = (os.environ.get("ASTRO_DONAR") or "").strip()
+    return u if _re.match(r"^https://(www\.)?(paypal\.me|paypal\.com)/[\w\-./?=&%~+#]+$", u) else ""
+
+
+DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
+HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
 
 # ═════════════════════════ APILADO AUTOMÁTICO (Siril) ═════════════════════════

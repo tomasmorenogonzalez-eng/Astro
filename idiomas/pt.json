@@ -3031,7 +3031,10 @@
 "gratis · Pro de pago": "gratuito · Pro pago",
 "En español": "Em espanhol",
 "Direcciones comprobadas el 29 de septiembre de 2026. Si alguna deja de funcionar, lo normal es que el proyecto se haya mudado: buscar su nombre suele llevar a la dirección nueva.": "Endereços verificados a 29 de setembro de 2026. Se algum deixar de funcionar, o mais normal é o projeto ter mudado: pesquisar o nome costuma levar ao endereço novo.",
-"«Gratis» y «de pago» se refieren a los programas; «ES» marca los enlaces en español.": "«Gratuito» e «pago» referem-se aos programas; «ES» assinala as ligações em espanhol."
+"«Gratis» y «de pago» se refieren a los programas; «ES» marca los enlaces en español.": "«Gratuito» e «pago» referem-se aos programas; «ES» assinala as ligações em espanhol.",
+"Apoya ASTRO": "Apoiar o ASTRO",
+"ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "O ASTRO é gratuito. Se lhe for útil, pode ajudar a que continue a crescer com um donativo.",
+"Donar con PayPal": "Doar com PayPal"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",

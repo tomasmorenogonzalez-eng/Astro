@@ -49,6 +49,19 @@ def _correo(t):
 
 
 CONTACTO = _correo(os.environ.get("ASTRO_CONTACTO") or _texto_recurso("contacto.txt", ""))
+
+
+def _paypal(t):
+    """El enlace de donaciones de donar.txt: solo se acepta uno de PayPal (paypal.me o paypal.com)."""
+    for l in (t or "").splitlines():
+        l = l.strip()
+        if l and not l.startswith("#") and re.match(r"^https://(www\.)?(paypal\.me|paypal\.com)/[\w\-./?=&%~+#]+$", l):
+            return l
+    return ""
+
+
+# donaciones: el enlace de PayPal de donar.txt; si está vacío, ASTRO no enseña el apartado
+DONAR = _paypal(os.environ.get("ASTRO_DONAR") or _texto_recurso("donar.txt", ""))
 # versión de prueba: si la versión lo dice («0.9-beta») o es anterior a la 1.0
 ES_BETA = "beta" in VERSION_APP.lower() or tuple(int(x) for x in (re.findall(r"\d+", VERSION_APP) or ["0"])[:1]) < (1,)
 
@@ -1001,6 +1014,7 @@ def arrancar(datos):
     os.environ["ASTRO_VERSION_APP"] = VERSION_APP
     os.environ["ASTRO_BETA"] = "1" if ES_BETA else "0"
     os.environ["ASTRO_CONTACTO"] = CONTACTO
+    os.environ["ASTRO_DONAR"] = DONAR
     os.environ["ASTRO_IDIOMA"] = IDIOMA["v"]
     os.environ["ASTRO_EJEMPLO"] = "1" if MODO["ejemplo"] else "0"
     os.environ["ASTRO_REGISTRO"] = REGISTRO
@@ -1097,6 +1111,8 @@ def _ventana_inicio(datos, puertos):
     pie = tk.Frame(c, bg=FONDO); pie.pack(fill="x", pady=(12, 0))
     _boton(pie, T("salir"), lambda: os._exit(0)).pack(side="right")
     _boton(pie, T("cambiar"), cambiar).pack(side="right", padx=8)
+    if DONAR:
+        _boton(pie, T("donar_btn"), abrir(DONAR)).pack(side="right")
     # a la izquierda, en dos líneas (caben en la altura de los botones): los enlaces y la carpeta de datos
     izq = tk.Frame(pie, bg=FONDO); izq.pack(side="left", fill="x", expand=True)
     enl = tk.Frame(izq, bg=FONDO); enl.pack(fill="x", anchor="w")
@@ -1156,6 +1172,16 @@ TXT_APP = {
            "app_cambiar_nota": "Os dados da pasta anterior não são movidos.", "app_registro": "Registo:"},
 }
 for _l, _d in TXT_APP.items():
+    TXT[_l].update(_d)
+TXT_DONAR = {
+    "es": {"donar_t": "Apoya ASTRO", "donar_d": "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.", "donar_btn": "Donar con PayPal"},
+    "en": {"donar_t": "Support ASTRO", "donar_d": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "donar_btn": "Donate with PayPal"},
+    "fr": {"donar_t": "Soutenir ASTRO", "donar_d": "ASTRO est gratuit. S'il vous est utile, vous pouvez l'aider à continuer de grandir avec un don.", "donar_btn": "Faire un don avec PayPal"},
+    "de": {"donar_t": "ASTRO unterstützen", "donar_d": "ASTRO ist kostenlos. Wenn es dir nützt, kannst du mit einer Spende helfen, dass es weiter wächst.", "donar_btn": "Mit PayPal spenden"},
+    "it": {"donar_t": "Sostieni ASTRO", "donar_d": "ASTRO è gratuito. Se ti è utile, puoi aiutarlo a continuare a crescere con una donazione.", "donar_btn": "Dona con PayPal"},
+    "pt": {"donar_t": "Apoiar o ASTRO", "donar_d": "O ASTRO é gratuito. Se lhe for útil, pode ajudar a que continue a crescer com um donativo.", "donar_btn": "Doar com PayPal"},
+}
+for _l, _d in TXT_DONAR.items():
     TXT[_l].update(_d)
 
 
@@ -1282,6 +1308,9 @@ a{color:var(--accent)}
 .tarj b{display:block;font-size:15.5px;margin:10px 12px 2px;line-height:1.25}
 .tarj span{display:block;font-size:13px;color:var(--muted);margin:0 12px 12px;line-height:1.4}
 .pie{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:10px 0 6px}
+.donar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid #F2C14E;border-radius:12px;padding:12px 16px;margin:6px 0 10px}
+.donar p{margin:0;flex:1;min-width:240px;color:var(--muted);font-size:13.5px;line-height:1.45} .donar p b{display:block;color:var(--text);font-size:15px;margin-bottom:1px}
+.btn.paypal{background:#FFC439;border-color:#FFC439;color:#111;text-decoration:none;display:inline-flex;align-items:center} .btn.paypal:hover{border-color:#E0A800;background:#FFD166}
 .pie .datos{color:var(--muted);font-size:13px;word-break:break-all}
 .autor{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding:14px 28px 18px;color:var(--muted);font-size:12.5px;background:var(--surface)}
 .autor .escudos{display:flex;gap:12px;align-items:center}.autor .escudos img{height:44px;width:auto}
@@ -1385,6 +1414,13 @@ def _apartados_app():
             ("calibracion", "t_calib", "d_calib", C), ("ciencia", "t_ciencia", "d_ciencia", S)]
 
 
+def _donar_html():
+    if not DONAR:
+        return ""
+    return ('<div class="donar"><p><b>%s</b>%s</p><a class="btn paypal" href="%s" target="_blank" rel="noopener">%s</a></div>'
+            % (_h(T("donar_t")), _h(T("donar_d")), _h(DONAR), _h(T("donar_btn"))))
+
+
 def pagina_inicio():
     datos = VENTANA_APP["datos"]
     real = leer_config().get("datos")
@@ -1402,11 +1438,11 @@ def pagina_inicio():
     pendientes = NOVEDADES["pendientes"] if not NOVEDADES["mostradas"] else []
     NOVEDADES["mostradas"] = True
     cuerpo = ('<main class="cuerpo"><div class="fila"><h2 style="margin:0;font-size:19px">%s</h2><span class="spacer"></span>%s</div>%s'
-              '<nav class="rejilla">%s</nav>'
+              '<nav class="rejilla">%s</nav>%s'
               '<div class="pie"><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:260px"><div class="fila" style="gap:20px">%s</div>'
               '<div class="datos">%s%s</div></div><button class="btn" id="cambiar">%s</button><button class="btn" id="salir">%s</button></div>'
               '<p class="nota" style="margin:8px 0 0"><button class="enl" id="navegador" style="font-weight:600;color:var(--muted)">%s</button></p></main>%s') % (
-        _h(T("app_elige")), _selector_idioma_html(), aviso, tarjetas, "".join(enlaces),
+        _h(T("app_elige")), _selector_idioma_html(), aviso, tarjetas, _donar_html(), "".join(enlaces),
         _h(T("datos_en")), _h(T("ejemplo_carpeta") if MODO["ejemplo"] else datos), _h(T("cambiar")), _h(T("salir")),
         _h(T("app_navegador")), _autor_html())
     js = r"""

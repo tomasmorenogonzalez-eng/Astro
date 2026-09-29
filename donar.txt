@@ -1,0 +1,4 @@
+# Enlace de PayPal para las donaciones a ASTRO (botón «Donar con PayPal»).
+# Escribe el enlace en la línea de abajo, sin «#»: https://paypal.me/TuNombre o https://www.paypal.com/donate/?hosted_button_id=…
+# Si la dejas vacía, ASTRO no enseña el apartado de donaciones.
+
