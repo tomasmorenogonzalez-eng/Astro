@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.42"
+VERSION_PROG = "2026.09.29.43"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -15505,6 +15505,7 @@ def _seguro_en(raiz, *partes):
 
 def trabajo_importar(ruta, objeto, opc):
     f = None
+    carpetas_apil = []
     try:
         f = _Fuente(ruta)
         p = f.p
@@ -15564,7 +15565,7 @@ def trabajo_importar(ruta, objeto, opc):
                         ficha.setdefault(k, v)
                     ficha.setdefault("status", "ok"); ficha.setdefault("reasons", [])
                     fichas_cal.append(ficha); n_cal += 1
-        n_apil = 0
+        n_apil, carpetas_apil = 0, []
         if opc.get("apilados"):
             for a in p.get("apilados") or []:
                 arch = [x for x in (a.get("archivos") or []) if f.hay(x)]
@@ -15581,15 +15582,23 @@ def trabajo_importar(ruta, objeto, opc):
                     base = base0 + ("_importado" if k == 1 else "_importado_%d" % k); k += 1
                 if ya:
                     continue
-                for x in arch:
-                    sub = x.split("/", 2)[-1] if x.count("/") >= 2 else x.split("/")[-1]
-                    trabajos.append((x, _seguro_en(base, sub)))
+                # se copia a una carpeta provisional y se le pone su nombre al terminar: si se cancela o falla, no
+                # queda un apilado a medias con nombre de bueno
+                prov = base + ".importando"
+                shutil.rmtree(prov, ignore_errors=True)
+                carpetas_apil.append((prov, base))
+                for x, sb in subs:
+                    trabajos.append((x, _seguro_en(prov, sb)))
                 n_apil += 1
         PROY.update(total=len(trabajos), total_bytes=sum(f.tamano(n) for n, _ in trabajos))
         for nombre, dst in trabajos:
             PROY["texto"] = nombre
             f.copiar(nombre, dst)
             PROY["hechos"] += 1
+        for prov, base in carpetas_apil:
+            if os.path.isdir(prov):
+                os.replace(prov, base)
+        carpetas_apil = []
         if fichas_cal:
             pend = leer_json(PENDIENTE_CAL, {"frames": []})
             pend["frames"] = (pend.get("frames") or []) + fichas_cal
@@ -15605,6 +15614,8 @@ def trabajo_importar(ruta, objeto, opc):
     except Exception as e:
         PROY.update(estado="cancelado" if str(e) == "Cancelado" else "error", error=str(e))
     finally:
+        for prov, _b in carpetas_apil:          # apilados que no llegaron a terminar de copiarse
+            shutil.rmtree(prov, ignore_errors=True)
         if f:
             f.cerrar()
         PROY["activo"] = False
