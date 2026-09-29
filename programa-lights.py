@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.29"
+VERSION_PROG = "2026.09.29.30"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -8099,6 +8099,52 @@ EXT_LIGHT = (".fits", ".fit", ".fts", ".xisf")
 JOB = {"activo": False, "estado": "", "tipo": "", "paso": 0, "pasos": 0, "texto": "", "sub": "", "log": [],
        "resultados": [], "vista": [], "avisos": [], "error": "", "carpeta": "", "cancelar": False, "inicio": None, "fin": None}
 _PROC = {"p": None}
+_JOB_LOCK = threading.Lock()
+_JOB_RESERVA = {"on": False}
+
+
+def _reservar_job(msg):
+    """Solo un trabajo de Siril a la vez, también si se pulsa dos veces seguidas (planificar tarda unos segundos)."""
+    with _JOB_LOCK:
+        if JOB["activo"] or _JOB_RESERVA["on"]:
+            raise RuntimeError(msg)
+        _JOB_RESERVA["on"] = True
+
+
+def _hilo_job(fn, *args):
+    """Lanza el trabajo en un hilo; si falla antes de empezar de verdad (disco lleno, sin permiso…), no deja
+    ASTRO creyendo que sigue en marcha."""
+    def correr():
+        try:
+            fn(*args)
+        except BaseException as e:
+            JOB["estado"] = "cancelado" if str(e) == "Cancelado" else "error"
+            JOB["error"] = JOB.get("error") or str(e)
+        finally:
+            if JOB["activo"]:
+                try:
+                    JOB["_logf"] and JOB["_logf"].close()
+                except Exception:
+                    pass
+                JOB["_logf"] = None
+                JOB["activo"] = False
+                JOB["fin"] = _dt.datetime.now().isoformat(timespec="seconds")
+    threading.Thread(target=correr, daemon=True).start()
+
+
+def parar_siril():
+    """Al cerrar ASTRO: se cancela el trabajo y se para Siril (si no, sigue trabajando solo y llenando el disco)."""
+    JOB["cancelar"] = True
+    p = _PROC.get("p")
+    if p is not None:
+        try:
+            p.terminate()
+            p.wait(timeout=3)
+        except Exception:
+            try:
+                p.kill()
+            except Exception:
+                pass
 
 
 _SIRIL = {"t": 0.0, "r": ("", "")}
@@ -8212,6 +8258,29 @@ def lanzar_siril(args, cwd=None):
             print("Siril se lanza de la forma normal:", e)
     return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, **SIN_VENTANA,
                             cwd=cwd, errors="replace")
+
+
+def _config_siril_usuario():
+    """El config.ini de Siril del usuario (Siril 1.2 y posteriores), o "" si no está en su sitio de siempre."""
+    h = os.path.expanduser("~")
+    cands = [os.path.join(os.environ.get("LOCALAPPDATA") or "", "siril", "config.ini")] if os.name == "nt" else []
+    cands += [os.path.join(h, "Library", "Application Support", "org.siril.Siril", "siril", "config.ini"),
+              os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.join(h, ".config"), "siril", "config.ini")]
+    return next((c for c in cands if c and os.path.isfile(c)), "")
+
+
+def orden_siril(siril, guion, carpeta):
+    """siril-cli -s guion, con una copia de la configuración del usuario en la carpeta de trabajo: los guiones de ASTRO
+    fijan la extensión .fit y quitan la compresión, y Siril guarda esos ajustes al salir; así no cambian los suyos."""
+    ini = _config_siril_usuario()
+    if ini:
+        try:
+            copia = os.path.join(carpeta, "siril_astro.ini")
+            shutil.copyfile(ini, copia)
+            return [siril, "-i", copia, "-s", guion]
+        except OSError:
+            pass
+    return [siril, "-s", guion]
 
 
 def version_siril_mac(ruta):
@@ -8801,7 +8870,11 @@ def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
         libre = shutil.disk_usage(DISCO).free
     except Exception:
         libre = 0
-    max_n = max([f["n"] for f in filtros] or [0])
+    # lo que ocupa el filtro más grande: en color (OSC) cada toma calibrada pasa a tener 3 canales, y con varios
+    # grupos de calibración Siril hace además una copia al unirlos
+    def peso_filtro(f):
+        return f["n"] * (3 if f.get("bayer") else 1) * (3.2 / 2.2 if len(f.get("grupos") or []) > 1 else 1)
+    max_n = max([peso_filtro(f) for f in filtros] or [0])
     necesita32, necesita16 = estimar_bytes(max_n, w, h, 32), estimar_bytes(max_n, w, h, 16)
     return {"objeto": objeto, "siril": siril, "siril_version": ver, "filtros": filtros, "excluidas": excluidas,
             "noches_fuera": sorted(noches_fuera),
@@ -8866,10 +8939,15 @@ def correr_siril(siril, script_txt, nombre):
     if JOB["cancelar"]:
         raise RuntimeError("Cancelado")
     ruta = os.path.join(JOB["_w"], nombre + ".ssf")
+    # ASTRO busca sus archivos como .fit sin comprimir: si el usuario cambió en Siril la extensión (.fits, .fts)
+    # o activó la compresión, sin esto no encontraría los resultados
+    if script_txt.startswith("requires ") and "\nsetext " not in script_txt:
+        l0, _, resto = script_txt.partition("\n")
+        script_txt = l0 + "\nsetext fit\nsetcompress 0\n" + resto
     with open(ruta, "w", encoding="utf-8") as f:
         f.write(script_txt)
     _log(f"── {nombre} ──")
-    p = lanzar_siril([siril, "-s", ruta], cwd=JOB["_w"])
+    p = lanzar_siril(orden_siril(siril, ruta, JOB["_w"]), cwd=JOB["_w"])
     _PROC["p"] = p
     resumen = {"registradas": None, "fallidas": None, "fallo": False}
     previas, motivo = [], []
@@ -8889,7 +8967,11 @@ def correr_siril(siril, script_txt, nombre):
             resumen["fallo"] = True
         if "Error in line" in linea and not motivo:
             motivo = [x for x in previas[-1:] if not x.startswith(("Ejecutando", "Running", "Executing"))] + [linea]
-        previas = (previas + [linea])[-3:]
+        elif "Script execution failed" in linea and not motivo:
+            # a veces (al procesar una secuencia) Siril no dice «Error in line»: valen las últimas líneas con contenido
+            utiles = [x for x in previas if not re.match(r"^(\d+: running command|Running command|Ejecutando|Executing|Setting CWD|Reading FITS|Saving FITS)", x)]
+            motivo = list(dict.fromkeys(utiles))[-2:]
+        previas = (previas + [linea])[-6:]
         if JOB["cancelar"]:
             p.terminate()
     p.wait()
@@ -8914,6 +8996,16 @@ def pasos_resample(factor):
 
 def lineas_resample(factor, extra=""):
     return [f"resample {f:.4f}{extra}" for f in pasos_resample(factor)]
+
+
+def enlazar_siril(carpeta, base, seq):
+    """La orden de Siril que hace una secuencia con las tomas de la carpeta. «link» solo recoge FITS: si hay tomas XISF
+    (Siril 1.4 las lee) se usa «convert», que además enlaza los FITS sin copiarlos."""
+    try:
+        hay_xisf = any(f.lower().endswith(".xisf") for f in os.listdir(carpeta))
+    except OSError:
+        hay_xisf = False
+    return ("convert" if hay_xisf else "link") + f" {base} {qo('-out=', seq)}"
 
 
 def enlazar(archivos, carpeta, pref="f"):
@@ -8944,20 +9036,27 @@ def master_de(siril, s, bits):
         if not os.path.exists(dst):
             enlace(s["files"][0], dst)
         return dst
-    final = os.path.join(MASTERS_DIR, s["id"] + ".fit")
+    cal = JOB["_cflat"].get(s["id"]) if s["tipo"] == "flat" else None
+    # un flat calibrado con un bias (o dark de flat) es otro master que el mismo flat sin él o con otro
+    clave = s["id"] + ("__" + seguro(os.path.splitext(os.path.basename(cal))[0]) if cal else "")
+    final = os.path.join(MASTERS_DIR, clave + ".fit")
     if os.path.isfile(final):
         return final
     src = enlazar(s["files"], os.path.join(W, "src_" + s["id"]))
     seq = os.path.join(W, "seq_" + s["id"])
-    lineas = ["requires 1.2.0", "set32bits", f"cd {q(src)}", f"link c {qo('-out=', seq)}", f"cd {q(seq)}"]
+    tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d" % (clave, os.getpid()))   # si se corta, no queda un master a medias
+    lineas = ["requires 1.2.0", "set32bits", f"cd {q(src)}", enlazar_siril(src, "c", seq), f"cd {q(seq)}"]
     if s["tipo"] == "flat":
-        cal = JOB["_cflat"].get(s["id"])
-        lineas += [f"calibrate c {qo('-bias=', cal)}" if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul " + qo("-out=", final[:-4])]
+        lineas += [f"calibrate c {qo('-bias=', cal)}" if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul " + qo("-out=", tmp)]
     else:
-        lineas += ["stack c rej 3 3 -nonorm " + qo("-out=", final[:-4])]
+        lineas += ["stack c rej 3 3 -nonorm " + qo("-out=", tmp)]
     JOB["texto"] = f"Creando {s['desc']}"
-    correr_siril(siril, "\n".join(lineas) + "\n", "master_" + s["id"])
-    shutil.rmtree(seq, ignore_errors=True)
+    try:
+        correr_siril(siril, "\n".join(lineas) + "\n", "master_" + s["id"])
+        os.replace(tmp + ".fit", final)
+    finally:
+        borrar(MASTERS_DIR, os.path.basename(tmp) + ".fit*")
+        shutil.rmtree(seq, ignore_errors=True); shutil.rmtree(src, ignore_errors=True)
     return final
 
 
@@ -8982,7 +9081,7 @@ def _calibrar_alinear(siril, W, F, etq, grupos, n, bits):
             ops.append("-cc=dark")
         if g.get("bayer"):
             ops += ["-cfa", "-equalize_cfa", "-debayer"]
-        L += [f"cd {q(src)}", f"link l {qo('-out=', seq)}", f"cd {q(seq)}", "calibrate l " + " ".join(ops)]
+        L += [f"cd {q(src)}", enlazar_siril(src, "l", seq), f"cd {q(seq)}", "calibrate l " + " ".join(ops)]
         seqs.append(os.path.join(seq, "pp_l_"))
     base = os.path.join(W, f"F_{F}")
     os.makedirs(base, exist_ok=True)
@@ -8995,14 +9094,21 @@ def _calibrar_alinear(siril, W, F, etq, grupos, n, bits):
         nombre = "pp_l"
     L += [f"register {nombre} -2pass", f"seqapplyreg {nombre}"]
     res = correr_siril(siril, "\n".join(L) + "\n", f"alinear_{F}")
+    for g_i in range(1, len(seqs) + 1):   # ya calibradas: los enlaces (o copias, en Windows sin permiso) sobran
+        shutil.rmtree(os.path.join(W, f"src_{F}_{g_i}"), ignore_errors=True)
     carpeta_r = base if len(seqs) > 1 else os.path.dirname(seqs[0])
     if len(seqs) > 1:                     # liberar espacio: calibradas intermedias
         for g_i in range(1, len(seqs) + 1):
             borrar(os.path.join(W, f"seq_{F}_{g_i}"), "pp_l_*.fit*")
-    reg = res["registradas"]
+    reg, fallidas = res["registradas"], res["fallidas"]
+    # Siril escribe el recuento en el idioma del usuario: contar las alineadas que ha dejado es más seguro
+    import glob as _glob
+    hechas = len(_glob.glob(os.path.join(carpeta_r, f"r_{nombre}_*.fit*")))
+    if hechas:
+        reg, fallidas = hechas, max(0, n - hechas)
     if reg is not None and reg < 2:
         raise RuntimeError(f"{etq}: Siril no ha podido alinear las tomas ({reg} de {n}). ¿Hay tomas de otro objeto o muy malas?")
-    return carpeta_r, nombre, reg, res["fallidas"], len(seqs)
+    return carpeta_r, nombre, reg, fallidas, len(seqs)
 
 
 def _limpiar_alineado(W, F, n_grupos):
@@ -9018,7 +9124,8 @@ def _rechazo_n(n):
 def peso_ruido(ver):
     """La opción de Siril para que cada imagen pese según su ruido (1/σ² después de normalizar): una toma con la
     mitad de SNR que las demás pesa la cuarta parte, que es lo que de verdad aporta. Cambió de nombre en Siril 1.4."""
-    return "-weight=noise" if version_ge(ver or "", "1.4") else "-weight_from_noise"
+    # si no se sabe la versión se usa la de ahora (con Siril 1.4 la antigua da error)
+    return "-weight_from_noise" if ver and not version_ge(ver, "1.4") else "-weight=noise"
 
 
 def _apilar_equipo(siril, W, OUT, obj, F, etq, grupos, n, bits, ver="", pesos=True):
@@ -9091,14 +9198,16 @@ def alinear_a_referencia(siril, W, nombre, items, giros=None):
         factor = it["escala"] / R["escala"]
         nw, nh = int(it["w"]), int(it["h"])
         L.append(f"load {q(it['ruta'])}")
-        if abs(factor - 1) > 0.02:
-            for fp in pasos_resample(factor):
-                L.append(f"resample {fp:.4f}")
-                nw, nh = int(round(nw * fp)), int(round(nh * fp))
         d = _separacion_centros(it["centro"], R["centro"]) / R["escala"] if it.get("centro") and R.get("centro") else 0
-        lado = int(math.hypot(R["w"], R["h"]) * 1.08 + 2 * d + 24)
-        if lado < min(nw, nh):
-            L.append(f"crop {(nw - lado) // 2} {(nh - lado) // 2} {lado} {lado}")
+        lado = int(math.hypot(R["w"], R["h"]) * 1.08 + 2 * d + 24)     # en píxeles de la referencia
+        cambia = abs(factor - 1) > 0.02
+        # primero se recorta (en píxeles de esta imagen) y luego se reescala: reescalar la imagen entera de una cámara
+        # grande antes de recortar puede pedir varios GB de memoria
+        lado0 = int(math.ceil(lado / factor)) + 2 if cambia else lado
+        if lado0 < min(nw, nh):
+            L.append(f"crop {(nw - lado0) // 2} {(nh - lado0) // 2} {lado0} {lado0}")
+        if cambia:
+            L += [f"resample {fp:.4f}" for fp in pasos_resample(factor)]
         L.append(f"save {q(dst)}")
     L += [f"cd {q(src)}", f"link m {qo('-out=', seq)}", f"cd {q(seq)}", "setref m 1", "register m"]
     correr_siril(siril, "\n".join(L) + "\n", f"alinear_{nombre}")
@@ -9135,6 +9244,8 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
     siril = plan["siril"]
     obj = seguro(plan["objeto"])
     marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M")
+    if os.path.exists(os.path.join(APIL_ROOT, obj, marca)):        # dos apilados en el mismo minuto
+        marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     OUT = os.path.join(APIL_ROOT, obj, marca)
     W = os.path.join(TRABAJO_DIR, marca)
     os.makedirs(OUT, exist_ok=True); os.makedirs(W, exist_ok=True); os.makedirs(MASTERS_DIR, exist_ok=True)
@@ -9150,16 +9261,30 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
     try:
         # 1) masters de calibración
         JOB["paso"] = 1; JOB["texto"] = "Preparando masters de calibración"
+        sin_masters = set()         # filtros cuyo master de calibración no se pudo hacer: se siguen los demás
         for f in filtros:
-            for g in f["grupos"]:
-                gg = g["_g"]
-                for clave in ("dark", "bias", "cflat"):
-                    gg["_" + clave] = master_de(siril, gg[clave], bits)
-                if gg["flat"] and gg["cflat"] is not None:
-                    JOB["_cflat"][gg["flat"]["id"]] = gg["_cflat"]
-                gg["_flat"] = master_de(siril, gg["flat"], bits)
+            try:
+                for g in f["grupos"]:
+                    gg = g["_g"]
+                    for clave in ("dark", "bias", "cflat"):
+                        gg["_" + clave] = master_de(siril, gg[clave], bits)
+                    if gg["flat"]:              # también sin calibración: no vale la de otro grupo con el mismo flat
+                        JOB["_cflat"][gg["flat"]["id"]] = gg["_cflat"]
+                    gg["_flat"] = master_de(siril, gg["flat"], bits)
+            except Exception as ex:
+                if str(ex) == "Cancelado" or len(filtros) == 1:
+                    raise
+                sin_masters.add(f["filtro"])
+                msg, _, motivo = str(ex).partition(" Siril: ")
+                JOB["avisos"].append(msg)
+                _log("⚠ " + tr_py(msg))
+                if motivo:
+                    JOB["avisos"].append("Siril: " + motivo)
         masters_finales = []        # (filtro, ruta del master, escala ″/px, (ancho, alto), centro)
         for f in filtros:
+          if f["filtro"] in sin_masters:
+              JOB["paso"] += 2 * max(1, len(f.get("_equipos") or [])) + (1 if len(f.get("_equipos") or []) > 1 else 0)
+              continue
           F = seguro(f["filtro"])
           equipos = f.get("_equipos") or []
           varios = len(equipos) > 1
@@ -9181,14 +9306,19 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
                 if str(ex) == "Cancelado":
                     raise
                 JOB["paso"] = paso_ini + 2
-                msg = str(ex)
-                if "alinear_" in msg or "alinear" in msg:
+                msg, _, motivo = str(ex).partition(" Siril: ")
+                # solo es un fallo al alinear si Siril se paró en «register»; si fue al calibrar (un master de otro
+                # tamaño, un disco lleno…) decir «tomas de otro objeto o con nubes» despista: se dice lo que pasó
+                al_alinear = "Siril no ha podido alinear" in msg or ("alinear_" in msg and (not motivo or "regist" in motivo.lower()))
+                if al_alinear:
                     msg = (f"{etq}: Siril no ha podido alinear sus tomas. Lo más probable es que haya tomas "
                            "de otro objeto con el mismo nombre, o tomas muy malas (nubes, sin estrellas).")
                 elif "integrar_" in msg:
                     msg = f"{etq}: falló la integración."
                 JOB["avisos"].append(msg)
                 _log("⚠ " + tr_py(msg))
+                if motivo:
+                    JOB["avisos"].append("Siril: " + motivo)
                 for d in os.listdir(W):
                     if d.endswith(("_" + F + suf)) or re.search(rf"_{re.escape(F + suf)}_\d+$", d):
                         shutil.rmtree(os.path.join(W, d), ignore_errors=True)
@@ -9367,7 +9497,7 @@ def trabajo_integracion(plan, filtros_elegidos):
                 gg = g["_g"]
                 for clave in ("dark", "bias", "cflat"):
                     gg["_" + clave] = master_de(siril, gg[clave], bits)
-                if gg["flat"] and gg["cflat"] is not None:
+                if gg["flat"]:              # también sin calibración: no vale la de otro grupo con el mismo flat
                     JOB["_cflat"][gg["flat"]["id"]] = gg["_cflat"]
                 gg["_flat"] = master_de(siril, gg["flat"], bits)
             elegidos.append((f, e, len(eqs)))
@@ -9399,7 +9529,7 @@ def trabajo_integracion(plan, filtros_elegidos):
                 seq, tmp = os.path.join(W, f"sseq_{F}_{k}"), os.path.join(W, f"parcial_{F}_{k}")
                 peq = os.path.join(OUT, f"{seguro(f['filtro'])}_{len(sub):04d}")
                 L = ["requires 1.2.0", "set32bits", f"cd {q(d)}", f"link s {qo('-out=', seq)}", f"cd {q(seq)}",
-                     f"stack s {_rechazo_n(len(sub))} -norm=addscale {qo('-out=', tmp)}", f"load {q(tmp)}"]
+                     f"stack s {_rechazo_n(len(sub))} -norm=addscale {qo('-out=', tmp)}", f"load {q(tmp + '.fit')}"]
                 if factor < 0.99:
                     L += lineas_resample(factor, " -interp=area")
                 L.append(f"save {q(peq)}")
@@ -9440,8 +9570,14 @@ def trabajo_integracion(plan, filtros_elegidos):
 
 
 def iniciar_integracion(objeto, filtros):
-    if JOB["activo"]:
-        raise RuntimeError("Ya hay un apilado en marcha: espera a que termine.")
+    _reservar_job("Ya hay un apilado en marcha: espera a que termine.")
+    try:
+        _iniciar_integracion(objeto, filtros)
+    finally:
+        _JOB_RESERVA["on"] = False
+
+
+def _iniciar_integracion(objeto, filtros):
     plan = planificar(objeto, True)
     if not plan["siril"]:
         raise RuntimeError("No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.")
@@ -9452,7 +9588,7 @@ def iniciar_integracion(objeto, filtros):
     JOB.update(activo=True, estado="en marcha", tipo="integracion", paso=0, pasos=0, texto="Empezando…", sub="", log=[],
                resultados=[], vista=[], avisos=[], error="", carpeta="", cancelar=False, objeto=objeto,
                inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
-    threading.Thread(target=trabajo_integracion, args=(plan, filtros), daemon=True).start()
+    _hilo_job(trabajo_integracion, plan, filtros)
 
 
 def integraciones(objeto):
@@ -9591,13 +9727,14 @@ def vista_previa(carpeta, siril, objeto="", masters=None):
     os.makedirs(W)
     destino = os.path.join(carpeta, VISTA_DIR)
     os.makedirs(os.path.join(destino, MINI_DIR), exist_ok=True)
-    try:        # al rehacerla, se borran solo las imágenes de la vista previa anterior
+    viejas = []     # al rehacerla, las imágenes de la vista previa anterior se borran solo si sale la nueva
+    try:
         with open(os.path.join(destino, "vista_previa.json"), encoding="utf-8") as fh:
             for x in json.load(fh).get("imagenes") or []:
                 for k in ("jpg", "tif", "mini"):
                     r = dentro_apil(x.get(k) or "")
                     if r and os.path.dirname(r) in (destino, os.path.join(destino, MINI_DIR)) and os.path.isfile(r):
-                        os.remove(r)
+                        viejas.append(r)
     except Exception:
         pass
     avisos, trabajos = [], []        # trabajo: (nombre, tipo, filtros, script, carpeta de salida)
@@ -9707,6 +9844,16 @@ def vista_previa(carpeta, siril, objeto="", masters=None):
         if "jpg" in final:
             final.setdefault("mini", final["jpg"])
             imagenes.append(dict(nombre=nombre, tipo=tipo, filtros=filtros, **final))
+    if not imagenes:                # no ha salido nada: se queda la vista previa que había
+        shutil.rmtree(W, ignore_errors=True)
+        return imagenes, avisos
+    nuevas = {os.path.normcase(os.path.normpath(os.path.join(APIL_ROOT, v))) for x in imagenes for k, v in x.items() if k in ("jpg", "tif", "mini")}
+    for r in viejas:
+        if os.path.normcase(os.path.normpath(r)) not in nuevas:
+            try:
+                os.remove(r)
+            except OSError:
+                pass
     try:
         with open(os.path.join(destino, "vista_previa.json"), "w", encoding="utf-8") as fh:
             json.dump({"objeto": inf.get("objeto") or objeto, "creada": _dt.datetime.now().isoformat(timespec="seconds"),
@@ -9802,8 +9949,14 @@ def trabajo_vista(carpeta, objeto):
 
 
 def iniciar_vista(carpeta_rel):
-    if JOB["activo"]:
-        raise RuntimeError("Ya hay un apilado en marcha. Espera a que termine.")
+    _reservar_job("Ya hay un apilado en marcha. Espera a que termine.")
+    try:
+        _iniciar_vista(carpeta_rel)
+    finally:
+        _JOB_RESERVA["on"] = False
+
+
+def _iniciar_vista(carpeta_rel):
     carpeta = dentro_apil(carpeta_rel)
     if not carpeta or not os.path.isdir(carpeta):
         raise RuntimeError("No encuentro esa carpeta de apilado.")
@@ -9813,7 +9966,7 @@ def iniciar_vista(carpeta_rel):
     JOB.update(activo=True, estado="en marcha", tipo="vista", paso=0, pasos=1, texto="Empezando…", sub="", log=[],
                resultados=[], vista=[], avisos=[], error="", carpeta=carpeta, cancelar=False,
                inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
-    threading.Thread(target=trabajo_vista, args=(carpeta, inf.get("objeto") or ""), daemon=True).start()
+    _hilo_job(trabajo_vista, carpeta, inf.get("objeto") or "")
 
 
 # ─── «Abrir en…»: programas de edición instalados ───
@@ -14165,7 +14318,7 @@ def _resolver_toma(siril, ver, r, pista):
         guion = os.path.join(W, "resolver.ssf")
         with open(guion, "w", encoding="utf-8") as f:
             f.write("\n".join(L) + "\n")
-        p = lanzar_siril([siril, "-s", guion], cwd=W)
+        p = lanzar_siril(orden_siril(siril, guion, W), cwd=W)
         _ASTROM_P["p"] = p
         ultimas, t0 = [], time.time()
         for linea in p.stdout:
@@ -14510,8 +14663,14 @@ def importar_copiar(ruta, rel):
 
 
 def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True):
-    if JOB["activo"]:
-        raise RuntimeError("Ya hay un apilado en marcha.")
+    _reservar_job("Ya hay un apilado en marcha.")
+    try:
+        _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos)
+    finally:
+        _JOB_RESERVA["on"] = False
+
+
+def _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos):
     plan = planificar(objeto, avisos_ok)
     if not plan["siril"]:
         raise RuntimeError("No encuentro Siril. Instálalo desde siril.org (en Aplicaciones) y vuelve a intentarlo.")
@@ -14522,7 +14681,7 @@ def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True):
     JOB.update(activo=True, estado="en marcha", tipo="apilado", paso=0, pasos=0, texto="Empezando…", sub="", log=[],
                resultados=[], vista=[], avisos=[], error="", carpeta="", cancelar=False,
                inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
-    threading.Thread(target=trabajo_apilado, args=(plan, filtros, vista, pesos), daemon=True).start()
+    _hilo_job(trabajo_apilado, plan, filtros, vista, pesos)
 
 
 def estado_publico():
@@ -15486,7 +15645,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(portadas(json.loads(self._body() or b"{}").get("objetos") or []), ensure_ascii=False))
         if p.path == "/api/salir":
             self._send(200, '{"ok":true}')
-            threading.Thread(target=lambda: (time.sleep(0.3), os._exit(0)), daemon=True).start()
+            threading.Thread(target=lambda: (parar_siril(), time.sleep(0.3), os._exit(0)), daemon=True).start()
             return
         q = urllib.parse.parse_qs(p.query)
         try:
@@ -15977,6 +16136,21 @@ if not INTEGRADO:
 port = int(os.environ.get("ASTRO_PUERTO_" + PROGRAMA_ID.upper()) or 0) or puerto_libre()
 srv = ThreadingHTTPServer(("127.0.0.1", port), H)
 threading.Thread(target=_avisador, daemon=True).start()
+
+
+def _limpiar_trabajo_viejo():
+    """Si ASTRO se cerró de golpe a mitad de un apilado, sus archivos intermedios (a veces decenas de GB) se quedaban en
+    Apilados/_trabajo para siempre: se borran los que llevan más de un día sin tocarse."""
+    try:
+        for n in os.listdir(TRABAJO_DIR):
+            d = os.path.join(TRABAJO_DIR, n)
+            if os.path.isdir(d) and time.time() - os.path.getmtime(d) > 86400 and not JOB["activo"]:
+                shutil.rmtree(d, ignore_errors=True)
+    except OSError:
+        pass
+
+
+threading.Thread(target=_limpiar_trabajo_viejo, daemon=True).start()
 url = "http://127.0.0.1:%d/" % port
 registrar_instancia(port)
 print("=" * 60)
