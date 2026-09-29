@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.24"
+VERSION_PROG = "2026.09.29.25"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1296,7 +1296,9 @@ def _medir_cielo(img, info, progreso):
 
     # ── ganancia (e⁻ por unidad de la imagen) ──
     s_adu = info.get("escala_adu") or 1.0
-    g = num(info.get("gain"))
+    # EGAIN va en electrones por ADU: solo vale si se sabe cuántas ADU es cada unidad de la imagen (en un apilado
+    # normalizado no se sabe, y usarla daría un ruido de fotones y un SNR que no son)
+    g = num(info.get("gain")) if info.get("escala_adu") else None
     metodo_g = "cabecera (EGAIN)"
     if not g or not (0.01 < g < 50):
         g = None
@@ -1622,14 +1624,45 @@ class Cancelado(Exception):
     pass
 
 
+def _config_siril_usuario():
+    """El config.ini de Siril del usuario (Siril 1.2 y posteriores), o "" si no está en su sitio de siempre."""
+    h = os.path.expanduser("~")
+    cands = [os.path.join(os.environ.get("LOCALAPPDATA") or "", "siril", "config.ini")] if os.name == "nt" else []
+    cands += [os.path.join(h, "Library", "Application Support", "org.siril.Siril", "siril", "config.ini"),
+              os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.join(h, ".config"), "siril", "config.ini")]
+    return next((c for c in cands if c and os.path.isfile(c)), "")
+
+
+def _guion_siril(texto):
+    """ASTRO busca sus archivos como .fit sin comprimir: se fija en cada guion (por si el usuario lo cambió en Siril)."""
+    if texto.startswith("requires ") and "\nsetext " not in texto:
+        l0, _, resto = texto.partition("\n")
+        texto = l0 + "\nsetext fit\nsetcompress 0\n" + resto
+    return texto
+
+
+def _con_config(args, carpeta):
+    """Añade -i con una copia de la configuración de Siril del usuario: setext y setcompress se guardan al salir
+    de Siril, y así no cambian sus ajustes."""
+    ini = _config_siril_usuario()
+    if ini:
+        try:
+            copia = os.path.join(carpeta, "siril_astro.ini")
+            shutil.copyfile(ini, copia)
+            return [args[0], "-i", copia] + list(args[1:])
+        except OSError:
+            pass
+    return list(args)
+
+
 def correr_siril(siril, lineas, nombre, W):
     if JOB["cancelar"]:
         raise Cancelado()
     ruta = os.path.join(W, nombre + ".ssf")
     with open(ruta, "w", encoding="utf-8") as f:
-        f.write("\n".join(lineas) + "\n")
+        f.write(_guion_siril("\n".join(lineas) + "\n"))
     _log("── Siril: %s ──" % nombre)
-    p = lanzar_siril([siril, "-d", W, "-s", ruta], cwd=W)
+    p = lanzar_siril(_con_config([siril, "-d", W, "-s", ruta], W), cwd=W)
     _PROC["p"] = p
     salida, fallo = [], False
     for linea in p.stdout:
@@ -1672,11 +1705,15 @@ def master_de(siril, s, W, hechos):
         return None
     if s.get("master"):
         return s["files"][0]
-    final = os.path.join(MASTERS_DIR, s["id"] + ".fit")
+    # el flat calibrado se guarda con el nombre de lo que lo calibró (igual que en el apilado: comparten carpeta)
+    cal = master_de(siril, s.get("_cflat"), W, hechos) if s["tipo"] == "flat" else None
+    cal_id = (s.get("_cflat") or {}).get("id") or os.path.splitext(os.path.basename(cal or ""))[0]
+    clave = s["id"] + ("__" + re.sub(r"[^A-Za-z0-9._-]+", "_", cal_id).strip("_") if cal else "")
+    final = os.path.join(MASTERS_DIR, clave + ".fit")
     if os.path.isfile(final):
         return final
-    if s["id"] in hechos:
-        return hechos[s["id"]]
+    if clave in hechos:
+        return hechos[clave]
     os.makedirs(MASTERS_DIR, exist_ok=True)
     src = os.path.join(W, "src_" + s["id"])
     os.makedirs(src, exist_ok=True)
@@ -1684,16 +1721,23 @@ def master_de(siril, s, W, hechos):
         enlace(a, os.path.join(src, "c%05d%s" % (i, os.path.splitext(a)[1].lower())))
     seq = os.path.join(W, "seq_" + s["id"])
     L = ["requires 1.2.0", "set32bits", "cd %s" % q(src), "link c %s" % qo("-out=", seq), "cd %s" % q(seq)]
+    tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d" % (clave, os.getpid()))     # si se corta, no queda a medias
     if s["tipo"] == "flat":
-        cal = master_de(siril, s.get("_cflat"), W, hechos)
-        L += ["calibrate c %s" % qo("-bias=", cal) if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul %s" % qo("-out=", final[:-4])]
+        L += ["calibrate c %s" % qo("-bias=", cal) if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul %s" % qo("-out=", tmp)]
     else:
-        L += ["stack c rej 3 3 -nonorm %s" % qo("-out=", final[:-4])]
+        L += ["stack c rej 3 3 -nonorm %s" % qo("-out=", tmp)]
     JOB["texto"], JOB["archivo"] = "Creando el master", s.get("desc", s["id"])
-    correr_siril(siril, L, "master_" + s["id"], W)
-    shutil.rmtree(seq, ignore_errors=True)
-    shutil.rmtree(src, ignore_errors=True)
-    hechos[s["id"]] = final
+    try:
+        correr_siril(siril, L, "master_" + s["id"], W)
+        os.replace(tmp + ".fit", final)
+    finally:
+        try:
+            os.remove(tmp + ".fit")
+        except OSError:
+            pass
+        shutil.rmtree(seq, ignore_errors=True)
+        shutil.rmtree(src, ignore_errors=True)
+    hechos[clave] = final
     return final
 
 
@@ -2068,12 +2112,15 @@ def vsx_objeto(nombre):
         ruta = os.path.join(CATALOGOS, "vsx_%s.json" % _slug(nombre))
         d = leer_json(ruta, None)
         if not d or not (d.get("VSXObject") or {}) or time.time() - d.get("_guardado", 0) > 30 * 86400:
+            viejo = d if d and (d.get("VSXObject") or {}) else None
             try:
                 d = _get_json(VSX_URL + "?" + urllib.parse.urlencode({"view": "api.object", "ident": nombre, "format": "json"}))
             except ErrorServicio:
                 return None
             except Exception as e:
-                raise RuntimeError("No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?). %s" % e)
+                if not viejo:        # sin conexión: vale lo que se guardó la otra vez, aunque tenga más de un mes
+                    raise RuntimeError("No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?). %s" % e)
+                d = viejo
             if isinstance(d, dict) and d.get("VSXObject"):
                 d["_guardado"] = time.time()
                 escribir_json(ruta, d)
@@ -2109,14 +2156,17 @@ def vsx_en_campo(ra, dec, radio, tomag=15.5):
         ruta = os.path.join(CATALOGOS, "vsxlista_%.3f_%+.3f_%.3f_%.1f.json" % (ra, dec, radio, tomag))
         d = leer_json(ruta, None)
         if not d or time.time() - d.get("_guardado", 0) > 30 * 86400:
+            viejo = d
             try:
                 d = _get_json(VSX_URL + "?" + urllib.parse.urlencode({"view": "api.list", "ra": "%.5f" % ra, "dec": "%.5f" % dec,
                                                                         "radius": "%.4f" % radio, "tomag": "%.1f" % tomag, "format": "json"}), timeout=60)
+                d = d if isinstance(d, dict) else {}
+                d["_guardado"] = time.time()
+                escribir_json(ruta, d)
             except Exception as e:
-                raise RuntimeError("No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?). %s" % e)
-            d = d if isinstance(d, dict) else {}
-            d["_guardado"] = time.time()
-            escribir_json(ruta, d)
+                if not viejo:        # sin conexión: vale la lista que se guardó la otra vez
+                    raise RuntimeError("No he podido consultar el VSX de la AAVSO (¿hay conexión a Internet?). %s" % e)
+                d = viejo
     lista = ((d.get("VSXObjects") or {}).get("VSXObject") if isinstance(d.get("VSXObjects"), dict) else d.get("VSXObjects")) or []
     if isinstance(lista, dict):
         lista = [lista]
@@ -2184,7 +2234,7 @@ def vsp_carta(estrella, fov, maglimit=16.0, ra=None, dec=None):
             else:
                 pars.update(ra="%.5f" % ra, dec="%.5f" % dec)
             errores = []
-            d = None
+            viejo, d = d, None
             for url in VSP_URLS:
                 try:
                     d = _get_json(url + "?" + urllib.parse.urlencode(pars))
@@ -2197,10 +2247,13 @@ def vsp_carta(estrella, fov, maglimit=16.0, ra=None, dec=None):
                     raise RuntimeError("La AAVSO no ha podido preparar la secuencia: %s" % e)
                 except Exception as e:
                     errores.append(str(e))
-            if d is None:
+            if d is None and viejo:           # sin conexión: vale la secuencia que se guardó la otra vez
+                d = viejo
+            elif d is None:
                 raise RuntimeError("No he podido consultar la secuencia de la AAVSO (¿hay conexión a Internet?). " + " · ".join(errores))
-            d["_guardado"], d["_fuente"] = time.time(), fuente
-            escribir_json(ruta, d)
+            else:
+                d["_guardado"], d["_fuente"] = time.time(), fuente
+                escribir_json(ruta, d)
     comps = []
     for p in d.get("photometry") or []:
         mags = {}
@@ -3214,8 +3267,13 @@ def _inversa(A):
 def ajuste_lm(modelo, p0, libres, pasos, y, sig, limites=None, iters=80):
     """Mínimos cuadrados no lineales (Levenberg-Marquardt) con derivadas numéricas. modelo(params) da una lista
     como y. Devuelve (parámetros, covarianza {(a, b): valor}, chi²)."""
-    limites = limites or {}
+    # los límites son solo para lo que se ajusta: un parámetro fijo fuera de ellos (una inclinación de catálogo de
+    # 90,1°, por ejemplo) hacía que se rechazara cualquier paso y el ajuste se quedaba en el punto de partida
+    limites = {k: v for k, v in (limites or {}).items() if k in libres}
     p = dict(p0)
+    for k, (lo, hi) in limites.items():
+        if k in p:
+            p[k] = min(max(p[k], lo), hi)
     w = [1.0 / (s * s) for s in sig]
     n = len(libres)
 
@@ -3594,7 +3652,7 @@ def trabajo_exo(p):
             if dist * 3600 < 20 or dist > media:
                 continue
             vecina = any(x is not e and x["g"] is not None and x["g"] < e["g"] + 3.0 and separacion(e["ra_f"], e["dec_f"], x["ra_f"], x["dec_f"]) * 3600 < 12 * max(1.0, escala)
-                         for x in est_cat if abs(x["dec_f"] - e["dec_f"]) < 0.01)
+                         for x in est_cat if abs(x["dec_f"] - e["dec_f"]) < max(0.01, 12 * max(1.0, escala) / 3600.0))
             if vecina:
                 continue
             bprp = (e["bp"] - e["rp"]) if e.get("bp") is not None and e.get("rp") is not None else None
@@ -4268,7 +4326,7 @@ def _comparaciones_gaia(ra_p, dec_p, g_t, w, h, escala, f0, maximo=18):
         if dist * 3600 < 20 or dist > media:
             continue
         vecina = any(x is not e and x["g"] is not None and x["g"] < e["g"] + 3.0 and separacion(e["ra_f"], e["dec_f"], x["ra_f"], x["dec_f"]) * 3600 < 12 * max(1.0, escala)
-                     for x in est_cat if abs(x["dec_f"] - e["dec_f"]) < 0.01)
+                     for x in est_cat if abs(x["dec_f"] - e["dec_f"]) < max(0.01, 12 * max(1.0, escala) / 3600.0))
         if vecina:
             continue
         bprp = (e["bp"] - e["rp"]) if e.get("bp") is not None and e.get("rp") is not None else None

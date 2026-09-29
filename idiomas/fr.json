@@ -3034,7 +3034,8 @@
 "«Gratis» y «de pago» se refieren a los programas; «ES» marca los enlaces en español.": "« Gratuit » et « payant » concernent les logiciels ; « ES » signale les liens en espagnol.",
 "Apoya ASTRO": "Soutenir ASTRO",
 "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO est gratuit. S'il vous est utile, vous pouvez l'aider à continuer de grandir avec un don.",
-"Donar con PayPal": "Faire un don avec PayPal"
+"Donar con PayPal": "Faire un don avec PayPal",
+"Exposición larga para un bias": "Exposition longue pour un bias"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",

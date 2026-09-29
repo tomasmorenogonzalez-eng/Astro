@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.32"
+VERSION_PROG = "2026.09.29.33"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -9323,7 +9323,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
                                                             plan.get("siril_version"), pesos)
                 hechos.append((e, ruta, reg, fall, rej, pond))
                 JOB["resultados"].append({"filtro": f["filtro"], "equipo": e["nombre"] if varios else "",
-                                          "archivo": os.path.relpath(ruta, DISCO), "tomas": e["n"], "alineadas": reg, "ponderado": pond})
+                                          "archivo": os.path.relpath(ruta, DISCO).replace(os.sep, "/"), "tomas": e["n"], "alineadas": reg, "ponderado": pond})
             except Exception as ex:
                 if str(ex) == "Cancelado":
                     raise
@@ -9363,7 +9363,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
                   combinado = {"referencia": re_["nombre"], "escala": re_.get("escala"), "equipos": [hechos[i][0]["nombre"] for i in usados],
                                "archivo": os.path.basename(destino) + ".fit",
                                "giros": {hechos[i][0]["nombre"]: g for i, g in giros.items()}}
-                  JOB["resultados"].append({"filtro": f["filtro"], "equipo": "combinado", "archivo": os.path.relpath(destino + ".fit", DISCO),
+                  JOB["resultados"].append({"filtro": f["filtro"], "equipo": "combinado", "archivo": os.path.relpath(destino + ".fit", DISCO).replace(os.sep, "/"),
                                             "tomas": sum(hechos[i][0]["n"] for i in usados),
                                             "alineadas": sum((hechos[i][2] or 0) for i in usados) or None})
                   if len(usados) < len(hechos):

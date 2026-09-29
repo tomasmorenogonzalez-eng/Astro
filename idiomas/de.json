@@ -3034,7 +3034,8 @@
 "«Gratis» y «de pago» se refieren a los programas; «ES» marca los enlaces en español.": "„Kostenlos“ und „kostenpflichtig“ beziehen sich auf die Programme; „ES“ kennzeichnet Links auf Spanisch.",
 "Apoya ASTRO": "ASTRO unterstützen",
 "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO ist kostenlos. Wenn es dir nützt, kannst du mit einer Spende helfen, dass es weiter wächst.",
-"Donar con PayPal": "Mit PayPal spenden"
+"Donar con PayPal": "Mit PayPal spenden",
+"Exposición larga para un bias": "Lange Belichtung für ein Bias"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",
