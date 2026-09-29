@@ -11,8 +11,12 @@ repositorio, que es público; aquí solo está lo que los adapta al equipo de ca
 - `empaquetar.py`: genera el paquete.
 
 ```
-python3 herramientas/cursos/empaquetar.py "/ruta/a/Cursos de astrofotografia" cursos-astrofotografia-bonus.zip
+python3 herramientas/cursos/empaquetar.py "/ruta/a/Cursos de astrofotografia" cursos-astrofotografia-bonus.zip \
+    --ajustes "/ruta/a/ajustes-empaquetado.json"
 ```
+
+`--ajustes` es opcional: quita archivos del paquete y cambia textos sin tocar la biblioteca original (por ejemplo,
+material de terceros que se sustituye por un enlace). El JSON vive junto a los cursos, no en este repositorio.
 
 En ASTRO: menú «Cursos (bonus)» → «Ya tengo el paquete: elegirlo…». Se instala en `<datos>/Cursos` y se abre en el
 navegador con el equipo dentro. El enlace para conseguirlos se pone en `cursos.txt` (Ko-fi o Gumroad).

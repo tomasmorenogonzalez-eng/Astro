@@ -2,13 +2,18 @@
 """Empaqueta la biblioteca de cursos de astrofotografía como bonus de ASTRO.
 
 Uso:
-    python3 herramientas/cursos/empaquetar.py "<carpeta de la biblioteca>" [salida.zip]
+    python3 herramientas/cursos/empaquetar.py "<carpeta de la biblioteca>" [salida.zip] [--ajustes ajustes.json]
 
 La carpeta es la que contiene index.html y material/ (la biblioteca de cursos). El paquete:
   - añade a cada página la personalización con el equipo del alumno (personaliza.js y ejemplos.js),
   - lleva un manifest.json para que ASTRO lo reconozca al instalarlo,
   - y se sigue pudiendo abrir sin ASTRO (Abrir la biblioteca.command / .bat).
-El contenido de los cursos no está en el repositorio de ASTRO (que es público): solo el motor y este script."""
+El contenido de los cursos no está en el repositorio de ASTRO (que es público): solo el motor y este script.
+
+--ajustes (opcional) cambia el paquete sin tocar la biblioteca original. Es un JSON:
+  {"excluir": ["material/archivo.ext", ...],
+   "reemplazos": [{"archivos": ["index.html", "material/x.html"], "de": "texto", "a": "texto nuevo"}, ...]}
+Si un reemplazo no encuentra su texto, el empaquetado se para (así no se cuela un paquete a medio cambiar)."""
 import datetime
 import json
 import os
@@ -39,7 +44,26 @@ def inyectar(html, prefijo):
     return html[:i] + trozo + html[i:] if i >= 0 else html + trozo
 
 
-def empaquetar(origen, salida=None):
+def aplicar_ajustes(dest, ajustes):
+    for rel in ajustes.get("excluir", []):
+        ruta = os.path.normpath(os.path.join(dest, rel))
+        if not ruta.startswith(dest + os.sep) or not os.path.isfile(ruta):
+            raise SystemExit("Ajustes: no encuentro %s para excluirlo" % rel)
+        os.remove(ruta)
+    for r in ajustes.get("reemplazos", []):
+        for rel in r["archivos"]:
+            ruta = os.path.normpath(os.path.join(dest, rel))
+            if not ruta.startswith(dest + os.sep) or not os.path.isfile(ruta):
+                raise SystemExit("Ajustes: no encuentro %s" % rel)
+            with open(ruta, encoding="utf-8") as fh:
+                h = fh.read()
+            if r["de"] not in h:
+                raise SystemExit("Ajustes: en %s no está el texto «%s»" % (rel, r["de"][:80]))
+            with open(ruta, "w", encoding="utf-8") as fh:
+                fh.write(h.replace(r["de"], r["a"]))
+
+
+def empaquetar(origen, salida=None, ajustes=None):
     origen = os.path.abspath(origen)
     if not os.path.isfile(os.path.join(origen, "index.html")) or not os.path.isdir(os.path.join(origen, "material")):
         raise SystemExit("No encuentro index.html y material/ en %s" % origen)
@@ -48,6 +72,9 @@ def empaquetar(origen, salida=None):
     tmp = tempfile.mkdtemp(prefix="cursos-")
     dest = os.path.join(tmp, "Cursos de astrofotografia")
     shutil.copytree(origen, dest, ignore=shutil.ignore_patterns("._*", ".DS_Store", "__MACOSX"))
+    if ajustes:
+        with open(ajustes, encoding="utf-8") as fh:
+            aplicar_ajustes(dest, json.load(fh))
     for f in ("personaliza.js", "ejemplos.js"):
         shutil.copy2(os.path.join(AQUI, f), os.path.join(dest, "material", f))
     paginas = 0
@@ -94,6 +121,14 @@ def empaquetar(origen, salida=None):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    args = sys.argv[1:]
+    aj = None
+    if "--ajustes" in args:
+        i = args.index("--ajustes")
+        if i + 1 >= len(args):
+            raise SystemExit(__doc__)
+        aj = args[i + 1]
+        del args[i:i + 2]
+    if not args:
         raise SystemExit(__doc__)
-    empaquetar(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)
+    empaquetar(args[0], args[1] if len(args) > 1 else None, aj)
