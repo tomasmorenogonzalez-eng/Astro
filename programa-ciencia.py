@@ -3585,13 +3585,19 @@ def calcular_exo(serie, sel):
     if e_tc_tot * 1440 > 5:
         avisos.append("el instante central tiene un error grande (más de 5 minutos)")
     # exposición para no saturar: con el pico de la estrella del planeta en estas tomas
+    # (el techo de cada toma: 1,0 si está calibrada y 65535 si es de 16 bits sin calibrar; en una serie con unas y otras
+    # se calcula toma a toma y se da la mediana)
     exp_max = None
-    if sat:
-        picos = [(t["estrellas"]["T"][4] - t["estrellas"]["T"][7], t.get("exp") or 0) for t in tomas if "T" in t["estrellas"]]
-        picos = [(pk, ex) for pk, ex in picos if pk > 0 and ex > 0]
-        if picos:
-            pk, ex = sorted(picos)[len(picos) // 2]
-            exp_max = round(ex * 0.6 * sat / pk, 1)
+    propuestas = []
+    for t in tomas:
+        techo = 1.0 if t.get("flotante") else (65535.0 if t.get("bits") == 16 else None)
+        if not techo or "T" not in t["estrellas"]:
+            continue
+        pk, ex = t["estrellas"]["T"][4] - t["estrellas"]["T"][7], t.get("exp") or 0
+        if pk > 0 and ex > 0:
+            propuestas.append(ex * 0.6 * techo / pk)
+    if propuestas:
+        exp_max = round(sorted(propuestas)[len(propuestas) // 2], 1)
     # grupos de 5 minutos para ver mejor la curva
     grupos = []
     k = 0
@@ -6716,12 +6722,27 @@ def autoprueba(carpeta):
     aj = ajustar_maximo(ts_rr, ms_rr, [0.006] * len(ts_rr), P_rr, A_rr, n_boot=60)
     rr_seg = (aj["tmax"] - T) * 86400
     ok = ok and abs(rr_seg) < 240 and aj["err"] is not None
+    # una serie de tránsito entera, como la de una noche real (calcular_exo): tiene que devolver el instante central
+    rnd3 = random.Random(3)
+    pl_ = {"nombre": "PRUEBA b", "periodo": 3.0, "p": 0.1, "a": 8.0, "inc": 88.0, "t0": 2461000.0, "t0_err": 0.0005, "periodo_err": 1e-6}
+    tc_ = pl_["t0"] + pl_["periodo"] * 100
+    ts_ex = [tc_ - 0.12 + i * 0.002 for i in range(120)]
+    tomas_ex = []
+    for t_, m_ in zip(ts_ex, curva_transito(ts_ex, tc_, pl_["periodo"], pl_["p"], pl_["a"], pl_["inc"], 0.4, 0.2)):
+        est_ = {sid: [[base * (1 + rnd3.gauss(0, 0.002)) * k for k in (0.8, 0.95, 1.0)], 5.0, [30.0, 70.0, 120.0], 300, 0.3, 100.0, 100.0, 0.01]
+                for sid, base in (("T", 50000.0 * m_), ("C1", 40000.0), ("C2", 45000.0), ("C3", 30000.0), ("C4", 35000.0))}
+        tomas_ex.append({"bjd_tdb": t_, "flotante": True, "bits": 16, "gain": None, "masa_aire": 1.2, "archivo": "f.fit", "exp": 60,
+                         "estrellas": est_})
+    ex_ = calcular_exo({"planeta": pl_, "estrellas": [{"id": x} for x in ("T", "C1", "C2", "C3", "C4")], "tomas": tomas_ex,
+                        "factores": [1.0, 1.5, 2.0], "limbo": (0.4, 0.2)}, {})
+    exo_min = (ex_["tc"] - tc_) * 1440
+    ok = ok and abs(exo_min) < 3
     try:
         os.remove(ruta)
     except OSError:
         pass
     return {"ok": ok, "zp": r["zp"], "zp_esperado": zp, "cielo": r["brillo_cielo"], "cielo_esperado": sb, "fwhm_px": r["fwhm_px"],
-            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "plano": plano_ok, "rr_seg": round(rr_seg, 1), "segundos": r["segundos"]}
+            "lim5": r["lim5"], "bjd": round(t["bjd_tdb"], 6), "transito": round(tr_, 6), "plano": plano_ok, "rr_seg": round(rr_seg, 1), "exo_min": round(exo_min, 2), "segundos": r["segundos"]}
 
 
 # ═════════════════════════════ LO QUE PIDE LA PÁGINA ═════════════════════════════
