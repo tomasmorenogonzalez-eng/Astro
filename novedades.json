@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.28.2",
+  "es": [
+   "Apilado más fiable con Siril: funciona aunque hayas cambiado en Siril la extensión o la compresión de los archivos (sin tocar tus ajustes), acepta tomas XISF con Siril 1.4, sigue con los demás filtros si falla uno y enseña el motivo que da Siril.",
+   "Tus datos, más a salvo: lights.json y biblioteca.json se guardan con una copia de seguridad (.bak), no se sobrescriben si no se pudieron leer y una pestaña abierta desde antes ya no deshace lo guardado desde otra.",
+   "Las tomas con el mismo nombre de noches distintas (Ekos y otros programas repiten nombres) ya no se dan por repetidas, y la noche de cada toma sale bien también lejos de Europa.",
+   "Ciencia: corregido el «Punto cero (1 ADU en 1 s)» y, sin conexión, se usan las consultas de la AAVSO ya guardadas. Y muchos arreglos más en la sesión en directo, las actualizaciones y la seguridad."
+  ],
+  "en": [
+   "More reliable stacking with Siril: it works even if you changed the file extension or compression in Siril (without touching your settings), accepts XISF frames with Siril 1.4, carries on with the other filters if one fails and shows the reason Siril gives.",
+   "Your data is safer: lights.json and biblioteca.json are saved with a backup copy (.bak), are not overwritten if they could not be read, and a tab left open from before no longer undoes what was saved from another one.",
+   "Frames with the same name from different nights (Ekos and other programs reuse names) are no longer treated as duplicates, and each frame's night is right far from Europe too.",
+   "Science: the «Zero point (1 ADU in 1 s)» has been fixed and, when offline, the AAVSO queries already saved are used. Plus many more fixes in the live session, updates and security."
+  ],
+  "fr": [
+   "Empilement plus fiable avec Siril : il fonctionne même si vous avez changé l'extension ou la compression des fichiers dans Siril (sans toucher à vos réglages), accepte les poses XISF avec Siril 1.4, continue avec les autres filtres si l'un échoue et affiche la raison donnée par Siril.",
+   "Vos données sont plus en sécurité : lights.json et biblioteca.json sont enregistrés avec une copie de sauvegarde (.bak), ne sont pas écrasés s'ils n'ont pas pu être lus, et un onglet ouvert depuis longtemps n'annule plus ce qui a été enregistré depuis un autre.",
+   "Les poses portant le même nom sur des nuits différentes (Ekos et d'autres programmes réutilisent les noms) ne sont plus prises pour des doublons, et la nuit de chaque pose est juste aussi loin de l'Europe.",
+   "Science : le « Point zéro (1 ADU en 1 s) » est corrigé et, sans connexion, les requêtes AAVSO déjà enregistrées sont utilisées. Et bien d'autres corrections dans la session en direct, les mises à jour et la sécurité."
+  ],
+  "de": [
+   "Zuverlässigeres Stacken mit Siril: Es funktioniert auch, wenn du in Siril die Dateiendung oder die Kompression geändert hast (ohne deine Einstellungen anzutasten), nimmt XISF-Aufnahmen mit Siril 1.4 an, macht mit den anderen Filtern weiter, wenn einer scheitert, und zeigt den Grund, den Siril nennt.",
+   "Deine Daten sind sicherer: lights.json und biblioteca.json werden mit einer Sicherungskopie (.bak) gespeichert, nicht überschrieben, wenn sie nicht gelesen werden konnten, und ein länger offener Tab macht nicht mehr rückgängig, was in einem anderen gespeichert wurde.",
+   "Aufnahmen mit gleichem Namen aus verschiedenen Nächten (Ekos und andere Programme verwenden Namen erneut) gelten nicht mehr als Duplikate, und die Nacht jeder Aufnahme stimmt auch fern von Europa.",
+   "Wissenschaft: Der „Nullpunkt (1 ADU in 1 s)“ ist korrigiert, und ohne Verbindung werden die bereits gespeicherten AAVSO-Abfragen verwendet. Dazu viele weitere Korrekturen bei der Live-Sitzung, den Updates und der Sicherheit."
+  ],
+  "it": [
+   "Impilamento più affidabile con Siril: funziona anche se in Siril hai cambiato l'estensione o la compressione dei file (senza toccare le tue impostazioni), accetta pose XISF con Siril 1.4, continua con gli altri filtri se uno fallisce e mostra il motivo che dà Siril.",
+   "I tuoi dati sono più al sicuro: lights.json e biblioteca.json si salvano con una copia di sicurezza (.bak), non vengono sovrascritti se non si sono potuti leggere e una scheda aperta da prima non annulla più ciò che è stato salvato da un'altra.",
+   "Le pose con lo stesso nome di notti diverse (Ekos e altri programmi riutilizzano i nomi) non vengono più prese per doppioni, e la notte di ogni posa è giusta anche lontano dall'Europa.",
+   "Scienza: corretto il «Punto zero (1 ADU in 1 s)» e, senza connessione, si usano le interrogazioni AAVSO già salvate. E molte altre correzioni nella sessione dal vivo, negli aggiornamenti e nella sicurezza."
+  ],
+  "pt": [
+   "Empilhamento mais fiável com o Siril: funciona mesmo que tenha mudado no Siril a extensão ou a compressão dos ficheiros (sem mexer nas suas definições), aceita exposições XISF com o Siril 1.4, continua com os outros filtros se um falhar e mostra o motivo que o Siril dá.",
+   "Os seus dados estão mais seguros: lights.json e biblioteca.json são guardados com uma cópia de segurança (.bak), não são substituídos se não puderam ser lidos e um separador aberto há mais tempo já não desfaz o que foi guardado noutro.",
+   "As exposições com o mesmo nome de noites diferentes (o Ekos e outros programas repetem nomes) já não são tomadas por repetidas, e a noite de cada exposição fica certa também longe da Europa.",
+   "Ciência: corrigido o «Ponto zero (1 ADU em 1 s)» e, sem ligação, usam-se as consultas à AAVSO já guardadas. E muitas outras correções na sessão em direto, nas atualizações e na segurança."
+  ]
+ },
+ {
   "version": "0.28.1",
   "es": [
    "Arreglo: «¿Sigo con este filtro?» fallaba siempre con cámaras de sensor muy grande (de más de unos 7000 píxeles de ancho), y la miniatura de la vista previa del apilado, a partir de unos 6000. Ya funcionan, y si Siril falla, el mensaje dice el motivo."
