@@ -11,7 +11,7 @@ import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.20"
+VERSION_PROG = "2026.09.29.21"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -180,7 +180,7 @@ def html_idioma(html, idi):
         js = lambda o: json.dumps(o, ensure_ascii=True).replace("</", "<\\/")
         _HTML_IDI[clave] = (html.replace("__IDIOMA__", idi).replace("__EJEMPLO__", "true" if es_ejemplo() else "false").replace("__DIC_OTRO__", js(d.get("dic") or {}))
                             .replace("__PAT_OTRO__", js(d.get("patrones") or {})).replace("__MESES_OTRO__", js(d.get("meses") or {}))
-                            .replace("__BLQ_OTRO__", js(d.get("bloques") or {})))
+                            .replace("__BLQ_OTRO__", js(d.get("bloques") or {})).replace("__ENL_OTRO__", js(d.get("enlaces") or {})))
     return _HTML_IDI[clave]
 
 
@@ -8185,6 +8185,31 @@ th{background:var(--surface);font-weight:700}
 .status{border-radius:10px}
 .modal .box{border-radius:18px}
 .menuIdiomas{position:fixed;z-index:80;display:flex;flex-direction:column;gap:2px;min-width:180px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px -12px rgba(20,12,30,.35)}.menuIdiomas button{border:0;background:transparent;color:var(--text);font:inherit;font-weight:600;text-align:left;padding:8px 12px;border-radius:8px;cursor:pointer}.menuIdiomas button:hover{background:var(--surface2)}.menuIdiomas button.on{background:var(--accent-soft);color:var(--accent)}
+/* ===== Bonus track: cien enlaces del cielo ===== */
+.bloque.bonus .ic{background:var(--oro-soft);color:var(--oro)}
+.chip.oro{background:var(--oro-soft);color:var(--oro)}
+.enlBarra{position:sticky;top:0;z-index:3;background:var(--bg);display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0 8px}
+.enlBusca{flex:1 1 260px;min-width:0;font:inherit;font-size:14.5px;padding:9px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--text)}
+.enlChips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px}
+.enlChip{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line2);background:transparent;color:var(--muted);border-radius:999px;padding:4px 11px;cursor:pointer}
+.enlChip span{color:var(--faint);font-size:11.5px;margin-left:5px}
+.enlChip:hover{border-color:var(--accent);color:var(--text)}
+.enlChip.on{background:var(--accent-soft);color:var(--accent);border-color:transparent} .enlChip.on span{color:var(--accent)}
+.enlSec{margin-top:26px}
+.enlCab{display:grid;grid-template-columns:1fr auto;align-items:baseline;column-gap:14px;padding-bottom:8px;border-bottom:2px solid var(--text)}
+.enlCab h3{margin:0;font-size:19px} .enlCab .note{grid-column:1} .enlCab .n{grid-column:2;grid-row:1;color:var(--faint);font-size:12.5px}
+.enlGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));column-gap:26px}
+.enlItem{display:grid;grid-template-columns:30px 1fr;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.enlItem:hover b{color:var(--accent);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.enlItem:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.enlNum{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--faint);padding-top:3px}
+.enlCuerpo{display:flex;flex-direction:column;gap:2px;min-width:0}
+.enlFila{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px} .enlFila b{font-size:15.5px}
+.enlDom{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);overflow-wrap:anywhere}
+.enlDes{color:var(--muted);font-size:13.5px;line-height:1.45}
+.enlEtq{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:5px;padding:1px 6px;line-height:1.6}
+.enlEtq.g{background:var(--ok-bg);color:var(--ok)} .enlEtq.p{border:1px solid var(--line2);color:var(--muted)} .enlEtq.s{background:var(--oro-soft);color:var(--oro)}
+.enlPie{margin-top:30px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
 </style>
 </head>
 <body>
@@ -8196,6 +8221,7 @@ th{background:var(--surface);font-weight:700}
     <button class="nav on" data-vista="inicio"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
     <div class="grupo">Los siete bloques</div>
     <div id="navBloques"></div>
+    <div id="navBonus" class="notr"></div>
     <div class="pieLat">
       <div class="temas" id="temas"><button data-t="dia" title="Aspecto claro, para el día">Día</button><button data-t="noche" title="Aspecto oscuro, para la noche">Noche</button><button data-t="rojo" title="Todo en rojo, para no perder la adaptación a la oscuridad"><i></i>Rojo</button></div>
       <button class="nav notr" id="btnIdioma" onclick="cambiarIdioma()" title="Idioma"></button>
@@ -8420,6 +8446,8 @@ th{background:var(--surface);font-weight:700}
         </div>
       </div>
     </section>
+
+    <section id="vistaEnlaces" class="notr" style="display:none"></section>
   </main>
 </div>
 
@@ -8803,12 +8831,15 @@ function pintarNav(){
     return `<button class="nav" data-vista="bloque" data-b="${b.id}"><span class="ic">${icono(b.id)}</span><span class="notr">${esc(T(b).titulo)}</span>${b.estado === "ya" ? '<span class="ya" title="Ya disponible"></span>' : '<span class="pronto">pronto</span>'}</button>`; }).join("");
   $("bloques").innerHTML = ORDEN.map(id => { const b = BL(id);
     return `<button class="bloque" data-b="${b.id}"><span class="cab"><span class="ic">${icono(b.id)}</span><b class="notr">${esc(T(b).titulo)}</b></span>
-      <span class="d notr">${esc(T(b).corto)}</span>${b.estado === "ya" ? '<span class="chip ya">Ya disponible</span>' : '<span class="chip">En preparación</span>'}</button>`; }).join("");
+      <span class="d notr">${esc(T(b).corto)}</span>${b.estado === "ya" ? '<span class="chip ya">Ya disponible</span>' : '<span class="chip">En preparación</span>'}</button>`; }).join("")
+    + `<button class="bloque bonus notr" data-vista="enlaces"><span class="cab"><span class="ic">${ENL_ICONO}</span><b>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</b></span>
+      <span class="d">${esc(trLT("Los cien sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre para qué sirve cada uno.", "The hundred astronomy and astrophotography sites worth keeping at hand, with a line on what each one is for."))}</span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></button>`;
+  $("navBonus").innerHTML = `<div class="grupo">${esc(trLT("Bonus track", "Bonus track"))}</div><button class="nav" data-vista="enlaces"><span class="ic">${ENL_ICONO}</span><span>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</span></button>`;
   document.querySelectorAll("[data-vista]").forEach(x => x.onclick = () => ir(x.dataset.vista, x.dataset.b));
   document.querySelectorAll(".bloque[data-b]").forEach(x => x.onclick = () => ir("bloque", x.dataset.b));
   ajustarBloques();
 }
-// siete bloques no llenan las filas: el último se estira hasta el final de la suya, para que no quede suelto
+// si los bloques no llenan la última fila, el último se estira hasta el final de la suya, para que no quede suelto
 function ajustarBloques(){
   const g = $("bloques"); if (!g) return;
   const cs = [...g.children]; cs.forEach(c => c.style.gridColumn = "");
@@ -8821,9 +8852,11 @@ function ir(vista, id){
   document.querySelectorAll(".nav").forEach(n => n.classList.toggle("on", n.dataset.vista === vista && (vista !== "bloque" || n.dataset.b === id)));
   $("vistaInicio").style.display = vista === "inicio" ? "" : "none";
   $("vistaBloque").style.display = vista === "bloque" ? "" : "none";
+  $("vistaEnlaces").style.display = vista === "enlaces" ? "" : "none";
   if (vista === "bloque") pintarBloque(id);
+  else if (vista === "enlaces") abrirEnlaces();
   else ajustarBloques();
-  history.replaceState(null, "", vista === "inicio" ? "#" : "#" + id);
+  history.replaceState(null, "", vista === "inicio" ? "#" : "#" + (vista === "enlaces" ? "enlaces" : id));
   window.scrollTo(0, 0);
 }
 function pintarBloque(id){
@@ -10104,9 +10137,177 @@ function acercaDe(){
   document.body.appendChild(d);
 }
 
+/* ============ Bonus track: cien enlaces del cielo ============ */
+const _ENL_OTRO = IDIOMA === "es" || IDIOMA === "en" ? {} : __ENL_OTRO__;   // temas, textos y nombres traducidos (idiomas/xx.json)
+const ENL_TEMAS = [
+ ["planificar", "Planificar la noche", "Tiempo, seeing, cielo oscuro y qué fotografiar hoy.", "Planning the night", "Weather, seeing, dark skies and what to shoot tonight."],
+ ["capturar", "Capturar y controlar", "Secuenciadores, guiado y drivers para mover el equipo.", "Capture and control", "Sequencers, guiding and drivers to run your gear."],
+ ["procesar", "Procesar", "Del apilado a la imagen final, en cielo profundo y planetaria.", "Processing", "From stacking to the final image, deep sky and planetary."],
+ ["medir", "Resolver y medir", "Saber dónde apunta cada foto y sacar números de ella.", "Solving and measuring", "Find out where each image points and get numbers out of it."],
+ ["catalogos", "Catálogos y datos", "Las bases de datos profesionales, abiertas a todo el mundo.", "Catalogues and data", "The professional databases, open to everyone."],
+ ["ciencia", "Ciencia con tu telescopio", "Proyectos pro-am donde tus medidas sirven de verdad.", "Science with your telescope", "Pro-am projects where your measurements really count."],
+ ["fenomenos", "Sol, Luna y fenómenos", "Tiempo espacial, eclipses, tránsitos y lluvias de meteoros.", "Sun, Moon and events", "Space weather, eclipses, transits and meteor showers."],
+ ["comunidad", "Comunidad y galerías", "Dónde enseñar fotos, preguntar y ver lo que hacen otros.", "Community and galleries", "Where to show your images, ask questions and see what others do."],
+ ["aprender", "Aprender", "Tutoriales, cursos y canales que explican bien las cosas.", "Learning", "Tutorials, courses and channels that explain things well."],
+ ["agencias", "Agencias, observatorios y noticias", "Imágenes y ciencia de primera mano.", "Agencies, observatories and news", "Images and science first-hand."],
+ ["espanol", "En español", "Instituciones, blogs y grupos de aquí.", "In Spanish", "Institutions, blogs and groups from Spain."]];
+// [tema, nombre, dirección, etiquetas (g gratis · p de pago · e equipo · gp gratis con Pro de pago · s en español), texto, texto en inglés, nombre en inglés si cambia]
+const ENLACES = [
+ ["planificar", "Clear Outside", "https://clearoutside.com", "", "Previsión por horas pensada para observar: nubes en tres alturas, niebla, rocío, Luna y horas de oscuridad.", "Hour-by-hour forecast made for observing: cloud at three heights, fog, dew, the Moon and hours of darkness."],
+ ["planificar", "Meteoblue · Seeing", "https://www.meteoblue.com/es/tiempo/outdoorsports/seeing", "s", "Seeing en segundos de arco, corriente en chorro y capas turbulentas, hora a hora.", "Seeing in arcseconds, jet stream and turbulent layers, hour by hour."],
+ ["planificar", "Astrospheric", "https://www.astrospheric.com", "", "Nubes, transparencia y seeing; muy fino en Norteamérica y útil en el resto del mundo.", "Cloud, transparency and seeing; very detailed in North America and useful everywhere else."],
+ ["planificar", "Windy", "https://www.windy.com", "", "Mapas de nubes por capas y viento en altura con ECMWF, ICON y GFS para comparar modelos.", "Layered cloud maps and upper-level wind from ECMWF, ICON and GFS, to compare models."],
+ ["planificar", "AEMET", "https://www.aemet.es", "s", "Predicción oficial, imágenes de satélite y radar en España.", "Spain's official forecast, satellite images and radar."],
+ ["planificar", "Light Pollution Map", "https://www.lightpollutionmap.info", "", "Contaminación lumínica sobre el mapa (VIIRS y atlas mundial) y medidas SQM de aficionados.", "Light pollution on the map (VIIRS and the world atlas) plus amateur SQM readings."],
+ ["planificar", "Telescopius", "https://telescopius.com", "", "Qué fotografiar esta noche, encuadre con tu cámara y telescopio, mosaicos y altura a lo largo de la noche.", "What to shoot tonight, framing with your camera and telescope, mosaics and altitude through the night."],
+ ["planificar", "Stellarium", "https://stellarium.org", "g", "Planetario libre de escritorio; también mueve la montura. Hay versión web.", "Free desktop planetarium that can also drive your mount. There is a web version too."],
+ ["planificar", "Heavens-Above", "https://www.heavens-above.com", "", "Pasos de la ISS y de satélites, trenes Starlink y cartas del cielo.", "ISS and satellite passes, Starlink trains and sky charts."],
+ ["planificar", "PhotoPills", "https://www.photopills.com", "", "App española para planificar Vía Láctea, Luna y paisaje nocturno sobre el terreno.", "Spanish-made app to plan Milky Way, Moon and nightscape shots on location."],
+ ["capturar", "N.I.N.A.", "https://nighttime-imaging.eu", "g", "Secuenciador libre para Windows: enfoque, meridiano, plate solving y un ecosistema de plugins enorme.", "Free sequencer for Windows: focusing, meridian flips, plate solving and a huge plugin ecosystem."],
+ ["capturar", "PHD2", "https://openphdguiding.org", "g", "El programa de guiado libre de referencia, con análisis de registros y asistentes de calibración.", "The go-to free guiding program, with log analysis and calibration assistants."],
+ ["capturar", "ASCOM", "https://ascom-standards.org", "g", "Plataforma de drivers de Windows y el estándar Alpaca para controlar equipo por red.", "The Windows driver platform and the Alpaca standard to control gear over the network."],
+ ["capturar", "INDI", "https://indilib.org", "g", "Drivers libres para Linux, macOS y Raspberry Pi.", "Free drivers for Linux, macOS and Raspberry Pi."],
+ ["capturar", "KStars / Ekos", "https://kstars.kde.org", "g", "Planetario con una suite de captura completa encima de INDI: guiado, enfoque, alineación y secuencias.", "A planetarium with a full capture suite built on INDI: guiding, focusing, alignment and sequences."],
+ ["capturar", "SharpCap", "https://www.sharpcap.co.uk", "gp", "Captura en directo, planetaria y EAA, con una alineación polar muy rápida.", "Live, planetary and EAA capture, with a very quick polar alignment."],
+ ["capturar", "FireCapture", "https://www.firecapture.de", "g", "Captura planetaria de alta velocidad con cámaras de vídeo astronómicas.", "High-speed planetary capture with astronomy video cameras."],
+ ["capturar", "Astro Photography Tool", "https://www.astrophotography.app", "p", "APT: control de cámaras réflex y CCD/CMOS con secuencias y enfoque.", "APT: control of DSLRs and CCD/CMOS cameras, with sequences and focusing."],
+ ["capturar", "ZWO ASIAIR", "https://www.zwoastro.com/product-category/asiair/", "e", "El miniordenador de ZWO que controla todo el equipo desde el móvil.", "ZWO's mini computer that runs all your gear from your phone."],
+ ["capturar", "StellarMate", "https://stellarmate.com", "e", "Sistema llave en mano basado en Ekos e INDI, para Raspberry Pi y miniPC.", "A turnkey system based on Ekos and INDI, for Raspberry Pi and mini PCs."],
+ ["procesar", "PixInsight", "https://pixinsight.com", "p", "El estándar del procesado de cielo profundo: calibración, apilado y un sinfín de procesos y scripts.", "The standard for deep-sky processing: calibration, stacking and endless processes and scripts."],
+ ["procesar", "Siril", "https://siril.org", "g", "Procesado libre y gratuito: calibración, apilado, astrometría, fotometría y scripts.", "Free, open-source processing: calibration, stacking, astrometry, photometry and scripts."],
+ ["procesar", "GraXpert", "https://graxpert.com", "g", "Extracción de gradientes y reducción de ruido con IA, libre.", "Gradient extraction and AI noise reduction, open source."],
+ ["procesar", "Astro Pixel Processor", "https://www.astropixelprocessor.com", "p", "Apilado y mosaicos muy automáticos, con buena calibración de color.", "Highly automated stacking and mosaics, with good colour calibration."],
+ ["procesar", "DeepSkyStacker", "https://github.com/deepskystacker/DSS", "g", "Apilador clásico y gratuito para Windows.", "The classic free stacker for Windows."],
+ ["procesar", "Sequator", "https://sites.google.com/view/sequator/", "g", "Apilado de paisaje nocturno que separa cielo y suelo.", "Nightscape stacking that keeps sky and foreground apart."],
+ ["procesar", "AutoStakkert!", "https://www.autostakkert.com", "g", "Apilado de vídeos planetarios, lunares y solares.", "Stacking of planetary, lunar and solar videos."],
+ ["procesar", "RegiStax", "https://www.astronomie.be/registax/", "g", "Ondículas para sacar detalle en Luna, Sol y planetas.", "Wavelets to bring out detail on the Moon, the Sun and the planets."],
+ ["procesar", "WinJUPOS", "https://jupos.org/gh/download.htm", "g", "Derotación de Júpiter, Saturno y Marte para integrar más tiempo sin emborronar.", "Derotation of Jupiter, Saturn and Mars to integrate longer without blurring."],
+ ["procesar", "RC-Astro", "https://www.rc-astro.com", "p", "BlurXTerminator, NoiseXTerminator y StarXTerminator: deconvolución, ruido y estrellas con IA.", "BlurXTerminator, NoiseXTerminator and StarXTerminator: AI deconvolution, noise and star tools."],
+ ["procesar", "StarNet", "https://starnetastro.com", "", "Quita las estrellas con una red neuronal para trabajar la nebulosa por separado.", "Removes the stars with a neural network so you can work on the nebula separately."],
+ ["procesar", "Seti Astro", "https://www.setiastro.com", "g", "Seti Astro Suite y Cosmic Clarity: herramientas gratuitas de procesado.", "Seti Astro Suite and Cosmic Clarity: free processing tools."],
+ ["procesar", "PlanetarySystemStacker", "https://github.com/Rolf-Hempel/PlanetarySystemStacker", "g", "Apilador libre de vídeos de planetas, Luna y Sol con la técnica de lucky imaging.", "Open-source stacker for planetary, lunar and solar videos using lucky imaging."],
+ ["medir", "Astrometry.net", "https://nova.astrometry.net", "g", "Sube una foto y te dice dónde apunta, a qué escala y qué objetos salen.", "Upload an image and it tells you where it points, at what scale and which objects are in it."],
+ ["medir", "ASTAP", "https://www.hnsky.org/astap.htm", "g", "Plate solving local muy rápido, apilado y análisis de estrellas; lo usan N.I.N.A. y otros.", "Very fast local plate solving, stacking and star analysis; used by N.I.N.A. and others."],
+ ["medir", "Astronomy Tools", "https://astronomy.tools", "", "Calculadoras de campo y de muestreo para elegir cámara y telescopio.", "Field-of-view and sampling calculators to choose a camera and telescope."],
+ ["medir", "AstroImageJ", "https://astroimagej.com", "g", "Fotometría diferencial y curvas de luz de tránsitos y estrellas variables.", "Differential photometry and light curves for transits and variable stars."],
+ ["medir", "SAOImage DS9", "https://ds9.si.edu", "g", "Visor FITS profesional con regiones, contornos y catálogos superpuestos.", "Professional FITS viewer with regions, contours and catalogue overlays."],
+ ["medir", "FITS Liberator", "https://noirlab.edu/public/products/applications/app001/", "g", "Abre y estira datos FITS de telescopios profesionales para hacer tus propias imágenes.", "Opens and stretches FITS data from professional telescopes so you can make your own images."],
+ ["catalogos", "SIMBAD", "https://simbad.cds.unistra.fr/simbad/", "", "Identificadores, coordenadas y bibliografía de millones de objetos fuera del Sistema Solar.", "Identifiers, coordinates and bibliography for millions of objects beyond the Solar System."],
+ ["catalogos", "VizieR", "https://vizier.cds.unistra.fr", "", "Miles de catálogos publicados, consultables por posición.", "Thousands of published catalogues, searchable by position."],
+ ["catalogos", "Aladin Lite", "https://aladin.cds.unistra.fr/AladinLite/", "", "Atlas del cielo en el navegador con imágenes de todos los surveys y catálogos encima.", "A sky atlas in your browser with images from every survey and catalogues on top."],
+ ["catalogos", "NED", "https://ned.ipac.caltech.edu", "", "La base de datos de galaxias: distancias, velocidades y fotometría.", "The galaxy database: distances, velocities and photometry."],
+ ["catalogos", "Gaia Archive", "https://gea.esac.esa.int/archive/", "", "Posiciones, paralajes y fotometría de casi dos mil millones de estrellas.", "Positions, parallaxes and photometry for nearly two billion stars."],
+ ["catalogos", "ESASky", "https://sky.esa.int", "", "Todo el archivo de la ESA sobre el cielo, del radio a los rayos gamma.", "ESA's whole sky archive, from radio to gamma rays."],
+ ["catalogos", "Legacy Survey Viewer", "https://www.legacysurvey.org/viewer", "", "Imágenes profundas del cielo para comparar tus fotos y buscar galaxias débiles.", "Deep sky images to compare with yours and hunt for faint galaxies."],
+ ["catalogos", "SDSS SkyServer", "https://skyserver.sdss.org/dr20", "", "Imágenes y espectros del Sloan Digital Sky Survey.", "Images and spectra from the Sloan Digital Sky Survey."],
+ ["catalogos", "MAST", "https://archive.stsci.edu", "", "Archivo de Hubble, Webb, TESS y Kepler, con los datos originales.", "The archive for Hubble, Webb, TESS and Kepler, with the original data."],
+ ["catalogos", "JPL Horizons", "https://ssd.jpl.nasa.gov/horizons/app.html", "", "Efemérides precisas de planetas, cometas, asteroides y naves.", "Precise ephemerides for planets, comets, asteroids and spacecraft."],
+ ["catalogos", "NASA Exoplanet Archive", "https://exoplanetarchive.ipac.caltech.edu", "", "Todos los exoplanetas confirmados, con parámetros y efemérides de tránsito.", "Every confirmed exoplanet, with parameters and transit ephemerides."],
+ ["ciencia", "AAVSO", "https://www.aavso.org", "", "Asociación de observadores de estrellas variables: cartas, secuencias de comparación y formación.", "The association of variable star observers: charts, comparison sequences and training."],
+ ["ciencia", "VSX", "https://vsx.aavso.org", "", "El catálogo internacional de estrellas variables, con tipo, periodo y amplitud.", "The international variable star index, with type, period and amplitude."],
+ ["ciencia", "ExoClock", "https://www.exoclock.space", "", "Proyecto de la misión Ariel para cronometrar tránsitos de exoplanetas con telescopios pequeños.", "An Ariel mission project to time exoplanet transits with small telescopes."],
+ ["ciencia", "Exoplanet Transit Database", "https://var.astro.cz/en/Home/ETD", "", "Base de datos de tránsitos de aficionados con predicciones y curvas de luz.", "Amateur transit database with predictions and light curves."],
+ ["ciencia", "Exoplanet Watch", "https://science.nasa.gov/citizen-science/exoplanet-watch/", "", "Programa de la NASA para observar tránsitos con tu propio telescopio.", "NASA programme for observing transits with your own telescope."],
+ ["ciencia", "GEOS · RR Lyrae", "https://rr-lyr.irap.omp.eu/dbrr/", "", "Base de datos de máximos de estrellas RR Lyrae del grupo GEOS.", "The GEOS group's database of RR Lyrae maxima."],
+ ["ciencia", "BAV", "https://www.bav-astro.eu", "", "Grupo alemán de estrellas variables, con su base de datos de mínimos y máximos.", "German variable star group, with its database of minima and maxima."],
+ ["ciencia", "Minor Planet Center", "https://www.minorplanetcenter.net", "", "Donde se envían las posiciones de asteroides y cometas; página de confirmación de NEOs.", "Where asteroid and comet positions are submitted; home of the NEO Confirmation Page."],
+ ["ciencia", "COBS", "https://cobs.si", "", "Observaciones de cometas: magnitudes, comas y curvas de luz.", "Comet observations: magnitudes, comae and light curves."],
+ ["ciencia", "IOTA", "https://occultations.org", "", "Ocultaciones de estrellas por asteroides y por la Luna: predicciones, cómo cronometrarlas y enlace a la sección europea.", "Stellar occultations by asteroids and the Moon: predictions, how to time them and a link to the European section."],
+ ["ciencia", "Transient Name Server", "https://www.wis-tns.org", "", "Donde se registran y se consultan las supernovas y otros transitorios.", "Where supernovae and other transients are reported and looked up."],
+ ["ciencia", "PVOL", "http://pvol2.ehu.eus/pvol2/", "", "Base de datos de imágenes planetarias de aficionados de la UPV/EHU, usada en artículos científicos.", "UPV/EHU's database of amateur planetary images, used in scientific papers."],
+ ["ciencia", "Zooniverse", "https://www.zooniverse.org", "", "Ciencia ciudadana: galaxias, supernovas y exoplanetas clasificados por voluntarios.", "Citizen science: galaxies, supernovae and exoplanets classified by volunteers."],
+ ["comunidad", "AstroBin", "https://www.astrobin.com", "", "La galería de astrofotografía de referencia, con el equipo y los datos de cada foto.", "The go-to astrophotography gallery, with the gear and data behind each image."],
+ ["comunidad", "Cloudy Nights", "https://www.cloudynights.com/forums/", "", "El foro más grande en inglés sobre equipo, captura y procesado.", "The largest English-language forum on gear, capture and processing."],
+ ["comunidad", "Stargazers Lounge", "https://stargazerslounge.com", "", "Foro británico, muy activo y amable con los que empiezan.", "A British forum, very active and friendly to beginners."],
+ ["comunidad", "r/astrophotography", "https://www.reddit.com/r/astrophotography/", "", "Comunidad de Reddit para enseñar fotos y pedir consejo.", "Reddit community for sharing images and asking for advice."],
+ ["comunidad", "APOD", "https://apod.nasa.gov/apod/", "", "Astronomy Picture of the Day: una imagen al día desde 1995, muchas de aficionados.", "Astronomy Picture of the Day: one image a day since 1995, many by amateurs."],
+ ["comunidad", "Foro de PixInsight", "https://pixinsight.com/forum/index.php", "", "Soporte oficial y discusiones técnicas de procesado.", "Official support and technical processing discussions.", "PixInsight Forum"],
+ ["comunidad", "Foro de Siril", "https://discuss.pixls.us/c/software/siril/34", "", "Dudas y novedades de Siril con los propios desarrolladores.", "Siril questions and news, with the developers themselves.", "Siril forum"],
+ ["comunidad", "Foro Astronomo.org", "https://www.astronomo.org/foro/", "s", "Foro en español para aficionados: observación, equipo y astrofotografía.", "Spanish-language forum for amateurs: observing, gear and astrophotography.", "Astronomo.org forum"],
+ ["aprender", "Light Vortex Astronomy", "https://www.lightvortexastronomy.com", "", "Tutoriales paso a paso de PixInsight y captura, muy bien explicados.", "Step-by-step PixInsight and capture tutorials, very clearly explained."],
+ ["aprender", "Tutoriales de Siril", "https://siril.org/tutorials/", "", "Guías oficiales de Siril, del primer apilado a la fotometría.", "Official Siril guides, from your first stack to photometry.", "Siril tutorials"],
+ ["aprender", "Adam Block Studios", "https://adamblockstudios.com", "", "Cursos de procesado y el mejor material en vídeo sobre PixInsight.", "Processing courses and the best video material on PixInsight."],
+ ["aprender", "AstroBackyard", "https://astrobackyard.com", "", "Blog y vídeos de Trevor Jones para aprender astrofotografía desde cero.", "Trevor Jones's blog and videos for learning astrophotography from scratch."],
+ ["aprender", "Clarkvision", "https://clarkvision.com/articles/", "", "Artículos de Roger Clark sobre sensores, ruido, color y fotografía nocturna.", "Roger Clark's articles on sensors, noise, colour and night photography."],
+ ["aprender", "Nebula Photos", "https://www.youtube.com/@NebulaPhotos", "", "Canal de YouTube de procesado claro y sin rodeos.", "YouTube channel on processing, clear and to the point."],
+ ["aprender", "Cuiv, The Lazy Geek", "https://www.youtube.com/@CuivTheLazyGeek", "", "Canal de YouTube sobre N.I.N.A., equipo y procesado, muy técnico.", "A very technical YouTube channel on N.I.N.A., gear and processing."],
+ ["fenomenos", "SpaceWeatherLive", "https://www.spaceweatherlive.com/es.html", "s", "Actividad solar, índices Kp y alertas de auroras en tiempo real.", "Solar activity, Kp index and aurora alerts in real time."],
+ ["fenomenos", "NOAA SWPC", "https://www.swpc.noaa.gov", "", "El centro oficial de predicción del tiempo espacial.", "The official space weather prediction centre."],
+ ["fenomenos", "Helioviewer", "https://www.helioviewer.org", "", "El Sol de hoy en todas las longitudes de onda de SDO, SOHO y otras misiones.", "Today's Sun at every wavelength from SDO, SOHO and other missions."],
+ ["fenomenos", "LROC QuickMap", "https://quickmap.lroc.im-ldi.com", "", "Mapa interactivo de la Luna con las imágenes del Lunar Reconnaissance Orbiter.", "Interactive map of the Moon with Lunar Reconnaissance Orbiter imagery."],
+ ["fenomenos", "Transit Finder", "https://transit-finder.com", "", "Dónde ponerte para ver la ISS cruzar el Sol o la Luna.", "Where to stand to see the ISS cross the Sun or the Moon."],
+ ["fenomenos", "IMO", "https://www.imo.net", "", "Organización Internacional de Meteoros: calendario de lluvias y tasas en directo.", "International Meteor Organization: shower calendar and live rates."],
+ ["fenomenos", "Eclipses de Xavier Jubier", "http://xjubier.free.fr/en/site_pages/SolarEclipsesGoogleMaps.html", "", "Mapas interactivos de todos los eclipses, con la hora exacta en tu sitio.", "Interactive maps of every eclipse, with exact times for your location.", "Xavier Jubier's eclipses"],
+ ["fenomenos", "In-The-Sky.org", "https://in-the-sky.org", "", "Calendario de fenómenos: conjunciones, ocultaciones, cometas y lluvias de meteoros.", "Calendar of events: conjunctions, occultations, comets and meteor showers."],
+ ["agencias", "NASA Science", "https://science.nasa.gov", "", "Misiones, imágenes y noticias científicas de la NASA.", "NASA's missions, images and science news."],
+ ["agencias", "ESA España", "https://www.esa.int/Space_in_Member_States/Spain", "s", "La Agencia Espacial Europea en español: misiones, noticias y la participación de España.", "The European Space Agency in Spanish: missions, news and Spain's involvement.", "ESA Spain"],
+ ["agencias", "ESO España", "https://www.eso.org/public/spain/", "s", "El Observatorio Europeo Austral en español: VLT, ELT e imágenes a resolución completa.", "The European Southern Observatory in Spanish: VLT, ELT and full-resolution images.", "ESO Spain"],
+ ["agencias", "ESA/Webb", "https://esawebb.org", "", "Las imágenes del telescopio James Webb a resolución completa.", "James Webb Space Telescope images at full resolution."],
+ ["agencias", "NOIRLab", "https://noirlab.edu/public/images/", "", "Archivo de imágenes de Kitt Peak, Cerro Tololo y Gemini, descargables a resolución completa.", "Image archive from Kitt Peak, Cerro Tololo and Gemini, downloadable at full resolution."],
+ ["agencias", "Observatorio Rubin", "https://rubinobservatory.org", "", "El gran cartografiado LSST: imágenes y alertas del cielo cambiante.", "The great LSST survey: images and alerts from the changing sky.", "Rubin Observatory"],
+ ["agencias", "Sky & Telescope", "https://skyandtelescope.org", "", "Revista clásica: qué ver cada semana, pruebas de equipo y técnica.", "The classic magazine: what to see each week, gear reviews and technique."],
+ ["agencias", "arXiv astro-ph", "https://arxiv.org/list/astro-ph/recent", "", "Los artículos de astrofísica del día, antes de publicarse.", "The day's astrophysics papers, before they are published."],
+ ["espanol", "Eureka (Daniel Marín)", "https://danielmarin.naukas.com", "s", "Blog de referencia en español sobre exploración espacial y astronomía.", "The leading Spanish-language blog on space exploration and astronomy."],
+ ["espanol", "IAC", "https://www.iac.es", "s", "Instituto de Astrofísica de Canarias: noticias, divulgación y los observatorios de Canarias.", "Instituto de Astrofísica de Canarias: news, outreach and the Canary Islands observatories."],
+ ["espanol", "Observatorio Astronómico Nacional", "https://astronomia.ign.es", "s", "El OAN del IGN: efemérides, el Anuario y divulgación.", "Spain's national observatory (IGN): ephemerides, its Yearbook and outreach."],
+ ["espanol", "Sociedad Española de Astronomía", "https://www.sea-astronomia.es", "s", "La sociedad de astrónomos profesionales de España.", "Spain's society of professional astronomers."],
+ ["espanol", "Fundación Starlight", "https://fundacionstarlight.org", "s", "Reservas y destinos Starlight para cielos oscuros.", "Starlight reserves and destinations for dark skies."],
+ ["espanol", "Cometas_Obs", "http://www.astrosurf.com/cometas-obs/", "s", "Grupo español de observación de cometas, con astrometría y fotometría.", "Spanish comet-observing group, with astrometry and photometry."]];
+const ENL_ICONO = '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>';
+const ENL = {tema:"", pintado:false};
+const temaEnl = t => IDIOMA === "es" ? [t[1], t[2]] : IDIOMA === "en" ? [t[3], t[4]] : ((_ENL_OTRO.temas || {})[t[0]] || [t[3], t[4]]);
+const nombreEnl = e => IDIOMA === "es" ? e[1] : IDIOMA === "en" ? (e[6] || e[1]) : ((_ENL_OTRO.nom || {})[e[1]] || e[6] || e[1]);
+const textoEnl = e => IDIOMA === "es" ? e[4] : IDIOMA === "en" ? e[5] : ((_ENL_OTRO.des || {})[e[1]] || e[5]);
+const sinTildes = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+function dominioEnl(u){
+  let x; try { x = new URL(u); } catch(_){ return u; }
+  const h = x.hostname.replace(/^www\./, "");
+  let r = x.pathname.replace(/^\/+|\/+$/g, "").replace(/\/(index\.php|app\.html)$/, "");
+  if (/\.(html?|php)$/.test(r) && !r.includes("/")) r = "";
+  return !r ? h : r.length <= 26 ? h + "/" + r : h + "/" + r.split("/")[0] + "/…";
+}
+function etiquetasEnl(s){
+  const E = {g:["g", trLT("gratis", "free")], gp:["g", trLT("gratis · Pro de pago", "free · Pro is paid")], p:["p", trLT("de pago", "paid")],
+             e:["p", trLT("equipo", "hardware")], s:["s", "ES"]};
+  return (s || "").split(" ").filter(Boolean).map(k => `<span class="enlEtq ${E[k][0]}"${k === "s" ? ` title="${esc(trLT("En español", "In Spanish"))}"` : ""}>${esc(E[k][1])}</span>`).join("");
+}
+function abrirEnlaces(){
+  const v = $("vistaEnlaces");
+  if (!ENL.pintado){
+    let num = 0;
+    const secs = ENL_TEMAS.map(t => {
+      const es = ENLACES.filter(e => e[0] === t[0]), [tt, ti] = temaEnl(t);
+      return `<section class="enlSec" data-tema="${t[0]}"><div class="enlCab"><h3>${esc(tt)}</h3><span class="note">${esc(ti)}</span><span class="n">${es.length}</span></div><div class="enlGrid">${
+        es.map(e => { num++; const n = nombreEnl(e), d = textoEnl(e), dom = dominioEnl(e[2]);
+          return `<a class="enlItem" href="${esc(e[2])}" target="_blank" rel="noopener" data-q="${esc(sinTildes(n + " " + e[1] + " " + d + " " + dom))}"><span class="enlNum">${String(num).padStart(3, "0")}</span><span class="enlCuerpo"><span class="enlFila"><b>${esc(n)}</b>${etiquetasEnl(e[3])}</span><span class="enlDom">${esc(dom)}</span><span class="enlDes">${esc(d)}</span></span></a>`; }).join("")}</div></section>`; }).join("");
+    v.innerHTML = `<div class="top ilus"><div><h2>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</h2><div class="sub">${esc(trLT("Lo que merece estar en favoritos para planificar, capturar, procesar y hacer ciencia desde casa, con una línea sobre para qué sirve cada sitio.", "What deserves a bookmark for planning, capturing, processing and doing science from home, with a line on what each site is for."))}</div></div><span class="spacer"></span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></div>
+      <div class="enlBarra"><input class="enlBusca" id="enlBusca" type="search" autocomplete="off" placeholder="${esc(trLT("Buscar: seeing, variables, PixInsight, Luna…", "Search: seeing, variables, PixInsight, Moon…"))}" aria-label="${esc(trLT("Buscar enlaces", "Search links"))}"><span class="note" id="enlCuenta"></span></div>
+      <div class="enlChips" id="enlChips"><button class="enlChip on" data-tema="">${esc(trLT("Todo", "All"))}</button>${ENL_TEMAS.map(t => `<button class="enlChip" data-tema="${t[0]}">${esc(temaEnl(t)[0])}<span>${ENLACES.filter(e => e[0] === t[0]).length}</span></button>`).join("")}</div>
+      ${secs}
+      <p class="note" id="enlVacio" style="display:none;margin-top:20px">${esc(trLT("Ningún enlace coincide con la búsqueda.", "No link matches the search."))}</p>
+      <div class="enlPie note"><span>${esc(trLT("«Gratis» y «de pago» se refieren a los programas; «ES» marca los enlaces en español.", "“Free” and “paid” refer to the software; “ES” marks links in Spanish."))}</span><span>${esc(trLT("Direcciones comprobadas el 29 de septiembre de 2026. Si alguna deja de funcionar, lo normal es que el proyecto se haya mudado: buscar su nombre suele llevar a la dirección nueva.", "Addresses checked on 29 September 2026. If one stops working, the project has most likely moved: searching for its name usually leads to the new address."))}</span></div>`;
+    $("enlBusca").addEventListener("input", filtrarEnlaces);
+    v.querySelectorAll(".enlChip").forEach(b => b.onclick = () => { ENL.tema = ENL.tema === b.dataset.tema ? "" : b.dataset.tema; filtrarEnlaces(); });
+    ENL.pintado = true;
+  }
+  filtrarEnlaces();
+}
+function filtrarEnlaces(){
+  const v = $("vistaEnlaces"), pal = sinTildes($("enlBusca").value).split(/\s+/).filter(Boolean);
+  let total = 0;
+  v.querySelectorAll(".enlSec").forEach(s => {
+    let n = 0; const ok = !ENL.tema || s.dataset.tema === ENL.tema;
+    s.querySelectorAll(".enlItem").forEach(a => { const si = ok && pal.every(p => a.dataset.q.includes(p)); a.style.display = si ? "" : "none"; if (si) n++; });
+    s.style.display = n ? "" : "none"; total += n;
+  });
+  v.querySelectorAll(".enlChip").forEach(b => b.classList.toggle("on", b.dataset.tema === ENL.tema));
+  $("enlVacio").style.display = total ? "none" : "";
+  $("enlCuenta").textContent = total === 1 ? trLT("1 enlace", "1 link") : trLT("{1} enlaces", "{1} links", total);
+}
+
 /* ============ Arranque ============ */
 pintarNav();
-function segunAncla(){ const h = location.hash.slice(1); if (h && BL(h)) ir("bloque", h); else if (!h) ir("inicio"); }
+function segunAncla(){ const h = location.hash.slice(1); if (h === "enlaces") ir("enlaces"); else if (h && BL(h)) ir("bloque", h); else if (!h) ir("inicio"); }
 segunAncla();
 window.addEventListener("hashchange", segunAncla);
 </script>

@@ -3015,7 +3015,23 @@
 "automática (30 % de la amplitud; 20 % si sube muy deprisa)": "automatisch (30 % der Amplitude; 20 %, wenn er sehr schnell ansteigt)",
 "automática (20 %: sube muy deprisa)": "automatisch (20 %: er steigt sehr schnell an)",
 "el 20 % porque sube muy deprisa: en el # % del periodo": "20 %, weil er sehr schnell ansteigt: in # % der Periode",
-"En los datos de ejemplo las tomas de cada objeto comparten miniatura: no hay nada que alinear": "In den Beispieldaten teilen sich die Aufnahmen jedes Objekts ein Vorschaubild: Es gibt nichts auszurichten"
+"En los datos de ejemplo las tomas de cada objeto comparten miniatura: no hay nada que alinear": "In den Beispieldaten teilen sich die Aufnahmen jedes Objekts ein Vorschaubild: Es gibt nichts auszurichten",
+"Bonus track": "Bonustrack",
+"Cien enlaces del cielo": "Hundert Links zum Himmel",
+"Los cien sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre para qué sirve cada uno.": "Die hundert Astronomie- und Astrofotografie-Seiten, die man griffbereit haben sollte, mit einer Zeile dazu, wofür jede gut ist.",
+"Lo que merece estar en favoritos para planificar, capturar, procesar y hacer ciencia desde casa, con una línea sobre para qué sirve cada sitio.": "Was ein Lesezeichen verdient, um von zu Hause aus zu planen, aufzunehmen, zu bearbeiten und Wissenschaft zu betreiben, mit einer Zeile dazu, wofür jede Seite gut ist.",
+"Buscar: seeing, variables, PixInsight, Luna…": "Suchen: Seeing, Veränderliche, PixInsight, Mond…",
+"Buscar enlaces": "Links durchsuchen",
+"{1} enlaces": "{1} Links",
+"1 enlace": "1 Link",
+"Ningún enlace coincide con la búsqueda.": "Kein Link passt zur Suche.",
+"gratis": "kostenlos",
+"de pago": "kostenpflichtig",
+"equipo": "Hardware",
+"gratis · Pro de pago": "kostenlos · Pro kostenpflichtig",
+"En español": "Auf Spanisch",
+"Direcciones comprobadas el 29 de septiembre de 2026. Si alguna deja de funcionar, lo normal es que el proyecto se haya mudado: buscar su nombre suele llevar a la dirección nueva.": "Adressen am 29. September 2026 geprüft. Wenn eine nicht mehr funktioniert, ist das Projekt meist umgezogen: Eine Suche nach dem Namen führt in der Regel zur neuen Adresse.",
+"«Gratis» y «de pago» se refieren a los programas; «ES» marca los enlaces en español.": "„Kostenlos“ und „kostenpflichtig“ beziehen sich auf die Programme; „ES“ kennzeichnet Links auf Spanisch."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",
@@ -3776,6 +3792,166 @@
 "Anpassung des Maximums mit Polynomen und ehrlichen Fehlern",
 "O−C, Datei für GEOS, Abbildung und Paket"
 ]
+}
+},
+"enlaces": {
+"temas": {
+"planificar": [
+"Die Nacht planen",
+"Wetter, Seeing, dunkler Himmel und was heute Nacht vor die Kamera kommt."
+],
+"capturar": [
+"Aufnehmen und steuern",
+"Sequenzer, Autoguiding und Treiber für die Ausrüstung."
+],
+"procesar": [
+"Bearbeiten",
+"Vom Stacking bis zum fertigen Bild, Deep-Sky und Planeten."
+],
+"medir": [
+"Lösen und messen",
+"Herausfinden, wohin jedes Bild zeigt, und Zahlen daraus gewinnen."
+],
+"catalogos": [
+"Kataloge und Daten",
+"Die professionellen Datenbanken, offen für alle."
+],
+"ciencia": [
+"Wissenschaft mit deinem Teleskop",
+"Pro-Am-Projekte, in denen deine Messungen wirklich zählen."
+],
+"fenomenos": [
+"Sonne, Mond und Ereignisse",
+"Weltraumwetter, Finsternisse, Transits und Meteorströme."
+],
+"comunidad": [
+"Community und Galerien",
+"Wo du Bilder zeigst, Fragen stellst und siehst, was andere machen."
+],
+"aprender": [
+"Lernen",
+"Tutorials, Kurse und Kanäle, die die Dinge gut erklären."
+],
+"agencias": [
+"Agenturen, Sternwarten und Nachrichten",
+"Bilder und Wissenschaft aus erster Hand."
+],
+"espanol": [
+"Auf Spanisch",
+"Institutionen, Blogs und Gruppen aus Spanien."
+]
+},
+"des": {
+"Clear Outside": "Stündliche Vorhersage für Beobachter: Wolken in drei Höhen, Nebel, Tau, Mond und Dunkelstunden.",
+"Meteoblue · Seeing": "Seeing in Bogensekunden, Jetstream und turbulente Schichten, Stunde für Stunde.",
+"Astrospheric": "Wolken, Transparenz und Seeing; sehr genau in Nordamerika und auch anderswo nützlich.",
+"Windy": "Wolkenkarten nach Schichten und Höhenwind aus ECMWF, ICON und GFS zum Vergleichen der Modelle.",
+"AEMET": "Offizielle Vorhersage, Satellitenbilder und Radar für Spanien.",
+"Light Pollution Map": "Lichtverschmutzung auf der Karte (VIIRS und Weltatlas) und SQM-Messungen von Amateuren.",
+"Telescopius": "Was du heute Nacht fotografieren kannst, Bildausschnitt mit deiner Kamera und deinem Teleskop, Mosaike und Höhe im Lauf der Nacht.",
+"Stellarium": "Freies Planetarium für den Computer, das auch die Montierung steuert. Es gibt auch eine Webversion.",
+"Heavens-Above": "Überflüge der ISS und anderer Satelliten, Starlink-Ketten und Himmelskarten.",
+"PhotoPills": "Spanische App, um Milchstraße, Mond und Nachtlandschaften vor Ort zu planen.",
+"N.I.N.A.": "Freier Sequenzer für Windows: Fokussierung, Meridianflip, Plate Solving und ein riesiges Plugin-Angebot.",
+"PHD2": "Das maßgebliche freie Guiding-Programm, mit Log-Analyse und Kalibrierassistenten.",
+"ASCOM": "Die Treiberplattform für Windows und der Alpaca-Standard zur Steuerung über das Netzwerk.",
+"INDI": "Freie Treiber für Linux, macOS und Raspberry Pi.",
+"KStars / Ekos": "Ein Planetarium mit kompletter Aufnahmesuite auf INDI-Basis: Guiding, Fokus, Ausrichtung und Sequenzen.",
+"SharpCap": "Live-, Planeten- und EAA-Aufnahme, mit einer sehr schnellen Polausrichtung.",
+"FireCapture": "Planetenaufnahme mit hoher Bildrate für astronomische Videokameras.",
+"Astro Photography Tool": "APT: Steuerung von DSLRs und CCD-/CMOS-Kameras mit Sequenzen und Fokussierung.",
+"ZWO ASIAIR": "Der Minicomputer von ZWO, der die ganze Ausrüstung vom Handy aus steuert.",
+"StellarMate": "Schlüsselfertiges System auf Basis von Ekos und INDI, für Raspberry Pi und Mini-PCs.",
+"PixInsight": "Der Standard für die Deep-Sky-Bearbeitung: Kalibrierung, Stacking und unzählige Prozesse und Skripte.",
+"Siril": "Freie, kostenlose Bearbeitung: Kalibrierung, Stacking, Astrometrie, Photometrie und Skripte.",
+"GraXpert": "Gradientenentfernung und KI-Rauschreduzierung, frei.",
+"Astro Pixel Processor": "Stark automatisiertes Stacking und Mosaike, mit guter Farbkalibrierung.",
+"DeepSkyStacker": "Der klassische kostenlose Stacker für Windows.",
+"Sequator": "Stacking für Nachtlandschaften, das Himmel und Vordergrund trennt.",
+"AutoStakkert!": "Stacking von Planeten-, Mond- und Sonnenvideos.",
+"RegiStax": "Wavelets, um Details auf Mond, Sonne und Planeten herauszuholen.",
+"WinJUPOS": "Derotation von Jupiter, Saturn und Mars, um länger zu belichten, ohne dass es verschmiert.",
+"RC-Astro": "BlurXTerminator, NoiseXTerminator und StarXTerminator: Dekonvolution, Rauschen und Sterne mit KI.",
+"StarNet": "Entfernt die Sterne mit einem neuronalen Netz, damit du den Nebel getrennt bearbeiten kannst.",
+"Seti Astro": "Seti Astro Suite und Cosmic Clarity: kostenlose Bearbeitungswerkzeuge.",
+"PlanetarySystemStacker": "Freier Stacker für Planeten-, Mond- und Sonnenvideos nach der Lucky-Imaging-Methode.",
+"Astrometry.net": "Lade ein Bild hoch, und es sagt dir, wohin es zeigt, mit welchem Maßstab und welche Objekte darauf sind.",
+"ASTAP": "Sehr schnelles lokales Plate Solving, Stacking und Sternanalyse; N.I.N.A. und andere nutzen es.",
+"Astronomy Tools": "Rechner für Bildfeld und Abtastung, um Kamera und Teleskop auszuwählen.",
+"AstroImageJ": "Differentielle Photometrie und Lichtkurven von Transits und veränderlichen Sternen.",
+"SAOImage DS9": "Professioneller FITS-Betrachter mit Regionen, Konturen und eingeblendeten Katalogen.",
+"FITS Liberator": "Öffnet und streckt FITS-Daten professioneller Teleskope, damit du eigene Bilder machen kannst.",
+"SIMBAD": "Bezeichnungen, Koordinaten und Literatur zu Millionen Objekten außerhalb des Sonnensystems.",
+"VizieR": "Tausende veröffentlichte Kataloge, nach Position durchsuchbar.",
+"Aladin Lite": "Ein Himmelsatlas im Browser mit Bildern aller Durchmusterungen und eingeblendeten Katalogen.",
+"NED": "Die Galaxiendatenbank: Entfernungen, Geschwindigkeiten und Photometrie.",
+"Gaia Archive": "Positionen, Parallaxen und Photometrie von fast zwei Milliarden Sternen.",
+"ESASky": "Das gesamte Himmelsarchiv der ESA, vom Radio- bis zum Gammabereich.",
+"Legacy Survey Viewer": "Tiefe Himmelsaufnahmen zum Vergleich mit deinen Fotos und zur Suche nach schwachen Galaxien.",
+"SDSS SkyServer": "Bilder und Spektren des Sloan Digital Sky Survey.",
+"MAST": "Das Archiv von Hubble, Webb, TESS und Kepler, mit den Originaldaten.",
+"JPL Horizons": "Genaue Ephemeriden von Planeten, Kometen, Asteroiden und Raumsonden.",
+"NASA Exoplanet Archive": "Alle bestätigten Exoplaneten, mit Parametern und Transit-Ephemeriden.",
+"AAVSO": "Die Vereinigung der Beobachter veränderlicher Sterne: Karten, Vergleichssequenzen und Schulungen.",
+"VSX": "Der internationale Katalog veränderlicher Sterne, mit Typ, Periode und Amplitude.",
+"ExoClock": "Projekt der Ariel-Mission, um Exoplanetentransits mit kleinen Teleskopen zu timen.",
+"Exoplanet Transit Database": "Datenbank für Amateur-Transits mit Vorhersagen und Lichtkurven.",
+"Exoplanet Watch": "NASA-Programm, um Transits mit dem eigenen Teleskop zu beobachten.",
+"GEOS · RR Lyrae": "Die Datenbank der GEOS-Gruppe für Maxima von RR-Lyrae-Sternen.",
+"BAV": "Deutsche Arbeitsgemeinschaft für veränderliche Sterne, mit ihrer Datenbank für Minima und Maxima.",
+"Minor Planet Center": "Hierhin gehen Positionen von Asteroiden und Kometen; mit der NEO-Bestätigungsseite.",
+"COBS": "Kometenbeobachtungen: Helligkeiten, Komas und Lichtkurven.",
+"IOTA": "Sternbedeckungen durch Asteroiden und den Mond: Vorhersagen, wie man sie zeitlich misst, und Link zur europäischen Sektion.",
+"Transient Name Server": "Hier werden Supernovae und andere Transienten gemeldet und nachgeschlagen.",
+"PVOL": "Datenbank der UPV/EHU mit Planetenbildern von Amateuren, die in Fachartikeln verwendet wird.",
+"Zooniverse": "Bürgerwissenschaft: Galaxien, Supernovae und Exoplaneten, klassifiziert von Freiwilligen.",
+"AstroBin": "Die maßgebliche Astrofoto-Galerie, mit Ausrüstung und Daten zu jedem Bild.",
+"Cloudy Nights": "Das größte englischsprachige Forum zu Ausrüstung, Aufnahme und Bearbeitung.",
+"Stargazers Lounge": "Britisches Forum, sehr aktiv und freundlich zu Einsteigern.",
+"r/astrophotography": "Reddit-Community, um Bilder zu zeigen und um Rat zu fragen.",
+"APOD": "Astronomy Picture of the Day: ein Bild pro Tag seit 1995, viele davon von Amateuren.",
+"Foro de PixInsight": "Offizieller Support und technische Diskussionen zur Bearbeitung.",
+"Foro de Siril": "Fragen und Neuigkeiten zu Siril, direkt mit den Entwicklern.",
+"Foro Astronomo.org": "Spanischsprachiges Forum für Amateure: Beobachtung, Ausrüstung und Astrofotografie.",
+"Light Vortex Astronomy": "Schritt-für-Schritt-Tutorials zu PixInsight und Aufnahme, sehr gut erklärt.",
+"Tutoriales de Siril": "Offizielle Siril-Anleitungen, vom ersten Stacking bis zur Photometrie.",
+"Adam Block Studios": "Bearbeitungskurse und das beste Videomaterial zu PixInsight.",
+"AstroBackyard": "Blog und Videos von Trevor Jones, um Astrofotografie von Grund auf zu lernen.",
+"Clarkvision": "Artikel von Roger Clark über Sensoren, Rauschen, Farbe und Nachtfotografie.",
+"Nebula Photos": "YouTube-Kanal zur Bearbeitung, klar und ohne Umschweife.",
+"Cuiv, The Lazy Geek": "Sehr technischer YouTube-Kanal zu N.I.N.A., Ausrüstung und Bearbeitung.",
+"SpaceWeatherLive": "Sonnenaktivität, Kp-Index und Polarlichtwarnungen in Echtzeit.",
+"NOAA SWPC": "Das offizielle Vorhersagezentrum für Weltraumwetter.",
+"Helioviewer": "Die heutige Sonne in allen Wellenlängen von SDO, SOHO und weiteren Missionen.",
+"LROC QuickMap": "Interaktive Mondkarte mit den Bildern des Lunar Reconnaissance Orbiter.",
+"Transit Finder": "Wo du stehen musst, um die ISS vor Sonne oder Mond vorbeiziehen zu sehen.",
+"IMO": "Internationale Meteor-Organisation: Meteorstrom-Kalender und Live-Raten.",
+"Eclipses de Xavier Jubier": "Interaktive Karten aller Finsternisse, mit den genauen Zeiten für deinen Standort.",
+"In-The-Sky.org": "Kalender der Ereignisse: Konjunktionen, Bedeckungen, Kometen und Meteorströme.",
+"NASA Science": "Missionen, Bilder und Wissenschaftsnachrichten der NASA.",
+"ESA España": "Die Europäische Weltraumorganisation auf Spanisch: Missionen, Nachrichten und Spaniens Beteiligung.",
+"ESO España": "Die Europäische Südsternwarte auf Spanisch: VLT, ELT und Bilder in voller Auflösung.",
+"ESA/Webb": "Die Bilder des James-Webb-Teleskops in voller Auflösung.",
+"NOIRLab": "Bildarchiv von Kitt Peak, Cerro Tololo und Gemini, in voller Auflösung herunterladbar.",
+"Observatorio Rubin": "Die große LSST-Durchmusterung: Bilder und Alarme vom veränderlichen Himmel.",
+"Sky & Telescope": "Das klassische Magazin: was es jede Woche zu sehen gibt, Gerätetests und Technik.",
+"arXiv astro-ph": "Die Astrophysik-Artikel des Tages, noch vor der Veröffentlichung.",
+"Eureka (Daniel Marín)": "Das maßgebliche spanischsprachige Blog über Raumfahrt und Astronomie.",
+"IAC": "Astrophysikalisches Institut der Kanaren: Nachrichten, Öffentlichkeitsarbeit und die Observatorien auf den Kanaren.",
+"Observatorio Astronómico Nacional": "Spaniens Nationalobservatorium (IGN): Ephemeriden, das Jahrbuch und Öffentlichkeitsarbeit.",
+"Sociedad Española de Astronomía": "Die Gesellschaft der Berufsastronomen in Spanien.",
+"Fundación Starlight": "Starlight-Reservate und -Reiseziele für dunklen Himmel.",
+"Cometas_Obs": "Spanische Gruppe für Kometenbeobachtung, mit Astrometrie und Photometrie."
+},
+"nom": {
+"Foro de PixInsight": "PixInsight-Forum",
+"Foro de Siril": "Siril-Forum",
+"Foro Astronomo.org": "Forum Astronomo.org",
+"Tutoriales de Siril": "Siril-Tutorials",
+"Eclipses de Xavier Jubier": "Finsternisse von Xavier Jubier",
+"Observatorio Rubin": "Rubin-Observatorium",
+"ESA España": "ESA Spanien",
+"ESO España": "ESO Spanien"
 }
 }
 }
