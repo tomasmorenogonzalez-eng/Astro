@@ -1,5 +1,56 @@
 [
  {
+  "version": "0.27",
+  "es": [
+   "Parpadeo: pasa las tomas una tras otra, a toda pantalla y alineadas por sus estrellas (también tras el giro de meridiano), para cazar satélites, nubes o estrellas movidas; con una tecla dejas una fuera del apilado o la descartas. Está en «Todas las tomas», en cada proyecto y en la ficha de cada toma.",
+   "Astrometría con Siril: en el Encuadre de cada proyecto, Siril resuelve la mejor toma de cada noche y las demás heredan por sus estrellas el centro, el ángulo y la escala reales.",
+   "Mapa del cielo: una pestaña nueva del Archivo con todos tus proyectos sobre el cielo, cada uno con su campo.",
+   "Historial de cada proyecto: sus noches, sus apilados y todo lo que haces con él, en una línea de tiempo.",
+   "El mismo objeto con dos nombres (M31, Andrómeda) se reconoce por sus coordenadas y se propone unir; y la misma cámara en dos telescopios ya son dos equipos, aunque la cabecera no diga el telescopio.",
+   "RR Lyrae: en las que suben muy deprisa, el ajuste del máximo usa el 20 % de la amplitud y su error es más realista."
+  ],
+  "en": [
+   "Blink: step through the frames one after another, full screen and aligned by their stars (also after the meridian flip), to catch satellites, clouds or trailed stars; one key leaves a frame out of the stack or discards it. It's in «All frames», in each project and in each frame's panel.",
+   "Astrometry with Siril: in each project's Framing, Siril plate-solves the best frame of each night and the rest inherit the real centre, angle and scale from their stars.",
+   "Sky map: a new Archive tab with all your projects on the sky, each with its field.",
+   "History of each project: its nights, its stacks and everything you do with it, on a timeline.",
+   "The same target under two names (M31, Andromeda) is recognised by its coordinates and you're offered to merge them; and the same camera on two telescopes now counts as two setups, even if the header doesn't name the telescope.",
+   "RR Lyrae: for stars that rise very fast, the fit of the maximum uses 20% of the amplitude and its error is more realistic."
+  ],
+  "fr": [
+   "Clignotement : faites défiler les poses l'une après l'autre, en plein écran et alignées par leurs étoiles (y compris après le retournement au méridien), pour repérer satellites, nuages ou étoiles filées ; une touche exclut une pose de l'empilement ou l'écarte. C'est dans « Toutes les poses », dans chaque projet et dans la fiche de chaque pose.",
+   "Astrométrie avec Siril : dans le Cadrage de chaque projet, Siril résout la meilleure pose de chaque nuit et les autres héritent par leurs étoiles du centre, de l'angle et de l'échelle réels.",
+   "Carte du ciel : un nouvel onglet des Archives avec tous vos projets sur le ciel, chacun avec son champ.",
+   "Historique de chaque projet : ses nuits, ses empilements et tout ce que vous faites avec lui, sur une chronologie.",
+   "Le même objet sous deux noms (M31, Andromède) est reconnu à ses coordonnées et on vous propose de les fusionner ; et la même caméra sur deux télescopes compte désormais comme deux équipements, même si l'en-tête ne nomme pas le télescope.",
+   "RR Lyrae : pour celles qui montent très vite, l'ajustement du maximum utilise 20 % de l'amplitude et son erreur est plus réaliste."
+  ],
+  "de": [
+   "Blinken: Geh die Aufnahmen nacheinander durch, im Vollbild und an ihren Sternen ausgerichtet (auch nach dem Meridianflip), um Satelliten, Wolken oder verzogene Sterne zu finden; mit einer Taste nimmst du eine Aufnahme aus dem Stack oder sortierst sie aus. Es ist unter „Alle Aufnahmen“, in jedem Projekt und im Datenblatt jeder Aufnahme.",
+   "Astrometrie mit Siril: Im Bildausschnitt jedes Projekts löst Siril die beste Aufnahme jeder Nacht, und die übrigen übernehmen über ihre Sterne die tatsächliche Mitte, den Winkel und den Maßstab.",
+   "Himmelskarte: ein neuer Reiter im Archiv mit all deinen Projekten am Himmel, jedes mit seinem Feld.",
+   "Verlauf jedes Projekts: seine Nächte, seine Stacks und alles, was du damit machst, auf einer Zeitleiste.",
+   "Dasselbe Objekt unter zwei Namen (M31, Andromeda) wird an seinen Koordinaten erkannt und zum Zusammenführen vorgeschlagen; und dieselbe Kamera an zwei Teleskopen zählt jetzt als zwei Setups, auch wenn der Header das Teleskop nicht nennt.",
+   "RR Lyrae: Bei sehr schnell ansteigenden Sternen nutzt die Anpassung des Maximums 20 % der Amplitude, und ihr Fehler ist realistischer."
+  ],
+  "it": [
+   "Blink: passa le pose una dopo l'altra, a tutto schermo e allineate dalle loro stelle (anche dopo il flip al meridiano), per scovare satelliti, nuvole o stelle mosse; con un tasto lasci una posa fuori dall'impilamento o la scarti. Si trova in «Tutte le pose», in ogni progetto e nella scheda di ogni posa.",
+   "Astrometria con Siril: nell'Inquadratura di ogni progetto, Siril risolve la posa migliore di ogni notte e le altre ereditano dalle loro stelle il centro, l'angolo e la scala reali.",
+   "Mappa del cielo: una nuova scheda dell'Archivio con tutti i tuoi progetti sul cielo, ognuno con il suo campo.",
+   "Cronologia di ogni progetto: le sue notti, i suoi impilamenti e tutto quello che fai con lui, su una linea del tempo.",
+   "Lo stesso oggetto con due nomi (M31, Andromeda) viene riconosciuto dalle coordinate e ti propone di unirli; e la stessa camera su due telescopi ora conta come due configurazioni, anche se l'intestazione non dice il telescopio.",
+   "RR Lyrae: in quelle che salgono molto in fretta, l'adattamento del massimo usa il 20% dell'ampiezza e il suo errore è più realistico."
+  ],
+  "pt": [
+   "Blink: passe as exposições uma após outra, em ecrã inteiro e alinhadas pelas suas estrelas (também depois da inversão no meridiano), para apanhar satélites, nuvens ou estrelas arrastadas; com uma tecla deixa uma exposição fora do empilhamento ou descarta-a. Está em «Todas as exposições», em cada projeto e na ficha de cada exposição.",
+   "Astrometria com o Siril: no Enquadramento de cada projeto, o Siril resolve a melhor exposição de cada noite e as outras herdam pelas suas estrelas o centro, o ângulo e a escala reais.",
+   "Mapa do céu: um separador novo do Arquivo com todos os seus projetos sobre o céu, cada um com o seu campo.",
+   "Histórico de cada projeto: as suas noites, os seus empilhamentos e tudo o que faz com ele, numa cronologia.",
+   "O mesmo objeto com dois nomes (M31, Andrómeda) é reconhecido pelas coordenadas e propõe-se juntá-los; e a mesma câmara em dois telescópios passa a contar como dois equipamentos, mesmo que o cabeçalho não diga o telescópio.",
+   "RR Lyrae: nas que sobem muito depressa, o ajuste do máximo usa 20 % da amplitude e o seu erro é mais realista."
+  ]
+ },
+ {
   "version": "0.26",
   "es": [
    "RR Lyrae: el máximo, un bloque nuevo en Ciencia. ASTRO te dice qué máximos de RR Lyrae se ven desde tu lugar las próximas noches; con las tomas de la noche mide la curva, ajusta el máximo y da su instante en HJD con su error y el O−C frente a los elementos del VSX, con el archivo para la base de datos de RR Lyrae del GEOS.",

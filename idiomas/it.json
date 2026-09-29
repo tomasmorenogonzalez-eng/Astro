@@ -3014,7 +3014,8 @@
 "Por el catálogo": "Dal catalogo",
 "automática (30 % de la amplitud; 20 % si sube muy deprisa)": "automatica (30% dell'ampiezza; 20% se sale molto in fretta)",
 "automática (20 %: sube muy deprisa)": "automatica (20%: sale molto in fretta)",
-"el 20 % porque sube muy deprisa: en el # % del periodo": "il 20% perché sale molto in fretta: nel #% del periodo"
+"el 20 % porque sube muy deprisa: en el # % del periodo": "il 20% perché sale molto in fretta: nel #% del periodo",
+"En los datos de ejemplo las tomas de cada objeto comparten miniatura: no hay nada que alinear": "Nei dati di esempio le pose di ogni oggetto condividono la miniatura: non c'è niente da allineare"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",

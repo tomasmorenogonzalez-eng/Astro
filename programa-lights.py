@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.25"
+VERSION_PROG = "2026.09.29.26"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -3252,9 +3252,11 @@ function abrirParpadeo(lista, titulo, inicio){
   PARP.al.clear(); PARP.refs.clear(); PARP.variosObj = new Set(l.map(f => (f.object || "").trim())).size > 1;
   // si ninguna tiene medidas sus estrellas (analizadas antes de la 0.24), no hay nada que alinear: se dice una vez, no en cada toma
   const lab = $("parpAlinear").parentElement; if (PARP.tituloAl == null) PARP.tituloAl = lab.title;
-  PARP.puedeAlinear = l.some(f => f.estrellas && f.estrellas.length >= 5);
+  // (en los datos de ejemplo, las tomas de cada objeto comparten miniatura: alinearlas la movería sin motivo)
+  PARP.puedeAlinear = !EJEMPLO_ASTRO && l.some(f => f.estrellas && f.estrellas.length >= 5);
   $("parpAlinear").disabled = !PARP.puedeAlinear; lab.style.opacity = PARP.puedeAlinear ? "" : ".5";
-  lab.title = PARP.puedeAlinear ? PARP.tituloAl : trLT("Para alinearlas hay que medir su encuadre: en el Archivo, abre el proyecto y pulsa «Medir el encuadre»",
+  lab.title = PARP.puedeAlinear ? PARP.tituloAl : EJEMPLO_ASTRO ? trLT("En los datos de ejemplo las tomas de cada objeto comparten miniatura: no hay nada que alinear", "In the example data the frames of each target share a thumbnail: there's nothing to align")
+    : trLT("Para alinearlas hay que medir su encuadre: en el Archivo, abre el proyecto y pulsa «Medir el encuadre»",
     "To align them, their framing has to be measured: in the Archive, open the project and click “Measure the framing”");
   filtrarParpadeo(true);
   PARP.i = Math.max(0, l.indexOf(inicio));
