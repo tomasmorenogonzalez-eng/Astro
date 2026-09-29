@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.13"
+VERSION_PROG = "2026.09.29.14"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1592,9 +1592,13 @@ function visible(){
   });
 }
 function keyVal(f,k){ if (k==="medPct") return f.stats ? f.stats.medPct : null; if (k==="dims") return f.w ? f.w*f.h : null; if (k==="status") return {bad:0,warn:1,ok:2,na:3}[f.status]; return f[k]; }
+// ¿se está escribiendo en la ficha abierta? Entonces un repintado de fondo (llega una toma de la sesión en directo o de
+// una carpeta vigilada) no la rehace: borraba lo que se estaba escribiendo
+function escribiendoEnFicha(){ const a = document.activeElement, pan = $("panel");
+  return !!(a && pan && pan.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
 function render(){
   renderCounts(); renderFilters(); renderTable(); renderLists();
-  if (selected){ const f = frames.find(x=>x.id===selected); if (f) renderPanel(f); else closePanel(); }
+  if (selected){ const f = frames.find(x=>x.id===selected); if (f){ if (!escribiendoEnFicha()) renderPanel(f); } else closePanel(); }
 }
 function renderCounts(){
   const c = {ok:0,warn:0,bad:0,na:0}; frames.forEach(f=>c[f.status]++);
@@ -2348,7 +2352,9 @@ function ninaJSON(items, titulo){
 async function ninaVista(pend){
   const cams = [...new Set(pend.map(n=>n.cam||"(sin cámara)"))];
   let vols = []; try { vols = await (await api("/api/volumenes_red")).json(); } catch(_){}
-  const box = document.createElement("div"); box.className = "mcard"; box.style.marginTop = "8px";
+  // un solo panel: con cada clic se añadía otro con los mismos ids y el botón visible no hacía nada
+  document.querySelectorAll(".ninaPanel").forEach(x => x.remove());
+  const box = document.createElement("div"); box.className = "mcard ninaPanel"; box.style.marginTop = "8px";
   box.innerHTML = `<h3>Secuencia para N.I.N.A.</h3>
     <div style="font-size:13px;color:var(--muted)">Crea un archivo de secuencia con cada tanda que falta: enfriamiento, cambio de filtro en los flats, una nota con el ángulo y el número de tomas. En N.I.N.A.: <b>Secuenciador → Avanzado → Cargar secuencia</b> (icono de carpeta) y elige el archivo.</div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin:8px 0">${cams.map(c=>`<label style="font-weight:400"><input type="checkbox" class="nCam" value="${esc(c)}" ${/2600|mc/i.test(c)||cams.length===1?"checked":""}> ${esc(c)}</label>`).join("")}</div>
@@ -2358,23 +2364,24 @@ async function ninaVista(pend){
       ${vols.length?`<span style="font-size:13px">y también en</span><select id="nVol" style="padding:6px;border:1px solid var(--line);border-radius:7px;background:var(--bg)"><option value="">(solo en la biblioteca)</option>${vols.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("")}</select>`:""}
     </div><div id="nMsg" style="font-size:13px;margin-top:6px"></div>`;
   $("calBody").appendChild(box); box.scrollIntoView({behavior:"smooth"});
-  $("nGuardar").onclick = async ()=>{
+  const q = sel => box.querySelector(sel);
+  q("#nGuardar").onclick = async ()=>{
     const cs = new Set([...box.querySelectorAll(".nCam:checked")].map(x=>x.value)), ts = new Set([...box.querySelectorAll(".nTipo:checked")].map(x=>x.value));
     const sel = pend.filter(n=>cs.has(n.cam||"(sin cámara)") && ts.has(n.tipo)).map(n=>{
       const fl = frames.filter(f=>f.type.replace("master","")==="flat" && f.exp && (f.filter||"").toLowerCase()===(n.filtro||"").toLowerCase() && camaraIgual(f.cam, n.cam));
       const e = fl.length ? fl.map(f=>f.exp).sort((a,b)=>a-b)[fl.length>>1] : null;
       return Object.assign({}, n, {n: n.hacer, expFlat: e});
     });
-    if (!sel.length){ $("nMsg").innerHTML = `<span style="color:var(--bad)">No hay tandas con esa selección.</span>`; return; }
+    if (!sel.length){ q("#nMsg").innerHTML = `<span style="color:var(--bad)">No hay tandas con esa selección.</span>`; return; }
     const fecha = new Date().toISOString().slice(0,10), titulo = `${trL("Calibraciones pendientes", "Pending calibrations")} ${fecha}`, nombre = titulo + ".json";
     const texto = ninaJSON(sel, titulo);
     await saveToLibrary(["informes"], nombre, new Blob([texto],{type:"application/json"}), "Secuencia");
     let extra = "";
-    if ($("nVol") && $("nVol").value){
-      try { const r = await (await api("/api/guardar_red",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({carpeta:$("nVol").value, nombre, texto})})).json(); extra = `<br>También guardada en <b>${esc(r.ruta)}</b>.`; }
+    if (q("#nVol") && q("#nVol").value){
+      try { const r = await (await api("/api/guardar_red",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({carpeta:q("#nVol").value, nombre, texto})})).json(); extra = `<br>También guardada en <b>${esc(r.ruta)}</b>.`; }
       catch(e){ extra = `<br><span style="color:var(--bad)"><span>No se pudo guardar en la carpeta de red:</span> <span>${esc(e.message)}</span></span>`; }
     }
-    $("nMsg").innerHTML = `<span style="color:var(--ok)">✓ <span>${sel.length===1 ? "1 tanda en la secuencia" : `${sel.length} tandas en la secuencia`}</span> <b class="notr">${esc(nombre)}</b>, <span>guardada en la carpeta «informes» de la biblioteca.</span></span>${extra}`;
+    q("#nMsg").innerHTML = `<span style="color:var(--ok)">✓ <span>${sel.length===1 ? "1 tanda en la secuencia" : `${sel.length} tandas en la secuencia`}</span> <b class="notr">${esc(nombre)}</b>, <span>guardada en la carpeta «informes» de la biblioteca.</span></span>${extra}`;
   };
 }
 function camaraIgual(a, b){ const k = x => String(x||"").toLowerCase().replace(/zwo|\s|pro/g,""); return k(a)===k(b); }

@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.49"
+VERSION_PROG = "2026.09.29.50"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1913,11 +1913,9 @@ async function juntarConGuardado(){
   // las nuevas de esta pestaña (salvo las que la otra ya había añadido: la misma toma, por su ruta)
   const rutas = new Set(); srv.forEach(f => { for (const r of [f.path, f.origen, f.desde]) if (r) rutas.add(r); });
   for (const l of frames) if (!srvIds.has(l.id) && !BASE_HUELLAS.has(l.id) && ![l.path, l.origen, l.desde].some(r => r && rutas.has(r))){ out.push(l); propias++; }
-  const sel = selected && selected.id;
   frames = out;
   DB_BASE = (data && data.updated) || "";
   BASE_HUELLAS = huellasDe(srv);
-  if (sel) selected = frames.find(f => f.id === sel) || null;
   evaluateAll(); render();
   return propias;
 }
@@ -3168,7 +3166,11 @@ function visible(){
     const c = (typeof x==="number" && typeof y==="number") ? x-y : String(x).localeCompare(String(y)); return sort.dir==="asc" ? c : -c; });
 }
 function keyVal(f,k){ if (k==="status") return {bad:0,warn:1,ok:2,na:3,disc:4}[shownStatus(f)]; return f[k]; }
-function render(){ renderCounts(); renderFilters(); renderSessions(); renderTable(); renderLists(); if (selected){ const f = frames.find(x=>x.id===selected); if (f) renderPanel(f); else closePanel(); }
+// ¿se está escribiendo en la ficha abierta? Entonces un repintado de fondo (llega una toma de la sesión en directo o de
+// una carpeta vigilada) no la rehace: borraba lo que se estaba escribiendo
+function escribiendoEnFicha(){ const a = document.activeElement, pan = $("panel");
+  return !!(a && pan && pan.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
+function render(){ renderCounts(); renderFilters(); renderSessions(); renderTable(); renderLists(); if (selected){ const f = frames.find(x=>x.id===selected); if (f){ if (!escribiendoEnFicha()) renderPanel(f); } else closePanel(); }
   if (VISTA_ACTUAL==="archivo") renderArchivo(); else if (VISTA_ACTUAL==="proyecto") renderProyecto(); }
 function renderFilters(){
   const build = (el, key, labelOf, order, valOf) => {
@@ -4925,12 +4927,18 @@ async function stkOpen(){
     `<div class="status bad" style="display:block">No encuentro Siril. Descárgalo gratis de <b>siril.org</b>, instálalo, ábrelo una vez y vuelve aquí.</div>`;
   if (e.activo || e.estado){ stkRunView(); stkPoll(); } else { $("stkElegir").style.display=""; $("stkRun").style.display="none"; stkPlan(); }
 }
+let STK_SEQ = 0;
 async function stkPlan(){
   const obj=$("stkObj").value; if (!obj){ $("stkPlan").innerHTML=""; return; }
+  // una respuesta que llega tarde (se eligió otro objeto mientras tanto) no pisa la del objeto que se ve
+  const yo = ++STK_SEQ;
   $("stkPlan").innerHTML='<div class="note">Buscando tomas, darks y flats…</div>'; $("stkGo").disabled=true;
   const r = await fetch("/api/apilado/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:obj,avisos:$("stkWarn").checked})});
+  if (yo !== STK_SEQ) return;
   if (!r.ok){ $("stkPlan").innerHTML=`<div class="status bad">${esc(await r.text())}</div>`; return; }
-  const p = STK_PLAN = await r.json();
+  const p0 = await r.json();
+  if (yo !== STK_SEQ || $("stkObj").value !== obj) return;
+  const p = STK_PLAN = p0;
   const ex = p.excluidas, exTxt = [ex.rechazadas&&`${ex.rechazadas} rechazables/sin elegir`, ex.descartadas&&`${ex.descartadas} descartadas`,
     ex.fuera&&`${ex.fuera} fuera del apilado (${(p.noches_fuera||[]).map(fechaCorta).join(", ")})`, ex.corte&&`${ex.corte} por tu corte de calidad`, ex.limite&&`${ex.limite} por los límites del proyecto`, ex.sin_archivo&&`${ex.sin_archivo} sin archivo en el disco`, ex.sin_conectar&&`${ex.sin_conectar} en su carpeta original, que ahora no está conectada`, ex.formato&&`${ex.formato} en formato que esta versión de Siril no lee`].filter(Boolean).join(" · ");
   let h = `<div class="stk"><table><thead><tr><th></th><th>Filtro</th><th>Tomas</th><th>Tiempo</th><th>Darks</th><th>Flats</th><th>Avisos</th></tr></thead><tbody>`;
@@ -4956,6 +4964,7 @@ $("stkClose").onclick = ()=>{ $("stackBox").classList.remove("show"); clearTimeo
 $("stkObj").onchange = stkPlan; $("stkWarn").onchange = stkPlan;
 $("stkGo").onclick = async ()=>{
   const fs=[...document.querySelectorAll(".stkF:checked")].map(c=>c.value); if (!fs.length) return toast("Marca al menos un filtro");
+  if (!STK_PLAN || STK_PLAN.objeto !== $("stkObj").value){ stkPlan(); return toast("Espera a que termine de preparar el apilado de este objeto"); }
   const faltan = STK_PLAN.filtros.filter(f=>fs.includes(f.filtro) && f.avisos.length);
   if (faltan.length && !_co_crudo(tr("Hay avisos en: "+faltan.map(f=>nomFiltro(f.filtro)).join(", "))+"\n\n"+faltan.map(f=>nomFiltro(f.filtro)+": "+f.avisos.map(a=>tr(a)).join("; ")).join("\n")+"\n\n"+tr("¿Apilar de todas formas?"))) return;
   const r = await fetch("/api/apilado/iniciar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:STK_PLAN.objeto,filtros:fs,avisos:$("stkWarn").checked,vista:$("stkVista").checked,pesos:$("stkPesos").checked})});
@@ -5228,7 +5237,9 @@ function activarHorizonte(raiz, c){
     toast(`Horizonte cargado: ${pts.length} puntos. Pulsa «Guardar».`);
   };
   const q = raiz.querySelector(".plHzQuitar");
-  if (q) q.onclick = async ()=>{ await guardarCfgPlan({horizonte:null}); toast("Horizonte quitado"); raiz._alCambiar && raiz._alCambiar(); };
+  // se quita también del lugar activo: si no, al cambiar de lugar o al guardarlo volvía
+  if (q) q.onclick = async ()=>{ const c = await cfgPlan(), a = lugarActivo(c), ls = lugaresDe(c).map(x => a && x.id === a.id ? Object.assign({}, x, {horizonte:null}) : x);
+    await guardarCfgPlan(a ? {horizonte:null, lugares: ls} : {horizonte:null}); toast("Horizonte quitado"); raiz._alCambiar && raiz._alCambiar(); };
 }
 
 /* --- el tiempo hora a hora de una noche --- */
@@ -5326,8 +5337,9 @@ function activarLugar(raiz, alCambiar){
     if (!(Math.abs(lat)<=90 && Math.abs(lon)<=180)) return toast("Latitud o longitud no válidas");
     const c = await cfgPlan(), ls = lugaresDe(c).slice(), a = raiz._nuevo ? null : lugarActivo(c);
     const hz = leerHorizonteForm(raiz);
-    const l = {id: a ? a.id : "l" + Date.now().toString(36), nombre: raiz.querySelector(".plNombre").value.trim(), lat:+(+lat).toFixed(4), lon:+(+lon).toFixed(4),
-      alt_min:+raiz.querySelector(".plAlt").value, horizonte: hz === undefined ? (a ? a.horizonte||null : null) : hz};
+    // sobre el lugar que había: su Bortle, SQM, seeing y lo demás que se pone en «Mi equipo» no se pierden al guardarlo aquí
+    const l = Object.assign({}, a || {}, {id: a ? a.id : "l" + Date.now().toString(36), nombre: raiz.querySelector(".plNombre").value.trim(), lat:+(+lat).toFixed(4), lon:+(+lon).toFixed(4),
+      alt_min:+raiz.querySelector(".plAlt").value, horizonte: hz === undefined ? (a ? a.horizonte||null : null) : hz});
     const i = ls.findIndex(x=>x.id===l.id); if (i >= 0) ls[i] = l; else ls.push(l);
     await guardarCfgPlan({lugares: ls, lugar_activo: l.id, lugar:{lat:l.lat, lon:l.lon, nombre:l.nombre}, alt_min:l.alt_min, horizonte:l.horizonte, tiempo:raiz.querySelector(".plTiempo").checked});
     raiz._nuevo = false; toast("Lugar guardado"); alCambiar(); programarEstaNoche();
@@ -5890,6 +5902,8 @@ setInterval(()=>{ if (DIR.activo){ dirComprobarParada(); dirMovil(); if ($("dirB
 
 /* ============ Mi equipo: piezas sueltas (telescopios, reductores, cámaras y filtros) ============ */
 let EQ = null, EQ_META = null;
+// lo escrito en «Tu cielo» mientras la ventana está abierta (añadir o quitar una pieza vuelve a pintarla y lo borraba)
+let EQ_CIELO = {};
 const TEL_TXT = {refractor:"Refractor", petzval:"Petzval / astrógrafo", newton:"Newton", cassegrain:"Cassegrain", sct:"Schmidt-Cassegrain", rc:"Ritchey-Chrétien", mak:"Maksutov", rasa:"RASA / Hyperstar", objetivo:"Objetivo fotográfico"};
 const FIL_TXT = {L:"L (luminancia)", R:"R", G:"G", B:"B", UVIR:"UV/IR cut", antiLP:"Antipolución (CLS, L-Pro…)", Ha:"Hα", SII:"SII", OIII:"OIII", doble:"Doble banda Hα + OIII", triple:"Tri o cuádruple banda"};
 async function cargarEquipo(){ const d = await (await api("/api/equipo")).json(); EQ_META = d; EQ = d.equipo; return d; }
@@ -5909,6 +5923,7 @@ function tipoFiltroDeNombre(n){
 function camDeSensor(k){ const s = (EQ_META.sensores||[]).find(x=>x[0]===k); return s ? {sensor:s[0], w:s[2], h:s[3], pix:s[4], rn:s[5], gain:s[6], qe:s[7]} : {}; }
 async function abrirEquipo(){
   $("eqBox").classList.add("show"); $("eqBody").innerHTML = `<div class="note">Cargando…</div>`;
+  EQ_CIELO = {};
   await cargarEquipo(); pintarEquipo();
 }
 function filaEq(sec, i, celdas){ return `<tr data-sec="${sec}" data-i="${i}">${celdas.map(c=>`<td>${c}</td>`).join("")}<td><button class="btn small eqQuitar" title="Quitar">✕</button></td></tr>`; }
@@ -5928,7 +5943,9 @@ function pintarEquipo(){
   const fils = e.filtros.map((f,i)=>filaEq("filtros", i, [inp("nombre", f.nombre, 170, "p. ej. L-eXtreme"), sel("tipo", f.tipo||"L", Object.entries(FIL_TXT)), inp("banda", numEs(f.banda), 60, "nm", "decimal")]));
   const tabla = (sec, titulo, cab, filas, boton, nota) => `<div class="eqSec"><div class="eqCab"><h3>${titulo}</h3><button class="btn small eqAnadir" data-sec="${sec}">${boton}</button></div>
     ${filas.length ? `<div class="eqTabla"><table><thead><tr>${cab.map(x=>`<th>${x}</th>`).join("")}<th></th></tr></thead><tbody>${filas.join("")}</tbody></table></div>` : ""}${nota?`<div class="note">${nota}</div>`:""}</div>`;
-  const bort = lg && lg.bortle ? String(Math.round(lg.bortle)) : "";
+  const bort = EQ_CIELO.bortle !== undefined ? EQ_CIELO.bortle : lg && lg.bortle ? String(Math.round(lg.bortle)) : "";
+  const sqmTxt = EQ_CIELO.sqm !== undefined ? EQ_CIELO.sqm : lg ? numEs(lg.sqm) : "";
+  const seeingTxt = EQ_CIELO.seeing !== undefined ? EQ_CIELO.seeing : lg ? numEs(lg.seeing || "") : "";
   $("eqBody").innerHTML = `
     ${tabla("telescopios", "Telescopios y objetivos", ["Nombre","Tipo","Diámetro (mm)","Focal (mm)",""], tels, "＋ Telescopio")}
     ${tabla("reductores", "Reductores y barlows", ["Nombre","Factor","Para"], reds, "＋ Reductor o barlow", "Factor 0,8 para un reductor 0,8×, 2 para una barlow 2×. ASTRO prueba cada telescopio con y sin ellos.")}
@@ -5937,8 +5954,8 @@ function pintarEquipo(){
     <div class="eqSec"><div class="eqCab"><h3>Tu cielo${lg ? ` <span class="note notr">· ${esc(nombreLugar(lg))}</span>` : ""}</h3></div>
       ${lg ? `<div class="eqCielo">
         <label>Bortle ${sel("bortle", bort, [["", "no lo sé"], ...[1,2,3,4,5,6,7,8,9].map(b=>[String(b), String(b)])])}</label>
-        <label>o SQM medido <input id="eqSqm" value="${esc(numEs(lg.sqm))}" placeholder="p. ej. 20,8" style="width:70px" inputmode="decimal"></label>
-        <label>Seeing típico <input id="eqSeeing" value="${esc(numEs(lg.seeing || ""))}" placeholder="${numEs(2.5)}" style="width:56px" inputmode="decimal">″</label>
+        <label>o SQM medido <input id="eqSqm" value="${esc(sqmTxt)}" placeholder="p. ej. 20,8" style="width:70px" inputmode="decimal"></label>
+        <label>Seeing típico <input id="eqSeeing" value="${esc(seeingTxt)}" placeholder="${numEs(2.5)}" style="width:56px" inputmode="decimal">″</label>
         <label>Exposición máxima que aguanta tu montura ${sel("t_max", e.opciones.t_max||300, [60,120,180,240,300,420,600,900].map(x=>[x, x+" s"]))}</label></div>
         <div class="note">El SQM manda sobre el Bortle: lo da un medidor SQM o el mapa de lightpollutionmap.info. Con él ASTRO calcula cuánto exponer cada toma.</div>`
       : `<div class="note">Primero pon tu lugar de observación en «Próximas noches».</div>`}</div>
@@ -5970,6 +5987,15 @@ function pintarEquipo(){
     const filas = body.querySelectorAll(`tr[data-sec="${sec}"]`); const u = filas[filas.length-1]; if (u) u.querySelector("input").focus();
   });
   if ($("eqDetectar")) $("eqDetectar").onclick = detectarEquipo;
+  // «Tu cielo» y la exposición máxima (esta no se guardaba nunca: no tenía quién la leyera)
+  const cielo = body.querySelector(".eqCielo");
+  if (cielo){
+    const bo = cielo.querySelector('[data-k="bortle"]'), tm = cielo.querySelector('[data-k="t_max"]');
+    if (bo) bo.onchange = () => { EQ_CIELO.bortle = bo.value; };
+    if (tm) tm.onchange = () => { EQ.opciones = Object.assign({}, EQ.opciones || {}, {t_max: +tm.value}); };
+    $("eqSqm").oninput = () => { EQ_CIELO.sqm = $("eqSqm").value; };
+    $("eqSeeing").oninput = () => { EQ_CIELO.seeing = $("eqSeeing").value; };
+  }
   $("eqGuardar").onclick = guardarEquipo;
 }
 function detectarEquipo(){
@@ -5999,7 +6025,7 @@ async function guardarEquipo(){
     await guardarCfgPlan({lugares: ls});
   }
   toast(faltan ? `Guardado. ${faltan} pieza(s) sin medidas no se han guardado: completa diámetro y focal, o píxel y resolución` : "Equipo guardado");
-  pintarEquipo(); pintarSugerencia(true);
+  EQ_CIELO = {}; pintarEquipo(); pintarSugerencia(true);
 }
 $("btnEquipo").onclick = abrirEquipo;
 $("eqClose").onclick = ()=> $("eqBox").classList.remove("show");
@@ -6616,7 +6642,8 @@ async function aplicarLotes(){
     }
     if (Object.keys(a).length) antes.push([f.id, a]);
   }
-  LOTES.deshacer = antes;
+  // un segundo clic no encuentra nada que cambiar: no borra lo que deshace el primero
+  if (antes.length || !LOTES.deshacer) LOTES.deshacer = antes;
   evaluateAll();
   while (saving) await new Promise(r => setTimeout(r, 120));
   await saveDb(); render();
@@ -6894,9 +6921,12 @@ async function qfCalcular(){
   for (const n of nombres){ const id = claves.get(claveObjeto(n)); if (id) QF.tengo.set(id, n); else { const k = coordsObjeto(n); if (k) extra.push({nombre:n, ra:k.ra, dec:k.dec}); } }
   QF.extra = extra;
   $("qfLista").innerHTML = `<div class="note">Calculando qué se ve…</div>`;
-  try { QF.datos = await (await api("/api/que_fotografio",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fecha, extra})})).json(); }
-  catch(e){ $("qfLista").innerHTML = `<div class="status bad">${esc(e.message||e)}</div>`; return; }
-  QF.fecha = fecha; qfPintar();
+  const yo = QF.pedida = (QF.pedida || 0) + 1;       // si se cambia de noche antes de que llegue, gana la última pedida
+  let datos;
+  try { datos = await (await api("/api/que_fotografio",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fecha, extra})})).json(); }
+  catch(e){ if (yo === QF.pedida) $("qfLista").innerHTML = `<div class="status bad">${esc(e.message||e)}</div>`; return; }
+  if (yo !== QF.pedida) return;
+  QF.datos = datos; QF.fecha = fecha; qfPintar();
 }
 function qfCandidatos(){
   const cat = CATALOGO || [], n = QF.datos, eq = equipoElegido(), cu = clasesUsuario(), out = [];
@@ -7198,6 +7228,7 @@ async function resumenObjeto(obj){
   const angulos = [...new Set(fl.map(f=>f.rot ?? f.header?.ROTATANG ?? f.header?.ROTATOR ?? null).filter(v=>v!==null&&v!==undefined).map(v=>Math.round(+v)))];
   // calibraciones disponibles (el mismo cálculo que el apilado)
   let plan = null; try { plan = await (await api("/api/apilado/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:obj, avisos:true})})).json(); } catch(_){}
+  if (RESUMEN_OBJ !== obj) return;          // mientras tanto se abrió el resumen de otro objeto: este ya no se pinta
   const calib = {}; if (plan) for (const pf of plan.filtros||[]){ const g = pf.grupos||[]; calib[pf.filtro] = {
       dark: g.every(x=>x.dark), flat: g.every(x=>x.flat), bias: g.every(x=>x.bias || x.cflat || !x.flat || /master/i.test(x.flat)),
       faltan: g.flatMap(x=>[!x.dark?`darks de ${fmtExpS(x.exp/x.n)} (${x.noches.map(fechaNocheCorta).join(", ")})`:null, !x.flat?`flats (${x.noches.map(fechaNocheCorta).join(", ")})`:null]).filter(Boolean) }; }
@@ -7982,7 +8013,8 @@ async function mostrarAnalisis(){
     }
     INTEG.res.set(a.carpeta, res);
   }
-  if (!$("igResCuerpo")) return;
+  // mientras se medía se eligió otro análisis (u otro objeto): este se queda guardado, pero no se pinta encima
+  if (!$("igResCuerpo") || (INTEG.datos.analisis || [])[INTEG.idx] !== a) return;
   $("igResCuerpo").className = "";
   $("igResCuerpo").innerHTML = equilibrioColor(res) + res.map(tarjetaFiltro).join("") +
     ((a.avisos || []).length ? `<ul class="reasons">${a.avisos.map(x => `<li class="warn">${esc(x)}</li>`).join("")}</ul>` : "") +

@@ -90,7 +90,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.31"
+VERSION_PROG = "2026.09.29.32"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -10087,7 +10087,9 @@ function pintarVista(cv, datos){
 }
 async function verAst(id, calcNuevo){
   let d; try { d = await (await api("/api/ast/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
-  const s = d.serie, c = calcNuevo || d.calculo; AST.actual = {s, c, vistas: d.vistas};
+  const s = d.serie, c = calcNuevo || d.calculo;
+  if (!c || !s){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  AST.actual = {s, c, vistas: d.vistas};
   const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
   const obs = c.objetos, usados = obs.filter(o => o.n_usadas);
   const box = $("detalleBox");
@@ -10198,7 +10200,9 @@ async function cargarSeriesHR(){
 }
 async function verHR(id, calcNuevo){
   let d; try { d = await (await api("/api/hr/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
-  const s = d.serie, c = calcNuevo || d.calculo, cum = s.cumulo; HR.actual = {s, c, ref: d.referencia};
+  const s = d.serie, c = calcNuevo || d.calculo;
+  if (!c || !s){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  const cum = s.cumulo; HR.actual = {s, c, ref: d.referencia};
   const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
   const box = $("detalleBox");
   box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.nombre || tr("Cúmulo"))}</h2><div class="note"><span>${esc(fechaCorta(s.fecha))}</span> · <span class="notr">${esc(s.filtros.join(" + "))}</span> · <span class="notr">${s.estrellas.length}</span> <span>estrellas medidas</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
@@ -10316,7 +10320,9 @@ async function cargarSeriesEsp(){
 const FUENTE_DISP = {"líneas": "ajustada con las líneas", "patrón de líneas": "por el patrón de líneas", "teórica": "de la red y la distancia (sin líneas claras)", "manual": "escrita a mano", "supuesta": "supuesta: da la red y la distancia"};
 async function verEsp(id, calcNuevo){
   let d; try { d = await (await api("/api/esp/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
-  const s = d.serie, c = calcNuevo || d.calculo; ESP.actual = {s, c};
+  const s = d.serie, c = calcNuevo || d.calculo;
+  if (!c || !s){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  ESP.actual = {s, c};
   const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
   const otros = (ESP.series || []).filter(x => x.id !== s.id);
   const sel = c.seleccion || {};
