@@ -1815,11 +1815,16 @@ async function _ingest(files, opts){
   const batch = { obj:$("batchObj").value.trim(), tel:$("batchTel").value.trim(), cam:$("batchCam").value.trim(), note:$("batchNote").value.trim() };
   const eqp = (opts && opts.equipo) || null;     // tomas de un equipo de un proyecto (nunca las de las carpetas vigiladas)
   const nuevas = [];
+  // índices de lo que ya hay (con bibliotecas grandes, recorrer todas las fichas por cada archivo es lento)
+  const porRuta = new Set(), porNT = new Map();
+  const indexar = r => { if (r.origen) porRuta.add(r.origen); if (r.desde) porRuta.add(r.desde);
+    const k = r.name + "|" + r.size; if (!porNT.has(k)) porNT.set(k, []); porNT.get(k).push(r); };
+  frames.forEach(indexar);
   for (const f of files){
     if (opts.parar && opts.parar()) break;
     n++; bar.style.width = Math.round(100*n/files.length)+"%"; if (opts.progreso) opts.progreso(n, files.length);
-    const mismos = frames.filter(r => r.name===f.name && r.size===f.size);
-    if ((f.ruta && frames.some(r => r.origen===f.ruta || r.desde===f.ruta)) || (mismos.length && mismaToma(mismos, await fechaRapida(f)))){
+    const mismos = porNT.get(f.name + "|" + f.size) || [];
+    if ((f.ruta && porRuta.has(f.ruta)) || (mismos.length && mismaToma(mismos, await fechaRapida(f)))){
       res.dup++; if (f.ruta) res.hechas.push(f.ruta); addLog(`${f.name}: ya estaba en la base de datos`, "warn"); continue; }
     let rec;
     try { rec = await analyzeFile(f, batch); }
@@ -1834,7 +1839,7 @@ async function _ingest(files, opts){
       const cp = f.copiar === undefined ? copy : !!f.copiar;
       if (cp){ if (f.ruta) await copiarDesdeDisco(f, rec); else await copyIntoLibrary(f, rec); }
       else if (f.ruta) rec.origen = f.ruta;       // sin copiar: ASTRO recuerda dónde está para poder apilarla
-      frames.push(rec); nuevas.push(rec); res.added++; scheduleSave(); if (f.ruta) res.hechas.push(f.ruta);
+      frames.push(rec); indexar(rec); nuevas.push(rec); res.added++; scheduleSave(); if (f.ruta) res.hechas.push(f.ruta);
       addLog(`${f.name}: FWHM ${rec.fwhm?rec.fwhm.toFixed(2):"?"} px · alarg. ${rec.ecc?rec.ecc.toFixed(2):"?"} · ${rec.starCount??"?"} estrellas · ${rec.trailCount||0} trazas`, rec.status==="bad"?"bad":rec.status==="warn"?"warn":"ok");
     } catch(e){ res.bad++; addLog(`${f.name}: no se pudo guardar (${e.message||e})`, "bad"); console.error(e); }
     await new Promise(r => setTimeout(r, 0));
