@@ -10,8 +10,87 @@ import array, mmap, hashlib, zipfile, io, csv, ssl, random
 import datetime as _dt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+
+# ─── Escritura segura de archivos compartidos ───
+# En la aplicación, el lanzador y los tres programas son hilos de un mismo proceso: el cerrojo de cada archivo y el
+# contador de temporales se guardan en builtins para que los compartan todos (el número de proceso no basta).
+import builtins as _builtins
+_ESCRITURA = _builtins.__dict__.setdefault("_ASTRO_ESCRITURA", {"cerrojo": threading.Lock(), "n": 0, "de": {}})
+
+
+def cerrojo_de(ruta):
+    """Un cerrojo por archivo, común a los tres programas y al lanzador: leer, cambiar y escribir sin que otro lo haga a la vez."""
+    with _ESCRITURA["cerrojo"]:
+        return _ESCRITURA["de"].setdefault(os.path.normcase(os.path.abspath(ruta)), threading.RLock())
+
+
+def temporal_de(ruta):
+    """Un temporal propio para cada escritura: dos escrituras a la vez nunca comparten el mismo."""
+    with _ESCRITURA["cerrojo"]:
+        _ESCRITURA["n"] += 1
+        return "%s.%d-%d.tmp" % (ruta, os.getpid(), _ESCRITURA["n"])
+
+
+def reemplazar(tmp, ruta):
+    """os.replace con reintentos: en Windows falla mientras otro (otra lectura de ASTRO, el antivirus, OneDrive) tiene
+    abierto el archivo de destino."""
+    for i in range(15):
+        try:
+            os.replace(tmp, ruta)
+            return
+        except PermissionError:
+            if i == 14:
+                raise
+            time.sleep(0.04 * (i + 1))
+
+
+def guardar_json(ruta, datos, indent=1, bak=True):
+    """Escribe un JSON de golpe y a salvo: un temporal propio que se fuerza a disco, la versión anterior (si se podía
+    leer) en .bak y la sustitución con reintentos. Si algo falla, el archivo de antes se queda como estaba."""
+    with cerrojo_de(ruta):
+        tmp = temporal_de(ruta)
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False, indent=indent)
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except OSError:
+                    pass
+            if bak:
+                try:
+                    with open(ruta, "rb") as f0:
+                        viejo = f0.read()
+                    json.loads(viejo)
+                    with open(ruta + ".bak", "wb") as fb:
+                        fb.write(viejo)
+                except Exception:
+                    pass
+            reemplazar(tmp, ruta)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def leer_json_o_copia(ruta, defecto):
+    """Lee un JSON; si existe pero está estropeado (un disco desconectado a media escritura), usa su copia .bak."""
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return defecto
+    except Exception:
+        try:
+            with open(ruta + ".bak", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return defecto
+
+
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.29.28"
+VERSION_PROG = "2026.09.29.29"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -98,29 +177,39 @@ def _cfg_comun():
 
 
 def cambiar_cfg_comun(ruta, cambios):
-    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
-    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
-    c = None
-    for _ in range(5):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador). Leer, cambiar y escribir va con
+    un cerrojo común a todos y un temporal propio, así que nunca queda a medio escribir. Si el archivo está estropeado
+    (un disco desconectado a media escritura), se aparta como .dañado y se sigue con su copia o desde cero: antes ya no
+    se volvía a guardar ninguna preferencia."""
+    with cerrojo_de(ruta):
+        c = None
+        for _ in range(5):
+            try:
+                with open(ruta, "r", encoding="utf-8") as f:
+                    c = json.load(f) or {}
+                break
+            except FileNotFoundError:
+                c = {}
+                break
+            except Exception:
+                time.sleep(0.05)
+        if not isinstance(c, dict):
+            try:
+                with open(ruta + ".bak", "r", encoding="utf-8") as f:
+                    c = json.load(f)
+            except Exception:
+                c = None
+            if not isinstance(c, dict):
+                c = {}
+            try:
+                os.replace(ruta, ruta + ".dañado")
+            except OSError:
+                pass
+        c.update(cambios)
         try:
-            with open(ruta, "r", encoding="utf-8") as f:
-                c = json.load(f) or {}
-            break
-        except FileNotFoundError:
-            c = {}
-            break
-        except Exception:
-            time.sleep(0.05)
-    if not isinstance(c, dict):
-        return
-    c.update(cambios)
-    try:
-        tmp = "%s.%d.tmp" % (ruta, os.getpid())
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(c, f, ensure_ascii=False)
-        os.replace(tmp, ruta)
-    except OSError:
-        pass
+            guardar_json(ruta, c, indent=None)
+        except OSError:
+            pass
 
 
 def _guardar_cfg_comun(clave, valor):
@@ -235,19 +324,24 @@ def diagnostico():
 
 
 def leer_json(ruta, defecto):
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return defecto
+    return leer_json_o_copia(ruta, defecto)
+
+
+def finitos(o):
+    """Lo mismo sin NaN ni infinitos (pasan a null): el JSON con NaN que escribe Python no lo lee el navegador, y la
+    medida entera no se podía abrir por un valor así en una cabecera o en una estadística."""
+    if isinstance(o, float):
+        return o if math.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: finitos(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [finitos(v) for v in o]
+    return o
 
 
 def escribir_json(ruta, datos):
     os.makedirs(os.path.dirname(ruta), exist_ok=True)
-    tmp = ruta + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(datos, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, ruta)
+    guardar_json(ruta, finitos(datos))
 
 
 def num(v):
@@ -447,7 +541,8 @@ def _valor_fits(v):
     except ValueError:
         pass
     try:
-        return float(v.replace("D", "E").replace("d", "e"))
+        x = float(v.replace("D", "E").replace("d", "e"))
+        return x if math.isfinite(x) else v
     except ValueError:
         return v
 
@@ -1720,6 +1815,13 @@ def master_de(siril, s, W, hechos):
         return final
     if clave in hechos:
         return hechos[clave]
+    with cerrojo_de(final):
+        if os.path.isfile(final):                   # lo acaba de hacer el apilado de Lights
+            return final
+        return _hacer_master(siril, s, W, hechos, cal, clave, final)
+
+
+def _hacer_master(siril, s, W, hechos, cal, clave, final):
     os.makedirs(MASTERS_DIR, exist_ok=True)
     src = os.path.join(W, "src_" + s["id"])
     os.makedirs(src, exist_ok=True)
@@ -1727,7 +1829,7 @@ def master_de(siril, s, W, hechos):
         enlace(a, os.path.join(src, "c%05d%s" % (i, os.path.splitext(a)[1].lower())))
     seq = os.path.join(W, "seq_" + s["id"])
     L = ["requires 1.2.0", "set32bits", "cd %s" % q(src), "link c %s" % qo("-out=", seq), "cd %s" % q(seq)]
-    tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d" % (clave, os.getpid()))     # si se corta, no queda a medias
+    tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d_%d" % (clave, os.getpid(), threading.get_ident()))   # si se corta, no queda a medias
     if s["tipo"] == "flat":
         L += ["calibrate c %s" % qo("-bias=", cal) if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul %s" % qo("-out=", tmp)]
     else:
@@ -1735,7 +1837,7 @@ def master_de(siril, s, W, hechos):
     JOB["texto"], JOB["archivo"] = "Creando el master", s.get("desc", s["id"])
     try:
         correr_siril(siril, L, "master_" + s["id"], W)
-        os.replace(tmp + ".fit", final)
+        reemplazar(tmp + ".fit", final)
     finally:
         try:
             os.remove(tmp + ".fit")
@@ -6980,7 +7082,7 @@ class H(BaseHTTPRequestHandler):
             pass
 
     def _json(self, datos, code=200):
-        return self._send(code, json.dumps(datos, ensure_ascii=False, default=str))
+        return self._send(code, json.dumps(finitos(datos), ensure_ascii=False, default=str))
 
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)

@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.29.44"
+VERSION_PROG = "2026.09.29.45"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -13,6 +13,85 @@ ROOT = os.path.join(DISCO, "Lights")
 DIBUJOS_WEB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imagenes", "web")
 DB = os.path.join(ROOT, "lights.json")
 _DB_LOCK = threading.Lock()
+
+
+# ─── Escritura segura de archivos compartidos ───
+# En la aplicación, el lanzador y los tres programas son hilos de un mismo proceso: el cerrojo de cada archivo y el
+# contador de temporales se guardan en builtins para que los compartan todos (el número de proceso no basta).
+import builtins as _builtins
+_ESCRITURA = _builtins.__dict__.setdefault("_ASTRO_ESCRITURA", {"cerrojo": threading.Lock(), "n": 0, "de": {}})
+
+
+def cerrojo_de(ruta):
+    """Un cerrojo por archivo, común a los tres programas y al lanzador: leer, cambiar y escribir sin que otro lo haga a la vez."""
+    with _ESCRITURA["cerrojo"]:
+        return _ESCRITURA["de"].setdefault(os.path.normcase(os.path.abspath(ruta)), threading.RLock())
+
+
+def temporal_de(ruta):
+    """Un temporal propio para cada escritura: dos escrituras a la vez nunca comparten el mismo."""
+    with _ESCRITURA["cerrojo"]:
+        _ESCRITURA["n"] += 1
+        return "%s.%d-%d.tmp" % (ruta, os.getpid(), _ESCRITURA["n"])
+
+
+def reemplazar(tmp, ruta):
+    """os.replace con reintentos: en Windows falla mientras otro (otra lectura de ASTRO, el antivirus, OneDrive) tiene
+    abierto el archivo de destino."""
+    for i in range(15):
+        try:
+            os.replace(tmp, ruta)
+            return
+        except PermissionError:
+            if i == 14:
+                raise
+            time.sleep(0.04 * (i + 1))
+
+
+def guardar_json(ruta, datos, indent=1, bak=True):
+    """Escribe un JSON de golpe y a salvo: un temporal propio que se fuerza a disco, la versión anterior (si se podía
+    leer) en .bak y la sustitución con reintentos. Si algo falla, el archivo de antes se queda como estaba."""
+    with cerrojo_de(ruta):
+        tmp = temporal_de(ruta)
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False, indent=indent)
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except OSError:
+                    pass
+            if bak:
+                try:
+                    with open(ruta, "rb") as f0:
+                        viejo = f0.read()
+                    json.loads(viejo)
+                    with open(ruta + ".bak", "wb") as fb:
+                        fb.write(viejo)
+                except Exception:
+                    pass
+            reemplazar(tmp, ruta)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def leer_json_o_copia(ruta, defecto):
+    """Lee un JSON; si existe pero está estropeado (un disco desconectado a media escritura), usa su copia .bak."""
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return defecto
+    except Exception:
+        try:
+            with open(ruta + ".bak", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return defecto
+
 
 
 def _db_cambiada(data):
@@ -48,7 +127,7 @@ def guardar_db(data):
                     fb.write(viejo)
             except Exception:
                 pass
-        os.replace(tmp, DB)
+        reemplazar(tmp, DB)
 
 
 ES_MAC = sys.platform == "darwin"
@@ -237,29 +316,39 @@ def _L(es, en, idi=None):
 
 
 def cambiar_cfg_comun(ruta, cambios):
-    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
-    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
-    c = None
-    for _ in range(5):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador). Leer, cambiar y escribir va con
+    un cerrojo común a todos y un temporal propio, así que nunca queda a medio escribir. Si el archivo está estropeado
+    (un disco desconectado a media escritura), se aparta como .dañado y se sigue con su copia o desde cero: antes ya no
+    se volvía a guardar ninguna preferencia."""
+    with cerrojo_de(ruta):
+        c = None
+        for _ in range(5):
+            try:
+                with open(ruta, "r", encoding="utf-8") as f:
+                    c = json.load(f) or {}
+                break
+            except FileNotFoundError:
+                c = {}
+                break
+            except Exception:
+                time.sleep(0.05)
+        if not isinstance(c, dict):
+            try:
+                with open(ruta + ".bak", "r", encoding="utf-8") as f:
+                    c = json.load(f)
+            except Exception:
+                c = None
+            if not isinstance(c, dict):
+                c = {}
+            try:
+                os.replace(ruta, ruta + ".dañado")
+            except OSError:
+                pass
+        c.update(cambios)
         try:
-            with open(ruta, "r", encoding="utf-8") as f:
-                c = json.load(f) or {}
-            break
-        except FileNotFoundError:
-            c = {}
-            break
-        except Exception:
-            time.sleep(0.05)
-    if not isinstance(c, dict):
-        return
-    c.update(cambios)
-    try:
-        tmp = "%s.%d.tmp" % (ruta, os.getpid())
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(c, f, ensure_ascii=False)
-        os.replace(tmp, ruta)
-    except OSError:
-        pass
+            guardar_json(ruta, c, indent=None)
+        except OSError:
+            pass
 
 
 def guardar_idioma(idioma):
@@ -8427,11 +8516,7 @@ def version_ge(v, ref):
 
 
 def leer_json(ruta, defecto):
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return defecto
+    return leer_json_o_copia(ruta, defecto)
 
 
 def seguro(s):
@@ -9157,9 +9242,17 @@ def master_de(siril, s, bits):
     final = os.path.join(MASTERS_DIR, clave + ".fit")
     if os.path.isfile(final):
         return final
+    with cerrojo_de(final):
+        if os.path.isfile(final):                   # lo acaba de hacer otro (Ciencia o otro apilado)
+            return final
+        return _hacer_master(siril, s, bits, W, cal, clave, final)
+
+
+def _hacer_master(siril, s, bits, W, cal, clave, final):
     src = enlazar(s["files"], os.path.join(W, "src_" + s["id"]))
     seq = os.path.join(W, "seq_" + s["id"])
-    tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d" % (clave, os.getpid()))   # si se corta, no queda un master a medias
+    # si se corta, no queda un master a medias; y con el hilo en el nombre, ni Ciencia ni otro apilado escriben el mismo
+    tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d_%d" % (clave, os.getpid(), threading.get_ident()))
     lineas = ["requires 1.2.0", "set32bits", f"cd {q(src)}", enlazar_siril(src, "c", seq), f"cd {q(seq)}"]
     if s["tipo"] == "flat":
         lineas += [f"calibrate c {qo('-bias=', cal)}" if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul " + qo("-out=", tmp)]
@@ -9168,7 +9261,7 @@ def master_de(siril, s, bits):
     JOB["texto"] = f"Creando {s['desc']}"
     try:
         correr_siril(siril, "\n".join(lineas) + "\n", "master_" + s["id"])
-        os.replace(tmp + ".fit", final)
+        reemplazar(tmp + ".fit", final)
     finally:
         borrar(MASTERS_DIR, os.path.basename(tmp) + ".fit*")
         shutil.rmtree(seq, ignore_errors=True); shutil.rmtree(src, ignore_errors=True)
@@ -10043,8 +10136,7 @@ def trabajo_vista(carpeta, objeto):
             with open(ruta, encoding="utf-8") as fh:
                 inf = json.load(fh)
             inf["vista_previa"] = [x["nombre"] for x in imagenes]
-            with open(ruta, "w", encoding="utf-8") as fh:
-                json.dump(inf, fh, ensure_ascii=False, indent=1, default=str)
+            guardar_json(ruta, json.loads(json.dumps(inf, default=str)), bak=False)
         except Exception:
             pass
         JOB["texto"] = "Terminado"
@@ -10388,21 +10480,17 @@ def que_fotografio(fecha=None, extra=None):
 
 
 def leer_planificador():
-    try:
-        with open(PLANIF, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    d = leer_json_o_copia(PLANIF, {})
+    return d if isinstance(d, dict) else {}
 
 
 def guardar_planificador(d):
-    actual = leer_planificador()
-    for k in ("lugar", "alt_min", "coords", "tiempo", "horizonte", "lugares", "lugar_activo"):
-        if k in d:
-            actual[k] = d[k]
-    with open(PLANIF + ".tmp", "w", encoding="utf-8") as f:
-        json.dump(actual, f, ensure_ascii=False, indent=1)
-    os.replace(PLANIF + ".tmp", PLANIF)
+    with cerrojo_de(PLANIF):
+        actual = leer_planificador()
+        for k in ("lugar", "alt_min", "coords", "tiempo", "horizonte", "lugares", "lugar_activo"):
+            if k in d:
+                actual[k] = d[k]
+        guardar_json(PLANIF, actual)
     return actual
 
 
@@ -10500,9 +10588,7 @@ def guardar_equipo(d):
                                "banda": _num(f.get("banda"), 1, 400, TIPOS_FILTRO[tipo][1])})
     op = d.get("opciones") or {}
     out["opciones"]["t_max"] = int(_num(op.get("t_max"), 30, 1800, 300))
-    with open(EQUIPO_CFG + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(out, fh, ensure_ascii=False, indent=1)
-    os.replace(EQUIPO_CFG + ".tmp", EQUIPO_CFG)
+    guardar_json(EQUIPO_CFG, out)
     return out
 
 
@@ -11273,14 +11359,13 @@ def leer_avisos():
 
 
 def guardar_avisos(**kw):
-    a = leer_avisos()
-    a.update(kw)
-    try:
-        with open(AVISOS_CFG + ".tmp", "w", encoding="utf-8") as fh:
-            json.dump(a, fh, ensure_ascii=False, indent=1)
-        os.replace(AVISOS_CFG + ".tmp", AVISOS_CFG)
-    except Exception:
-        pass
+    with cerrojo_de(AVISOS_CFG):
+        a = leer_avisos()
+        a.update(kw)
+        try:
+            guardar_json(AVISOS_CFG, a)
+        except Exception:
+            pass
     return a
 
 
@@ -11347,6 +11432,11 @@ def _avisador():
 
 def guardar_proyecto(d):
     """Crea, cambia o quita un proyecto (meta de horas de un objeto con su montaje) en objetivos.json."""
+    with cerrojo_de(OBJETIVOS_F):
+        return _guardar_proyecto(d)
+
+
+def _guardar_proyecto(d):
     nombre = str(d.get("objeto") or "").strip()[:80]
     if not nombre:
         raise RuntimeError("Falta el objeto.")
@@ -11370,9 +11460,7 @@ def guardar_proyecto(d):
         ob[nombre] = x
     else:
         ob.pop(nombre, None)
-    with open(OBJETIVOS_F + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(ob, fh, ensure_ascii=False, indent=1)
-    os.replace(OBJETIVOS_F + ".tmp", OBJETIVOS_F)
+    guardar_json(OBJETIVOS_F, ob)
     return ob
 
 
@@ -11408,7 +11496,7 @@ def _limpiar_setup(e):
 GRUPO_JSON = "astro-proyecto.json"
 GRUPO_FORMATO = "astro-proyecto-en-grupo"
 _GRUPO_ENV = {"activo": False, "total": 0, "hechos": 0, "copiados": 0, "saltados": 0, "bytes": 0, "error": "", "fallidos": 0}
-_GRUPO_LOCK = threading.Lock()
+_GRUPO_LOCK = cerrojo_de(OBJETIVOS_F)       # el mismo que el de objetivos.json: nadie lo cambia a la vez
 
 
 def _nombre_carpeta(s):
@@ -11443,9 +11531,7 @@ def _grupo_objetivos():
 
 
 def _grupo_guardar_objetivos(ob):
-    with open(OBJETIVOS_F + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(ob, fh, ensure_ascii=False, indent=1)
-    os.replace(OBJETIVOS_F + ".tmp", OBJETIVOS_F)
+    guardar_json(OBJETIVOS_F, ob)
 
 
 def _grupo_de(ob, carpeta):
@@ -11567,6 +11653,11 @@ def grupo_fusionar(carpeta, crear=False):
 
 
 def _grupo_vigilar(carpeta, obj, copiar=False):
+    with cerrojo_de(VIGILADAS_CFG):
+        _grupo_vigilar_(carpeta, obj, copiar)
+
+
+def _grupo_vigilar_(carpeta, obj, copiar=False):
     v = leer_vigiladas()
     real = _rp(carpeta)
     for c in v["carpetas"]:
@@ -11637,10 +11728,11 @@ def grupo_dejar(obj):
         ob[obj] = x
         _grupo_guardar_objetivos(ob)
     if g.get("carpeta"):
-        v = leer_vigiladas()
-        real = _rp(g["carpeta"])
-        v["carpetas"] = [c for c in v["carpetas"] if not (c.get("ruta") and _rp(c["ruta"]) == real)]
-        guardar_vigiladas(v)
+        with cerrojo_de(VIGILADAS_CFG):
+            v = leer_vigiladas()
+            real = _rp(g["carpeta"])
+            v["carpetas"] = [c for c in v["carpetas"] if not (c.get("ruta") and _rp(c["ruta"]) == real)]
+            guardar_vigiladas(v)
     return {"ok": True}
 
 
@@ -11708,6 +11800,11 @@ def grupo_enviar(obj, equipo_id, ids):
 
 def guardar_equipos(d):
     """Crea o cambia un proyecto con varios equipos: el objeto, sus horas y los equipos que participan."""
+    with cerrojo_de(OBJETIVOS_F):
+        return _guardar_equipos(d)
+
+
+def _guardar_equipos(d):
     nombre = str(d.get("objeto") or "").strip()[:80]
     if not nombre:
         raise RuntimeError("Falta el objeto.")
@@ -11746,9 +11843,7 @@ def guardar_equipos(d):
     p.setdefault("creado", _dt.date.today().isoformat())
     x.update(proyecto=p, equipos=equipos, actualizado=_dt.datetime.now().isoformat(timespec="seconds"))
     ob[nombre] = x
-    with open(OBJETIVOS_F + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(ob, fh, ensure_ascii=False, indent=1)
-    os.replace(OBJETIVOS_F + ".tmp", OBJETIVOS_F)
+    guardar_json(OBJETIVOS_F, ob)
     if (x.get("grupo") or {}).get("carpeta"):
         try:
             grupo_escribir(nombre)            # los socios verán los cambios en la carpeta compartida
@@ -12134,14 +12229,13 @@ def leer_directo():
 
 
 def guardar_directo(**kw):
-    c = leer_directo()
-    c.update(kw)
-    try:
-        with open(DIRECTO_CFG + ".tmp", "w", encoding="utf-8") as f:
-            json.dump(c, f, ensure_ascii=False, indent=1)
-        os.replace(DIRECTO_CFG + ".tmp", DIRECTO_CFG)
-    except Exception:
-        pass
+    with cerrojo_de(DIRECTO_CFG):
+        c = leer_directo()
+        c.update(kw)
+        try:
+            guardar_json(DIRECTO_CFG, c)
+        except Exception:
+            pass
     return c
 
 
@@ -12779,29 +12873,10 @@ _MOVIL_LOCK = threading.RLock()
 
 def _cfg_movil(**cambios):
     ruta = os.path.join(DISCO, ".astro-config.json")
-    c = None
-    for _ in range(4):
-        try:
-            with open(ruta, "r", encoding="utf-8") as f:
-                c = json.load(f) or {}
-            break
-        except FileNotFoundError:
-            c = {}
-            break
-        except Exception:
-            time.sleep(0.05)             # otro programa lo está escribiendo: se vuelve a leer
-    if c is None:
-        return {}                        # no se reescribe un archivo que no se ha podido leer
     if cambios:
-        c.update(cambios)
-        try:
-            tmp = ruta + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(c, f, ensure_ascii=False)
-            os.replace(tmp, ruta)            # de golpe: nadie lee el archivo a medio escribir
-        except OSError:
-            pass
-    return c
+        cambiar_cfg_comun(ruta, cambios)
+    c = leer_json_o_copia(ruta, {})
+    return c if isinstance(c, dict) else {}
 
 
 def movil_clave(nueva=False):
@@ -13587,10 +13662,16 @@ def _reg_datos(canon):
 
 
 def _json_atomico(ruta, obj):
-    tmp = ruta + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
-    os.replace(tmp, ruta)
+    tmp = temporal_de(ruta)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
+        reemplazar(tmp, ruta)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def _decodificar_reg(datos):
@@ -14111,9 +14192,7 @@ def leer_archivo_cfg():
 
 
 def guardar_archivo_cfg(v):
-    with open(ARCHIVO_CFG + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(v, fh, ensure_ascii=False, indent=1)
-    os.replace(ARCHIVO_CFG + ".tmp", ARCHIVO_CFG)
+    guardar_json(ARCHIVO_CFG, v)
     return v
 
 
@@ -14202,14 +14281,13 @@ def archivo_cal_enviar():
     dirs, arch = cp.get("dirs") or [], cp.get("archivos") or []
     if not dirs and not arch:
         return {"ok": False, "dirs": 0, "archivos": 0}
-    prev = leer_json(ARCH_CAL_PEND, {})
+    with cerrojo_de(ARCH_CAL_PEND):
+        prev = leer_json(ARCH_CAL_PEND, {})
     prev = prev if isinstance(prev, dict) else {}
     d = {"dirs": list(dict.fromkeys((prev.get("dirs") or []) + dirs)),
          "archivos": list(dict.fromkeys((prev.get("archivos") or []) + arch)), "fecha": time.strftime("%Y-%m-%d %H:%M")}
     os.makedirs(CALIB_ROOT, exist_ok=True)
-    with open(ARCH_CAL_PEND + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(d, fh, ensure_ascii=False)
-    os.replace(ARCH_CAL_PEND + ".tmp", ARCH_CAL_PEND)
+    guardar_json(ARCH_CAL_PEND, d, indent=None)
     v.pop("cal_pendiente", None)
     guardar_archivo_cfg(v)
     return {"ok": True, "dirs": len(d["dirs"]), "archivos": len(d["archivos"])}
@@ -14664,9 +14742,7 @@ def leer_vigiladas():
 def guardar_vigiladas(v):
     v["hechas"] = v.get("hechas", [])[-60000:]
     v["fallidas"] = v.get("fallidas", [])[-5000:]
-    with open(VIGILADAS_CFG + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(v, fh, ensure_ascii=False)
-    os.replace(VIGILADAS_CFG + ".tmp", VIGILADAS_CFG)
+    guardar_json(VIGILADAS_CFG, v, indent=None)
     return v
 
 
@@ -14677,6 +14753,11 @@ def vigiladas_publico():
 
 
 def vigiladas_cambiar(d):
+    with cerrojo_de(VIGILADAS_CFG):
+        return _vigiladas_cambiar(d)
+
+
+def _vigiladas_cambiar(d):
     v = leer_vigiladas()
     acc = d.get("accion")
     if acc == "anadir":
@@ -14706,6 +14787,11 @@ def vigiladas_cambiar(d):
 
 
 def vigiladas_hechas(d):
+    with cerrojo_de(VIGILADAS_CFG):
+        return _vigiladas_hechas(d)
+
+
+def _vigiladas_hechas(d):
     v = leer_vigiladas()
     v["hechas"] = v["hechas"] + [str(x) for x in (d.get("hechas") or []) if x]
     # una toma que falla se apunta con su tamaño, y solo si no se acaba de escribir: si la cámara aún la estaba
@@ -14783,9 +14869,10 @@ def _vig_trabajo(carpetas, ident):
                     nuevos.append(it)
         with _IMP_LOCK:
             _IMP_OK.update(x["ruta"] for x in nuevos)
-        v = leer_vigiladas()
-        v["revisado"] = time.time()
-        guardar_vigiladas(v)
+        with cerrojo_de(VIGILADAS_CFG):
+            v = leer_vigiladas()
+            v["revisado"] = time.time()
+            guardar_vigiladas(v)
         with _VIG_LOCK:
             if _VIG["id"] == ident:
                 _VIG.update(items=nuevos, no_encontradas=faltan, revisado=time.time(), activo=False, proyectos=proyectos)
@@ -15607,12 +15694,10 @@ def trabajo_importar(ruta, objeto, opc):
                 os.replace(prov, base)
         carpetas_apil = []
         if fichas_cal:
-            pend = leer_json(PENDIENTE_CAL, {"frames": []})
-            pend["frames"] = (pend.get("frames") or []) + fichas_cal
-            tmp_p = "%s.%d.tmp" % (PENDIENTE_CAL, os.getpid())
-            with open(tmp_p, "w", encoding="utf-8") as fh:
-                json.dump(pend, fh, ensure_ascii=False)
-            os.replace(tmp_p, PENDIENTE_CAL)
+            with cerrojo_de(PENDIENTE_CAL):
+                pend = leer_json(PENDIENTE_CAL, {"frames": []})
+                pend["frames"] = (pend.get("frames") or []) + fichas_cal
+                guardar_json(PENDIENTE_CAL, pend, indent=None, bak=False)
         PROY.update(estado="ok", resultado={"objeto": objeto, "tomas": nuevas, "duplicadas": dup, "calibracion": n_cal, "apilados": n_apil,
                                             "objetivo": (p.get("objeto") or {}).get("objetivo"),
                                             "coordenadas": (p.get("objeto") or {}).get("coordenadas_a_mano"),
@@ -15956,10 +16041,18 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps({"path": os.path.relpath(dst, ROOT).replace(os.sep, "/")}))
             if p.path == "/api/objetivos":
                 d = json.loads(self._body() or b"{}")
-                ruta = os.path.join(ROOT, "objetivos.json")
-                with open(ruta + ".tmp", "w", encoding="utf-8") as f:
-                    json.dump(d, f, ensure_ascii=False, indent=1)
-                os.replace(ruta + ".tmp", ruta)
+                if not isinstance(d, dict):
+                    return self._send(400, "objetivos no válidos", "text/plain; charset=utf-8")
+                with cerrojo_de(OBJETIVOS_F):
+                    ahora = leer_json(OBJETIVOS_F, {})
+                    for k, v in (ahora.items() if isinstance(ahora, dict) else []):
+                        # el proyecto en grupo (su carpeta y los equipos de los socios) lo pone al día el servidor:
+                        # una página abierta desde antes no lo deshace
+                        if isinstance(v, dict) and v.get("grupo") and isinstance(d.get(k), dict):
+                            d[k]["grupo"] = v["grupo"]
+                            if v.get("equipos"):
+                                d[k]["equipos"] = v["equipos"]
+                    guardar_json(OBJETIVOS_F, d)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/apilado/plan":
                 d = json.loads(self._body() or b"{}")

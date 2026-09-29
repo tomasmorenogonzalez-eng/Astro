@@ -4,8 +4,87 @@
 import os, sys, json, socket, subprocess, threading, webbrowser, urllib.parse, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+
+# ─── Escritura segura de archivos compartidos ───
+# En la aplicación, el lanzador y los tres programas son hilos de un mismo proceso: el cerrojo de cada archivo y el
+# contador de temporales se guardan en builtins para que los compartan todos (el número de proceso no basta).
+import builtins as _builtins
+_ESCRITURA = _builtins.__dict__.setdefault("_ASTRO_ESCRITURA", {"cerrojo": threading.Lock(), "n": 0, "de": {}})
+
+
+def cerrojo_de(ruta):
+    """Un cerrojo por archivo, común a los tres programas y al lanzador: leer, cambiar y escribir sin que otro lo haga a la vez."""
+    with _ESCRITURA["cerrojo"]:
+        return _ESCRITURA["de"].setdefault(os.path.normcase(os.path.abspath(ruta)), threading.RLock())
+
+
+def temporal_de(ruta):
+    """Un temporal propio para cada escritura: dos escrituras a la vez nunca comparten el mismo."""
+    with _ESCRITURA["cerrojo"]:
+        _ESCRITURA["n"] += 1
+        return "%s.%d-%d.tmp" % (ruta, os.getpid(), _ESCRITURA["n"])
+
+
+def reemplazar(tmp, ruta):
+    """os.replace con reintentos: en Windows falla mientras otro (otra lectura de ASTRO, el antivirus, OneDrive) tiene
+    abierto el archivo de destino."""
+    for i in range(15):
+        try:
+            os.replace(tmp, ruta)
+            return
+        except PermissionError:
+            if i == 14:
+                raise
+            time.sleep(0.04 * (i + 1))
+
+
+def guardar_json(ruta, datos, indent=1, bak=True):
+    """Escribe un JSON de golpe y a salvo: un temporal propio que se fuerza a disco, la versión anterior (si se podía
+    leer) en .bak y la sustitución con reintentos. Si algo falla, el archivo de antes se queda como estaba."""
+    with cerrojo_de(ruta):
+        tmp = temporal_de(ruta)
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False, indent=indent)
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except OSError:
+                    pass
+            if bak:
+                try:
+                    with open(ruta, "rb") as f0:
+                        viejo = f0.read()
+                    json.loads(viejo)
+                    with open(ruta + ".bak", "wb") as fb:
+                        fb.write(viejo)
+                except Exception:
+                    pass
+            reemplazar(tmp, ruta)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def leer_json_o_copia(ruta, defecto):
+    """Lee un JSON; si existe pero está estropeado (un disco desconectado a media escritura), usa su copia .bak."""
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return defecto
+    except Exception:
+        try:
+            with open(ruta + ".bak", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return defecto
+
+
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.9"
+VERSION_PROG = "2026.09.29.10"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -196,29 +275,39 @@ def _L(es, en, idi=None):
 
 
 def cambiar_cfg_comun(ruta, cambios):
-    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador): si no se puede leer (otro
-    programa lo está escribiendo) no se pisa con uno vacío, y se escribe de golpe para que nadie lo lea a medias."""
-    c = None
-    for _ in range(5):
+    """Cambia claves de .astro-config.json (lo comparten los programas y el lanzador). Leer, cambiar y escribir va con
+    un cerrojo común a todos y un temporal propio, así que nunca queda a medio escribir. Si el archivo está estropeado
+    (un disco desconectado a media escritura), se aparta como .dañado y se sigue con su copia o desde cero: antes ya no
+    se volvía a guardar ninguna preferencia."""
+    with cerrojo_de(ruta):
+        c = None
+        for _ in range(5):
+            try:
+                with open(ruta, "r", encoding="utf-8") as f:
+                    c = json.load(f) or {}
+                break
+            except FileNotFoundError:
+                c = {}
+                break
+            except Exception:
+                time.sleep(0.05)
+        if not isinstance(c, dict):
+            try:
+                with open(ruta + ".bak", "r", encoding="utf-8") as f:
+                    c = json.load(f)
+            except Exception:
+                c = None
+            if not isinstance(c, dict):
+                c = {}
+            try:
+                os.replace(ruta, ruta + ".dañado")
+            except OSError:
+                pass
+        c.update(cambios)
         try:
-            with open(ruta, "r", encoding="utf-8") as f:
-                c = json.load(f) or {}
-            break
-        except FileNotFoundError:
-            c = {}
-            break
-        except Exception:
-            time.sleep(0.05)
-    if not isinstance(c, dict):
-        return
-    c.update(cambios)
-    try:
-        tmp = "%s.%d.tmp" % (ruta, os.getpid())
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(c, f, ensure_ascii=False)
-        os.replace(tmp, ruta)
-    except OSError:
-        pass
+            guardar_json(ruta, c, indent=None)
+        except OSError:
+            pass
 
 
 def guardar_idioma(idioma):
@@ -2460,11 +2549,7 @@ _PM = {"p": None}
 
 
 def leer_json(ruta, defecto):
-    try:
-        with open(ruta, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return defecto
+    return leer_json_o_copia(ruta, defecto)
 
 
 def num(v):
@@ -3135,10 +3220,7 @@ def config_bib():
 
 
 def guardar_config_bib(c):
-    tmp = CONFIG_BIB + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(c, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, CONFIG_BIB)
+    guardar_json(CONFIG_BIB, c)
 
 
 def parece_asiair(ruta):
@@ -3506,7 +3588,7 @@ def guardar_db(data):
                     fb.write(viejo)
             except Exception:
                 pass
-        os.replace(tmp, DB)
+        reemplazar(tmp, DB)
 
 
 def nombre_libre(dest):
@@ -3683,22 +3765,22 @@ class H(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(p.query)
         try:
             if p.path == "/api/disco/pendiente_archivo/hecho":
-                try:
-                    os.remove(ARCH_PEND)
-                except OSError:
-                    pass
+                with cerrojo_de(ARCH_PEND):
+                    try:
+                        os.remove(ARCH_PEND)
+                    except OSError:
+                        pass
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/importar/pendiente/hecho":
                 hechas = set(json.loads(self._body() or b"{}").get("rutas") or [])
-                d = leer_json(PENDIENTE, {"frames": []})
-                resto = [x for x in d.get("frames") or [] if x.get("path") not in hechas]
-                if resto:
-                    tmp_p = "%s.%d.tmp" % (PENDIENTE, os.getpid())
-                    with open(tmp_p, "w", encoding="utf-8") as f:
-                        json.dump({"frames": resto}, f, ensure_ascii=False)
-                    os.replace(tmp_p, PENDIENTE)
-                elif os.path.exists(PENDIENTE):
-                    os.remove(PENDIENTE)
+                # con el cerrojo común: Lights puede estar añadiendo las de otro proyecto importado ahora mismo
+                with cerrojo_de(PENDIENTE):
+                    d = leer_json(PENDIENTE, {"frames": []})
+                    resto = [x for x in d.get("frames") or [] if x.get("path") not in hechas]
+                    if resto:
+                        guardar_json(PENDIENTE, {"frames": resto}, indent=None, bak=False)
+                    elif os.path.exists(PENDIENTE):
+                        os.remove(PENDIENTE)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/save":
                 data = self._body()
