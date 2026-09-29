@@ -87,3 +87,9 @@ ASTRO wurde von **Tomás Moreno González** entwickelt, Astrofotograf und Wissen
 Es ist aus einem ganz konkreten Bedürfnis entstanden: weniger Zeit mit dem Durchsehen von Bildern verbringen und mehr Zeit mit dem Blick in den Himmel.
 
 Du willst mehr darüber wissen, wie es gebaut ist oder wie man neue Versionen veröffentlicht? Das findest du in **[LEEME.de.md](LEEME.de.md)**.
+
+---
+
+## ASTRO unterstützen
+
+ASTRO ist kostenlos. Wenn es dir nützt, kannst du mit einer Spende helfen, dass es weiter wächst: **[Mit PayPal spenden](https://paypal.me/tmg197210)**. Den Knopf findest du auch im Startfenster von ASTRO und unter „Über ASTRO“.

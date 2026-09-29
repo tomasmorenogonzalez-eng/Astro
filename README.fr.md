@@ -87,3 +87,9 @@ ASTRO a été créé par **Tomás Moreno González**, astrophotographe et vulgar
 Il est né d'un besoin très concret : passer moins de temps à trier des photos et plus de temps à regarder le ciel.
 
 Vous voulez en savoir plus sur la façon dont il est fait ou sur la publication de nouvelles versions ? Tout est dans **[LEEME.fr.md](LEEME.fr.md)**.
+
+---
+
+## Soutenir ASTRO
+
+ASTRO est gratuit. S'il vous est utile, vous pouvez l'aider à continuer de grandir avec un don : **[Faire un don avec PayPal](https://paypal.me/tmg197210)**. Le bouton se trouve aussi dans la fenêtre d'accueil d'ASTRO et dans « À propos d'ASTRO ».
