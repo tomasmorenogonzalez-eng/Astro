@@ -1106,18 +1106,12 @@ th{background:var(--surface);font-weight:700}
 .arcVacio{text-align:center;padding:36px 20px;color:var(--muted);line-height:1.5} .arcVacio b{display:block;font-size:18px;color:var(--text);margin-bottom:6px} .arcVacio span{display:block;max-width:560px;margin:0 auto}
 .counts.arcCifras{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))!important}
 .arcEst{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
-.arcEst.e-en_curso{background:var(--accent-soft);color:var(--accent);border-color:transparent}
-.arcEst.e-apilado{background:var(--ok-bg);color:var(--ok);border-color:transparent}
-.arcEst.e-apilado_nuevas{background:var(--warn-bg);color:var(--warn);border-color:transparent}
-.arcEst.e-terminado{background:var(--ok);color:#fff;border-color:transparent}
-.arcEst.e-pausa{background:transparent;border-style:dashed}
 .arcEstados{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;align-items:center} .arcEstados .spacer{flex:1}
 .arcEstados select{padding:6px 9px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
 .arcH .note{margin-left:8px;font-weight:500}
 .arcEstados button{border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 11px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .arcEstados button b{font-weight:800} .arcEstados button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .arcEstados button .dotE{width:8px;height:8px;border-radius:50%;background:var(--muted)}
-.arcEstados .dotE.e-en_curso{background:var(--accent)} .arcEstados .dotE.e-apilado,.arcEstados .dotE.e-terminado{background:var(--ok)} .arcEstados .dotE.e-apilado_nuevas{background:var(--warn)}
 .arcEstBarra{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-radius:14px;box-shadow:var(--sombra);padding:12px 16px;margin:0 0 14px}
 .arcEstBarra .arcEstTxt{color:var(--muted);line-height:1.45;flex:1;min-width:240px} .arcEstBarra select{padding:6px 9px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
 table.arcSes{min-width:900px} table.arcSes td{vertical-align:top}
@@ -1194,7 +1188,6 @@ tr[data-arc-proy]{cursor:pointer} tr[data-arc-proy]:hover td{background:var(--su
 .arcCal table{min-width:780px} .arcCal th,.arcCal td{text-align:center}
 .arcCelda{cursor:pointer;background:rgba(142,91,194,calc(var(--a) * .55))} .arcCelda:hover{outline:2px solid var(--accent);outline-offset:-2px}
 .arcCelda b{display:block;font-size:14px} .arcCelda span{font-size:11px;color:var(--muted)} .arcCelda.vacia{cursor:default;background:transparent}
-.arcInicio{display:block;margin:16px 0 4px}
 .arcVolver{display:inline-block;margin:0 0 12px;font-weight:650;color:var(--accent);text-decoration:none}
 .arcDos{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:14px;margin:0 0 16px;align-items:start}
 table.arcFxA{min-width:0} table.arcFxA td,table.arcFxA th{text-align:right} table.arcFxA td:first-child,table.arcFxA th:first-child{text-align:left}
@@ -1237,6 +1230,116 @@ body.parpAbierto{overflow:hidden}
 .parp .btn{background:#1C1829;border-color:#393243;color:#EEEAF8} .parp .btn.danger{color:#EF6B5D} .parp .btn:disabled{opacity:.45}
 .parpAyuda{padding:0 14px 10px;color:#7A7296;font-size:12px}
 @media (max-width:700px){ #parpCerrar{order:1} .parpCtl{order:2;width:100%} .parpAyuda{display:none} .parpPie{padding-bottom:12px} }
+/* ── 0.30: la barra lateral en seis apartados; los subapartados se despliegan al entrar ── */
+.navG{display:flex;flex-direction:column;gap:2px}
+.navG .grp{display:flex;flex-direction:column;gap:1px}
+.navG .subs{display:none;flex-direction:column;gap:1px;margin:0 0 6px}
+.navG .grp.abierto .subs{display:flex}
+.navG .nav.sub{padding:6px 10px 6px 41px;font-size:13.3px}
+.arcPest[hidden]{display:none}
+.navG .nav .chev{margin-left:auto;color:var(--faint);font-size:15px;line-height:1;transition:transform .15s}
+.navG .grp.abierto > .nav .chev{transform:rotate(90deg)}
+.navG .grp.abierto > .grpT{color:var(--text)}
+.menuLista .sepMenu{height:1px;background:var(--line);margin:4px 0}
+@media (max-width:860px){ .navG{flex-direction:row;flex-wrap:wrap;gap:4px;width:100%} .navG .grp{flex-direction:row;flex-wrap:wrap;gap:4px}
+  .navG .nav.sub{padding:8px 12px} .navG .subs{flex-direction:row;flex-wrap:wrap;margin:0;gap:4px} }
+/* ── 0.30: panel general ── */
+.hero.tira{display:flex;flex-direction:column;gap:8px;min-height:0;padding:12px 18px;font-size:14px}
+.tira .l{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;position:relative}
+.tira .l2{border-top:1px solid rgba(255,255,255,.12);padding-top:8px}
+.tira .tLab{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.72}
+.tira b{font-weight:800}
+.tira .sepT{width:1px;height:16px;background:rgba(255,255,255,.2)}
+.tira .spacer{flex:1}
+.tira a{color:#fff;font-weight:700}
+.tira .heroSel{font-size:13px;padding:2px 6px;border-radius:8px}
+.tira .lunaT svg{width:18px;height:18px;vertical-align:-4px;margin-right:4px}
+.tira .hmini{width:26px;height:26px;border-radius:6px;display:inline-block;vertical-align:middle;margin-right:2px}
+.tira .btn{padding:4px 12px;font-size:13px}
+.tira .btn.primary{background:linear-gradient(135deg,var(--accent2),#5B2C87);border-color:transparent;color:var(--on-accent)}
+.tira .avisoT{color:#FFD58A;font-weight:700}
+.sug.plegado{display:none!important}
+.pnGrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1100px){.pnGrid{grid-template-columns:1fr}}
+.pnCol{display:flex;flex-direction:column;gap:16px;min-width:0}
+.pnCard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px 16px;min-width:0;box-shadow:var(--sombra)}
+.pnCab{display:flex;align-items:center;gap:8px 10px;margin-bottom:8px;flex-wrap:wrap}
+.pnCab h3{margin:0;font-size:16px;font-weight:800}
+.pnCab .note{font-size:13px}
+.pnCab .spacer{flex:1}
+.pnCab a{font-weight:700;font-size:13.5px;text-decoration:none}
+.pnPr{display:grid;grid-template-columns:54px minmax(0,1fr) minmax(0,262px);gap:3px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
+.pnPr:first-of-type{border-top:0}
+.pnPr:hover .nom b{color:var(--accent)}
+.pnPr .mini{width:54px;height:54px;border-radius:10px;background:#1B1030 center/cover no-repeat;grid-row:span 3}
+.pnPr .nom{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.pnPr .nom b{font-size:15px}
+.pnPr .eq{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnPr .bl{display:flex;gap:10px;align-items:center;font-size:12.5px;min-width:0}
+.pnPr .bl > b{min-width:78px;font-size:13px}
+.pnPr .bl .fs{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pnPr .barra{display:flex;flex:1;height:8px;border-radius:5px;overflow:hidden;background:var(--line);min-width:0}
+.pnPr .barra i{display:block;height:100%}
+.pnPr .r1,.pnPr .r2,.pnPr .r3{text-align:right;font-size:12.5px;color:var(--muted);min-width:0}
+.pnPr .r1{font-size:14px;font-weight:800;color:var(--accent)}
+.pnPr .r1.gris{color:var(--muted)} .pnPr .r1.ok{color:var(--ok)} .pnPr .r1 .ritmo{font-size:12.5px;font-weight:600;color:var(--muted)}
+.pnPr .r3{color:var(--text)} .pnPr .r3 .prox{padding:0;background:none}
+.pnAviso{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;padding:7px 0;border-top:1px solid var(--line)}
+.pnAviso:first-of-type{border-top:0}
+.pnAviso > i{flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--warn)}
+.pnAviso a{font-weight:700}
+.pnSeg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:2px}
+.pnSeg button{border:0;background:none;font:inherit;font-size:12.5px;padding:3px 10px;border-radius:7px;font-weight:700;color:var(--muted);cursor:pointer}
+.pnSeg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pnSel{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:3px 8px;background:var(--surface);color:var(--text);max-width:100%}
+.pnAnual{display:flex;gap:8px;align-items:flex-end;height:118px;margin:4px 0 2px}
+.pnAnual div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;min-width:0}
+.pnAnual i{display:block;width:100%;max-width:46px;border-radius:6px 6px 2px 2px;background:var(--accent);opacity:.5}
+.pnAnual div.act i{opacity:1;background:repeating-linear-gradient(135deg,var(--accent) 0 5px,var(--accent2) 5px 8px)}
+.pnAnual b{font-size:13px;font-variant-numeric:tabular-nums}
+.pnAnual span{font-size:12px;color:var(--muted)}
+.pnFrase{font-size:13.5px;margin:8px 0 12px;line-height:1.5}
+.pnFrase b{color:var(--accent)}
+.pnHeat{display:grid;grid-template-columns:34px repeat(12,minmax(0,1fr));gap:3px;font-size:11px;font-variant-numeric:tabular-nums}
+.pnHeat .m{color:var(--muted);text-align:center;font-weight:700;font-size:10.5px}
+.pnHeat .a{color:var(--muted);font-weight:700;align-self:center}
+.pnHeat .c{height:24px;border-radius:5px;display:grid;place-items:center;font-weight:700;color:var(--on-accent);min-width:0;overflow:hidden}
+.pnHeat .c[data-pn-mes]{cursor:pointer}
+.pnHeat .c[data-pn-mes]:hover{outline:2px solid var(--accent);outline-offset:1px}
+.pnHeat .c.v{background:transparent;border:1px dashed var(--line)}
+.pnHeat .c.cero{background:var(--surface2);color:var(--faint)}
+.pnHeat .c.lig{color:var(--text)}
+.pnPr:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.pnTemp{display:grid;grid-template-columns:34px repeat(12,minmax(0,1fr));gap:3px;align-items:end;margin-top:6px}
+.pnTemp div{display:flex;flex-direction:column;justify-content:flex-end;gap:3px;height:74px;min-width:0}
+.pnTemp i{display:block;background:var(--ok);border-radius:3px 3px 0 0;opacity:.45}
+.pnTemp div.mejor i{opacity:1}
+.pnTemp b{font-size:10.5px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.pnTemp div.mejor b{color:var(--text)}
+.pnTemp span{font-size:10.5px;text-align:center;color:var(--muted);font-weight:700}
+.pnVacio{padding:18px;border:1px dashed var(--line2);border-radius:12px;color:var(--muted);text-align:center;font-size:14px}
+.genFila{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.genFila > b{min-width:170px}
+.genBotones{display:flex;gap:6px;flex-wrap:wrap}
+.genBotones button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+/* ── 0.30: mapa de calor del panel (la intensidad se pinta sobre el acento: vale en día, noche y rojo) y estados ── */
+.pnHeat .c{position:relative;isolation:isolate;background:var(--accent)}
+.pnHeat .c::before{content:"";position:absolute;inset:0;background:var(--surface);opacity:var(--v,0);z-index:-1}
+.pnPr .cat{font-size:11px;font-weight:700;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:0 8px;white-space:nowrap}
+.pnPr .cat::first-letter{text-transform:uppercase}
+@media (max-width:700px){
+  .pnPr{grid-template-columns:54px minmax(0,1fr);row-gap:2px}
+  .pnPr .mini{grid-row:span 6}
+  .pnPr .r1,.pnPr .r2,.pnPr .r3{text-align:left}
+  .pnHeat,.pnTemp{grid-template-columns:28px repeat(12,minmax(0,1fr));gap:2px}
+}
+.arcEst.e-nuevo{background:var(--surface2);color:var(--muted)}
+.arcEst.e-curso{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.arcEst.e-capturado{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.arcEst.e-procesado{background:var(--ok);color:#fff;border-color:transparent}
+.arcEst.e-archivado{background:transparent;border-style:dashed}
+.arcEstados .dotE.e-curso{background:var(--accent)} .arcEstados .dotE.e-capturado{background:var(--warn)} .arcEstados .dotE.e-procesado{background:var(--ok)}
 </style>
 </head>
 <body>
@@ -1244,25 +1347,49 @@ body.parpAbierto{overflow:hidden}
 <div class="app">
   <aside class="lat">
     <div class="marca"><span class="logo"><svg viewBox="0 0 24 24"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6-2.6 7.9-2.6-7.9-7.9-2.6 7.9-2.6z"/></svg></span><div><h1>ASTRO</h1><div class="sub">Control de calidad de lights</div></div></div>
-    <button class="nav pest on" data-vista="objetos"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg><span>Mis objetos</span><span class="cnt notr" id="navNObj"></span></button>
-    <button class="nav pest" data-vista="archivo" title="Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></svg><span class="notr" id="navArchivo">Archivo</span></button>
-    <button class="nav pest" data-vista="tomas"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg><span>Todas las tomas</span><span class="cnt notr" id="navNTomas"></span></button>
-    <button class="nav" id="btnNoches" title="Qué objetos y filtros te conviene hacer cada noche"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg><span>Próximas noches</span></button>
-    <button class="nav" id="btnQf" title="Objetos que se ven bien esa noche desde tu lugar y encajan en tu equipo"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M11 8v6M8 11h6"/></svg><span>¿Qué fotografío?</span></button>
-    <button class="nav" id="btnDirecto" title="Revisa cada toma según la hace la ASIAIR o N.I.N.A. y te avisa si algo va mal"><svg class="i" viewBox="0 0 24 24"><path d="M2 12h4l3-8 6 16 3-8h4"/></svg><span>En directo</span><span class="punto"></span><span id="dirBtnN" class="notr cnt"></span></button>
-    <div class="grupo">Procesado</div>
-    <button class="nav" id="btnStack"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Apilar…</span></button>
-    <span id="navCalib"></span>
-    <div class="grupo">Herramientas</div>
-    <button class="nav" id="btnEquipo" title="Tus telescopios, cámaras y filtros: con ellos ASTRO te dice qué montar cada noche"><svg class="i" viewBox="0 0 24 24"><path d="M3.5 14.5l11-6.5 2.2 3.8-11 6.5z"/><path d="M14.5 8l3.2-1.9 2.2 3.8-3.2 1.9"/><path d="M10 16.5L7.5 22M11.2 15.8l3.3 6.2"/></svg><span>Mi equipo</span></button>
-    <button class="nav" id="btnNombres"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg><span>Nombres de objeto</span></button>
-    <button class="nav" id="btnReport"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg><span>Informe de calidad</span></button>
-    <button class="nav" id="btnIndicadores"><svg class="i" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-5 3 3 5-6"/></svg><span>Indicadores de calidad</span></button>
-    <button class="nav" id="btnCriterio"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Criterio de calidad</span></button>
-    <button class="nav" id="btnRegistros" title="Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M8.5 15h2l1.5-3.5 2 6 1.3-2.5H17"/></svg><span>Registros de la ASIAIR</span></button>
-    <button class="nav" id="btnEnfoque" title="Cuánto cambia el enfoque de un filtro a otro y con la temperatura, según tus tomas"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="1.4"/></svg><span>Enfoque por filtro</span></button>
-    <button class="nav" id="btnRename"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Renombrar por lotes</span></button>
-    <button class="nav" id="btnCursos" title="Los cursos de astrofotografía de Tomás Moreno, adaptados a tu equipo"><svg class="i" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 11.5h5"/></svg><span>Cursos (bonus)</span></button>
+    <nav class="navG" id="navG">
+      <div class="grp abierto" data-g="panel">
+        <button class="nav pest grpT on" data-vista="panel"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="9" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="5" rx="1.5"/><rect x="3" y="15" width="7.5" height="6" rx="1.5"/><rect x="13.5" y="11" width="7.5" height="10" rx="1.5"/></svg><span>Panel general</span></button>
+        <div class="subs"><button class="nav sub" id="navMapa">Mapa del cielo</button><button class="nav sub" id="navCalendario">Calendario</button></div>
+      </div>
+      <div class="grp" data-g="proyectos">
+        <button class="nav pest grpT" data-vista="objetos"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Proyectos</span><span class="cnt notr" id="navNObj"></span></button>
+      </div>
+      <div class="grp" data-g="foto">
+        <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M11 8v6M8 11h6"/></svg><span>Qué fotografiar</span><span class="chev">›</span></button>
+        <div class="subs">
+          <button class="nav sub" id="btnQf" title="Objetos que se ven bien esa noche desde tu lugar y encajan en tu equipo">Explorar objetos</button>
+          <button class="nav sub" id="btnNoches" title="Qué objetos y filtros te conviene hacer cada noche">Planificar sesión</button>
+          <button class="nav sub" id="btnDirecto" title="Revisa cada toma según la hace la ASIAIR o N.I.N.A. y te avisa si algo va mal"><span>En directo</span><span class="punto"></span><span id="dirBtnN" class="notr cnt"></span></button>
+        </div>
+      </div>
+      <div class="grp" data-g="archivo">
+        <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></svg><span>Mi archivo</span><span class="chev">›</span></button>
+        <div class="subs">
+          <button class="nav sub pest" data-vista="archivo" title="Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno">Indexar directorios</button>
+          <button class="nav sub pest" data-vista="tomas"><span>Todas las tomas</span><span class="cnt notr" id="navNTomas"></span></button>
+          <span id="navCalib"></span>
+          <button class="nav sub" id="btnNombres">Nombres de objeto</button>
+          <button class="nav sub" id="btnRename">Renombrar por lotes</button>
+          <button class="nav sub" id="btnRegistros" title="Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma">Registros de la ASIAIR</button>
+          <button class="nav sub" id="btnIndicadores">Indicadores de calidad</button>
+          <button class="nav sub" id="btnReport">Informe de calidad</button>
+        </div>
+      </div>
+      <div class="grp" data-g="ciencia" id="grpCiencia" hidden>
+        <a class="nav grpT" id="navCiencia" href="#"><svg class="i" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L5 18.5A1.7 1.7 0 0 0 6.5 21h11a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/><path d="M7.5 15h9"/></svg><span>Ciencia</span></a>
+      </div>
+      <div class="grp" data-g="config">
+        <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Configuración</span><span class="chev">›</span></button>
+        <div class="subs">
+          <button class="nav sub" id="btnEquipo" title="Tus telescopios, cámaras y filtros: con ellos ASTRO te dice qué montar cada noche">Mi equipo</button>
+          <button class="nav sub" id="btnEnfoque" title="Cuánto cambia el enfoque de un filtro a otro y con la temperatura, según tus tomas">Enfoque por filtro</button>
+          <button class="nav sub" id="btnLugares">Lugares de observación</button>
+          <button class="nav sub" id="btnCriterio">Umbrales de calidad</button>
+          <button class="nav sub" id="btnGeneral">General</button>
+        </div>
+      </div>
+    </nav>
     <div class="pieLat">
       <div class="temas" id="temas"><button data-t="dia" title="Aspecto claro, para el día"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Día</span></button><button data-t="noche" title="Aspecto oscuro, para la noche"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Noche</span></button><button data-t="rojo" title="Todo en rojo, para usarlo junto al telescopio sin perder la adaptación a la oscuridad"><i></i><span>Rojo</span></button></div>
       <button class="nav notr" id="btnIdioma" onclick="cambiarIdioma()" title="Idioma"></button>
@@ -1279,6 +1406,7 @@ body.parpAbierto{overflow:hidden}
           <hr>
           <button id="btnFinder">Abrir la carpeta en el Finder</button>
           <hr>
+          <button id="btnCursos">Cursos (bonus)</button>
           <button onclick="informarProblema()">Informar de un problema o sugerencia</button>
           <button onclick="acercaDe()">Acerca de ASTRO</button>
         </div>
@@ -1287,16 +1415,13 @@ body.parpAbierto{overflow:hidden}
     </div>
   </aside>
   <main class="contenido">
-  <div class="top"><div><h2 id="tituloVista">Mis objetos</h2><div class="sub" id="subVista">Lo que llevas de cada objeto y cuándo te conviene seguir</div></div><span class="spacer"></span>
+  <div class="top"><div><h2 id="tituloVista">Panel general</h2><div class="sub" id="subVista">Cómo van tus proyectos y tus noches</div></div><span class="spacer"></span>
     <button class="btn primary grande" id="btnAdd">＋ Añadir sesión</button></div>
   <div class="vigBarra" id="vigBarra" style="display:none"></div>
   <section class="hero" id="estaNoche" style="display:none"></section>
   <section class="sug" id="sugNoche" style="display:none"></section>
-  <div class="counts" id="counts"></div>
-
-  <section id="vistaObjetos">
-    <div class="cab2" id="cabObjetos"><h3>Tus objetos</h3><button class="btn small" id="btnVarios" title="Un mismo objeto con varios telescopios o cámaras, tuyos o de compañeros">＋ Proyecto con varios equipos</button><button class="btn small" id="btnResumen" title="Qué salió anoche, cuánto sirve y qué te falta, listo para WhatsApp">Resumen de la noche</button><div class="seg" id="ordenObj"><button data-o="ultima">Última noche</button><button data-o="objetivo">Más cerca del objetivo</button><button data-o="nombre">Nombre</button></div></div>
-    <div class="sessions" id="sessions"></div>
+  <div class="counts ocultoArc" id="counts"></div>
+  <section id="vistaPanel"><div id="pnCuerpo"></div>
     <div class="bienvenida" id="bienvenida">
       <div class="bienCab"><b>Todavía no hay sesiones</b><span>Así funciona ASTRO, en tres pasos</span></div>
       <div class="bienPasos">
@@ -1305,6 +1430,12 @@ body.parpAbierto{overflow:hidden}
         <div class="paso"><img src="/img/dibujo-apilar.jpg" alt=""><b>3. Apila</b><span>Con Siril, con la calibración que le toca a cada toma, y te enseña el resultado ya revelado.</span></div>
       </div>
       <button class="btn primary grande" onclick="abrirAñadir()">＋ Añadir sesión</button></div>
+  </section>
+
+  <section id="vistaObjetos" style="display:none">
+    <div class="cab2" id="cabObjetos"><h3>Tus proyectos</h3><button class="btn small" id="btnStack">Apilar…</button><button class="btn small" id="btnVarios" title="Un mismo objeto con varios telescopios o cámaras, tuyos o de compañeros">＋ Proyecto con varios equipos</button><button class="btn small" id="btnResumen" title="Qué salió anoche, cuánto sirve y qué te falta, listo para WhatsApp">Resumen de la noche</button><div class="seg" id="ordenObj"><button data-o="ultima">Última noche</button><button data-o="objetivo">Más cerca del objetivo</button><button data-o="nombre">Nombre</button></div></div>
+    <div class="sessions" id="sessions"></div>
+    <div class="pnVacio" id="objVacio" hidden>Todavía no tienes proyectos: cada objeto que fotografíes será uno. <button class="btn primary small" onclick="abrirAñadir()">＋ Añadir sesión</button></div>
 
   </section>
 
@@ -1502,6 +1633,15 @@ body.parpAbierto{overflow:hidden}
   </div>
   <div id="stkRun" style="display:none"></div>
 </div></div>
+<div class="modal" id="lugBox"><div class="box" style="width:min(860px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Lugares de observación</h2><button class="btn small" id="lugClose">Cerrar</button></div>
+  <div class="note">Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte; cada toma trae además el suyo en la cabecera, y así puedes separar lo que hiciste en cada sitio.</div>
+  <div id="lugBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></div>
+<div class="modal" id="genBox"><div class="box" style="width:min(760px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>General</h2><button class="btn small" id="genClose">Cerrar</button></div>
+  <div id="genBody" style="display:flex;flex-direction:column;gap:14px"></div>
+</div></div>
 <div class="modal" id="projBox"><div class="box" style="width:min(680px,100%)"><div id="projBody"></div></div></div>
 <div class="toast" id="toast"></div>
 
@@ -1534,17 +1674,17 @@ function abrirExterno(u){
   const ir = async () => {
     try {
       const e = await (await fetch("/api/enlaces")).json();
-      if (!e.inicio || document.getElementById("navInicio")) return;
-      const lat = document.querySelector(".lat"), marca = lat && lat.querySelector(".marca"); if (!marca) return;
-      const a = document.createElement("a"); a.id = "navInicio"; a.className = "nav navInicio notr";
-      a.href = `http://127.0.0.1:${e.inicio}/inicio`;
-      a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span></span>';
-      a.querySelector("span").textContent = trLT("Todos los apartados", "All sections");
-      marca.after(a); marca.style.cursor = "pointer"; marca.title = a.querySelector("span").textContent; marca.onclick = () => { location.href = a.href; };
+      if (e.ciencia){ const c = document.getElementById("navCiencia"); if (c){ c.href = `http://127.0.0.1:${e.ciencia}/`; document.getElementById("grpCiencia").hidden = false; } }
+      const marca = document.querySelector(".lat .marca");
+      if (marca){ marca.style.cursor = "pointer"; marca.title = trLT("Panel general", "Overview"); marca.onclick = () => mostrarVista("panel"); }
+      if (!e.inicio) return;
+      URL_INICIO = `http://127.0.0.1:${e.inicio}/inicio`;
+      const ej = document.getElementById("avisoEjemploIr"); if (ej){ ej.href = URL_INICIO; ej.hidden = false; }
     } catch(_){}
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ir); else setTimeout(ir, 0);
 })();
+let URL_INICIO = "";                // la página de ASTRO con la carpeta de datos, la ventana y las novedades
 const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemplo
 (function(){
   if (!EJEMPLO_ASTRO) return;
@@ -1554,7 +1694,8 @@ const EJEMPLO_ASTRO = __EJEMPLO__;   // abierto con la carpeta de datos de ejemp
     const d = document.createElement("div"); d.id = "avisoEjemplo"; d.className = "notr";
     d.style.cssText = "margin:10px 4px 12px;padding:10px 12px;border-radius:10px;background:rgba(242,193,78,.16);border:1px solid rgba(242,193,78,.6);font-size:12.5px;line-height:1.4";
     d.innerHTML = "<b style='display:block;margin-bottom:2px'>" + trLT("Datos de ejemplo", "Example data") + "</b>" +
-      trLT("Fotos y medidas inventadas para que explores ASTRO. Para usar las tuyas, pulsa «Volver a mis datos» en la ventana de inicio.", "Made-up frames and measurements for you to explore ASTRO. To use yours, click “Back to my data” in the start window.");
+      trLT("Fotos y medidas inventadas para que explores ASTRO.", "Made-up frames and measurements for you to explore ASTRO.") +
+      ` <a href="#" id="avisoEjemploIr" hidden style="font-weight:700">${trLT("Usar mis datos", "Use my data")}</a>`;
     lat.insertBefore(d, lat.children[1] || null);
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", poner); else setTimeout(poner, 0);
@@ -3212,7 +3353,7 @@ function keyVal(f,k){ if (k==="status") return {bad:0,warn:1,ok:2,na:3,disc:4}[s
 function escribiendoEnFicha(){ const a = document.activeElement, pan = $("panel");
   return !!(a && pan && pan.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
 function render(){ renderCounts(); renderFilters(); renderSessions(); renderTable(); renderLists(); if (selected){ const f = frames.find(x=>x.id===selected); if (f){ if (!escribiendoEnFicha()) renderPanel(f); } else closePanel(); }
-  if (VISTA_ACTUAL==="archivo") renderArchivo(); else if (VISTA_ACTUAL==="proyecto") renderProyecto(); }
+  if (VISTA_ACTUAL==="archivo") renderArchivo(); else if (VISTA_ACTUAL==="proyecto") renderProyecto(); else if (VISTA_ACTUAL==="panel") renderPanelGeneral(); }
 function renderFilters(){
   const build = (el, key, labelOf, order, valOf) => {
     const counts = {}; frames.forEach(f => { const v = valOf ? valOf(f) : (f[key]||""); counts[v]=(counts[v]||0)+1; });
@@ -3246,7 +3387,7 @@ async function pedirPortadas(nombres){
   const k = nombres.slice().sort().join("|");
   if (k === _portadasPedidas) return; _portadasPedidas = k;
   try { PORTADAS = await (await api("/api/portadas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objetos:nombres})})).json(); } catch(_){ return; }
-  if (Object.keys(PORTADAS).length) renderSessions(true);
+  if (Object.keys(PORTADAS).length){ renderSessions(true); if (VISTA_ACTUAL === "panel") renderPanelGeneral(); }
 }
 let ORDEN_OBJ = (()=>{ try { return localStorage.getItem("astroOrdenObj") || "ultima"; } catch(_){ return "ultima"; } })();
 function anilloSVG(pct){
@@ -3260,6 +3401,7 @@ function renderSessions(soloRepintar){
   const sinTomas = proyectosSinTomas();
   $("bienvenida").style.display = frames.length ? "none" : "block";
   $("cabObjetos").style.display = frames.length || sinTomas.length ? "" : "none";
+  $("objVacio").hidden = !!(frames.length || sinTomas.length);
   if (!frames.length && !sinTomas.length){ box.innerHTML = ""; if (!soloRepintar) programarEstaNoche(); return; }
   const byObj = [...groupBy(frames, f=>f.object||"(sin objeto)")];
   const ultima = l => l.map(f=>f.night||"").sort().pop() || "";
@@ -3307,7 +3449,7 @@ function renderSessions(soloRepintar){
         ${etiqueta?`<span class="fecha">${esc(etiqueta)}</span>`:""}<div class="nom"><h3 class="notr">${esc(obj)}</h3>${sub?`<span>${esc(sub)}</span>`:""}</div></div>
       <div class="cuerpo">
         <div class="fila">${pct!==null ? anilloSVG(pct) : ""}<div class="horas"><b>${fmtH(h)}</b>${meta>0?` <span class="dato">de ${fmtH(meta)}</span>`:` <span class="dato">útiles</span>`}
-          <div class="dato"><span>${noches.length} noche${noches.length!==1?"s":""} · ${fl.length} toma${fl.length!==1?"s":""}</span>${pct>=100?'<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>':""}${estadoManual(obj) ? '<span> · </span>' + chipEstado(estadoManual(obj)) : ""}${meta>0?"":'<span> · </span><a href="#" data-resumen="'+esc(obj)+'">poner objetivo</a>'}</div></div></div>
+          <div class="dato"><span>${noches.length} noche${noches.length!==1?"s":""} · ${fl.length} toma${fl.length!==1?"s":""}</span>${pct>=100?'<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>':""}${estadoManual(obj) ? '<span> · </span>' + chipEstado(estadoP(obj, true)) : ""}${meta>0?"":'<span> · </span><a href="#" data-resumen="'+esc(obj)+'">poner objetivo</a>'}</div></div></div>
         ${barras?`<div class="fbars">${barras}</div>`:""}
         <div class="prox" data-prox="${esc(obj)}">${PROX[obj]||""}</div>
         ${(OBJETIVOS[obj]||{}).proyecto && (OBJETIVOS[obj].proyecto.montaje_nombre) ? `<div class="dato" style="margin-top:4px"><span>Proyecto con</span> <span class="notr">${esc(OBJETIVOS[obj].proyecto.montaje_nombre)}</span></div>` : ""}
@@ -3383,6 +3525,269 @@ async function eliminarObjeto(obj){
   toast(trLT("{1} eliminado ({2} tomas)", "{1} deleted ({2} frames)", obj, nfmt(n)));
 }
 
+/* ============ Panel general: cómo van los proyectos en curso y cómo van tus noches ============ */
+// Los cinco estados de un proyecto. «Nuevo» (aún sin tomas) y «En curso» salen solos; «Capturado», «Procesado» y
+// «Archivado» los pone el usuario. Lo que antes era «terminado» o «en pausa» cuenta como «Capturado».
+// Las palabras «Procesado» y «Apilado» ya están en el diccionario con otro sentido (el apartado): cada estado tiene su clave.
+const trK = (es, en, clave) => IDIOMA === "es" ? es : IDIOMA === "en" ? en : (DIC[clave] ?? en);
+const ESTADOS_P = ["nuevo", "curso", "capturado", "procesado", "archivado"];
+function textoEstadoP(k){
+  return ({nuevo: trK("Nuevo", "New", "Nuevo (estado del proyecto)"), curso: trLT("En curso", "In progress"),
+    capturado: trK("Capturado", "Captured", "Capturado (estado del proyecto)"), procesado: trK("Procesado", "Processed", "Procesado (estado del proyecto)"),
+    archivado: trK("Archivado", "Archived", "Archivado (estado del proyecto)")})[k] || k;
+}
+function estadoP(obj, conTomas){
+  const m = estadoManual(obj);
+  if (m === "archivado" || m === "procesado") return m;
+  if (m === "capturado" || m === "terminado" || m === "pausa") return "capturado";
+  return conTomas ? "curso" : "nuevo";
+}
+let PNL = {modo: "noches", lugar: "", equipo: "", objeto: ""};
+try { Object.assign(PNL, JSON.parse(localStorage.getItem("astroPanel") || "{}")); } catch(_){}
+function pnlGuardar(){ try { localStorage.setItem("astroPanel", JSON.stringify(PNL)); } catch(_){} }
+const pnMesC = i => new Date(2000, i, 1).toLocaleDateString(LOCALE, {month: "short"}).replace(".", "");
+const pnMesL = i => new Date(2000, i, 1).toLocaleDateString(LOCALE, {month: "long"});
+const pnCapi = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// El lugar de una toma: las coordenadas de su cabecera (SITELAT y SITELONG), agrupadas a unos 10 km, con el nombre del lugar
+// guardado en «Lugares de observación» que quede a menos de 0,2°. Sin coordenadas no hay lugar.
+let _LUG_T = new WeakMap(), _LUG_V = null;
+function lugarDeToma(f){
+  if (_LUG_V !== PLAN_CFG){ _LUG_T = new WeakMap(); _LUG_V = PLAN_CFG; }
+  if (_LUG_T.has(f)) return _LUG_T.get(f);
+  const h = f.header || {};
+  const la = angulo(h.SITELAT ?? h["LAT-OBS"] ?? h["OBSGEO-B"] ?? null, false), lo = angulo(h.SITELONG ?? h["LONG-OBS"] ?? h["OBSGEO-L"] ?? null, false);
+  let v = null;
+  if (la !== null && lo !== null && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && (la || lo)){
+    const cerca = lugaresDe(PLAN_CFG || {}).map(l => ({l, d: sepGrados({ra: +l.lon, dec: +l.lat}, {ra: lo, dec: la})})).filter(x => x.d < 0.2).sort((a, b) => a.d - b.d)[0];
+    v = {k: la.toFixed(1) + "," + lo.toFixed(1), nombre: cerca ? nombreLugar(cerca.l) : nombreLugar({lat: la, lon: lo})};
+  }
+  _LUG_T.set(f, v); return v;
+}
+
+// la imagen de un proyecto: la vista previa de su último apilado o, si no hay, su mejor toma
+function imgProyecto(obj, fl){
+  const port = PORTADAS[obj];
+  if (port) return `/api/apilado/imagen?rel=${encodeURIComponent(port.jpg)}`;
+  const conFoto = fl.filter(f => f.thumb && !f.discarded && f.status !== "bad");
+  const toma = (conFoto.filter(f => f.fwhm).sort((a, b) => a.fwhm - b.fwhm)[0]) || conFoto[0] || fl.find(f => f.thumb);
+  return toma ? `/file?path=${encodeURIComponent(toma.thumb)}` : "";
+}
+
+// una fila de «Proyectos en curso»: qué llevas, qué falta y cuándo te conviene seguir
+function pnFilaProyecto(p, ok, fl){
+  const obj = p.obj, mt = metaDe(obj, ok), pend = pendientesDe(obj), falta = mt.meta > 0 ? pend.reduce((a, x) => a + x.falta, 0) : 0;
+  const h = p.seg / 3600, ritmo = p.noches.size ? h / p.noches.size : 0;
+  const cat = catDe(obj), tipo = cat && TIPOS_DSO[cat[3]] ? TIPOS_DSO[cat[3]] : "";
+  const img = imgProyecto(obj, fl);
+  const eq = p.equipos.size === 1 ? [...p.equipos][0] : trLT("{1} equipos", "{1} setups", p.equipos.size);
+  const fs = [...p.filtros].sort((a, b) => ordenFiltros(a[0], b[0]));
+  let r1, r2 = "";
+  if (mt.meta > 0 && falta > 0.01){
+    const t = fmtH(falta);
+    const noches = ritmo > 0 ? Math.max(1, Math.ceil(falta / ritmo)) : 0;
+    r1 = `<div class="r1"${noches ? ` title="${esc(trLT("A tu ritmo: {1} útiles por noche", "At your pace: {1} usable per night", fmtH(ritmo)))}"` : ""}>${esc(t === "1 h" ? trLT("Falta {1}", "{1} to go", t) : trLT("Faltan {1}", "{1} to go", t))}${noches ? ` <span class="ritmo">${esc(noches === 1 ? trLT("≈ 1 noche", "≈ 1 night") : trLT("≈ {1} noches", "≈ {1} nights", noches))}</span>` : ""}</div>`;
+    r2 = `<div class="r2">${pend.map(x => `<span class="notr">${esc(nomFi(x.fi))}</span> ${esc(fmtH(x.falta))}`).join(" · ")}</div>`;
+  } else if (mt.meta > 0){
+    r1 = `<div class="r1 ok">✓ ${esc(trLT("Objetivo cumplido", "Goal reached"))}</div>`;
+    const e = estadoProyecto(obj, p, ok);
+    r2 = `<div class="r2">${esc(!e.ap ? trLT("Falta apilar", "Not stacked yet") : e.nuevas ? (e.nuevas === 1 ? trLT("1 toma nueva por apilar", "1 new frame to stack") : trLT("{1} tomas nuevas por apilar", "{1} new frames to stack", nfmt(e.nuevas))) : trLT("Apilado: listo para procesar", "Stacked: ready to process"))}</div>`;
+  } else {
+    r1 = `<div class="r1 gris">${esc(trLT("Sin objetivo", "No goal"))}</div>`;
+    r2 = `<div class="r2"><a href="#" data-pn-meta="${esc(obj)}">${esc(trLT("Ponle uno", "Set one"))}</a></div>`;
+  }
+  const tot = Math.max(mt.meta, h, 0.01);
+  const bl = mt.meta > 0
+    ? `<b>${esc(trLT("{1} de {2}", "{1} of {2}", fmtH(h), fmtH(mt.meta)))}</b><span class="barra">${fs.map(([fi, s]) => `<i title="${esc(fi + " · " + fmtH(s / 3600))}" style="width:${(100 * s / 3600 / tot).toFixed(2)}%;background:${COLOR_FILTRO(fi)}"></i>`).join("")}</span>`
+    : `<b>${esc(fmtH(h))}</b><span class="fs">${fs.slice(0, 5).map(([fi, s]) => `<span class="notr" style="color:${COLOR_FILTRO(fi)};font-weight:800">${esc(fi)}</span> ${esc(fmtH(s / 3600))}`).join(" · ")}</span>`;
+  return `<div class="pnPr" data-pn-proy="${esc(obj)}" tabindex="0" role="link">
+    <span class="mini" ${img ? `style="background-image:url('${img}')"` : ""}></span>
+    <div class="nom"><b class="notr">${esc(obj)}</b>${tipo ? `<span class="cat">${esc(tipo)}</span>` : ""}</div>${r1}
+    <div class="eq notr" title="${esc(eq)}">${esc(eq)}</div>${r2}
+    <div class="bl">${bl}</div><div class="r3" data-prox="${esc(obj)}">${PROX[obj] || ""}</div></div>`;
+}
+
+// lo que pide atención: tomas sin apilar, objetivos cumplidos, calibración que falta, tomas sin analizar o sin objeto
+function pnAvisos(ps, util, curso){
+  const av = [], B = o => `<b class="notr">${esc(o)}</b>`;
+  const activos = ps.filter(p => ["curso", "capturado"].includes(estadoP(p.obj, true))).sort((a, b) => b.ultima.localeCompare(a.ultima));
+  for (const p of activos){
+    const e = estadoProyecto(p.obj, p, util.get(p.obj));
+    if (e.ap && e.nuevas > 0) av.push({o: 1, h: `${B(p.obj)}: ${e.nuevas === 1 ? esc(trLT("1 toma nueva desde el último apilado.", "1 new frame since the last stack.")) : esc(trLT("{1} tomas nuevas desde el último apilado.", "{1} new frames since the last stack.", nfmt(e.nuevas)))}
+      <a href="#" data-pn-apilar="${esc(p.obj)}">${esc(trLT("Apilar", "Stack"))}</a>`});
+  }
+  for (const p of curso){
+    const mt = metaDe(p.obj, util.get(p.obj) || []);
+    if (mt.meta > 0 && mt.cons >= mt.meta - 0.01) av.push({o: 2, h: `${B(p.obj)}: ${esc(trLT("ya tiene las horas de su objetivo.", "has reached its hours goal."))}
+      <a href="#" data-pn-capturar="${esc(p.obj)}">${esc(trLT("Darlo por capturado", "Mark it as captured"))}</a>`});
+  }
+  const sinCal = ARC.cal ? curso.filter(p => { const c = ARC.cal[p.obj]; return c && (c.sin_dark || c.sin_flat); }) : [];
+  if (sinCal.length){
+    const t = sinCal.length === 1 ? trLT("{1}: le faltan darks o flats en la biblioteca.", "{1}: darks or flats are missing in the library.", B(sinCal[0].obj))
+      : sinCal.length === 2 ? trLT("{1} y {2}: les faltan darks o flats en la biblioteca.", "{1} and {2}: darks or flats are missing in the library.", B(sinCal[0].obj), B(sinCal[1].obj))
+      : trLT("{1} proyectos tienen tomas sin sus darks o flats en la biblioteca.", "{1} projects have frames without their darks or flats in the library.", nfmt(sinCal.length));
+    av.push({o: 3, h: `${t} <a href="#" data-pn-cal="${esc(sinCal[0].obj)}">${esc(trLT("¿Qué me falta?", "What's missing?"))}</a>`});
+  }
+  const sinAn = curso.filter(p => p.sinAnalizar > 0);
+  if (sinAn.length){
+    const n = sinAn.reduce((s, p) => s + p.sinAnalizar, 0);
+    av.push({o: 4, h: `${sinAn.length === 1 ? trLT("{1}: {2} tomas sin analizar.", "{1}: {2} frames not analysed yet.", B(sinAn[0].obj), nfmt(n)) : trLT("{1} tomas sin analizar, de {2} proyectos.", "{1} frames not analysed yet, from {2} projects.", nfmt(n), nfmt(sinAn.length))}
+      <a href="#" data-pn-analizar="${sinAn.length === 1 ? esc(sinAn[0].obj) : ""}">${esc(trLT("Analizar", "Analyse"))}</a>`});
+  }
+  const sinObj = frames.filter(f => !f.discarded && !(f.object || "").trim()).length;
+  if (sinObj) av.push({o: 5, h: `${esc(sinObj === 1 ? trLT("1 toma no dice de qué objeto es.", "1 frame doesn't say which target it is.") : trLT("{1} tomas no dicen de qué objeto son.", "{1} frames don't say which target they are.", nfmt(sinObj)))}
+      <a href="#" data-pn-objeto="1">${esc(trLT("Asignar objeto", "Set the target"))}</a>`});
+  return av.sort((a, b) => a.o - b.o);
+}
+
+// «Tus noches»: noches con tomas útiles (o sus horas) por año y por mes, con los filtros de lugar, equipo y objeto
+function pnTarjetaNoches(){
+  const hoy = new Date(Date.now() - 8 * 3600e3);
+  const tod = frames.filter(f => !f.discarded && esUtil(f) && /^\d{4}-\d\d-\d\d$/.test(f.night || ""));
+  if (!tod.length) return `<section class="pnCard"><div class="pnCab"><h3>${esc(trLT("Tus noches", "Your nights"))}</h3></div>
+    <div class="pnVacio">${esc(trLT("Aquí verás cuántas noches y horas llevas cada año y qué meses te rinden más.", "Here you'll see how many nights and hours you log each year and which months pay off most."))}</div></section>`;
+  const lugares = new Map(), equipos = new Set(), objetos = new Set(); let sinLugar = false, primera = "9999-99-99";
+  for (const f of tod){
+    const l = lugarDeToma(f); if (l) lugares.set(l.k, l.nombre); else sinLugar = true;
+    equipos.add(equipoDe(f)); const o = (f.object || "").trim(); if (o) objetos.add(o);
+    if (f.night < primera) primera = f.night;
+  }
+  if (PNL.lugar && !(lugares.has(PNL.lugar) || (PNL.lugar === "sin" && sinLugar))) PNL.lugar = "";
+  if (PNL.equipo && !equipos.has(PNL.equipo)) PNL.equipo = "";
+  if (PNL.objeto && !objetos.has(PNL.objeto)) PNL.objeto = "";
+  const sel = tod.filter(f => (!PNL.lugar || ((lugarDeToma(f) || {}).k || "sin") === PNL.lugar) && (!PNL.equipo || equipoDe(f) === PNL.equipo) && (!PNL.objeto || (f.object || "").trim() === PNL.objeto));
+  const porNoche = new Map(); for (const f of sel) porNoche.set(f.night, (porNoche.get(f.night) || 0) + (f.exp || 0));
+  const horas = PNL.modo === "horas", val = o => horas ? o.seg / 3600 : o.n;
+  const M = new Map();
+  for (const [n, seg] of porNoche){
+    const y = +n.slice(0, 4), m = +n.slice(5, 7) - 1;
+    if (!M.has(y)) M.set(y, Array.from({length: 12}, () => ({n: 0, seg: 0})));
+    const c = M.get(y)[m]; c.n++; c.seg += seg;
+  }
+  const yH = hoy.getFullYear(), mH = hoy.getMonth(), y0 = +primera.slice(0, 4), m0 = +primera.slice(5, 7) - 1, yFin = Math.max(yH, ...M.keys());
+  const ys = []; for (let y = Math.max(y0, yFin - 9); y <= yFin; y++) ys.push(y);
+  const suma = y => (M.get(y) || []).reduce((t, c) => ({n: t.n + c.n, seg: t.seg + c.seg}), {n: 0, seg: 0});
+  const txtV = o => horas ? fmtH(o.seg / 3600) : (o.n === 1 ? trLT("1 noche", "1 night") : trLT("{1} noches", "{1} nights", nfmt(o.n)));
+  const numV = o => horas ? String(Math.round(o.seg / 3600)) : String(o.n);
+  // de cuántas noches (o horas) se habla en total
+  const total = [...M.keys()].reduce((t, y) => { const s = suma(y); return {n: t.n + s.n, seg: t.seg + s.seg}; }, {n: 0, seg: 0});
+  // barras por año
+  const A = ys.map(y => ({y, ...suma(y)})).slice(-8), maxA = Math.max(1, ...A.map(val));
+  const corteTxt = diaMes(fechaISO(hoy));
+  const barras = A.map(a => `<div class="${a.y === yH ? "act" : ""}"><b>${numV(a)}</b><i style="height:${Math.max(3, Math.round(78 * val(a) / maxA))}px" title="${esc(a.y + ": " + txtV(a) + (a.y === yH ? " · " + trLT("hasta el {1}", "up to {1}", corteTxt) : ""))}"></i><span>${a.y}</span></div>`).join("");
+  // este año, a la misma altura que los anteriores
+  const corte = fechaISO(hoy).slice(5);
+  const hasta = y => { let n = 0, seg = 0; for (const [nn, s] of porNoche) if (+nn.slice(0, 4) === y && nn.slice(5) <= corte){ n++; seg += s; } return {n, seg}; };
+  const act = hasta(yH), prev = ys.filter(y => y < yH).map(y => ({y, ...hasta(y)}));
+  let frase = "";
+  if (val(act) > 0 && prev.length){
+    const mejor = prev.reduce((m, c) => val(c) > val(m) ? c : m);
+    frase = val(act) >= val(mejor)
+      ? trLT("{1} lleva {2} a {3}: nunca habías llegado a tantas a estas alturas (el récord era {4}, en {5}).", "{1} is at {2} by {3}: you've never had that many at this point of the year (the record was {4}, in {5}).", yH, txtV(act), corteTxt, txtV(mejor), mejor.y)
+      : trLT("{1} lleva {2} a {3}; en {4} llevabas {5} a estas alturas, tu mejor año.", "{1} is at {2} by {3}; in {4} you were at {5} by now, your best year.", yH, txtV(act), corteTxt, mejor.y, txtV(mejor));
+  } else if (val(act) > 0) frase = trLT("{1} lleva {2} a {3}.", "{1} is at {2} by {3}.", yH, txtV(act), corteTxt);
+  // mapa de calor: un año por fila y un mes por columna
+  const cel = (y, m) => (M.get(y) || [])[m] || {n: 0, seg: 0};
+  const maxC = Math.max(1, ...ys.flatMap(y => Array.from({length: 12}, (_, m) => val(cel(y, m)))));
+  let heat = `<span></span>${Array.from({length: 12}, (_, m) => `<span class="m">${esc(pnMesC(m))}</span>`).join("")}`;
+  for (const y of ys){
+    heat += `<span class="a">${y}</span>`;
+    for (let m = 0; m < 12; m++){
+      const c = cel(y, m), fuera = y < y0 || (y === y0 && m < m0) || y > yH || (y === yH && m > mH);
+      if (!c.n){ heat += fuera ? `<span class="c v"></span>` : `<span class="c cero">0</span>`; continue; }
+      const t = val(c) / maxC, txt = horas && c.seg < 1800 ? "<1" : numV(c);
+      heat += `<span class="c${t < 0.35 ? " lig" : ""}" data-pn-mes="${y}-${String(m + 1).padStart(2, "0")}" style="--v:${(1 - (0.18 + 0.82 * t)).toFixed(2)}" title="${esc(pnCapi(pnMesL(m)) + " " + y + ": " + txtV(c) + " · " + fmtH(c.seg / 3600))}">${txt}</span>`;
+    }
+  }
+  // tus mejores meses: la media de los años completos
+  let temp = "";
+  const cy = ys.filter(y => y < yH && (y > y0 || m0 === 0));
+  if (cy.length >= 2){
+    const med_ = Array.from({length: 12}, (_, m) => cy.reduce((s, y) => s + val(cel(y, m)), 0) / cy.length);
+    const orden = med_.map((v, i) => [v, i]).sort((a, b) => b[1] - a[1]).sort((a, b) => b[0] - a[0]), top3 = new Set(orden.slice(0, 3).map(x => x[1])), maxM = Math.max(orden[0][0], 0.01);
+    const tv = v => horas ? fmtH(v) : trLT("{1} noches", "{1} nights", numEs(v, 1));
+    const [m1, m2, m3] = orden.slice(0, 3).map(x => x[1]), peor = orden[11];
+    temp = `<div class="pnCab" style="margin:16px 0 0"><h3 style="font-size:14px">${esc(trLT("Tus mejores meses", "Your best months"))}</h3><span class="note">${esc(cy.length === 1 ? String(cy[0]) : trLT("media de {1} a {2}", "average {1} to {2}", cy[0], cy[cy.length - 1]))}</span></div>
+      <div class="pnTemp"><span></span>${med_.map((v, i) => `<div class="${top3.has(i) ? "mejor" : ""}"><b>${horas ? Math.round(v) : numEs(v, 1)}</b><i style="height:${Math.max(2, Math.round(40 * v / maxM))}px"></i><span>${esc(pnMesC(i))}</span></div>`).join("")}</div>
+      <p class="pnFrase" style="margin-bottom:0">${esc(trLT("{1} es tu mejor mes ({2} de media), luego {3} y {4}. {5}, el peor ({6}).", "{1} is your best month ({2} on average), then {3} and {4}. {5} is the worst ({6}).",
+        pnCapi(pnMesL(m1)), tv(orden[0][0]), pnMesL(m2), pnMesL(m3), pnCapi(pnMesL(peor[1])), tv(peor[0])))}</p>`;
+  }
+  const opts = (mapa, sel_, todos) => `<option value="">${esc(todos)}</option>` + [...mapa].map(([k, n]) => `<option value="${esc(k)}" ${k === sel_ ? "selected" : ""} class="notr">${esc(n)}</option>`).join("");
+  const filtros = [
+    lugares.size + (sinLugar && lugares.size ? 1 : 0) > 1 ? `<select class="pnSel" id="pnSelLugar">${opts(new Map([...lugares, ...(sinLugar ? [["sin", trLT("Sin lugar en la cabecera", "No site in the header")]] : [])]), PNL.lugar, trLT("Todos los lugares", "All sites"))}</select>` : "",
+    equipos.size > 1 ? `<select class="pnSel" id="pnSelEquipo">${opts(new Map([...equipos].sort().map(e => [e, e])), PNL.equipo, trLT("Todos los equipos", "All setups"))}</select>` : "",
+    objetos.size > 1 ? `<select class="pnSel" id="pnSelObjeto">${opts(new Map([...objetos].sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).map(o => [o, o])), PNL.objeto, trLT("Todos los objetos", "All targets"))}</select>` : ""].filter(Boolean).join("");
+  return `<section class="pnCard"><div class="pnCab"><h3>${esc(trLT("Tus noches", "Your nights"))}</h3>
+      <span class="note">${esc(horas ? trLT("{1} desde {2}", "{1} since {2}", fmtH(total.seg / 3600), y0) : total.n === 1 ? trLT("1 noche desde {1}", "1 night since {1}", y0) : trLT("{1} noches desde {2}", "{1} nights since {2}", nfmt(total.n), y0))}</span><span class="spacer"></span>
+      <span class="pnSeg"><button class="${horas ? "" : "on"}" data-pn-modo="noches">${esc(trLT("Noches", "Nights"))}</button><button class="${horas ? "on" : ""}" data-pn-modo="horas">${esc(trLT("Horas", "Hours"))}</button></span></div>
+    ${filtros ? `<div class="pnCab" style="gap:8px">${filtros}</div>` : ""}
+    <div class="pnAnual">${barras}</div>
+    ${frase ? `<p class="pnFrase">${esc(frase)}</p>` : ""}
+    <div class="pnHeat">${heat}</div>${temp}</section>`;
+}
+
+function renderPanelGeneral(){
+  const el = $("pnCuerpo"); if (!el || VISTA_ACTUAL !== "panel") return;
+  if (!frames.length){ el.innerHTML = ""; return; }
+  arcCargarProyectos(); arcCalibracion();
+  if (!CATALOGO && !_PNL_CAT){ _PNL_CAT = true; catalogo().then(() => { if (VISTA_ACTUAL === "panel") renderPanelGeneral(); }).catch(() => {}); }
+  if (!PLAN_CFG && !_PNL_CFG){ _PNL_CFG = true; cfgPlan().then(() => { if (VISTA_ACTUAL === "panel") renderPanelGeneral(); }).catch(() => {}); }
+  const ps = arcProyectos(frames.filter(f => !f.discarded)), util = arcUtilPorObjeto(), porObj = groupBy(frames, f => (f.object || "").trim());
+  const curso = ps.filter(p => estadoP(p.obj, true) === "curso").sort((a, b) => b.ultima.localeCompare(a.ultima));
+  const av = pnAvisos(ps, util, curso), MAX = 7;
+  const listaCurso = curso.length
+    ? curso.slice(0, MAX).map(p => pnFilaProyecto(p, util.get(p.obj) || [], porObj.get(p.obj) || [])).join("") + (curso.length > MAX ? `<div class="note" style="padding-top:8px">${esc(trLT("y {1} más en Proyectos", "and {1} more in Projects", nfmt(curso.length - MAX)))}</div>` : "")
+    : `<div class="pnVacio">${esc(trLT("No tienes proyectos en curso. Los nuevos aparecen aquí en cuanto añades tomas.", "You have no projects in progress. New ones show up here as soon as you add frames."))}</div>`;
+  el.innerHTML = `<div class="pnGrid"><div class="pnCol">
+      <section class="pnCard"><div class="pnCab"><h3>${esc(trLT("Proyectos en curso", "Projects in progress"))}</h3><span class="note">${nfmt(curso.length)}</span>
+        <span class="note">${esc(trLT("¿necesitas más horas?", "do you need more hours?"))}</span><span class="spacer"></span><a href="#" id="pnVerTodos">${esc(trLT("Ver todos ›", "See all ›"))}</a></div>${listaCurso}</section>
+      <section class="pnCard"><div class="pnCab"><h3>${esc(trLT("Avisos", "Alerts"))}</h3></div>
+        ${av.length ? av.slice(0, 6).map(a => `<div class="pnAviso"><i></i><span>${a.h}</span></div>`).join("") : `<div class="note">${esc(trLT("Nada pendiente por ahora.", "Nothing pending for now."))}</div>`}</section>
+    </div><div class="pnCol">${pnTarjetaNoches()}</div></div>`;
+  el.querySelectorAll("[data-pn-proy]").forEach(r => { const ir = () => abrirProyecto(r.dataset.pnProy); r.onclick = ir; r.onkeydown = ev => { if (ev.key === "Enter") ir(); }; });
+  el.querySelectorAll("[data-pn-meta]").forEach(a => a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); resumenObjeto(a.dataset.pnMeta); });
+  el.querySelectorAll("[data-pn-apilar]").forEach(a => a.onclick = ev => { ev.preventDefault(); STK_PREF = a.dataset.pnApilar; stkOpen(); });
+  el.querySelectorAll("[data-pn-capturar]").forEach(a => a.onclick = ev => { ev.preventDefault(); arcPonerEstado(a.dataset.pnCapturar, "capturado"); });
+  el.querySelectorAll("[data-pn-cal]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrirProyecto(a.dataset.pnCal); });
+  el.querySelectorAll("[data-pn-analizar]").forEach(a => a.onclick = ev => { ev.preventDefault(); const o = a.dataset.pnAnalizar; if (o) abrirProyecto(o); else { ARC.pendientes = true; ARC.pestana = "proyectos"; mostrarVista("archivo"); } });
+  el.querySelectorAll("[data-pn-objeto]").forEach(a => a.onclick = ev => { ev.preventDefault(); $("btnNombres").click(); });
+  $("pnVerTodos").onclick = ev => { ev.preventDefault(); mostrarVista("objetos"); };
+  el.querySelectorAll("[data-pn-modo]").forEach(b => b.onclick = () => { PNL.modo = b.dataset.pnModo; pnlGuardar(); renderPanelGeneral(); });
+  for (const [k, id] of [["lugar", "pnSelLugar"], ["equipo", "pnSelEquipo"], ["objeto", "pnSelObjeto"]]){ const s = $(id); if (s) s.onchange = () => { PNL[k] = s.value; pnlGuardar(); renderPanelGeneral(); }; }
+  el.querySelectorAll("[data-pn-mes]").forEach(c => c.onclick = () => { ARC.mes = c.dataset.pnMes; ARC.anio = ""; ARC.equipo = PNL.equipo || ""; ARC.pestana = "proyectos"; mostrarVista("archivo"); });
+}
+let _PNL_CAT = false, _PNL_CFG = false;
+
+/* ============ Configuración: lugares de observación y ajustes generales ============ */
+async function abrirLugares(){
+  $("lugBox").classList.add("show");
+  const c = await cfgPlan();
+  $("lugBody").innerHTML = formLugarHTML(c); activarLugar($("lugBody"), abrirLugares);
+}
+$("lugClose").onclick = () => $("lugBox").classList.remove("show");
+function abrirGeneral(){
+  const tema = document.documentElement.dataset.tema, ini = PREF_INICIO === "archivo" ? "archivo" : PREF_INICIO === "proyectos" ? "proyectos" : "";
+  $("genBody").innerHTML = `
+    <div class="genFila"><b>Idioma</b><div class="genBotones notr">${Object.entries(IDIOMAS_ASTRO).map(([c, n]) => `<button class="btn small ${c === IDIOMA ? "on" : ""}" data-gen-idi="${c}" lang="${c}">${esc(n)}</button>`).join("")}</div></div>
+    <div class="genFila"><b>Aspecto</b><div class="genBotones">${[["dia", "Día"], ["noche", "Noche"], ["rojo", "Rojo"]].map(([t, n]) => `<button class="btn small ${t === tema ? "on" : ""}" data-gen-tema="${t}">${n}</button>`).join("")}</div></div>
+    <div class="genFila"><b>Al abrir ASTRO, ir a</b><select class="pnSel" id="genInicio"><option value="" ${ini === "" ? "selected" : ""}>Panel general</option><option value="proyectos" ${ini === "proyectos" ? "selected" : ""}>Proyectos</option><option value="archivo" ${ini === "archivo" ? "selected" : ""}>Indexar directorios</option></select></div>
+    <div class="genFila"><b>Avisos por WhatsApp</b><button class="btn small" id="genWa">Configurar…</button></div>
+    <div class="genFila"><b>Carpeta de datos</b><span class="notr" style="font-size:12.5px;word-break:break-all;min-width:0">${esc(ROOT_NAME)}</span>
+      <button class="btn small" id="genCarpeta">Abrir la carpeta</button>${URL_INICIO ? `<a class="btn small" href="${esc(URL_INICIO)}" style="text-decoration:none">Ventana de inicio…</a>` : ""}</div>
+    <div class="genFila"><b>Versión</b><span class="notr">${esc(VERSION_ACTUAL)}</span><button class="btn small" id="genAcerca">Acerca de ASTRO</button></div>`;
+  $("genBox").classList.add("show");
+  $("genBody").querySelectorAll("[data-gen-idi]").forEach(b => b.onclick = async () => {
+    if (b.dataset.genIdi === IDIOMA) return;
+    try { await fetch("/api/idioma", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({idioma: b.dataset.genIdi})}); } catch(_){}
+    location.reload(); });
+  $("genBody").querySelectorAll("[data-gen-tema]").forEach(b => b.onclick = () => { aplicarTema(b.dataset.genTema, true); $("genBody").querySelectorAll("[data-gen-tema]").forEach(x => x.classList.toggle("on", x === b)); });
+  $("genInicio").onchange = e => guardarInicio(e.target.value);
+  $("genWa").onclick = () => { $("genBox").classList.remove("show"); abrirWhatsApp(true); };
+  $("genCarpeta").onclick = () => $("btnFinder").click();
+  $("genAcerca").onclick = () => acercaDe();
+}
+$("genClose").onclick = () => $("genBox").classList.remove("show");
+
 /* ============ «Esta noche» y la próxima buena noche de cada objeto ============ */
 let PROX = {}, _estaNocheT = null;
 function programarEstaNoche(){ clearTimeout(_estaNocheT); _estaNocheT = setTimeout(()=>{ pintarEstaNoche().catch(()=>{}).finally(()=>pintarSugerencia()); }, 300); }
@@ -3410,11 +3815,11 @@ async function pintarEstaNoche(){
   const c = await cfgPlan();
   const hoy = new Date(Date.now() - 8*3600e3), fecha = sinSept(hoy.toLocaleDateString(LOCALE, {weekday:"short", day:"numeric", month:"short"}));
   if (!c.lugar){
-    hero.className = "hero heroVacio" + (VISTA_ACTUAL !== "objetos" ? " oculto" : ""); hero.style.display = "";
+    hero.className = "hero heroVacio" + (VISTA_ACTUAL !== "panel" ? " oculto" : ""); hero.style.display = "";
     hero.innerHTML = `<div class="hcol"><div class="hlab">Esta noche</div><div class="hfecha">${esc(fecha)}</div></div>
       <div class="hcol"><div style="font-size:15px;font-weight:650">Dime dónde observas y aquí verás la oscuridad, la Luna, el tiempo y qué objeto te conviene cada noche.</div>
       <button class="btn small" style="margin-top:8px" id="heroLugar">Poner mi lugar de observación</button></div>`;
-    $("heroLugar").onclick = abrirNoches; return;
+    $("heroLugar").onclick = abrirLugares; return;
   }
   const nombres = [...new Set([...frames.filter(f=>(f.object||"").trim()).map(f=>f.object.trim()), ...proyectosSinTomas().map(([k])=>k)])];
   const objs = []; for (const n of nombres){ const k = coordsObjeto(n); if (k) objs.push({nombre:n, ra:k.ra, dec:k.dec}); }
@@ -3441,23 +3846,23 @@ async function pintarEstaNoche(){
   }
   document.querySelectorAll("[data-prox]").forEach(el => { const v = PROX[el.dataset.prox]; el.innerHTML = v === undefined ? "" : v; });
   const oscuro = n.horas_oscuras > 0, l = n.luna, pl = Math.round(l.ilum*100);
-  const lunaSub = l.horas <= 0 ? "Bajo el horizonte" : l.desde ? `Sale a las ${l.desde}` : l.hasta ? `Se pone a las ${l.hasta}` : "Toda la noche";
-  let recHTML = `<div class="hsub" style="margin-top:6px">${objs.length ? "Esta noche ningún objeto tuyo se ve bien con esta Luna." : "Tus tomas no traen coordenadas: escríbelas en «Resumen» de cada objeto."}</div>`;
+  const lunaSub = l.horas <= 0 ? "bajo el horizonte" : l.desde ? `sale a las ${l.desde}` : l.hasta ? `se pone a las ${l.hasta}` : "toda la noche";
+  // la segunda línea: lo que más te conviene (sin equipo) o tu plan (con equipo, lo pone heroDesdeSugerencia)
+  let rec2 = `<span>${objs.length ? "Esta noche ningún objeto tuyo se ve bien con esta Luna." : "Tus tomas no traen coordenadas: escríbelas en «Resumen» de cada objeto."}</span>`;
   if (rec){
     const port = PORTADAS[rec.o], fl = frames.filter(f=>(f.object||"")===rec.o && f.thumb && f.status!=="bad");
     const img = port ? `/api/apilado/imagen?rel=${encodeURIComponent(port.jpg)}` : fl.length ? `/file?path=${encodeURIComponent(fl[0].thumb)}` : "";
-    const chips = (rec.m.fis.length ? rec.m.fis : [CLASE_TXT[rec.m.cl]]).slice(0,3).map(fi=>`<span class="hchip"><i style="background:${COLOR_FILTRO(fi)}"></i><span class="notr">${esc(nomFi(fi))}</span></span>`).join("");
-    const porque = rec.m.cl === "ancha" ? "Sin Luna: buena noche para banda ancha" : pl >= 50 ? "Con esta Luna, mejor banda estrecha" : "Banda estrecha, lejos de la Luna";
-    recHTML = `<div class="hrec"><span class="hmini" ${img?`style="background-image:url('${img}')"`:""}></span><div style="min-width:0"><div style="font-weight:800;font-size:16px" class="notr">${esc(rec.o)}</div>
-      <div class="hchips">${chips}<span class="hchip">${fmtH(rec.m.h)}</span></div><div class="hsub" style="margin-top:3px">${porque}</div></div></div>`;
+    const fis = (rec.m.fis.length ? rec.m.fis : [CLASE_TXT[rec.m.cl]]).slice(0,3).map(fi => nomFi(fi)).join(", ");
+    rec2 = `<span class="tLab">Te conviene</span>${img ? `<span class="hmini" style="background-image:url('${img}')"></span>` : ""}<b class="notr">${esc(rec.o)}</b><span><span class="notr">${esc(fis)}</span> · ${fmtH(rec.m.h)}</span>`;
   }
-  recHTML += `<div class="hsub" style="margin-top:5px"><a href="#" id="heroQf" style="color:inherit">¿Algo nuevo? Ideas para esta noche</a></div>`;
-  hero.className = "hero" + (VISTA_ACTUAL !== "objetos" ? " oculto" : ""); hero.style.display = "";      // solo en «Mis objetos»
-  hero.innerHTML = `<div class="hcol"><div class="hlab">Esta noche</div><div class="hfecha">${esc(fecha)}</div><div class="hsub hlugar">${selectorLugares(c, "heroSel")}</div><div class="hsub"><a href="#" id="heroNoches" style="color:inherit">Ver las próximas noches</a></div></div>
-    <div class="hcol"><div class="hlab">Oscuridad</div><div class="hval">${oscuro ? `${n.inicio} – ${n.fin}` : "—"}</div><div class="hsub">${oscuro ? `${fmtH(n.horas_oscuras)} de noche astronómica` : "Sin noche astronómica"}</div></div>
-    <div class="hcol hluna">${lunaSVG(l.ilum, l.creciente)}<div><div class="hlab">Luna</div><div class="hval">${pl}${IDIOMA==="en"?"%":" %"}</div><div class="hsub">${lunaSub}</div></div></div>
-    <div class="hcol"><div class="hlab">Previsión</div>${w ? `<div class="hval">${tiempoIcono(w)} ${Math.round(w.media)}${IDIOMA==="en"?"%":" %"}</div><div class="hsub">${w.media<=20?"Despejado":w.media<=50?"Nubes a ratos":w.media<=80?"Bastante nublado":"Cubierto"}${w.despejadas>=1 && w.media>20?` · ${fmtH(w.despejadas)} despejadas`:""}</div>${tiempoAvisos(w).length?`<div class="hsub haviso">${tiempoAvisos(w).map(esc).join(" · ")}</div>`:""}` : `<div class="hval">—</div><div class="hsub">${met===undefined?"Sin conexión: sin previsión":"Previsión desactivada"}</div>`}</div>
-    <div class="hcol" id="heroRec"><div class="hlab">Lo que más te conviene</div>${recHTML}</div>`;
+  rec2 += `<span class="spacer"></span><a href="#" id="heroQf">¿Algo nuevo? Ideas para esta noche</a>`;
+  const prev = w ? `<span class="sepT"></span><span>${tiempoIcono(w)} ${w.media<=20?"Despejado":w.media<=50?"Nubes a ratos":w.media<=80?"Bastante nublado":"Cubierto"} <b>${Math.round(w.media)}${IDIOMA==="en"?"%":" %"}</b></span>` : "";
+  hero.className = "hero tira" + (VISTA_ACTUAL !== "panel" ? " oculto" : ""); hero.style.display = "";      // solo en el panel general
+  hero.innerHTML = `<div class="l"><span class="tLab">Esta noche</span><b>${esc(fecha)}</b>${selectorLugares(c, "heroSel")}<span class="sepT"></span>
+      <span>Oscuridad <b>${oscuro ? `${n.inicio} – ${n.fin}` : "—"}</b></span><span class="sepT"></span>
+      <span class="lunaT">${lunaSVG(l.ilum, l.creciente)}Luna <b>${pl}${IDIOMA==="en"?"%":" %"}</b> · ${lunaSub}</span>${prev}
+      <span class="spacer"></span><a href="#" id="heroNoches">Próximas noches ›</a></div>
+    <div class="l l2" id="heroRec">${rec2}</div>`;
   $("heroNoches").onclick = ev => { ev.preventDefault(); abrirNoches(); };
   $("heroQf").onclick = ev => { ev.preventDefault(); abrirQueFotografio(); };
   const hs = hero.querySelector(".heroSel"); if (hs) hs.onchange = async ()=>{ await activarLugarId(hs.value); programarEstaNoche(); };
@@ -3976,7 +4381,7 @@ if (/Win/i.test(navigator.platform||navigator.userAgent||"")) $("btnFinder").tex
   arcCargarProyectos(true);
   try { const pr = await (await api("/api/pref")).json(); EXIGENCIA = +pr.exigencia || 0; PREF_INICIO = pr.inicio || ""; } catch(_){}
   await loadDb(); conciliarProyectos(); render(); window._dbListo = true;
-  if (!location.hash && PREF_INICIO === "archivo") mostrarVista("archivo");
+  if (!location.hash) mostrarVista(PREF_INICIO === "archivo" ? "archivo" : PREF_INICIO === "proyectos" ? "objetos" : "panel");
   setTimeout(abrirDesdeEnlace, 50); })();
 // la ventana de inicio de ASTRO abre la página con #anadir, #objetos, #tomas, #noches, #directo o #apilar
 function abrirDesdeEnlace(){
@@ -3995,7 +4400,7 @@ function abrirDesdeEnlace(){
     if (o && frames.some(f => (f.object||"") === o)) try { resumenObjeto(o); } catch(e){ console.error(e); }
     return;
   }
-  const ir = {anadir: ()=>abrirAñadir(), objetos: ()=>mostrarVista("objetos"), tomas: ()=>mostrarVista("tomas"),
+  const ir = {panel: ()=>mostrarVista("panel"), anadir: ()=>abrirAñadir(), objetos: ()=>mostrarVista("objetos"), tomas: ()=>mostrarVista("tomas"),
               noches: ()=>abrirNoches(), directo: ()=>abrirDirecto(), quefotografio: ()=>abrirQueFotografio(), apilar: ()=>stkOpen(), varios: ()=>abrirVarios(""), criterio: ()=>abrirCriterio("")}[h];
   ADD_EQUIPO = null;
   if (ir) try { ir(); } catch(e){ console.error(e); }
@@ -4086,7 +4491,7 @@ async function arcCalibracion(forzar){
   if (!forzar && ARC.cal && Date.now() - ARC.calPedida < 60000) return;
   ARC.calPedida = Date.now();
   try { ARC.cal = await (await api("/api/archivo/calibracion")).json(); } catch(_){ ARC.cal = ARC.cal || {}; }
-  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto();
+  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto(); else if (VISTA_ACTUAL === "panel") renderPanelGeneral();
 }
 async function arcIndexar(ruta){
   if (ARC.indexando) return;
@@ -4158,7 +4563,7 @@ async function arcCargarProyectos(forzar){
   catch(_){ ARC.apil = ARC.apil || {}; }
   finally { ARC.apilCargando = false; }
   retomarConTomasNuevas();
-  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto();
+  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto(); else if (VISTA_ACTUAL === "panel") renderPanelGeneral();
 }
 /* --- historial del proyecto: cada noche (por sus tomas), cada apilado (por sus carpetas) y lo que se ha ido haciendo
    (estado, límites, tomas fuera o descartadas, análisis, cambios de nombre y de calibración), que apunta el servidor --- */
@@ -4181,6 +4586,9 @@ function textoEventoHist(e){
   switch (e.tipo){
     case "estado": return [trLT("Estado", "Status"), e.estado === "terminado" ? trLT("Lo diste por terminado", "You marked it finished")
       : e.estado === "pausa" ? trLT("Lo pusiste en pausa", "You put it on hold")
+      : e.estado === "capturado" ? trLT("Lo diste por capturado", "You marked it as captured")
+      : e.estado === "procesado" ? trLT("Lo diste por procesado", "You marked it as processed")
+      : e.estado === "archivado" ? trLT("Lo archivaste", "You archived it")
       : e.motivo === "tomas_nuevas" ? (e.n === 1 ? trLT("Vuelve a estar en curso: ha llegado 1 toma nueva", "In progress again: 1 new frame arrived")
           : trLT("Vuelve a estar en curso: han llegado {1} tomas nuevas", "In progress again: {1} new frames arrived", nfmt(e.n || 0)))
       : trLT("Lo retomaste", "You picked it up again"), "evento"];
@@ -4260,7 +4668,7 @@ const _RETOMANDO = new Set();
 function retomarConTomasNuevas(){
   const est = ARC.estados || {};
   for (const [obj, e] of Object.entries(est)){
-    if (!e || e.estado !== "terminado" || !e.fecha || _RETOMANDO.has(obj)) continue;
+    if (!e || !["terminado", "capturado"].includes(e.estado) || !e.fecha || _RETOMANDO.has(obj)) continue;
     const desde = e.desde || (e.fecha + "T23:59:59");
     const nuevas = frames.filter(f => (f.object || "").trim() === obj && !f.discarded && (f.night || "") >= e.fecha && String(f.added || "") > desde);
     if (!nuevas.length) continue;
@@ -4276,25 +4684,21 @@ async function arcPonerEstado(obj, estado){
     const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto:obj, estado})})).json();
     ARC.estados = r.estados || {}; ARC.apil = r.apilados || ARC.apil; ARC.limites = r.limites || ARC.limites; if (ARC.hist) delete ARC.hist[obj];
   } catch(e){ return toast(tr(String(e.message || e))); }
-  toast(estado === "terminado" ? trLT("Proyecto terminado: ya no sale en lo que falta ni en los planes de la noche", "Project finished: it no longer shows up in what's left or in the night plans")
-      : estado === "pausa" ? trLT("Proyecto en pausa: no sale en los planes de la noche hasta que lo retomes", "Project on hold: it won't show up in the night plans until you pick it up again")
+  toast(estado === "capturado" ? trLT("Proyecto capturado: ya no sale en lo que falta ni en los planes de la noche", "Project captured: it no longer shows up in what's left or in the night plans")
+      : estado === "procesado" ? trLT("Proyecto procesado", "Project processed")
+      : estado === "archivado" ? trLT("Proyecto archivado: queda guardado, fuera de tu vista", "Project archived: kept, but out of your way")
       : trLT("Proyecto en curso otra vez", "Project in progress again"));
   render();
 }
-function textoEstado(k){
-  // «Apilado» ya está en el diccionario como nombre (empilement, Stack…): el estado tiene su propia clave
-  const apilado = IDIOMA === "es" ? "Apilado" : IDIOMA === "en" ? "Stacked" : (DIC["Apilado (estado del proyecto)"] ?? "Stacked");
-  return ({sin_analizar:trLT("Por analizar", "To analyse"), en_curso:trLT("En curso", "In progress"), apilado,
-           apilado_nuevas:trLT("Por volver a apilar", "Needs restacking"), terminado:trLT("Terminado", "Finished"), pausa:trLT("En pausa", "On hold")})[k] || k;
-}
-const ORDEN_ESTADOS = ["sin_analizar", "en_curso", "apilado_nuevas", "apilado", "terminado", "pausa"];
+function textoEstado(k){ return textoEstadoP(k === "terminado" || k === "pausa" ? "capturado" : k); }
+const ORDEN_ESTADOS = ["nuevo", "curso", "capturado", "procesado", "archivado"];
 function estadoProyecto(obj, p, util){
   // p: el proyecto con todas sus tomas; util: sus tomas útiles (las que entran en el apilado)
+  // k es el estado del proyecto; el apilado no es un estado: «ap» y «nuevas» dicen cómo va el último apilado
   const man = estadoManual(obj), ap = ARC.apil ? ARC.apil[obj] : null;
   let nuevas = 0;
   if (ap){ const dia = String(ap.fecha || "").slice(0, 10); nuevas = (util || []).filter(f => (f.night || "") >= dia).length; }
-  const k = man === "terminado" || man === "pausa" ? man : p && p.n && p.sinAnalizar >= p.n ? "sin_analizar" : ap ? (nuevas ? "apilado_nuevas" : "apilado") : "en_curso";
-  return {k, man, ap, nuevas};
+  return {k: estadoP(obj, !!(p && p.n)), man, ap, nuevas};
 }
 function chipEstado(k){ return `<span class="arcEst e-${k}">${esc(textoEstado(k))}</span>`; }
 /* calidad de un grupo de tomas ya analizadas: qué parte vale para apilar y la FWHM mediana (en ″ si la cabecera trae la escala) */
@@ -4486,7 +4890,9 @@ function renderArchivo(){
   const equipos = [...new Set(frames.filter(f => !f.discarded).map(equipoDe))].sort();
   const carpetas = ARC.carpetas || [];
   let h = "";
+  const soloPanel = arcSubPanel();       // «Mapa del cielo» o «Calendario», abiertos desde el panel general
   // carpetas indexadas
+  if (!soloPanel){
   h += `<div class="arcCaja"><div class="arcCab"><div><h3>${esc(trLT("Carpetas del archivo", "Archive folders"))}</h3>
       <div class="note">${carpetas.length ? esc(trLT("Solo se leen las cabeceras: las fotos se quedan donde están. Vuelve a indexar cuando añadas tomas y entrarán solo las nuevas.", "Only the headers are read: your frames stay where they are. Index again after adding frames and only the new ones come in.")) : esc(trLT("ASTRO lee solo la cabecera de cada toma (objeto, filtro, exposición, fecha y equipo). No copia ni mide nada, así que va muy rápido, y las fotos se quedan donde están. El análisis de calidad se hace después, dentro de cada proyecto.",
         "ASTRO reads only each frame's header (target, filter, exposure, date and setup). It copies and measures nothing, so it is very fast, and your frames stay where they are. The quality analysis comes later, inside each project."))}</div></div>
@@ -4513,13 +4919,14 @@ function renderArchivo(){
   }
   h += htmlCalPendiente();
   h += `</div>`;
+  }
   if (!frames.length && !ARC.indexando){
     h += `<div class="arcVacio"><b>${esc(trLT("Tu archivo está vacío", "Your archive is empty"))}</b><span>${esc(trLT("Indexa la carpeta donde guardas tus tomas de todos los años (por ejemplo, la que tiene una carpeta por año). En unos minutos verás cada proyecto con sus horas, sus filtros y sus temporadas.",
       "Index the folder where you keep your frames from every year (for example, the one with a folder per year). In a few minutes you'll see each project with its hours, filters and seasons."))}</span></div>`;
     el.innerHTML = h; arcPintarProgreso(); arcEnlazar(); return;
   }
   // cifras
-  h += `<div class="counts arcCifras">
+  if (!soloPanel) h += `<div class="counts arcCifras">
     <div class="tile dest"><b>${nfmt(todos.length)}</b><span>${esc(trLT("proyectos", "projects"))}</span></div>
     <div class="tile"><b>${esc(fmtH(totSeg / 3600))}</b><span>${esc(trLT("de exposición útil", "of usable exposure"))}</span></div>
     <div class="tile"><b>${nfmt(lista.length)}</b><span>${esc(trLT("tomas", "frames"))}</span></div>
@@ -4537,7 +4944,7 @@ function renderArchivo(){
   // pestañas y filtros
   const opt = (v, t, sel) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(t)}</option>`;
   h += `<div class="arcBarra">
-    <div class="arcPest">${[["proyectos", trLT("Proyectos", "Projects")], ["mapa", trLT("Mapa del cielo", "Sky map")], ["sesiones", trLT("Sesiones", "Sessions")], ["equipos", trLT("Equipos", "Setups")], ["calendario", trLT("Calendario", "Calendar")]]
+    <div class="arcPest" ${soloPanel ? "hidden" : ""}>${[["proyectos", trLT("Proyectos", "Projects")], ["sesiones", trLT("Sesiones", "Sessions")], ["equipos", trLT("Equipos", "Setups")]]
       .map(([k, t]) => `<button class="${ARC.pestana === k ? "on" : ""}" data-arc-pest="${k}">${esc(t)}</button>`).join("")}</div>
     ${ARC.pestana === "equipos" ? "" : `<input type="search" id="arcQ" value="${esc(ARC.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">`}
     <select id="arcAnio">${opt("", trLT("Todos los años", "All years"), ARC.anio)}${anios.map(a => opt(a, a, ARC.anio)).join("")}</select>
@@ -4562,7 +4969,7 @@ function renderArchivo(){
         const pc = Math.round(100 * (p.n - p.sinAnalizar) / Math.max(1, p.n));
         return `<tr data-arc-proy="${esc(p.obj)}" tabindex="0">
           <td><b>${esc(p.obj)}</b><div class="note">${esc(p.equipos.size === 1 ? [...p.equipos][0] : trLT("{1} equipos", "{1} setups", p.equipos.size))}</div></td>
-          <td>${chipEstado(p.est.k)}${p.est.k === "apilado_nuevas" ? `<div class="note">${esc(trLT("{1} tomas nuevas", "{1} new frames", nfmt(p.est.nuevas)))}</div>` : ""}</td>
+          <td>${chipEstado(p.est.k)}${p.est.ap && p.est.nuevas && ["curso", "capturado"].includes(p.est.k) ? `<div class="note">${esc(trLT("{1} tomas nuevas", "{1} new frames", nfmt(p.est.nuevas)))}</div>` : ""}</td>
           <td class="num"><b>${esc(fmtH(p.seg / 3600))}</b>${mt.meta ? `<div class="note">${esc(trLT("{1} % del objetivo", "{1}% of the goal", Math.round(100 * mt.cons / mt.meta)))}</div>` : ""}</td>
           <td><div class="chips">${arcChipsFiltro(p)}</div></td>
           <td>${arcBarras(p, anios)}</td>
@@ -4575,8 +4982,7 @@ function renderArchivo(){
       ${sinObj ? `<div class="note" style="margin-top:8px">${esc(trLT("{1} tomas sin objeto no entran en ningún proyecto.", "{1} frames without a target are not in any project.", nfmt(sinObj)))} <a href="#" onclick="$('btnNombres').click();return false">${esc(trLT("Asignarles el objeto", "Set their target"))}</a></div>` : ""}`;
   }
   }
-  h += `<label class="note arcInicio"><input type="checkbox" id="arcAbrirAqui" ${PREF_INICIO === "archivo" ? "checked" : ""}> ${esc(trLT("Abrir ASTRO directamente en el Archivo", "Open ASTRO straight in the Archive"))}</label>`;
-  el.innerHTML = h; arcPintarProgreso(); arcEnlazar();
+  el.innerHTML = h; arcPintarProgreso(); arcEnlazar(); navMarcar();
   if (ARC.pestana === "mapa") enlazarMapa();
 }
 /* ============ Mapa del cielo: los proyectos sobre el cielo, cada uno con su campo ============ */
@@ -4591,7 +4997,7 @@ function renderArchivo(){
 // tomas, sin ángulo (a trazos).
 const RADM = Math.PI / 180, ZOOM_CERCA = 2.6, TOPE_ESTRELLAS = 40000;
 const MAPA = {zoom:1, px:0, py:0, ra0:0, modo:"todo", c:{ra:0, dec:0}, R:0, datos:[], puntos:[], arr:null, clave:"", hover:null, pedido:0, ver:verMapaGuardado()};
-const COLOR_MAPA = {sin_analizar:"#8C84A8", en_curso:"#B98CFF", apilado_nuevas:"#E8B84A", apilado:"#5FCF95", terminado:"#5FCF95", pausa:"#9C93B8"};
+const COLOR_MAPA = {nuevo:"#8C84A8", curso:"#B98CFF", capturado:"#E8B84A", procesado:"#5FCF95", archivado:"#9C93B8"};
 let CIELO = null, CIELO_PIDIENDO = false, PAL_BV = null;
 const TYCHO = {estado:null, datos:null, pidiendo:false, fallo:false, vigia:0};
 function verMapaGuardado(){
@@ -4768,7 +5174,7 @@ function htmlMapaCielo(ps){
   const clave = MAPA.datos.map(d => d.p.obj).join("|");
   if (clave !== MAPA.clave){ MAPA.clave = clave; MAPA.ra0 = centroMapa(MAPA.datos); }
   const sinPos = ps.length - MAPA.datos.length;
-  const ley = ["en_curso", "apilado_nuevas", "apilado", "sin_analizar", "pausa"].map(k => `<span><i style="background:${COLOR_MAPA[k]}"></i>${esc(textoEstado(k))}</span>`).join("");
+  const ley = ["curso", "capturado", "procesado", "archivado"].map(k => `<span><i style="background:${COLOR_MAPA[k]}"></i>${esc(textoEstado(k))}</span>`).join("");
   const capas = [["const", trLT("Constelaciones", "Constellations")], ["via", trLT("Vía Láctea", "Milky Way")], ["rejilla", trLT("Rejilla", "Grid")], ["nombres", trLT("Nombres de estrellas", "Star names")]]
     .map(([k, t]) => `<label><input type="checkbox" data-mapa-ver="${k}" ${MAPA.ver[k] ? "checked" : ""}> ${esc(t)}</label>`).join("");
   const nombres = MAPA.datos.map(d => d.p.obj).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
@@ -4981,7 +5387,7 @@ function pintarMapaCielo(){
   const orden = MAPA.datos.slice().sort((a, b) => (a.p.obj === MAPA.hover) - (b.p.obj === MAPA.hover) || b.p.seg - a.p.seg);
   const planes = [];
   for (const d of orden){
-    const col = COLOR_MAPA[d.p.est ? d.p.est.k : "en_curso"] || "#B98CFF", c = P(d.c.ra, d.c.dec);
+    const col = COLOR_MAPA[d.p.est ? d.p.est.k : "curso"] || "#B98CFF", c = P(d.c.ra, d.c.dec);
     if (!c || c[0] < -300 || c[1] < -300 || c[0] > W + 300 || c[1] > H + 300) continue;
     let q = null;
     if (d.campo){
@@ -5183,7 +5589,6 @@ function arcEnlazar(){
   if ($("arcOrden2")) $("arcOrden2").onchange = e => { ARC.orden = e.target.value; renderArchivo(); };
   if ($("arcPend")) $("arcPend").onchange = e => { ARC.pendientes = e.target.checked; renderArchivo(); };
   if ($("arcMesQuitar")) $("arcMesQuitar").onclick = () => { ARC.mes = ""; renderArchivo(); };
-  if ($("arcAbrirAqui")) $("arcAbrirAqui").onchange = e => guardarInicio(e.target.checked ? "archivo" : "");
 }
 
 /* --- inicio: quien trabaja con años de archivo puede abrir ASTRO directamente aquí --- */
@@ -5194,7 +5599,14 @@ async function guardarInicio(v){
 }
 
 /* --- página de un proyecto: analizar → depurar → calibración → apilar → continuar --- */
+let VISTA_ANTES = "archivo";         // desde dónde se abrió la página de un proyecto
+function enlaceVolver(){
+  const v = ["panel", "objetos", "tomas"].includes(VISTA_ANTES) ? VISTA_ANTES : "archivo";
+  const t = v === "panel" ? VISTAS.panel[0] : v === "objetos" ? VISTAS.objetos[0] : v === "tomas" ? VISTAS.tomas[0] : ARCHIVO_TXT();
+  return `<a href="#" class="arcVolver" onclick="mostrarVista('${v}');return false">← ${esc(tr(t))}</a>`;
+}
 function abrirProyecto(obj){
+  if (VISTA_ACTUAL !== "proyecto") VISTA_ANTES = VISTA_ACTUAL;
   ARC.proyecto = obj; ARC.sesProy = 40; mostrarVista("proyecto");
   if (!ARC.apilados[obj]) fetch("/api/apilado/lista?objeto=" + encodeURIComponent(obj)).then(r => r.json()).then(l => { ARC.apilados[obj] = l || []; if (VISTA_ACTUAL === "proyecto") renderProyecto(); }).catch(() => {});
   window.scrollTo({top:0});
@@ -5205,7 +5617,7 @@ function renderProyecto(){
   const todas = frames.filter(f => (f.object || "").trim() === obj), fl = todas.filter(f => !f.discarded);
   const p = arcProyectos(fl)[0];
   $("tituloVista").textContent = obj;
-  if (!p){ el.innerHTML = `<a href="#" class="arcVolver" onclick="mostrarVista('archivo');return false">← ${esc(ARCHIVO_TXT())}</a><div class="empty" style="display:block">${esc(trLT("Este proyecto ya no tiene tomas.", "This project has no frames any more."))}</div>`; return; }
+  if (!p){ el.innerHTML = enlaceVolver() + `<div class="empty" style="display:block">${esc(trLT("Este proyecto ya no tiene tomas.", "This project has no frames any more."))}</div>`; return; }
   $("subVista").textContent = p.noches.size === 1 ? trLT("1 noche, el {1}", "1 night, on {1}", fechaDia(p.primera))
     : trLT("{1} noches entre {2} y {3}", "{1} nights between {2} and {3}", nfmt(p.noches.size), tr(fechaCorta(p.primera)) + " " + p.primera.slice(0, 4), tr(fechaCorta(p.ultima)) + " " + p.ultima.slice(0, 4));
   const anios = [...p.anios.keys()].sort(), ok = fl.filter(esUtil), mt = metaDe(obj, ok);
@@ -5220,8 +5632,10 @@ function renderProyecto(){
   const paso = (n, estado, titulo, cuerpo) => `<div class="arcPaso ${estado}"><div class="arcNum">${estado === "hecho" ? "✓" : n}</div><div class="arcPasoTxt"><h4>${esc(titulo)}</h4>${cuerpo}</div></div>`;
   const btn = (txt, acc, prim) => `<button class="btn small ${prim ? "primary" : ""}" data-arc-acc="${acc}">${esc(txt)}</button>`;
   const est = estadoProyecto(obj, p, ok), calq = calResumen(p.cal), fechaMan = (ARC.estados[obj] || {}).fecha || "";
-  let h = `<a href="#" class="arcVolver" onclick="mostrarVista('archivo');return false">← ${esc(ARCHIVO_TXT())}</a>`;
+  let h = enlaceVolver();
+  const kx = est.k === "curso" ? (p.n && p.sinAnalizar >= p.n ? "sin_analizar" : est.ap ? (est.nuevas ? "apilado_nuevas" : "apilado") : "en_curso") : est.k;
   const expl = {
+    nuevo: trLT("Aún sin tomas.", "No frames yet."),
     sin_analizar: trLT("Indexado: todavía no se ha analizado ninguna toma.", "Indexed: no frame has been analysed yet."),
     en_curso: mt.meta && mt.cons >= mt.meta - 0.01 ? trLT("Ya has llegado al objetivo de horas y aún no está apilado.", "You've reached the goal in hours and it isn't stacked yet.")
               : trLT("Aún sin apilar.", "Not stacked yet."),
@@ -5229,13 +5643,13 @@ function renderProyecto(){
                        fechaDia(String(est.ap.fecha).slice(0, 10)), (est.ap.filtros || []).map(nomFiltro).join(", "), nfmt(est.ap.tomas)) : "",
     apilado_nuevas: est.ap ? trLT("Apilado el {1}, pero desde entonces hay {2} tomas útiles nuevas: conviene volver a apilar.", "Stacked on {1}, but there are {2} new usable frames since then: worth stacking again.",
                        fechaDia(String(est.ap.fecha).slice(0, 10)), nfmt(est.nuevas)) : "",
-    terminado: trLT("Lo diste por terminado el {1}. No sale en lo que falta ni en los planes de la noche.", "You marked it finished on {1}. It doesn't show up in what's left or in the night plans.", fechaDia(fechaMan)),
-    pausa: trLT("En pausa desde el {1}: no sale en los planes de la noche hasta que lo retomes.", "On hold since {1}: it won't show up in the night plans until you pick it up again.", fechaDia(fechaMan))}[est.k];
+    capturado: trLT("Lo diste por capturado el {1}. No sale en lo que falta ni en los planes de la noche.", "You marked it as captured on {1}. It doesn't show up in what's left or in the night plans.", fechaDia(fechaMan)),
+    procesado: trLT("Lo diste por procesado el {1}.", "You marked it as processed on {1}.", fechaDia(fechaMan)),
+    archivado: trLT("Lo archivaste el {1}: no sale en lo que falta ni en los planes de la noche.", "You archived it on {1}: it doesn't show up in what's left or in the night plans.", fechaDia(fechaMan))}[kx];
   h += `<div class="arcEstBarra">${chipEstado(est.k)}<span class="arcEstTxt">${esc(expl || "")}</span>
     <label class="note">${esc(trLT("Estado", "Status"))} <select id="arcEstSel">
       <option value="" ${est.man ? "" : "selected"}>${esc(trLT("En curso (automático)", "In progress (automatic)"))}</option>
-      <option value="terminado" ${est.man === "terminado" ? "selected" : ""}>${esc(textoEstado("terminado"))}</option>
-      <option value="pausa" ${est.man === "pausa" ? "selected" : ""}>${esc(textoEstado("pausa"))}</option></select></label></div>`;
+      ${["capturado", "procesado", "archivado"].map(k => `<option value="${k}" ${est.k === k ? "selected" : ""}>${esc(textoEstado(k))}</option>`).join("")}</select></label></div>`;
   h += `<div class="counts arcCifras">
     <div class="tile dest"><b>${esc(fmtH(p.seg / 3600))}</b><span>${esc(trLT("útiles", "usable"))}${mt.meta ? " · " + esc(trLT("{1} % del objetivo", "{1}% of the goal", Math.round(100 * mt.cons / mt.meta))) : ""}</span></div>
     <div class="tile"><b>${nfmt(fl.length)}</b><span>${esc(trLT("tomas", "frames"))}</span></div>
@@ -5283,13 +5697,12 @@ function renderProyecto(){
      ${ap.length ? (vistaU.length ? btn(trLT("Ver la vista previa y abrirla en…", "See the preview and open it in…"), "resumen", true) : btn(trLT("Crear la vista previa", "Create the preview"), "vista", true)) + btn(trLT("Abrir la carpeta del apilado", "Open the stack folder"), "carpeta") : ""}`);
   // 6. continuar
   const pend = pendientesDe(obj);
-  h += est.man ? paso(6, est.man === "terminado" ? "hecho" : "", trLT("Continuar", "Carry on"),
-      `<p>${esc(est.man === "terminado" ? trLT("Proyecto terminado. Si vuelves a él, retómalo y ASTRO te dirá otra vez qué falta y qué noches te convienen.", "Project finished. If you come back to it, pick it up again and ASTRO will tell you once more what's left and which nights suit you.")
-          : trLT("Proyecto en pausa. Cuando quieras seguir, retómalo.", "Project on hold. Pick it up again whenever you want to carry on."))}</p>${btn(trLT("Retomar el proyecto", "Pick the project up again"), "retomar", true)}${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen")}`)
+  h += est.man ? paso(6, "hecho", trLT("Continuar", "Carry on"),
+      `<p>${esc(trLT("Has dado este proyecto por {1}. Si vuelves a él, retómalo y ASTRO te dirá otra vez qué falta y qué noches te convienen.", "You've marked this project as {1}. If you come back to it, pick it up again and ASTRO will tell you once more what's left and which nights suit you.", textoEstado(est.k).toLowerCase()))}</p>${btn(trLT("Retomar el proyecto", "Pick the project up again"), "retomar", true)}${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen")}`)
     : paso(6, "", trLT("Continuar", "Carry on"),
     `<p>${mt.meta ? esc(trLT("Llevas {1} de {2} del objetivo.", "You have {1} of the {2} goal.", fmtH(mt.cons), fmtH(mt.meta))) + (pend && pend.length ? " " + esc(trLT("Falta: {1}.", "Still to do: {1}.", pend.map(x => nomFiltro(x.fi) + " " + fmtH(x.falta)).join(", "))) : "")
       : esc(trLT("Ponle un objetivo de horas por filtro y ASTRO te dirá cuánto falta y qué noches te convienen.", "Give it a goal in hours per filter and ASTRO will tell you how much is left and which nights suit you."))}</p>
-     ${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen", true)}${btn(trLT("Próximas noches", "Upcoming nights"), "noches")}${mt.meta && mt.cons >= mt.meta - 0.01 ? btn(trLT("Darlo por terminado", "Mark it finished"), "terminar") : ""}`);
+     ${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen", true)}${btn(trLT("Próximas noches", "Upcoming nights"), "noches")}${mt.meta && mt.cons >= mt.meta - 0.01 ? btn(trLT("Darlo por capturado", "Mark it as captured"), "terminar") : ""}`);
   h += `</div>`;
   // sesiones del proyecto: cada noche, con qué equipo, cuánto de cada filtro y cómo salió
   const ses = arcAgruparSesiones(fl), ksS = [...ses.keys()].sort().reverse(), visS = ksS.slice(0, ARC.sesProy);
@@ -5347,7 +5760,7 @@ function arcAccion(a, obj){
   if (a === "apilar"){ STK_PREF = obj; return stkOpen(); }
   if (a === "noches") return abrirNoches();
   if (a === "retomar") return arcPonerEstado(obj, "");
-  if (a === "terminar") return arcPonerEstado(obj, "terminado");
+  if (a === "terminar") return arcPonerEstado(obj, "capturado");
 }
 /* --- la calibración de un proyecto en las dos direcciones: qué dark y qué flat le tocan a cada grupo de tomas y, al revés,
    a cuántas tomas y noches sirve cada uno. Es lo que elegiría el apilado con la biblioteca de ahora. --- */
@@ -6644,13 +7057,13 @@ async function pintarSugerencia(forzar){
   if (yo !== _sugPedida) return;
   SUG = s; box.style.display = "";
   if (s.falta_equipo){
-    box.className = "sug sugVacia";
+    box.className = "sug sugVacia" + (VISTA_ACTUAL !== "panel" ? " ocultoArc" : "");
     box.innerHTML = `<div class="sugTxt"><div class="sugLab">Plan para esta noche con tu equipo</div>
       <div style="font-weight:650;margin:4px 0 8px">Dime qué telescopios, cámaras y filtros tienes y cada noche te diré qué montar, con qué filtro empezar y cuánto exponer.</div>
       <button class="btn primary small" id="sugEquipo">Poner mi equipo</button></div>`;
-    $("sugEquipo").onclick = abrirEquipo; heroDesdeSugerencia(null); return;
+    $("sugEquipo").onclick = abrirEquipo; heroDesdeSugerencia(s); return;
   }
-  box.className = "sug";
+  box.className = "sug" + (PLAN_ABIERTO ? "" : " plegado") + (VISTA_ACTUAL !== "panel" ? " ocultoArc" : "");
   if (s.sin_noche || s.nada || !s.rec){
     box.innerHTML = `<div class="sugTxt"><div class="sugLab">Plan para esta noche con tu equipo</div><div class="note" style="margin-top:4px">${s.sin_noche ? "Esta noche no hay noche astronómica." : "Esta noche no hay nada que merezca la pena con tu equipo y esta Luna."}</div>
       <div class="sugPie"><button class="btn small" id="sugEquipo">Mi equipo</button></div></div>`;
@@ -6766,17 +7179,29 @@ async function planNocheExportar(tipo){
   toast("Plan guardado. En N.I.N.A.: Secuenciador → Avanzado → Cargar secuencia.");
   api("/api/revelar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rel:`planes/${nombre}.json`})}).catch(()=>{});
 }
+let PLAN_ABIERTO = false;
 function heroDesdeSugerencia(s){
-  const col = $("heroRec"); if (!col) return;
-  if (!s || !s.rec){ if (col.dataset.orig) col.innerHTML = col.dataset.orig; return; }
+  const col = $("heroRec"), box = $("sugNoche"); if (!col) return;
+  if (!s || !s.rec){
+    if (col.dataset.orig) col.innerHTML = col.dataset.orig;
+    if (box) box.classList.toggle("plegado", !!(s && s.falta_equipo));
+    if (s && s.falta_equipo && !col.querySelector("#heroEquipo")){
+      const a = document.createElement("a"); a.href = "#"; a.id = "heroEquipo"; a.textContent = "Pon tu equipo y te digo qué montar ›";
+      a.onclick = ev => { ev.preventDefault(); abrirEquipo(); };
+      const q = col.querySelector("#heroQf"); if (q) q.replaceWith(a); else col.append(a);
+    }
+    return;
+  }
   if (!col.dataset.orig) col.dataset.orig = col.innerHTML;
-  const r = s.rec, img = imagenCielo(r.objeto.ra, r.objeto.dec, {fovW: r.montaje.fovW, fovH: r.montaje.fovH});
-  const fn = nombreFiltro(r.filtro, r.clase);
-  col.innerHTML = `<div class="hlab">Lo que más te conviene</div><div class="hrec"><span class="hmini" style="background-image:url('${img}')"></span><div style="min-width:0">
-    <div style="font-weight:800;font-size:16px" class="notr">${esc(r.objeto.nombre)}</div>
-    <div class="hchips"><span class="hchip"><i style="background:${COLOR_FILTRO(r.clase==="ha"?"Ha":r.clase==="oiii"?"OIII":"L")}"></i><span class="${r.filtro && r.filtro.nombre ? "notr" : ""}">${esc(fn)}</span></span><span class="hchip">${fmtH(r.horas)}</span></div>
-    <div class="hsub" style="margin-top:3px"><span class="notr">${esc(r.montaje.tel)}</span> <span>con</span> <span class="notr">${esc(r.montaje.cam)}</span> · <a href="#" id="heroVerPlan" style="color:inherit">ver el plan</a></div></div></div>`;
-  $("heroVerPlan").onclick = ev => { ev.preventDefault(); $("sugNoche").scrollIntoView({behavior:"smooth", block:"center"}); };
+  const r = s.rec, fn = nombreFiltro(r.filtro, r.clase);
+  col.innerHTML = `<span class="tLab">Tu plan</span><b class="notr">${esc(r.objeto.nombre)}</b>
+    <span><span class="notr">${esc(r.montaje.tel)}${r.montaje.red ? " + " + esc(r.montaje.red) : ""}</span> <span>con</span> <span class="notr">${esc(r.montaje.cam)}</span></span><span class="sepT"></span>
+    <span><b class="${r.filtro && r.filtro.nombre ? "notr" : ""}">${esc(fn)}</b>, <span>tomas de ${r.exp.t} s</span></span><span class="sepT"></span>
+    <span><span class="notr">${esc(r.ventana)}</span> · ${fmtH(r.horas)} útiles</span><span class="spacer"></span>
+    <button class="btn small" id="heroVerPlan">${PLAN_ABIERTO ? "Ocultar el plan" : "Ver el plan"}</button><button class="btn small primary" id="heroWa">Enviar por WhatsApp</button>`;
+  if (box) box.classList.toggle("plegado", !PLAN_ABIERTO);
+  $("heroVerPlan").onclick = () => { PLAN_ABIERTO = !PLAN_ABIERTO; heroDesdeSugerencia(s); };
+  $("heroWa").onclick = () => abrirWhatsApp(false);
 }
 
 /* ============ Proyectos: una meta de horas para un objeto, con su montaje ============ */
@@ -9068,9 +9493,9 @@ $("regCerrar").onclick = () => $("regBox").classList.remove("show");
 $("regInput").onchange = e => { const l = [...e.target.files]; e.target.value = ""; if (l.length) subirRegistros(l); };
 
 /* ============ Navegación: pestañas, menú, añadir sesión ============ */
-const VISTAS = {objetos:["Mis objetos","Lo que llevas de cada objeto y cuándo te conviene seguir"], tomas:["Todas las tomas","Cada toma con su valoración: filtra, ordena y descarta las que no valen"],
+const VISTAS = {panel:["Panel general","Cómo van tus proyectos y tus noches"], objetos:["Proyectos","Cómo va cada uno y cuándo te conviene seguir"], tomas:["Todas las tomas","Cada toma con su valoración: filtra, ordena y descarta las que no valen"],
                 archivo:["Archivo","Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir"], proyecto:["Proyecto",""]};
-let VISTA_ACTUAL = "objetos", RESUMEN_OBJ = "";
+let VISTA_ACTUAL = "panel", RESUMEN_OBJ = "";
 // desde dónde se va a la biblioteca de calibración: su botón «Volver a…» trae aquí mismo
 function volverDesde(){
   if ($("objBox").classList.contains("show") && RESUMEN_OBJ) return "obj:" + RESUMEN_OBJ;
@@ -9080,19 +9505,40 @@ function volverDesde(){
 function urlCalibracion(extra){ return `http://127.0.0.1:${PUERTO_CAL}/?volver=${encodeURIComponent(volverDesde())}${extra||""}`; }
 function mostrarVista(v){
   VISTA_ACTUAL = v;
-  const arc = v==="archivo" || v==="proyecto";
+  $("vistaPanel").style.display = v==="panel" ? "" : "none";
   $("vistaObjetos").style.display = v==="objetos" ? "" : "none";
   $("vistaTomas").style.display = v==="tomas" ? "" : "none";
   $("vistaArchivo").style.display = v==="archivo" ? "" : "none";
   $("vistaProyecto").style.display = v==="proyecto" ? "" : "none";
-  $("estaNoche").classList.toggle("oculto", v!=="objetos");
-  ["counts","sugNoche","estaNoche"].forEach(id => $(id).classList.toggle("ocultoArc", arc));
-  $("tituloVista").textContent = v==="archivo" ? ARCHIVO_TXT() : VISTAS[v][0]; $("subVista").textContent = VISTAS[v][1];
-  document.querySelectorAll(".pest").forEach(p=>p.classList.toggle("on", p.dataset.vista===v || (v==="proyecto" && p.dataset.vista==="archivo")));
-  if (v==="archivo") renderArchivo(); else if (v==="proyecto") renderProyecto();
+  // esta noche y el plan, solo en el panel; las cifras de todas las tomas, solo en «Todas las tomas»
+  $("estaNoche").classList.toggle("oculto", v!=="panel");
+  $("sugNoche").classList.toggle("ocultoArc", v!=="panel");
+  $("counts").classList.toggle("ocultoArc", v!=="tomas");
+  navMarcar();
+  if (v==="archivo") renderArchivo(); else if (v==="proyecto") renderProyecto(); else if (v==="panel") renderPanelGeneral();
   window.scrollTo({top:0});
 }
-document.querySelectorAll(".pest").forEach(p => p.onclick = ()=> mostrarVista(p.dataset.vista));
+/* --- la barra lateral: seis apartados; se despliega el del sitio en el que estás --- */
+const GRUPO_VISTA = {panel:"panel", objetos:"proyectos", proyecto:"proyectos", archivo:"archivo", tomas:"archivo"};
+// «Mapa del cielo» y «Calendario» son del panel general, aunque se pinten con el Archivo
+function arcSubPanel(){ return VISTA_ACTUAL === "archivo" && (ARC.pestana === "mapa" || ARC.pestana === "calendario") ? ARC.pestana : ""; }
+function navAbrir(g){ document.querySelectorAll("#navG .grp").forEach(x => x.classList.toggle("abierto", !!g && x.dataset.g === g)); }
+function navMarcar(){
+  const v = VISTA_ACTUAL, sub = arcSubPanel();
+  navAbrir(sub ? "panel" : GRUPO_VISTA[v] || "");
+  document.querySelectorAll("#navG .pest").forEach(p => p.classList.toggle("on", !sub && (p.dataset.vista === v || (v === "proyecto" && p.dataset.vista === "objetos"))));
+  $("navMapa").classList.toggle("on", sub === "mapa"); $("navCalendario").classList.toggle("on", sub === "calendario");
+  $("tituloVista").textContent = sub === "mapa" ? trLT("Mapa del cielo", "Sky map") : sub === "calendario" ? trLT("Calendario", "Calendar") : v === "archivo" ? ARCHIVO_TXT() : VISTAS[v][0];
+  $("subVista").textContent = sub === "mapa" ? trLT("Tus proyectos sobre el cielo, cada uno con su campo", "Your projects on the sky, each with its field")
+    : sub === "calendario" ? trLT("Noches y horas útiles de cada mes; pulsa un mes para ver sus proyectos", "Nights and usable hours each month; click a month to see its projects") : VISTAS[v][1];
+}
+document.querySelectorAll("#navG .grpT[data-abrir]").forEach(b => b.onclick = () => { const g = b.closest(".grp"); navAbrir(g.classList.contains("abierto") ? "" : g.dataset.g); });
+$("navMapa").onclick = () => { ARC.pestana = "mapa"; mostrarVista("archivo"); };
+$("navCalendario").onclick = () => { ARC.pestana = "calendario"; mostrarVista("archivo"); };
+$("btnLugares").onclick = () => abrirLugares();
+$("btnGeneral").onclick = () => abrirGeneral();
+// «Indexar directorios» abre el Archivo en sus proyectos, no en el mapa o el calendario (que son del panel general)
+document.querySelectorAll(".pest").forEach(p => p.onclick = ()=>{ if (p.dataset.vista === "archivo" && ["mapa","calendario"].includes(ARC.pestana)) ARC.pestana = "proyectos"; mostrarVista(p.dataset.vista); });
 // cada ventana de un apartado lleva arriba su dibujo de la ventana de inicio, con el título y «Cerrar» encima
 const DIBUJOS = {addBox: "anadir", objBox: "objetos", nochesBox: "noches", dirBox: "directo", stackBox: "apilar", varBox: "varios"};
 (function ilustrarCabeceras(){
@@ -9145,9 +9591,9 @@ $("drop").addEventListener("drop", ()=>{ _arr = 0; document.body.classList.remov
   const e = await (await fetch("/api/enlaces")).json();
   if (!e.integrado) return;
   const p = e["calibracion"]; PUERTO_CAL = p || null;
-  if (p){ const a = document.createElement("a"); a.className = "nav"; a.href = urlCalibracion();
+  if (p){ const a = document.createElement("a"); a.className = "nav sub"; a.href = urlCalibracion();
     a.addEventListener("click", () => { a.href = urlCalibracion(); });      // con lo que esté abierto en ese momento
-    a.innerHTML = '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg><span>Biblioteca de calibración</span>'; $("navCalib").replaceWith(a); }
+    a.innerHTML = '<span>Biblioteca de calibración</span>'; $("navCalib").replaceWith(a); }
   const hr = document.createElement("hr"), b = document.createElement("button"); b.textContent = "Salir de ASTRO";
   b.onclick = async ()=>{ if (!confirm("¿Cerrar ASTRO? (los dos programas)")) return;
     try { if (dirty || saving){ clearTimeout(saveTimer); for (let i = 0; i < 20 && saving; i++) await new Promise(r => setTimeout(r, 150)); await saveDb(); } } catch(_){}   // lo último que se cambió, guardado antes de cerrar
@@ -16333,7 +16779,7 @@ def archivo_apilados():
     return res
 
 
-ESTADOS_PROYECTO = ("terminado", "pausa")
+ESTADOS_PROYECTO = ("terminado", "pausa", "capturado", "procesado", "archivado")   # los dos primeros son de antes: cuentan como «capturado»
 TIPOS_HISTORIAL = ("estado", "limites", "union", "nombre", "fuera", "descartadas", "recuperadas", "analisis", "calibracion", "astrometria")
 _HIST_LOCK = threading.RLock()
 
@@ -17774,7 +18220,7 @@ class H(BaseHTTPRequestHandler):
         if p.path == "/api/enlaces":
             return self._send(200, json.dumps({"integrado": INTEGRADO, "version": VERSION_PROG,
                 "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0),
-                "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
+                "ciencia": int(os.environ.get("ASTRO_PUERTO_CIENCIA") or 0), "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
         if p.path == "/api/ping":
             return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG, "integrado": INTEGRADO}))
         q = urllib.parse.parse_qs(p.query)
@@ -17971,7 +18417,7 @@ class H(BaseHTTPRequestHandler):
                 except (TypeError, ValueError):
                     pass
             if "inicio" in d:
-                guardar_pref("inicio", "archivo" if d["inicio"] == "archivo" else "")
+                guardar_pref("inicio", d["inicio"] if d["inicio"] in ("archivo", "proyectos") else "")
             return self._send(200, json.dumps(leer_prefs()))
         if p.path == "/api/portadas":
             return self._send(200, json.dumps(portadas(json.loads(self._body() or b"{}").get("objetos") or []), ensure_ascii=False))

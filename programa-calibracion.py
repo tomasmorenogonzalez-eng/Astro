@@ -3769,7 +3769,7 @@ class H(BaseHTTPRequestHandler):
         if p.path == "/api/enlaces":
             return self._send(200, json.dumps({"integrado": INTEGRADO, "version": VERSION_PROG,
                 "lights": int(os.environ.get("ASTRO_PUERTO_LIGHTS") or 0), "calibracion": int(os.environ.get("ASTRO_PUERTO_CALIBRACION") or 0),
-                "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
+                "ciencia": int(os.environ.get("ASTRO_PUERTO_CIENCIA") or 0), "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)}))
         if p.path == "/api/ping":
             return self._send(200, json.dumps({"programa": PROGRAMA_ID, "version": VERSION_PROG, "integrado": INTEGRADO}))
         if p.path == "/":

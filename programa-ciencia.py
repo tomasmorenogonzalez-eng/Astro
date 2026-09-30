@@ -7131,6 +7131,7 @@ class H(BaseHTTPRequestHandler):
                 return self._send(404, "", "text/plain")
             if p.path == "/api/enlaces":
                 return self._json({"integrado": INTEGRADO, "lights": (puerto_lights() or 0) if INTEGRADO else 0,
+                                   "ciencia": int(os.environ.get("ASTRO_PUERTO_CIENCIA") or 0),
                                    "inicio": int(os.environ.get("ASTRO_PUERTO_INICIO") or 0)})
             if p.path == "/api/diagnostico":
                 return self._json(diagnostico())
