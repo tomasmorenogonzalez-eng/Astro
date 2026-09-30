@@ -84,7 +84,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "calibracion"
-VERSION_PROG = "2026.09.29.16"
+VERSION_PROG = "2026.10.01.1"
 NOMBRE_PROG = "Biblioteca de calibración"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
