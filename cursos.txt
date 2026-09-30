@@ -1,3 +1,4 @@
-# Dónde se consiguen los cursos de astrofotografía (bonus para quien apoya ASTRO con 10 € o más).
-# Escribe el enlace de la tienda en la línea de abajo, sin «#»: https://ko-fi.com/s/… (o Gumroad).
+# Dónde se consiguen los cursos de astrofotografía (bonus para quien apoya ASTRO con 10 $ o más).
+# El enlace de la tienda va en la línea de abajo, sin «#» (Ko-fi o Gumroad).
 # Si la dejas vacía, ASTRO dice que se pidan por correo.
+https://ko-fi.com/s/aaa6bc310e
