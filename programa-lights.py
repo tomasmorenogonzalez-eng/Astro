@@ -1340,6 +1340,50 @@ body.parpAbierto{overflow:hidden}
 .arcEst.e-procesado{background:var(--ok);color:#fff;border-color:transparent}
 .arcEst.e-archivado{background:transparent;border-style:dashed}
 .arcEstados .dotE.e-curso{background:var(--accent)} .arcEstados .dotE.e-capturado{background:var(--warn)} .arcEstados .dotE.e-procesado{background:var(--ok)}
+
+/* ── 0.30: la lista de proyectos: estados, filtros, tarjetas y tabla ── */
+#cabObjetos .note{font-size:13px}
+.pryEstados{margin:0 0 10px}
+.arcEstados button.cero{opacity:.55}
+.arcEstados .dotE.e-nuevo{background:var(--faint)}
+.pryCtl{justify-content:space-between;gap:8px 18px;margin:0 0 12px}
+.pryFil,.pryOrd{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pryCtl label{display:inline-flex;gap:6px;align-items:center}
+.pryCtl select{max-width:190px} .pryCtl input[type=search]{width:150px}
+.pryAv{border-left:4px solid var(--warn)} .pryAv.ok{border-left-color:var(--ok)}
+.pryAv .arcEstTxt{min-width:220px}
+.pryGrupo{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;margin:10px 0 -4px;font-size:15.5px;font-weight:800}
+.pryGrupo:first-child{margin-top:0} .pryGrupo .note{font-weight:500;font-size:13px}
+.pryMas{grid-column:1/-1;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px 0 12px}
+#vistaObjetos .sessions.pryModoTabla{display:block!important}
+.pryEst{position:absolute;left:11px;top:11px;z-index:1;display:inline-flex;align-items:center;gap:6px;background:rgba(10,8,18,.7);color:#E8E2F7;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;backdrop-filter:blur(6px)}
+.pryEst i{width:8px;height:8px;border-radius:50%;background:#8C84A8}
+.pryEst.e-curso i{background:#B98CFF} .pryEst.e-capturado i{background:#E8B84A} .pryEst.e-procesado i{background:#5FCF95} .pryEst.e-archivado i{background:transparent;box-shadow:inset 0 0 0 1.5px #9C93B8}
+.ocard .foto[data-pry-abrir]{cursor:pointer}
+.ocard .foto[data-pry-abrir]:hover .nom h3{text-decoration:underline}
+table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .pryT td{vertical-align:middle;padding:7px 10px}
+.pryT th:first-child,.pryT td.pn{position:sticky;left:0;z-index:2;background:var(--surface);box-shadow:1px 0 0 var(--line)}
+.pryT th:first-child{background:var(--surface2);z-index:3}
+.pryT tbody tr[data-pry-abrir]{cursor:pointer} .pryT tbody tr[data-pry-abrir]:hover td{background:var(--surface2)}
+.pryT tbody tr:hover{background:transparent}
+.pryT td.pn{width:270px;max-width:270px}
+.pryT .pnW{display:flex;align-items:center;gap:10px} .pryT .pnW > div{min-width:0;flex:1}
+.pryT .pnW b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pryT .pnW .note{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pryT th.num,.pryT td.num{text-align:right}
+.pryT .pth{flex:none;width:38px;height:38px;border-radius:8px;background:#1B1030 center/cover no-repeat}
+.pryT td.pf,.pryT td.pt{min-width:84px} .pryT td.pf.vacio{color:var(--faint);text-align:center}
+.pryT .pfh{display:block;font-size:13.5px;font-variant-numeric:tabular-nums}
+.pryT .pfb{display:block;height:5px;border-radius:3px;background:var(--surface3);margin:3px 0 2px;overflow:hidden}
+.pryT .pfb i{display:block;height:100%;border-radius:3px}
+.pryT .pfd{display:block;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pryT td.pt .note{font-size:12px}
+.pryT th.f{min-width:84px}
+.pryT tr.pryG td{background:var(--surface2);padding:7px 12px;font-weight:800;font-size:14px;position:static;box-shadow:none}
+.pryT tfoot td{background:var(--surface2);border-top:2px solid var(--line2);border-bottom:0;position:static;box-shadow:none}
+.pryT tr.pryM td{position:static;box-shadow:none;background:var(--surface)}
+.pryT tr.pryM .pryMas{position:sticky;left:14px;width:max-content;padding:6px 0;justify-content:flex-start}
+@media (max-width:700px){ .pryFil,.pryOrd{width:100%} .pryCtl label{width:100%} .pryCtl select{max-width:none;flex:1} .pryCtl input[type=search]{flex:1 1 100%;width:auto} }
 </style>
 </head>
 <body>
@@ -1433,7 +1477,9 @@ body.parpAbierto{overflow:hidden}
   </section>
 
   <section id="vistaObjetos" style="display:none">
-    <div class="cab2" id="cabObjetos"><h3>Tus proyectos</h3><button class="btn small" id="btnStack">Apilar…</button><button class="btn small" id="btnVarios" title="Un mismo objeto con varios telescopios o cámaras, tuyos o de compañeros">＋ Proyecto con varios equipos</button><button class="btn small" id="btnResumen" title="Qué salió anoche, cuánto sirve y qué te falta, listo para WhatsApp">Resumen de la noche</button><div class="seg" id="ordenObj"><button data-o="ultima">Última noche</button><button data-o="objetivo">Más cerca del objetivo</button><button data-o="nombre">Nombre</button></div></div>
+    <div class="cab2" id="cabObjetos"><h3>Tus proyectos</h3><span class="note" id="pryTotal"></span><button class="btn small" id="btnStack">Apilar…</button><button class="btn small" id="btnVarios" title="Un mismo objeto con varios telescopios o cámaras, tuyos o de compañeros">＋ Proyecto con varios equipos</button><button class="btn small" id="btnResumen" title="Qué salió anoche, cuánto sirve y qué te falta, listo para WhatsApp">Resumen de la noche</button><div class="seg" id="pryVista"><button data-v="tarjetas">Tarjetas</button><button data-v="tabla">Tabla</button></div></div>
+    <div id="pryBarra"></div>
+    <div id="pryAviso"></div>
     <div class="sessions" id="sessions"></div>
     <div class="pnVacio" id="objVacio" hidden>Todavía no tienes proyectos: cada objeto que fotografíes será uno. <button class="btn primary small" onclick="abrirAñadir()">＋ Añadir sesión</button></div>
 
@@ -3396,78 +3442,319 @@ function anilloSVG(pct){
     <circle cx="26" cy="26" r="${r}" stroke="${hecho?"var(--ok)":"var(--accent)"}" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)}" stroke-dashoffset="${(L*(1-Math.min(1,pct/100))).toFixed(1)}" transform="rotate(-90 26 26)"/>
     <text x="26" y="30.5" text-anchor="middle" font-size="${hecho?14:12}" font-weight="800" fill="${hecho?"var(--ok)":"var(--text)"}">${hecho?"✓":pct+"%"}</text></svg>`;
 }
-function renderSessions(soloRepintar){
-  const box = $("sessions");
-  const sinTomas = proyectosSinTomas();
-  $("bienvenida").style.display = frames.length ? "none" : "block";
-  $("cabObjetos").style.display = frames.length || sinTomas.length ? "" : "none";
-  $("objVacio").hidden = !!(frames.length || sinTomas.length);
-  if (!frames.length && !sinTomas.length){ box.innerHTML = ""; if (!soloRepintar) programarEstaNoche(); return; }
-  const byObj = [...groupBy(frames, f=>f.object||"(sin objeto)")];
-  const ultima = l => l.map(f=>f.night||"").sort().pop() || "";
-  const datos = new Map();
-  for (const [obj, fl] of byObj){
-    const ok = fl.filter(esUtil), porF = [...groupBy(ok, f=>f.filter||"sin filtro")].sort((a,b)=>ordenFiltros(a[0],b[0]));
-    const {meta, cons} = metaDe(obj, ok);
-    datos.set(obj, {ok, porF, meta, cons, pct: meta>0 ? Math.min(100, Math.round(100*cons/meta)) : null});
+/* ============ Proyectos: la lista con sus estados, filtros, tarjetas y tabla ============ */
+// Cada objeto es un proyecto. Se filtra por estado (los cinco chips, con su cuenta), búsqueda, categoría, equipo y año;
+// se ordena, se agrupa (estado, categoría, equipo o año de la última noche) y se ve como tarjetas o como tabla, con una
+// columna por filtro como en una hoja de cálculo. De lo que hay en pantalla solo se recuerda la vista y el agrupado.
+const PRY = {vista: "tarjetas", agr: "", estado: "", q: "", cat: "", equipo: "", anio: "", dorm: false, mas: {}, deshacer: null};
+// cuántos proyectos enseña cada grupo (o la lista entera, si no hay grupos): 48 tarjetas o 144 filas, y otro tanto por cada «Mostrar más»
+const pryPagina = () => PRY.vista === "tabla" ? 144 : 48, pryLim = g => pryPagina() * (1 + (PRY.mas[g.k] || 0));
+const pryMasHTML = (g, lim) => `<div class="pryMas"><button class="btn" data-pry-mas="${esc(g.k)}">${esc(trLT("Mostrar {1} más", "Show {1} more", nfmt(Math.min(g.l.length - lim, pryPagina()))))}</button><span class="note">${esc(trLT("{1} de {2}", "{1} of {2}", nfmt(lim), nfmt(g.l.length)))}</span></div>`;
+try { const g = JSON.parse(localStorage.getItem("astroProyectos") || "{}"); if (["tarjetas", "tabla"].includes(g.vista)) PRY.vista = g.vista; if (["", "estado", "cat", "equipo", "anio"].includes(g.agr)) PRY.agr = g.agr; } catch(_){}
+function pryGuardar(){ try { localStorage.setItem("astroProyectos", JSON.stringify({vista: PRY.vista, agr: PRY.agr})); } catch(_){} }
+const pryNorm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const pryCatTxt = k => ({galaxias: trLT("Galaxias", "Galaxies"), nebulosas: trLT("Nebulosas", "Nebulae"), cumulos: trLT("Cúmulos", "Clusters"), otros: trLT("Otros", "Other")})[k] || k;
+// un proyecto «en curso» que lleva más de un año sin tomas nuevas casi seguro se quedó atrás: se ofrece darlo por capturado
+const esDormido = ultima => !!ultima && (Date.now() - new Date(ultima + "T12:00:00")) / 864e5 > 365;
+const pryAvisoOculto = () => { try { return Date.now() - (+localStorage.getItem("astroPryAviso") || 0) < 30 * 864e5; } catch(_){ return false; } };
+function pryCat(obj){
+  if (!CATALOGO) return "";
+  const c = catDe(obj);
+  return !c || !c[3] || c[3] === "propio" ? "otros" : GRUPO_DSO(c[3]);
+}
+// lo que se busca en un proyecto: su nombre, el del catálogo y sus otros nombres (Andrómeda encuentra M 31)
+const _PRY_TXT = new Map();
+function pryTexto(obj){
+  let t = _PRY_TXT.get(obj);
+  if (!t || (!t.cat && CATALOGO)){
+    const c = CATALOGO ? catDe(obj) : null, pr = (OBJETIVOS[obj] || {}).proyecto || {};
+    const s = pryNorm([obj, pr.en, pr.es, ...(c ? [c[0], c[8], c[9], c[10]] : [])].filter(Boolean).join(" "));
+    t = {cat: !!CATALOGO, s, k: s.replace(/[\s_\-.,]+/g, "")};
+    _PRY_TXT.set(obj, t);
   }
-  byObj.sort((a,b)=> (a[0]==="(sin objeto)") - (b[0]==="(sin objeto)") ||
-    (ORDEN_OBJ==="nombre" ? a[0].localeCompare(b[0], undefined, {numeric:true}) :
-     ORDEN_OBJ==="objetivo" ? ((datos.get(b[0]).pct ?? -1) - (datos.get(a[0]).pct ?? -1)) || ultima(b[1]).localeCompare(ultima(a[1])) :
-     ultima(b[1]).localeCompare(ultima(a[1]))));
-  document.querySelectorAll("#ordenObj button").forEach(b=>b.classList.toggle("on", b.dataset.o===ORDEN_OBJ));
-  const porClaveObj = new Map();
-  for (const [obj] of byObj) if (obj !== "(sin objeto)"){ const k = claveObjeto(obj); if (!porClaveObj.has(k)) porClaveObj.set(k, []); porClaveObj.get(k).push(obj); }
-  box.innerHTML = byObj.map(([obj, fl]) => {
-    const {ok, porF, meta, cons, pct} = datos.get(obj), h = horasDe(ok), noches = [...new Set(ok.map(f=>f.night).filter(Boolean))].sort();
-    const c = {ok:0,warn:0,bad:0,disc:0}; fl.forEach(f=>{ const s = shownStatus(f); if (c[s]!==undefined) c[s]++; });
-    const sesiones = [...groupBy(fl, f=>(f.night||"?")+" · "+(f.filter||"sin filtro"))].sort((a,b)=>b[0].localeCompare(a[0])).map(([k, gl]) => {
-      const kept = gl.filter(f=>!f.discarded && f.status!=="bad"), cc = {ok:0,warn:0,bad:0}; gl.forEach(f=>{ const s = shownStatus(f); if (cc[s]!==undefined) cc[s]++; });
-      const fw = med(kept.map(f=>f.fwhm));
-      return `<div class="row" data-obj="${esc(obj)}" data-night="${esc(gl[0].night||"")}" data-filter="${esc(gl[0].filter||"")}" title="Ver estas tomas">
-        <span>${esc(k)}<div class="m">${gl.length} toma${gl.length!==1?"s":""} · ${fmtH(horasDe(kept.filter(f=>!f.fuera)))}${fw?" · FWHM "+fw.toFixed(1):""}</div></span>
+  return t;
+}
+// lo escrito: la frase tal cual o sin espacios («m33» encuentra «M 33») o, si son varias palabras, todas ellas (las de dos letras o más)
+function pryCoincide(obj, frase){
+  const t = pryTexto(obj), sin = frase.replace(/[\s_\-.,]+/g, ""), pal = frase.split(/\s+/).filter(w => w.length > 1);
+  return t.s.includes(frase) || t.k.includes(sin) || (pal.length > 1 && pal.every(w => t.s.includes(w)));
+}
+// un proyecto por objeto, con lo que la lista necesita de sus tomas; los proyectos creados sin tomas también entran
+function pryDatos(){
+  const L = [];
+  for (const [obj, fl] of groupBy(frames, f => f.object || "(sin objeto)")){
+    if (obj === "(sin objeto)") continue;
+    const ok = fl.filter(esUtil), {meta, cons} = metaDe(obj, ok), seg = ok.reduce((a, f) => a + (f.exp || 0), 0);
+    const eq = new Map(); for (const f of (ok.length ? ok : fl)){ const e = equipoDe(f); eq.set(e, (eq.get(e) || 0) + (ok.length ? (f.exp || 0) : 1)); }
+    let ultima = ""; const anios = new Set();
+    for (const f of fl){ const n = f.discarded ? "" : f.night || ""; if (n > ultima) ultima = n; if (n) anios.add(n.slice(0, 4)); }
+    const est = estadoP(obj, true);
+    L.push({obj, fl, ok, seg, meta, cons, pct: meta > 0 ? Math.min(100, Math.round(100 * cons / meta)) : null,
+      noches: [...new Set(ok.map(f => f.night).filter(Boolean))].sort(), ultima, anios, est, cat: pryCat(obj),
+      equipos: [...eq].sort((a, b) => b[1] - a[1]).map(x => x[0]), dorm: est === "curso" && esDormido(ultima)});
+  }
+  for (const [obj, o] of proyectosSinTomas()){
+    const {meta} = metaDe(obj, []);
+    L.push({obj, fl: [], ok: [], seg: 0, meta, cons: 0, pct: meta > 0 ? 0 : null, noches: [], ultima: "", anios: new Set(), est: estadoP(obj, false), cat: pryCat(obj), equipos: [], dorm: false, sin: o});
+  }
+  return L;
+}
+const PRY_ORD = {
+  ultima: (a, b) => b.ultima.localeCompare(a.ultima) || b.seg - a.seg,
+  objetivo: (a, b) => ((b.pct ?? -1) - (a.pct ?? -1)) || b.ultima.localeCompare(a.ultima),
+  horas: (a, b) => b.seg - a.seg || b.ultima.localeCompare(a.ultima),
+  nombre: (a, b) => a.obj.localeCompare(b.obj, undefined, {numeric: true})};
+function pryGrupos(lista){
+  if (!PRY.agr) return [{k: "", t: "", l: lista}];
+  const m = new Map();
+  const clave = p => PRY.agr === "estado" ? p.est : PRY.agr === "cat" ? (p.cat || "otros") : PRY.agr === "equipo" ? (p.equipos[0] || "") : (p.ultima ? p.ultima.slice(0, 4) : "");
+  for (const p of lista){ const k = clave(p); if (!m.has(k)) m.set(k, []); m.get(k).push(p); }
+  const horas = k => m.get(k).reduce((a, p) => a + p.seg, 0);
+  const orden = PRY.agr === "estado" ? (a, b) => ORDEN_ESTADOS.indexOf(a) - ORDEN_ESTADOS.indexOf(b)
+    : PRY.agr === "cat" ? (a, b) => ["galaxias", "nebulosas", "cumulos", "otros"].indexOf(a) - ["galaxias", "nebulosas", "cumulos", "otros"].indexOf(b)
+    : PRY.agr === "equipo" ? (a, b) => (!a) - (!b) || horas(b) - horas(a)
+    : (a, b) => (!a) - (!b) || b.localeCompare(a);      // los años, del más reciente al más antiguo; «sin tomas» al final
+  const nombre = k => PRY.agr === "estado" ? textoEstadoP(k) : PRY.agr === "cat" ? pryCatTxt(k) : PRY.agr === "equipo" ? (k || trLT("Sin equipo", "No setup")) : (k || trLT("Sin tomas", "No frames"));
+  return [...m.keys()].sort(orden).map(k => ({k, t: nombre(k), l: m.get(k), notr: PRY.agr === "equipo" && !!k}));
+}
+function pryCabGrupo(g){
+  const h = g.l.reduce((a, p) => a + p.seg, 0) / 3600;
+  return `<span class="${g.notr ? "notr" : ""}">${esc(g.t)}</span> <span class="note">${esc(g.l.length === 1 ? trLT("1 proyecto", "1 project") : trLT("{1} proyectos", "{1} projects", nfmt(g.l.length)))}${h > 0 ? " · " + esc(fmtH(h)) : ""}</span>`;
+}
+// el chip del estado sobre la foto de la tarjeta
+const pryChipFoto = est => `<span class="pryEst e-${est}"><i></i>${esc(textoEstadoP(est))}</span>`;
+// las sesiones (cada noche con cada filtro) se pintan al abrir el apartado, no con las cien tarjetas
+function sesionesHTML(obj, fl){
+  return [...groupBy(fl, f => (f.night || "?") + " · " + (f.filter || "sin filtro"))].sort((a, b) => b[0].localeCompare(a[0])).map(([k, gl]) => {
+    const kept = gl.filter(f => !f.discarded && f.status !== "bad"), cc = {ok: 0, warn: 0, bad: 0}; gl.forEach(f => { const s = shownStatus(f); if (cc[s] !== undefined) cc[s]++; });
+    const fw = med(kept.map(f => f.fwhm));
+    return `<div class="row" data-obj="${esc(obj)}" data-night="${esc(gl[0].night || "")}" data-filter="${esc(gl[0].filter || "")}" title="Ver estas tomas">
+        <span>${esc(k)}<div class="m">${gl.length} toma${gl.length !== 1 ? "s" : ""} · ${fmtH(horasDe(kept.filter(f => !f.fuera)))}${fw ? " · FWHM " + fw.toFixed(1) : ""}</div></span>
         <span><span class="dot ok"></span>${cc.ok} <span class="dot warn"></span>${cc.warn} <span class="dot bad"></span>${cc.bad}</span></div>`; }).join("");
-    if (obj==="(sin objeto)") return `<div class="ocard sinobj"><div class="cuerpo"><h3>Tomas sin objeto</h3>
-      <div class="dato">${fl.length===1 ? "1 toma que no sabe a qué objeto pertenece. Asígnale uno para poder apilarla." : `${fl.length} tomas que no saben a qué objeto pertenecen. Asígnales uno para poder apilarlas.`}</div>
-      <div class="pie"><button class="btn primary small" onclick="$('btnNombres').click()">Asignar objeto</button></div>
-      <details><summary>${fl.length} tomas por noche y filtro</summary>${sesiones}</details></div></div>`;
-    // imagen: la vista previa del último apilado; si no hay, la mejor toma
-    const port = PORTADAS[obj];
-    const conFoto = fl.filter(f=>f.thumb && !f.discarded && f.status!=="bad");
-    const toma = (conFoto.filter(f=>f.fwhm).sort((a,b)=>a.fwhm-b.fwhm)[0]) || conFoto[0] || fl.find(f=>f.thumb);
-    const img = port ? `/api/apilado/imagen?rel=${encodeURIComponent(port.jpg)}` : toma ? `/file?path=${encodeURIComponent(toma.thumb)}` : "";
-    const etiqueta = port ? `${port.nombre ? (port.nombre === "SIN_FILTRO" ? tr("Sin filtro") : port.nombre.replace(/_/g,"/"))+" · " : ""}${fechaCorta(port.fecha)}` : noches.length ? `última noche: ${fechaCorta(noches[noches.length-1])}` : "";
-    const sub = port ? (noches.length ? `última noche: ${fechaCorta(noches[noches.length-1])}` : "") : toma ? "Aún sin apilar: esta es su mejor toma" : "";
-    const o = OBJETIVOS[obj] || {}, metaF = o.filtros || {};
-    const maxH = Math.max(0.01, ...porF.map(([,l])=>horasDe(l)));
-    const filas = [...porF.map(([fi,l])=>[fi, horasDe(l)]), ...Object.keys(metaF).filter(fi=>+metaF[fi]>0 && !porF.some(([x])=>x===fi)).map(fi=>[fi, 0])];
-    const barras = filas.map(([fi, hf]) => { const m = +metaF[fi]||0, w = m>0 ? Math.min(100, 100*hf/m) : 100*hf/maxH;
-      return `<div class="fbar"><b style="color:${COLOR_FILTRO(fi)}" class="notr">${esc(nomFiltro(fi))}</b><span class="pista"><i style="width:${w.toFixed(1)}%;background:${COLOR_FILTRO(fi)}"></i></span><span class="h">${m>0 ? `${fmtNum(hf)} / ${fmtH(m)}` : fmtH(hf)}</span></div>`; }).join("");
-    const tot = Math.max(1, c.ok+c.warn+c.bad);
-    return `<div class="ocard">
-      <div class="foto" ${img?`style="background-image:url('${img}')"`:""}>${img?"":`<div class="sinfoto"><div><svg class="i" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><div>Sin imagen todavía</div></div></div>`}
-        ${etiqueta?`<span class="fecha">${esc(etiqueta)}</span>`:""}<div class="nom"><h3 class="notr">${esc(obj)}</h3>${sub?`<span>${esc(sub)}</span>`:""}</div></div>
+}
+function pryTarjeta(p, porClave){
+  const {obj, fl, ok, meta, pct, noches} = p, h = p.seg / 3600;
+  const porF = [...groupBy(ok, f => f.filter || "sin filtro")].sort((a, b) => ordenFiltros(a[0], b[0]));
+  const c = {ok: 0, warn: 0, bad: 0, disc: 0}; fl.forEach(f => { const s = shownStatus(f); if (c[s] !== undefined) c[s]++; });
+  // imagen: la vista previa del último apilado; si no hay, la mejor toma
+  const port = PORTADAS[obj];
+  const conFoto = fl.filter(f => f.thumb && !f.discarded && f.status !== "bad");
+  const toma = (conFoto.filter(f => f.fwhm).sort((a, b) => a.fwhm - b.fwhm)[0]) || conFoto[0] || fl.find(f => f.thumb);
+  const img = port ? `/api/apilado/imagen?rel=${encodeURIComponent(port.jpg)}` : toma ? `/file?path=${encodeURIComponent(toma.thumb)}` : "";
+  const etiqueta = port ? `${port.nombre ? (port.nombre === "SIN_FILTRO" ? tr("Sin filtro") : port.nombre.replace(/_/g, "/")) + " · " : ""}${fechaCorta(port.fecha)}` : noches.length ? `última noche: ${fechaCorta(noches[noches.length - 1])}` : "";
+  const sub = port ? (noches.length ? `última noche: ${fechaCorta(noches[noches.length - 1])}` : "") : toma ? "Aún sin apilar: esta es su mejor toma" : "";
+  const o = OBJETIVOS[obj] || {}, metaF = o.filtros || {};
+  const maxH = Math.max(0.01, ...porF.map(([, l]) => horasDe(l)));
+  const filas = [...porF.map(([fi, l]) => [fi, horasDe(l)]), ...Object.keys(metaF).filter(fi => +metaF[fi] > 0 && !porF.some(([x]) => x === fi)).map(fi => [fi, 0])];
+  const barras = filas.map(([fi, hf]) => { const m = +metaF[fi] || 0, w = m > 0 ? Math.min(100, 100 * hf / m) : 100 * hf / maxH;
+    return `<div class="fbar"><b style="color:${COLOR_FILTRO(fi)}" class="notr">${esc(nomFiltro(fi))}</b><span class="pista"><i style="width:${w.toFixed(1)}%;background:${COLOR_FILTRO(fi)}"></i></span><span class="h">${m > 0 ? `${fmtNum(hf)} / ${fmtH(m)}` : fmtH(hf)}</span></div>`; }).join("");
+  const tot = Math.max(1, c.ok + c.warn + c.bad);
+  return `<div class="ocard">
+      <div class="foto" data-pry-abrir="${esc(obj)}" title="Abrir el proyecto" ${img ? `style="background-image:url('${img}')"` : ""}>${img ? "" : `<div class="sinfoto"><div><svg class="i" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><div>Sin imagen todavía</div></div></div>`}
+        ${pryChipFoto(p.est)}${etiqueta ? `<span class="fecha">${esc(etiqueta)}</span>` : ""}<div class="nom"><h3 class="notr">${esc(obj)}</h3>${sub ? `<span>${esc(sub)}</span>` : ""}</div></div>
       <div class="cuerpo">
-        <div class="fila">${pct!==null ? anilloSVG(pct) : ""}<div class="horas"><b>${fmtH(h)}</b>${meta>0?` <span class="dato">de ${fmtH(meta)}</span>`:` <span class="dato">útiles</span>`}
-          <div class="dato"><span>${noches.length} noche${noches.length!==1?"s":""} · ${fl.length} toma${fl.length!==1?"s":""}</span>${pct>=100?'<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>':""}${estadoManual(obj) ? '<span> · </span>' + chipEstado(estadoP(obj, true)) : ""}${meta>0?"":'<span> · </span><a href="#" data-resumen="'+esc(obj)+'">poner objetivo</a>'}</div></div></div>
-        ${barras?`<div class="fbars">${barras}</div>`:""}
-        <div class="prox" data-prox="${esc(obj)}">${PROX[obj]||""}</div>
-        ${(OBJETIVOS[obj]||{}).proyecto && (OBJETIVOS[obj].proyecto.montaje_nombre) ? `<div class="dato" style="margin-top:4px"><span>Proyecto con</span> <span class="notr">${esc(OBJETIVOS[obj].proyecto.montaje_nombre)}</span></div>` : ""}
-        <div class="pie"><span class="mini" title="${c.ok} válidas · ${c.warn} con avisos · ${c.bad} rechazables"><i style="width:${100*c.ok/tot}%;background:var(--ok)"></i><i style="width:${100*c.warn/tot}%;background:var(--warn)"></i><i style="width:${100*c.bad/tot}%;background:var(--bad)"></i></span>
+        <div class="fila">${pct !== null ? anilloSVG(pct) : ""}<div class="horas"><b>${fmtH(h)}</b>${meta > 0 ? ` <span class="dato">de ${fmtH(meta)}</span>` : ` <span class="dato">útiles</span>`}
+          <div class="dato"><span>${noches.length} noche${noches.length !== 1 ? "s" : ""} · ${fl.length} toma${fl.length !== 1 ? "s" : ""}</span>${pct >= 100 ? '<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>' : ""}${meta > 0 ? "" : '<span> · </span><a href="#" data-resumen="' + esc(obj) + '">poner objetivo</a>'}</div></div></div>
+        ${barras ? `<div class="fbars">${barras}</div>` : ""}
+        <div class="prox" data-prox="${esc(obj)}">${PROX[obj] || ""}</div>
+        ${(o.proyecto && o.proyecto.montaje_nombre) ? `<div class="dato" style="margin-top:4px"><span>Proyecto con</span> <span class="notr">${esc(o.proyecto.montaje_nombre)}</span></div>` : ""}
+        <div class="pie"><span class="mini" title="${c.ok} válidas · ${c.warn} con avisos · ${c.bad} rechazables"><i style="width:${100 * c.ok / tot}%;background:var(--ok)"></i><i style="width:${100 * c.warn / tot}%;background:var(--warn)"></i><i style="width:${100 * c.bad / tot}%;background:var(--bad)"></i></span>
           <button class="btn small" data-vertomas="${esc(obj)}">Tomas</button><button class="btn primary small" data-resumen="${esc(obj)}">Resumen</button></div>
-        <details><summary>Sesiones (${new Set(fl.map(f=>(f.night||"?")+(f.filter||""))).size})</summary>${sesiones}</details>
-        ${gestionObjeto(obj, fl, (porClaveObj.get(claveObjeto(obj)) || []).filter(x => x !== obj))}
+        <details class="ses" data-ses="${esc(obj)}"><summary>Sesiones (${new Set(fl.map(f => (f.night || "?") + (f.filter || ""))).size})</summary><div class="sesCuerpo"></div></details>
+        ${gestionObjeto(obj, fl, (porClave.get(claveObjeto(obj)) || []).filter(x => x !== obj))}
       </div></div>`;
-  }).join("") + sinTomas.map(([k,o]) => tarjetaProyecto(k, o)).join("");
+}
+function pryTarjetas(grupos, porClave){
+  let h = "";
+  for (const g of grupos){
+    const lim = pryLim(g);
+    if (PRY.agr) h += `<h4 class="pryGrupo">${pryCabGrupo(g)}</h4>`;
+    h += g.l.slice(0, lim).map(p => p.sin ? tarjetaProyecto(p.obj, p.sin) : pryTarjeta(p, porClave)).join("");
+    if (g.l.length > lim) h += pryMasHTML(g, lim);
+  }
+  return h;
+}
+/* --- la tabla: un proyecto por fila y una columna por filtro, con sus horas y sus tomas × segundos, todas a la misma escala --- */
+function pryFiltros(p){
+  if (!p._fx){
+    const m = new Map();
+    for (const f of p.ok){
+      const k = nomFiltro(f.filter); let x = m.get(k);
+      if (!x){ x = {seg: 0, n: 0, exps: new Map()}; m.set(k, x); }
+      const e = f.exp || 0; x.seg += e; x.n++; x.exps.set(e, (x.exps.get(e) || 0) + 1);
+    }
+    p._fx = m;
+  }
+  return p._fx;
+}
+function pryCelda(x, fi, maxH){
+  if (!x || !x.n) return `<td class="pf vacio">·</td>`;
+  const h = x.seg / 3600, top = [...x.exps].sort((a, b) => b[1] - a[1])[0][0];
+  const det = x.exps.size === 1 ? `${nfmt(x.n)} × ${numEs(top)} s` : (x.n === 1 ? trLT("1 toma", "1 frame") : trLT("{1} tomas", "{1} frames", nfmt(x.n)));
+  return `<td class="pf" title="${esc(det + " · " + fmtH(h))}"><b class="pfh">${esc(fmtH(h))}</b><span class="pfb"><i style="width:${Math.max(4, Math.round(100 * h / maxH))}%;background:${COLOR_FILTRO(fi)}"></i></span><span class="pfd">${esc(det)}</span></td>`;
+}
+function pryFila(p, celdas, maxH){
+  const cat = catDe(p.obj), tipo = cat && TIPOS_DSO[cat[3]] ? tr(TIPOS_DSO[cat[3]]) : "";
+  const eq = p.sin ? ((p.sin.proyecto || {}).montaje_nombre || "") : p.equipos.length === 1 ? p.equipos[0] : p.equipos.length ? trLT("{1} equipos", "{1} setups", p.equipos.length) : "";
+  const img = p.sin ? "" : imgProyecto(p.obj, p.fl), h = p.seg / 3600;
+  return `<tr ${p.sin ? "" : `data-pry-abrir="${esc(p.obj)}" tabindex="0"`}>
+    <td class="pn"><div class="pnW"><span class="pth" ${img ? `style="background-image:url('${img}')"` : ""}></span><div><b class="notr">${esc(p.obj)}</b>
+      <div class="note" title="${esc([p.sin ? trLT("aún sin tomas", "no frames yet") : tipo, eq].filter(Boolean).join(" · "))}">${p.sin ? esc(trLT("aún sin tomas", "no frames yet")) + (eq ? " · " : "") : tipo ? `<span>${esc(tipo)}</span>${eq ? " · " : ""}` : ""}${eq ? `<span class="notr">${esc(eq)}</span>` : ""}</div></div></div></td>
+    <td>${chipEstado(p.est)}</td>
+    <td class="pt"><b>${esc(fmtH(h))}</b>${p.meta > 0 ? ` <span class="note">${esc(trLT("de {1}", "of {1}", fmtH(p.meta)))}</span><span class="pfb"><i style="width:${p.pct}%;background:${p.pct >= 100 ? "var(--ok)" : "var(--accent)"}"></i></span>` : ""}</td>
+    <td class="num">${nfmt(p.noches.length)}</td><td class="ul">${p.ultima ? esc(fechaDia(p.ultima)) : "—"}</td>${celdas.map(([x, fi]) => pryCelda(x, fi, maxH)).join("")}</tr>`;
+}
+function pryTabla(grupos){
+  const vis = grupos.flatMap(g => g.l);
+  // las columnas: los filtros que hay en la lista; si son más de ocho, los siete con más horas y «Otros»
+  const tot = new Map(); for (const p of vis) for (const [fi, x] of pryFiltros(p)) tot.set(fi, (tot.get(fi) || 0) + x.seg);
+  let cols = [...tot.keys()].sort(ordenFiltros), hayOtros = false;
+  if (cols.length > 8){ const top = new Set([...tot].sort((a, b) => b[1] - a[1]).slice(0, 7).map(x => x[0])); cols = cols.filter(c => top.has(c)); hayOtros = true; }
+  const enCols = new Set(cols);
+  const otrosDe = p => { const r = {seg: 0, n: 0, exps: new Map()}; for (const [fi, x] of pryFiltros(p)) if (!enCols.has(fi)){ r.seg += x.seg; r.n += x.n; for (const [e, k] of x.exps) r.exps.set(e, (r.exps.get(e) || 0) + k); } return r; };
+  const celdas = p => [...cols.map(fi => [pryFiltros(p).get(fi), fi]), ...(hayOtros ? [[otrosDe(p), "?"]] : [])];
+  let maxH = 0.01; for (const p of vis) for (const [x] of celdas(p)) if (x && x.seg / 3600 > maxH) maxH = x.seg / 3600;
+  const nCol = 5 + cols.length + (hayOtros ? 1 : 0);
+  let filas = "";
+  for (const g of grupos){
+    const lim = pryLim(g);
+    if (PRY.agr) filas += `<tr class="pryG"><td colspan="${nCol}">${pryCabGrupo(g)}</td></tr>`;
+    for (const p of g.l.slice(0, lim)) filas += pryFila(p, celdas(p), maxH);
+    if (g.l.length > lim) filas += `<tr class="pryM"><td colspan="${nCol}">${pryMasHTML(g, lim)}</td></tr>`;
+  }
+  const totOtros = vis.reduce((a, p) => a + otrosDe(p).seg, 0) / 3600;
+  return `<div class="tablewrap"><table class="pryT"><thead><tr><th>${esc(trLT("Proyecto", "Project"))}</th><th>${esc(trLT("Estado", "Status"))}</th>
+      <th>${esc(trLT("Total", "Total"))}</th><th class="num">${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Última noche", "Latest night"))}</th>
+      ${cols.map(fi => `<th class="f"><b class="notr" style="color:${COLOR_FILTRO(fi)}">${esc(fi)}</b></th>`).join("")}${hayOtros ? `<th class="f"><b>${esc(trLT("Otros", "Other"))}</b></th>` : ""}</tr></thead>
+    <tbody>${filas}</tbody>
+    <tfoot><tr><td><b>${esc(trLT("Total", "Total"))}</b> <span class="note">${esc(vis.length === 1 ? trLT("1 proyecto", "1 project") : trLT("{1} proyectos", "{1} projects", nfmt(vis.length)))}</span></td><td></td>
+      <td class="pt"><b>${esc(fmtH(vis.reduce((a, p) => a + p.seg, 0) / 3600))}</b></td><td class="num"><b>${nfmt(new Set(vis.flatMap(p => p.noches)).size)}</b></td><td></td>
+      ${cols.map(fi => `<td class="pf"><b class="pfh">${esc(fmtH((tot.get(fi) || 0) / 3600))}</b></td>`).join("")}${hayOtros ? `<td class="pf"><b class="pfh">${esc(fmtH(totOtros))}</b></td>` : ""}</tr></tfoot></table></div>`;
+}
+/* --- pintar la vista de proyectos --- */
+let _PRY_CAT = false, _PRY_T = null;
+async function pryCapturarLote(objs, estado){
+  if (!objs.length) return;
+  try {
+    const r = await (await api("/api/archivo/proyectos", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({lote: {objetos: objs, estado}})})).json();
+    ARC.estados = r.estados || {}; ARC.apil = r.apilados || ARC.apil; ARC.limites = r.limites || ARC.limites;
+    if (ARC.hist) for (const o of objs) delete ARC.hist[o];
+  } catch(e){ toast(tr(String(e.message || e))); }
+}
+function pintarProyectos(){
+  const box = $("sessions"), foco = document.activeElement && document.activeElement.id === "pryQ" ? document.activeElement.selectionStart : -1;
+  arcCargarProyectos();
+  if (!CATALOGO && !_PRY_CAT){ _PRY_CAT = true; catalogo().then(() => { if (VISTA_ACTUAL === "objetos") renderSessions(true); }).catch(() => {}); }
+  const L = pryDatos();
+  // lo que se puede elegir en cada lista desplegable; lo elegido que ya no existe se suelta
+  const cats = ["galaxias", "nebulosas", "cumulos", "otros"].filter(c => L.some(p => p.cat === c));
+  const porEq = new Map(); for (const p of L) for (const e of p.equipos) porEq.set(e, (porEq.get(e) || 0) + 1);
+  const equipos = [...porEq].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(x => x[0]);
+  const anios = [...new Set(L.flatMap(p => [...p.anios]))].filter(a => /^\d{4}$/.test(a)).sort().reverse();
+  if (PRY.cat && !cats.includes(PRY.cat)) PRY.cat = "";
+  if (PRY.equipo && !equipos.includes(PRY.equipo)) PRY.equipo = "";
+  if (PRY.anio && !anios.includes(PRY.anio)) PRY.anio = "";
+  const q = pryNorm(PRY.q).trim();
+  const base = L.filter(p => (!q || pryCoincide(p.obj, q)) && (!PRY.cat || p.cat === PRY.cat) && (!PRY.equipo || p.equipos.includes(PRY.equipo)) &&
+    (!PRY.anio || p.anios.has(PRY.anio)) && (!PRY.dorm || p.dorm));
+  // los archivados quedan fuera de «Todos»: solo salen con su chip o al buscar por nombre
+  const sinArch = p => !!q || p.est !== "archivado";
+  const cuenta = new Map(); for (const p of base) cuenta.set(p.est, (cuenta.get(p.est) || 0) + 1);
+  const visibles = base.filter(p => PRY.estado ? p.est === PRY.estado : sinArch(p)).sort(PRY_ORD[ORDEN_OBJ] || PRY_ORD.ultima);
+  const hayFiltros = !!(PRY.q || PRY.cat || PRY.equipo || PRY.anio || PRY.estado || PRY.dorm);
+  // cifras de la cabecera: todos los proyectos que no están archivados
+  const activos = L.filter(p => p.est !== "archivado");
+  $("pryTotal").textContent = trLT("{1} proyectos · {2} útiles", "{1} projects · {2} usable", nfmt(activos.length), fmtH(activos.reduce((a, p) => a + p.seg, 0) / 3600));
+  document.querySelectorAll("#pryVista button").forEach(b => b.classList.toggle("on", b.dataset.v === PRY.vista));
+  // la barra: los cinco estados con su cuenta, la búsqueda y los filtros
+  const opt = (v, t, sel) => `<option value="${esc(v)}" ${v === sel ? "selected" : ""}>${esc(t)}</option>`;
+  const chip = k => { const n = cuenta.get(k) || 0; return `<button class="${PRY.estado === k ? "on" : ""}${n ? "" : " cero"}" data-pry-est="${k}"${k === "archivado" ? ` title="${esc(trLT("Los archivados no salen en «Todos»: quedan guardados, fuera de tu vista", "Archived projects don't show in “All”: they're kept, out of your way"))}"` : ""}><i class="dotE e-${k}"></i>${esc(textoEstadoP(k))} <b>${nfmt(n)}</b></button>`; };
+  $("pryBarra").innerHTML = `<div class="arcEstados pryEstados"><button class="${PRY.estado ? "" : "on"}" data-pry-est="">${esc(trLT("Todos", "All"))} <b>${nfmt(base.filter(sinArch).length)}</b></button>${ORDEN_ESTADOS.map(chip).join("")}</div>
+    <div class="arcBarra pryCtl"><div class="pryFil"><input type="search" id="pryQ" value="${esc(PRY.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">
+      ${cats.length > 1 ? `<select id="pryCat">${opt("", trLT("Todas las categorías", "All categories"), PRY.cat)}${cats.map(c => opt(c, pryCatTxt(c), PRY.cat)).join("")}</select>` : ""}
+      ${equipos.length > 1 ? `<select id="pryEq" class="notr">${opt("", trLT("Todos los equipos", "All setups"), PRY.equipo)}${equipos.map(e => opt(e, e, PRY.equipo)).join("")}</select>` : ""}
+      ${anios.length > 1 ? `<select id="pryAnio">${opt("", trLT("Todos los años", "All years"), PRY.anio)}${anios.map(a => opt(a, a, PRY.anio)).join("")}</select>` : ""}
+      ${PRY.dorm ? `<button class="btn small" id="pryDormQ">${esc(trLT("Sin tomas desde hace más de un año", "No frames for over a year"))} ✕</button>` : ""}</div>
+      <div class="pryOrd"><label class="note">${esc(trLT("Ordenar", "Sort"))} <select id="pryOrden">${opt("ultima", trLT("Última noche", "Latest night"), ORDEN_OBJ)}${opt("objetivo", trLT("Más cerca del objetivo", "Closest to the goal"), ORDEN_OBJ)}${opt("horas", trLT("Más horas primero", "Most hours first"), ORDEN_OBJ)}${opt("nombre", trLT("Nombre", "Name"), ORDEN_OBJ)}</select></label>
+      <label class="note">${esc(trLT("Agrupar", "Group"))} <select id="pryAgr">${opt("", trLT("Sin agrupar", "No grouping"), PRY.agr)}${opt("estado", trLT("Por estado", "By status"), PRY.agr)}${opt("cat", trLT("Por categoría", "By category"), PRY.agr)}${opt("equipo", trLT("Por equipo", "By setup"), PRY.agr)}${opt("anio", trLT("Por año", "By year"), PRY.agr)}</select></label></div></div>`;
+  // avisos: dar por capturados los proyectos que llevan más de un año sin tomas, y las tomas sin objeto
+  let av = "";
+  const lote = (PRY.dorm ? visibles : L).filter(p => p.dorm).map(p => p.obj);
+  if (PRY.deshacer){
+    const n = PRY.deshacer.objs.length;
+    av += `<div class="arcEstBarra pryAv ok"><span class="arcEstTxt">✓ ${esc(n === 1 ? trLT("1 proyecto dado por capturado.", "1 project marked as captured.") : trLT("{1} proyectos dados por capturados.", "{1} projects marked as captured.", nfmt(n)))}
+      ${esc(trLT("Vuelven a «En curso» solos si les llegan tomas nuevas.", "They go back to “In progress” by themselves if new frames arrive."))}</span>
+      <button class="btn small" data-pry-deshacer="1">${esc(trLT("Deshacer", "Undo"))}</button><button class="btn small" data-pry-cerrar="1" title="${esc(trLT("Cerrar", "Close"))}">✕</button></div>`;
+  } else if (lote.length && (PRY.dorm || !pryAvisoOculto())){
+    const txt = lote.length === 1 ? trLT("1 proyecto en curso lleva más de un año sin tomas nuevas.", "1 project in progress has had no new frames for over a year.")
+      : trLT("{1} proyectos en curso llevan más de un año sin tomas nuevas.", "{1} projects in progress have had no new frames for over a year.", nfmt(lote.length));
+    av += `<div class="arcEstBarra pryAv"><span class="arcEstTxt">${esc(txt)}</span>
+      ${PRY.dorm ? "" : `<button class="btn small" data-pry-ver="1">${esc(trLT("Verlos", "Show them"))}</button>`}
+      <button class="btn small primary" data-pry-capturar="1">${esc(lote.length === 1 ? trLT("Darlo por capturado", "Mark it as captured") : trLT("Darlos por capturados", "Mark them as captured"))}</button>
+      ${PRY.dorm ? "" : `<button class="btn small" data-pry-luego="1">${esc(trLT("Ahora no", "Not now"))}</button>`}</div>`;
+  }
+  const sinObj = frames.filter(f => !f.discarded && !(f.object || "").trim()).length;
+  if (sinObj) av += `<div class="arcEstBarra pryAv"><span class="arcEstTxt">${esc(sinObj === 1 ? trLT("1 toma no dice de qué objeto es, así que no está en ningún proyecto.", "1 frame doesn't say which target it is, so it isn't in any project.")
+      : trLT("{1} tomas no dicen de qué objeto son, así que no están en ningún proyecto.", "{1} frames don't say which target they are, so they aren't in any project.", nfmt(sinObj)))}</span>
+    <button class="btn small" id="pryAsignar">${esc(trLT("Asignar objeto", "Set the target"))}</button></div>`;
+  $("pryAviso").innerHTML = av;
+  // la lista
+  const porClave = new Map();
+  for (const p of L) if (!p.sin){ const k = claveObjeto(p.obj); if (!porClave.has(k)) porClave.set(k, []); porClave.get(k).push(p.obj); }
+  const grupos = pryGrupos(visibles);
+  box.className = "sessions" + (PRY.vista === "tabla" ? " pryModoTabla" : "");
+  let html;
+  if (!visibles.length) html = `<div class="pnVacio" style="grid-column:1/-1">${esc(!L.length ? trLT("Todavía no hay proyectos: ponle su objeto a las tomas y aparecerán aquí.", "There are no projects yet: set the target of your frames and they will show up here.")
+      : trLT("Ningún proyecto con esos filtros.", "No projects match those filters."))}
+      ${hayFiltros ? `<button class="btn small" id="pryLimpiar">${esc(trLT("Quitar los filtros", "Clear the filters"))}</button>` : ""}</div>`;
+  else html = PRY.vista === "tabla" ? pryTabla(grupos) : pryTarjetas(grupos, porClave);
+  box.innerHTML = html;
+  // manejadores
+  const barra = $("pryBarra");
+  barra.querySelectorAll("[data-pry-est]").forEach(b => b.onclick = () => { PRY.estado = b.dataset.pryEst; PRY.mas = {}; renderSessions(true); });
+  const inp = $("pryQ"); inp.oninput = () => { PRY.q = inp.value; PRY.mas = {}; clearTimeout(_PRY_T); _PRY_T = setTimeout(() => renderSessions(true), 140); };
+  for (const [k, id] of [["cat", "pryCat"], ["equipo", "pryEq"], ["anio", "pryAnio"]]){ const s = $(id); if (s) s.onchange = () => { PRY[k] = s.value; PRY.mas = {}; renderSessions(true); }; }
+  $("pryOrden").onchange = e => { ORDEN_OBJ = e.target.value; try { localStorage.setItem("astroOrdenObj", ORDEN_OBJ); } catch(_){} renderSessions(true); };
+  $("pryAgr").onchange = e => { PRY.agr = e.target.value; PRY.mas = {}; pryGuardar(); renderSessions(true); };
+  if ($("pryDormQ")) $("pryDormQ").onclick = () => { PRY.dorm = false; renderSessions(true); };
+  if (foco >= 0){ inp.focus(); try { inp.setSelectionRange(foco, foco); } catch(_){} }
+  const avisos = $("pryAviso");
+  avisos.querySelectorAll("[data-pry-ver]").forEach(b => b.onclick = () => { PRY.dorm = true; PRY.estado = ""; PRY.mas = {}; renderSessions(true); });
+  avisos.querySelectorAll("[data-pry-luego]").forEach(b => b.onclick = () => { try { localStorage.setItem("astroPryAviso", String(Date.now())); } catch(_){} renderSessions(true); });
+  avisos.querySelectorAll("[data-pry-capturar]").forEach(b => b.onclick = async () => {
+    b.disabled = true; await pryCapturarLote(lote, "capturado");
+    PRY.deshacer = {objs: lote}; PRY.dorm = false; renderSessions(true); });
+  avisos.querySelectorAll("[data-pry-deshacer]").forEach(b => b.onclick = async () => {
+    b.disabled = true; const objs = PRY.deshacer.objs.filter(o => estadoManual(o) === "capturado"); await pryCapturarLote(objs, "");
+    PRY.deshacer = null; renderSessions(true); toast(trLT("Vuelven a estar en curso", "They're back in progress")); });
+  avisos.querySelectorAll("[data-pry-cerrar]").forEach(b => b.onclick = () => { PRY.deshacer = null; renderSessions(true); });
+  if ($("pryAsignar")) $("pryAsignar").onclick = () => $("btnNombres").click();
+  box.querySelectorAll("[data-pry-mas]").forEach(b => b.onclick = () => { PRY.mas[b.dataset.pryMas] = (PRY.mas[b.dataset.pryMas] || 0) + 1; renderSessions(true); });
+  box.querySelectorAll("#pryLimpiar").forEach(b => b.onclick = () => { PRY.q = PRY.cat = PRY.equipo = PRY.anio = PRY.estado = ""; PRY.dorm = false; PRY.mas = {}; renderSessions(true); });
+  box.querySelectorAll("[data-pry-abrir]").forEach(e => { const ir = () => abrirProyecto(e.dataset.pryAbrir); e.onclick = ev => { if (!ev.target.closest("a, button")) ir(); }; e.onkeydown = ev => { if (ev.key === "Enter") ir(); }; });
   activarGestionObjeto(box);
-  retomarConTomasNuevas();
   box.querySelectorAll("[data-quitarp]").forEach(b => b.onclick = ev => { ev.preventDefault(); quitarProyecto(b.dataset.quitarp); });
   box.querySelectorAll("[data-varios]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); abrirVarios(b.dataset.varios); });
   box.querySelectorAll("[data-resumen]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); resumenObjeto(b.dataset.resumen); });
   box.querySelectorAll("[data-vertomas]").forEach(b => b.onclick = () => { filters.object = new Set([b.dataset.vertomas]); filters.filter = new Set(); filters.q = ""; $("q").value = ""; mostrarVista("tomas"); renderFilters(); renderTable(); });
-  box.querySelectorAll(".row").forEach(r => r.onclick = () => { filters.object = new Set([r.dataset.obj==="(sin objeto)"?"":r.dataset.obj]); filters.filter = new Set([r.dataset.filter]); filters.q = r.dataset.night; $("q").value = r.dataset.night; mostrarVista("tomas"); renderFilters(); renderTable(); });
-  if (!soloRepintar){ pedirPortadas(byObj.map(x=>x[0]).filter(x=>x!=="(sin objeto)")); programarEstaNoche(); }
+  box.querySelectorAll("details.ses").forEach(d => d.ontoggle = () => {
+    if (!d.open || d.dataset.hecho) return; d.dataset.hecho = "1";
+    const obj = d.dataset.ses, cuerpo = d.querySelector(".sesCuerpo");
+    cuerpo.innerHTML = sesionesHTML(obj, frames.filter(f => (f.object || "") === obj));
+    cuerpo.querySelectorAll(".row").forEach(r => r.onclick = () => { filters.object = new Set([r.dataset.obj]); filters.filter = new Set([r.dataset.filter]); filters.q = r.dataset.night; $("q").value = r.dataset.night; mostrarVista("tomas"); renderFilters(); renderTable(); });
+  });
 }
+function renderSessions(soloRepintar){
+  const sinTomas = proyectosSinTomas();
+  $("bienvenida").style.display = frames.length ? "none" : "block";
+  $("cabObjetos").style.display = frames.length || sinTomas.length ? "" : "none";
+  $("objVacio").hidden = !!(frames.length || sinTomas.length);
+  if (!frames.length && !sinTomas.length){ $("sessions").innerHTML = ""; $("pryBarra").innerHTML = ""; $("pryAviso").innerHTML = ""; if (!soloRepintar) programarEstaNoche(); return; }
+  if (VISTA_ACTUAL === "objetos") pintarProyectos();      // con miles de tomas no se pintan las tarjetas de una vista que no se está viendo
+  retomarConTomasNuevas();
+  if (!soloRepintar){ pedirPortadas([...new Set(frames.map(f => f.object).filter(Boolean))]); programarEstaNoche(); }
+}
+document.querySelectorAll("#pryVista button").forEach(b => b.onclick = () => { PRY.vista = b.dataset.v; PRY.mas = {}; pryGuardar(); renderSessions(true); });
 function fmtNum(h){ const v = h>=10 ? h.toFixed(0) : h.toFixed(1); return IDIOMA==="en" ? v : v.replace(".",","); }
 
 /* --- «Más opciones» de cada tarjeta de «Mis objetos»: juntar con el mismo objeto escrito de otra forma, o eliminarlo.
@@ -3621,6 +3908,10 @@ function pnAvisos(ps, util, curso){
     if (mt.meta > 0 && mt.cons >= mt.meta - 0.01) av.push({o: 2, h: `${B(p.obj)}: ${esc(trLT("ya tiene las horas de su objetivo.", "has reached its hours goal."))}
       <a href="#" data-pn-capturar="${esc(p.obj)}">${esc(trLT("Darlo por capturado", "Mark it as captured"))}</a>`});
   }
+  const dorm = curso.filter(p => esDormido(p.ultima));
+  if (dorm.length && !pryAvisoOculto()) av.push({o: 2.5, h: `${esc(dorm.length === 1 ? trLT("1 proyecto en curso lleva más de un año sin tomas nuevas.", "1 project in progress has had no new frames for over a year.")
+      : trLT("{1} proyectos en curso llevan más de un año sin tomas nuevas.", "{1} projects in progress have had no new frames for over a year.", nfmt(dorm.length)))}
+      <a href="#" data-pn-dorm="1">${esc(trLT("Revisarlos", "Review them"))}</a>`});
   const sinCal = ARC.cal ? curso.filter(p => { const c = ARC.cal[p.obj]; return c && (c.sin_dark || c.sin_flat); }) : [];
   if (sinCal.length){
     const t = sinCal.length === 1 ? trLT("{1}: le faltan darks o flats en la biblioteca.", "{1}: darks or flats are missing in the library.", B(sinCal[0].obj))
@@ -3748,6 +4039,7 @@ function renderPanelGeneral(){
   el.querySelectorAll("[data-pn-meta]").forEach(a => a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); resumenObjeto(a.dataset.pnMeta); });
   el.querySelectorAll("[data-pn-apilar]").forEach(a => a.onclick = ev => { ev.preventDefault(); STK_PREF = a.dataset.pnApilar; stkOpen(); });
   el.querySelectorAll("[data-pn-capturar]").forEach(a => a.onclick = ev => { ev.preventDefault(); arcPonerEstado(a.dataset.pnCapturar, "capturado"); });
+  el.querySelectorAll("[data-pn-dorm]").forEach(a => a.onclick = ev => { ev.preventDefault(); PRY.dorm = true; PRY.estado = PRY.q = PRY.cat = PRY.equipo = PRY.anio = ""; PRY.mas = {}; mostrarVista("objetos"); });
   el.querySelectorAll("[data-pn-cal]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrirProyecto(a.dataset.pnCal); });
   el.querySelectorAll("[data-pn-analizar]").forEach(a => a.onclick = ev => { ev.preventDefault(); const o = a.dataset.pnAnalizar; if (o) abrirProyecto(o); else { ARC.pendientes = true; ARC.pestana = "proyectos"; mostrarVista("archivo"); } });
   el.querySelectorAll("[data-pn-objeto]").forEach(a => a.onclick = ev => { ev.preventDefault(); $("btnNombres").click(); });
@@ -3878,7 +4170,6 @@ function aplicarTema(t, guardar){
 }
 aplicarTema(document.documentElement.dataset.tema, false);
 document.querySelectorAll("#temas button").forEach(b => b.onclick = ()=>aplicarTema(b.dataset.t, true));
-document.querySelectorAll("#ordenObj button").forEach(b => b.onclick = ()=>{ ORDEN_OBJ = b.dataset.o; try { localStorage.setItem("astroOrdenObj", ORDEN_OBJ); } catch(_){} renderSessions(true); });
 
 function renderTable(){
   const todas = visible(), list = todas.length > ARC_TABLA ? todas.slice(0, ARC_TABLA) : todas;
@@ -4563,7 +4854,7 @@ async function arcCargarProyectos(forzar){
   catch(_){ ARC.apil = ARC.apil || {}; }
   finally { ARC.apilCargando = false; }
   retomarConTomasNuevas();
-  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto(); else if (VISTA_ACTUAL === "panel") renderPanelGeneral();
+  if (VISTA_ACTUAL === "archivo") renderArchivo(); else if (VISTA_ACTUAL === "proyecto") renderProyecto(); else if (VISTA_ACTUAL === "panel") renderPanelGeneral(); else if (VISTA_ACTUAL === "objetos") renderSessions(true);
 }
 /* --- historial del proyecto: cada noche (por sus tomas), cada apilado (por sus carpetas) y lo que se ha ido haciendo
    (estado, límites, tomas fuera o descartadas, análisis, cambios de nombre y de calibración), que apunta el servidor --- */
@@ -7247,7 +7538,7 @@ function tarjetaProyecto(obj, o){
   const p = o.proyecto || {}, img = p.ra!=null ? imagenCielo(+p.ra, +p.dec, {fovW:+p.fovW||120, fovH:+p.fovH||80}) : "";
   const al = (IDIOMA!=="es" ? p.en : (p.es||p.en)) || "";
   return `<div class="ocard">
-    <div class="foto" ${img?`style="background-image:url('${img}')"`:""}><span class="fecha">Proyecto</span><div class="nom"><h3 class="notr">${esc(obj)}</h3><span>${al && claveObjeto(al)!==claveObjeto(obj) ? `<span class="notr">${esc(al)}</span> ` : ""}<span>· aún sin tomas</span></span></div></div>
+    <div class="foto" ${img?`style="background-image:url('${img}')"`:""}>${pryChipFoto(estadoP(obj, false))}<span class="fecha">Proyecto</span><div class="nom"><h3 class="notr">${esc(obj)}</h3><span>${al && claveObjeto(al)!==claveObjeto(obj) ? `<span class="notr">${esc(al)}</span> ` : ""}<span>· aún sin tomas</span></span></div></div>
     <div class="cuerpo"><div class="fila">${anilloSVG(0)}<div class="horas"><b>${fmtH(0)}</b> <span class="dato">de ${fmtH(+o.total||0)}</span>
       <div class="dato">${p.montaje_nombre ? `<span class="notr">${esc(p.montaje_nombre)}</span>` : ""}${p.filtro_nombre ? ` · <span class="notr">${esc(p.filtro_nombre)}</span>` : ""}</div></div></div>
       <div class="prox" data-prox="${esc(obj)}">${PROX[obj]||""}</div>
@@ -9515,7 +9806,8 @@ function mostrarVista(v){
   $("sugNoche").classList.toggle("ocultoArc", v!=="panel");
   $("counts").classList.toggle("ocultoArc", v!=="tomas");
   navMarcar();
-  if (v==="archivo") renderArchivo(); else if (v==="proyecto") renderProyecto(); else if (v==="panel") renderPanelGeneral();
+  if (v !== "objetos") PRY.deshacer = null;
+  if (v==="archivo") renderArchivo(); else if (v==="proyecto") renderProyecto(); else if (v==="panel") renderPanelGeneral(); else if (v==="objetos") renderSessions(true);
   window.scrollTo({top:0});
 }
 /* --- la barra lateral: seis apartados; se despliega el del sitio en el que estás --- */
@@ -17022,6 +17314,26 @@ def _archivo_proyectos(d=None):
                 h[hacia] = sorted(junto, key=lambda e: str(e.get("fecha") or ""))[-300:]
             v["historial"] = h
             _historial(v, hacia, "nombre" if d["renombrar"].get("tipo") == "nombre" else "union", {"nombres": desde})
+            guardar_archivo_cfg(v)
+        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+    if d and isinstance(d.get("lote"), dict):
+        # varios proyectos de golpe (por ejemplo, dar por capturados los que llevan más de un año sin tomas): un estado
+        # para todos, o ninguno para devolverlos a «en curso»; cada uno lo apunta en su historial
+        l = d["lote"]
+        nuevo = l.get("estado") if l.get("estado") in ESTADOS_PROYECTO else ""
+        lista = l.get("objetos") if isinstance(l.get("objetos"), list) else []
+        objs = list(dict.fromkeys(x for x in (str(y).strip() for y in lista[:5000]) if x))
+        if objs:
+            ahora = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+            for obj in objs:
+                antes = (est.get(obj) or {}).get("estado", "")
+                if nuevo:
+                    est[obj] = {"estado": nuevo, "fecha": time.strftime("%Y-%m-%d"), "desde": ahora}
+                else:
+                    est.pop(obj, None)
+                if nuevo != antes:
+                    _historial(v, obj, "estado", {"estado": nuevo, "antes": antes})
+            v["estados"] = est
             guardar_archivo_cfg(v)
         return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
     if d and isinstance(d.get("no_unir"), str):
