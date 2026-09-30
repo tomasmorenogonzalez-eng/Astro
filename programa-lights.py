@@ -733,12 +733,7 @@ td.chk,th.chk{width:30px; cursor:default}
 .plHoras .nub{display:flex;align-items:flex-end;justify-content:center;height:26px;width:14px;margin:0 auto;background:var(--surface3);border-radius:3px;overflow:hidden}.plHoras .nub i{display:block;width:100%}
 .plHoras small{display:block;color:var(--muted);font-size:10px}
 .plHoras td.rocio,.rocio{color:var(--bad);font-weight:700} .plHoras td.viento{color:var(--warn);font-weight:700}
-.modoAdd{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.modoAdd button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 14px;font:inherit;color:var(--text);cursor:pointer;display:flex;flex-direction:column;gap:3px}
-.modoAdd button b{font-size:14.5px;display:flex;align-items:center;gap:8px}.modoAdd button b::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--line2);flex:none}
-.modoAdd button span{font-size:12.5px;color:var(--muted);line-height:1.4}
-.modoAdd button.on{border-color:var(--accent);background:var(--accent-soft)}.modoAdd button.on b::before{border:4px solid var(--accent)}
-@media (max-width:640px){.modoAdd{grid-template-columns:1fr}}
+
 .qfCab{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13.5px}.qfCab label{display:flex;gap:6px;align-items:center}
 .qfCab select,.qfCab input{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;font:inherit;font-size:13px}
 .qfCab .seg{margin-left:0}
@@ -1424,6 +1419,16 @@ body.parpAbierto{overflow:hidden}
 .pgInvita{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0 0;padding:10px 12px;border-radius:12px;background:var(--ok-bg)} .pgInvita span{font-weight:650}
 .pgFicha{white-space:pre-wrap;word-break:break-word;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;line-height:1.55;margin:8px 0}
 .pgMas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.box > .mmVolver{flex:none;align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cabIlus > .btn.mmVolver{left:14px;right:auto;top:12px;max-width:55%}
+.edit.stkFila{margin:10px 0 6px} @media (max-width:600px){.edit.stkFila{grid-template-columns:minmax(0,1fr)}}
+.stkOpc{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;font-size:14px;margin:2px 0 4px}
+.stkOpc label{display:inline-flex;gap:8px;align-items:center;cursor:pointer} .stkOpc a{font-size:13.5px}
+.accFija{position:sticky;bottom:0;z-index:2;display:flex;gap:8px;justify-content:flex-end;margin:12px -22px 0;padding:12px 22px;background:var(--surface);border-top:1px solid var(--line)}
+#dirConf{display:flex;flex-direction:column;gap:10px} .vigDet .drCaja{border:0;padding:0;box-shadow:none} #dirTab{display:inline-flex;margin:0 0 10px}
+.addModo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px} .addModo .seg{margin-left:0;flex:none} .addModo .note{flex:1;min-width:200px;font-size:13px;line-height:1.45;overflow-wrap:anywhere} .addModo .note b{font-weight:650}
+.vigDet{border:1px solid var(--line);border-radius:12px;padding:10px 14px} .vigDet>summary{cursor:pointer;display:flex;gap:8px;align-items:baseline} .vigDet[open]>summary{margin-bottom:8px}
+.vigDet .vigSec{border:0;padding:0}
 .pryRes{margin:10px 0 0} .pryResT{margin-top:3px;font-size:12px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:860px){
   .pgCadena{grid-template-columns:repeat(2,minmax(0,1fr))} .pgPaso:last-child:nth-child(odd){grid-column:1/-1}
@@ -1617,24 +1622,26 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
 <div class="modal" id="addBox"><div class="box" style="width:min(760px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center"><h2>Añadir una sesión</h2><button class="btn small" id="addClose">Cerrar</button></div>
   <div class="addEquipo" id="addEquipo" hidden></div>
-  <div class="modoAdd" id="modoAdd">
-    <button data-copiar="1"><b>Copiar a ASTRO</b><span>Analiza cada toma y la copia a tu carpeta de ASTRO, ordenada por objeto, noche y filtro. Los originales no se tocan. Así podrás apilarlas.</span></button>
-    <button data-copiar="0"><b>Solo analizar</b><span>Analiza cada toma sin copiarla: los archivos se quedan donde están. Si las añades con «Desde una carpeta del disco», ASTRO recuerda dónde están y podrá apilarlas desde ahí.</span></button>
-  </div>
   <div class="drop" id="drop">
     <div>
       <div class="ico">⤓</div>
       <div class="big">Arrastra aquí la carpeta de la sesión</div>
-      <div class="hint">o elígela en el disco: ASTRO la recorre entera, sigue los enlaces y se salta darks, flats, bias y vistas previas. En cada toma mide las estrellas y busca trazas de satélites y nubes.</div>
+      <div class="hint">ASTRO la recorre entera y se salta darks, flats, bias y vistas previas.</div>
       <div class="progress" id="progress"><i></i></div><div class="log" id="log"></div>
     </div>
     <div class="actions"><button class="btn primary" id="pickDisco">Desde una carpeta del disco</button><button class="btn" id="pickFiles">Elegir archivos</button><input type="file" id="fileInput" multiple><input type="file" id="dirInput" webkitdirectory multiple></div>
   </div>
-  <div class="vigSec">
-    <div class="vigCab"><div><b>Carpetas vigiladas</b><div class="note">ASTRO las revisa al abrirse y cada 10 minutos, y añade solas las tomas nuevas, siguiendo los enlaces.</div></div>
-      <div class="vigAcc"><label class="note"><input type="checkbox" id="vigAuto"> Sin preguntar</label><button class="btn small" id="vigRevisar">Revisar ahora</button><button class="btn small primary" id="vigAnadir">＋ Vigilar una carpeta</button></div></div>
-    <div id="vigLista"></div>
-  </div>
+  <div class="addModo"><div class="seg" id="modoAdd">
+    <button data-copiar="1" title="Analiza cada toma y la copia a tu carpeta de ASTRO, ordenada por objeto, noche y filtro. Los originales no se tocan. Así podrás apilarlas.">Copiar a ASTRO</button>
+    <button data-copiar="0" title="Analiza cada toma sin copiarla: los archivos se quedan donde están. Si las añades con «Desde una carpeta del disco», ASTRO recuerda dónde están y podrá apilarlas desde ahí.">Solo analizar</button>
+  </div><span class="note" id="addDestino">Se copian a <b>__ROOT__</b></span></div>
+  <details class="vigDet"><summary><b>Carpetas vigiladas</b> <span class="note" id="vigN"></span></summary>
+    <div class="vigSec">
+      <div class="vigCab"><div class="note">ASTRO las revisa al abrirse y cada 10 minutos, y añade solas las tomas nuevas, siguiendo los enlaces.</div>
+        <div class="vigAcc"><label class="note"><input type="checkbox" id="vigAuto"> Sin preguntar</label><button class="btn small" id="vigRevisar">Revisar ahora</button><button class="btn small primary" id="vigAnadir">＋ Vigilar una carpeta</button></div></div>
+      <div id="vigLista"></div>
+    </div>
+  </details>
   <details class="opciones"><summary>Opciones (solo si la cabecera de los archivos no trae estos datos)</summary>
     <div class="batch">
       <label>Objeto <input id="batchObj" placeholder="p. ej. NGC 6946"></label>
@@ -1645,7 +1652,6 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
       <datalist id="telList"></datalist><datalist id="camList"></datalist>
     </div>
   </details>
-  <div class="note" id="addDestino">Se copian a <b>__ROOT__</b></div>
   <div class="note">¿Te han pasado un proyecto de ASTRO o lo exportaste en otro ordenador? <a href="#" id="addImpProy">Importar un proyecto…</a></div>
 </div></div>
 <aside class="panel" id="panel"></aside>
@@ -1707,7 +1713,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
 </div></div>
 <div class="modal" id="dirBox"><div class="box" style="width:min(1000px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Revisión en directo</h2><button class="btn small" id="dirClose">Cerrar</button></div>
-  <div id="dirConf" style="display:flex;flex-direction:column;gap:10px"></div>
+  <div id="dirConf"></div>
   <div id="dirRun" style="display:none;flex-direction:column;gap:8px"></div>
 </div></div>
 <div class="modal" id="eqBox"><div class="box" style="width:min(1120px,100%)">
@@ -1759,14 +1765,15 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
   <div style="display:flex;justify-content:space-between;align-items:center"><h2>Apilar con Siril</h2><button class="btn small" id="stkClose">Cerrar</button></div>
   <div id="stkSiril" style="font-size:14px"></div>
   <div id="stkElegir">
-    <div class="edit" style="grid-template-columns:110px 1fr"><label>Objeto</label><select id="stkObj"></select></div>
-    <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="stkWarn" checked> Incluir también las tomas «con avisos» (las «rechazables» y descartadas nunca se usan)</label>
-    <div class="note" style="margin:-4px 0 0 26px"><a href="#" id="stkCriterio">Ajustar el criterio de calidad…</a></div>
-    <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin-top:4px"><input type="checkbox" id="stkPesos" checked> Dar más peso a las tomas con mejor señal</label>
-    <div class="note" style="margin:-4px 0 0 26px">Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.</div>
-    <label style="display:flex;gap:8px;align-items:center;font-size:14px;margin-top:4px"><input type="checkbox" id="stkVista" checked> Al terminar, crear una vista previa ya revelada (fondo sin gradiente, color equilibrado y estirada) en JPG y en TIFF de 16 bits</label>
+    <div class="status warn" id="stkEjemplo" style="display:none">Con los datos de ejemplo no hay imágenes reales que apilar: sus tomas son inventadas. Añade tus propias sesiones para apilar de verdad.</div>
+    <div class="edit stkFila"><label for="stkObj">Objeto</label><select id="stkObj"></select></div>
+    <div class="stkOpc">
+      <label title="Incluir también las tomas «con avisos» (las «rechazables» y descartadas nunca se usan)"><input type="checkbox" id="stkWarn" checked> Incluir las tomas «con avisos»</label><a href="#" id="stkCriterio">Ajustar el criterio de calidad…</a>
+      <label title="Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas."><input type="checkbox" id="stkPesos" checked> Dar más peso a las tomas con mejor señal</label>
+      <label title="Al terminar, crear una vista previa ya revelada (fondo sin gradiente, color equilibrado y estirada) en JPG y en TIFF de 16 bits"><input type="checkbox" id="stkVista" checked> Al terminar, crear una vista previa revelada</label>
+    </div>
     <div id="stkPlan" style="margin-top:10px"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn primary" id="stkGo" disabled>Apilar los filtros marcados</button></div>
+    <div class="accFija"><button class="btn primary" id="stkGo" disabled>Apilar los filtros marcados</button></div>
   </div>
   <div id="stkRun" style="display:none"></div>
 </div></div>
@@ -2453,6 +2460,7 @@ function vigPintarLista(){
   const box = $("vigLista"); if (!box || !VIGI.cfg) return;
   const cs = VIGI.cfg.carpetas || [];
   $("vigAuto").checked = !!VIGI.cfg.automatico;
+  if ($("vigN")) $("vigN").textContent = cs.length ? "(" + cs.length + ")" : "";
   box.innerHTML = cs.length ? cs.map(c => `<div class="vigFila" data-id="${esc(c.id)}">
       <span class="vigRuta notr" title="${esc(c.ruta)}">${esc(c.ruta)}</span>${c.grupo ? `<span class="drTipo"><span>proyecto en grupo</span> · <span class="notr">${esc(c.grupo)}</span></span>` : ""}${c.existe ? "" : `<span class="drTipo">no está conectada</span>`}
       <select class="vigCopiar"><option value="1" ${c.copiar?"selected":""}>Copiar a ASTRO</option><option value="0" ${c.copiar?"":"selected"}>Solo analizar</option></select>
@@ -4180,7 +4188,7 @@ function abrirGeneral(){
     location.reload(); });
   $("genBody").querySelectorAll("[data-gen-tema]").forEach(b => b.onclick = () => { aplicarTema(b.dataset.genTema, true); $("genBody").querySelectorAll("[data-gen-tema]").forEach(x => x.classList.toggle("on", x === b)); });
   $("genInicio").onchange = e => guardarInicio(e.target.value);
-  $("genWa").onclick = () => { $("genBox").classList.remove("show"); abrirWhatsApp(true); };
+  $("genWa").onclick = () => { mmOrigen("genBox"); $("genBox").classList.remove("show"); abrirWhatsApp(true); };
   $("genCarpeta").onclick = () => $("btnFinder").click();
   $("genAcerca").onclick = () => acercaDe();
 }
@@ -6540,13 +6548,37 @@ async function analizarProyecto(obj){
 let STK_PLAN=null, STK_T=null;
 function horas(s){ const h=s/3600; return h>=1? h.toFixed(1)+" h" : Math.round(s/60)+" min"; }
 function gb(b){ return (b/1e9).toFixed(0)+" GB"; }
+// el proyecto al que le toca un apilado: uno en curso o capturado con tomas útiles que aún no se ha apilado (o con tomas nuevas
+// desde el último apilado); de esos, el de la noche más reciente
+function stkSugerido(objs){
+  const util = arcUtilPorObjeto(), cand = [];
+  for (const p of arcProyectos(frames.filter(f => !f.discarded))){
+    if (!objs.has(p.obj) || !p.util) continue;
+    const e = estadoProyecto(p.obj, p, util.get(p.obj) || []);
+    if ((e.k === "curso" || e.k === "capturado") && (!e.ap || e.nuevas)) cand.push(p);
+  }
+  cand.sort((a, b) => b.ultima.localeCompare(a.ultima));
+  return cand.length ? cand[0].obj : "";
+}
+let STK_ELEGIDO = "";      // el objeto que eligió quien usa el programa (el que propone ASTRO no cuenta)
 async function stkOpen(){
   $("stackBox").classList.add("show");
-  const objs = new Map(); frames.filter(f=>!f.discarded && f.status!=="bad" && (f.object||"").trim()).forEach(f=>{ const o=f.object.trim(); objs.set(o,(objs.get(o)||0)+1); });
-  const sel=$("stkObj"), prev=sel.value;
-  sel.innerHTML = [...objs].sort((a,b)=>a[0].localeCompare(b[0])).map(([o,n])=>`<option value="${esc(o)}">${esc(o)} (${n} toma${n!==1?"s":""})</option>`).join("") || '<option value="">(no hay tomas con objeto)</option>';
-  if (STK_PREF && objs.has(STK_PREF)) sel.value = STK_PREF; else if (prev && objs.has(prev)) sel.value = prev; else { const fo=[...filters.object].find(o=>objs.has(o)); if (fo) sel.value=fo; }
+  const objs = new Map();
+  frames.filter(f => !f.discarded && f.status !== "bad" && (f.object || "").trim()).forEach(f => { const o = f.object.trim(), x = objs.get(o) || {n: 0, ult: ""}; x.n++; if ((f.night || "") > x.ult) x.ult = f.night || ""; objs.set(o, x); });
+  const sel = $("stkObj");
+  const txt = ([o, x]) => `<option value="${esc(o)}">${esc(o)} (${esc(x.n === 1 ? trLT("1 toma", "1 frame") : trLT("{1} tomas", "{1} frames", nfmt(x.n)))}${x.ult ? " · " + esc(fechaDia(x.ult)) : ""})</option>`;
+  // primero los proyectos en curso, del de la noche más reciente al más antiguo; después los demás, por orden alfabético
+  const curso = [], resto = [];
+  for (const e of objs) (estadoP(e[0], true) === "curso" ? curso : resto).push(e);
+  curso.sort((a, b) => b[1].ult.localeCompare(a[1].ult) || a[0].localeCompare(b[0], undefined, {numeric: true}));
+  resto.sort((a, b) => a[0].localeCompare(b[0], undefined, {numeric: true}));
+  sel.innerHTML = !objs.size ? '<option value="">(no hay tomas con objeto)</option>'
+    : curso.length && resto.length ? `<optgroup label="${esc(textoEstado("curso"))}">${curso.map(txt).join("")}</optgroup><optgroup label="${esc(trLT("Otros", "Other"))}">${resto.map(txt).join("")}</optgroup>`
+    : (curso.length ? curso : resto).map(txt).join("");
+  const sug = stkSugerido(objs), fo = [...filters.object].find(o => objs.has(o));
+  if (STK_PREF && objs.has(STK_PREF)) sel.value = STK_PREF; else if (STK_ELEGIDO && objs.has(STK_ELEGIDO)) sel.value = STK_ELEGIDO; else if (fo) sel.value = fo; else if (sug) sel.value = sug;
   STK_PREF = null;
+  $("stkEjemplo").style.display = EJEMPLO_ASTRO ? "block" : "none";
   const e = await (await fetch("/api/apilado/estado")).json();
   $("stkSiril").innerHTML = e.siril ? `<span class="dot ok"></span>Siril ${esc(e.siril_version||"")} encontrado.` :
     `<div class="status bad" style="display:block">No encuentro Siril. Descárgalo gratis de <b>siril.org</b>, instálalo, ábrelo una vez y vuelve aquí.</div>`;
@@ -6554,7 +6586,7 @@ async function stkOpen(){
 }
 let STK_SEQ = 0;
 async function stkPlan(){
-  const obj=$("stkObj").value; if (!obj){ $("stkPlan").innerHTML=""; return; }
+  const obj=$("stkObj").value; if (!obj || EJEMPLO_ASTRO){ $("stkPlan").innerHTML=""; $("stkGo").disabled = true; return; }
   // una respuesta que llega tarde (se eligió otro objeto mientras tanto) no pisa la del objeto que se ve
   const yo = ++STK_SEQ;
   $("stkPlan").innerHTML='<div class="note">Buscando tomas, darks y flats…</div>'; $("stkGo").disabled=true;
@@ -6586,7 +6618,7 @@ async function stkPlan(){
 }
 $("btnStack").onclick = stkOpen;
 $("stkClose").onclick = ()=>{ $("stackBox").classList.remove("show"); clearTimeout(STK_T); };
-$("stkObj").onchange = stkPlan; $("stkWarn").onchange = stkPlan;
+$("stkObj").onchange = () => { STK_ELEGIDO = $("stkObj").value; stkPlan(); }; $("stkWarn").onchange = stkPlan;
 $("stkGo").onclick = async ()=>{
   const fs=[...document.querySelectorAll(".stkF:checked")].map(c=>c.value); if (!fs.length) return toast("Marca al menos un filtro");
   if (!STK_PLAN || STK_PLAN.objeto !== $("stkObj").value){ stkPlan(); return toast("Espera a que termine de preparar el apilado de este objeto"); }
@@ -7120,7 +7152,7 @@ $("nochesDias").onchange = abrirNoches;
 // y se avisa (sonido, notificación y título de la pestaña) si algo va mal o si dejan de llegar tomas.
 const DIR = {activo:false, sesion:0, desde:0, carpeta:"", op:{}, tomas:[], avisos:[], timer:null, inicio:0, ultimaLlegada:0,
   fallos:{}, hechos:new Set(), racha:0, rachaAvisada:false, parado:false, redCaida:false, srvCaido:false, fwhmAvisado:{}, noVistos:0,
-  audio:null, wake:null, fuentes:[], elegida:"", procesando:false, archivos:0, escribiendo:0};
+  audio:null, wake:null, fuentes:[], elegida:"", procesando:false, archivos:0, escribiendo:0, ayuda:{abierta:null, opc:false, tab:""}};
 const DIR_ES_WIN = /Win/i.test(navigator.platform||navigator.userAgent||"");
 const DIR_TIPO = {asiair:"ASIAIR", nina:"N.I.N.A.", red:"Carpeta de red", guardada:"Última usada", manual:"Elegida a mano"};
 const TITULO_BASE = document.title;
@@ -7144,29 +7176,33 @@ async function dirConfig(buscando){
   if (!DIR.elegida || !DIR.fuentes.some(f=>f.ruta===DIR.elegida)) DIR.elegida = (DIR.fuentes[0]||{}).ruta || "";
   const o = Object.assign({horas:0, guardar:true, sonido:true, notif:true, despierto:true}, dirOpciones());
   const explorador = DIR_ES_WIN ? "el Explorador de archivos" : "el Finder";
+  const ay = DIR.ayuda, ayAbierta = ay.abierta === null ? !DIR.fuentes.length : ay.abierta;
+  if (!ay.tab) ay.tab = ((DIR.fuentes.find(f => f.ruta === DIR.elegida) || {}).tipo) === "nina" ? "nina" : "asiair";
   let h = `<p style="margin:0;font-size:14px;line-height:1.5">ASTRO vigila la carpeta donde se guardan las tomas y analiza cada una en cuanto termina de grabarse. Si algo va mal (nubes, estrellas alargadas, desenfoque o se para la secuencia) te avisa con un sonido y una notificación.</p>
-  <div class="drDos">
-    <div class="drCaja"><h3>ASIAIR (por la red)</h3>
-      <ol style="margin:0;padding-left:18px">
-        <li>El ordenador y la ASIAIR tienen que estar en la misma wifi: la de casa, o la de la propia ASIAIR (entonces su IP suele ser 10.0.0.1).</li>
-        <li>Escribe la IP de la ASIAIR y pulsa «Conectar». Se abrirá ${explorador}: ${DIR_ES_WIN ? "abre la carpeta compartida donde guarda las fotos." : "entra como «Invitado» y elige el almacenamiento donde guarda las fotos."}</li>
-        <li>Vuelve aquí: la carpeta aparecerá abajo (si no sale, pulsa «Buscar de nuevo»).</li>
-      </ol>
-      <div style="display:flex;gap:8px;margin-top:8px"><input id="dirIp" value="${esc(e.ip||"")}" placeholder="IP, p. ej. 192.168.1.50" style="flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit"><button class="btn small" id="dirConectar">Conectar</button></div>
-    </div>
-    <div class="drCaja"><h3>N.I.N.A.</h3>
-      <p style="margin:0 0 6px"><b>En este mismo PC:</b> ASTRO encuentra sola la carpeta donde tu perfil de N.I.N.A. guarda las imágenes.</p>
-      <p style="margin:0"><b>En otro PC:</b> comparte esa carpeta en Windows (botón derecho → Propiedades → Compartir) y conéctate a su IP igual que con la ASIAIR.</p>
-    </div>
-  </div>
   <h3 style="margin:6px 0 0">Carpeta de las tomas</h3>`;
   if (DIR.fuentes.length){
     h += `<div class="drFuentes">` + DIR.fuentes.map((f,i)=>`<label class="drFuente${f.ruta===DIR.elegida?" on":""}"><input type="radio" name="dirF" value="${i}" ${f.ruta===DIR.elegida?"checked":""}>
       <div style="flex:1;min-width:0"><b class="notr">${esc(f.nombre)}</b> <span class="drTipo">${esc(DIR_TIPO[f.tipo]||f.tipo)}</span><div class="drRuta notr">${esc(f.ruta)}</div></div></label>`).join("") + `</div>`;
   } else h += `<div class="status warn" style="display:block;margin:0">No encuentro ninguna carpeta de captura. Conecta la ASIAIR o elige la carpeta a mano.</div>`;
   h += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn small" id="dirBuscar">Buscar de nuevo</button><button class="btn small" id="dirOtra">Elegir otra carpeta…</button>
-      <input id="dirRutaMano" placeholder="${DIR_ES_WIN ? "o escribe la ruta, p. ej. \\\\10.0.0.1\\EMMC Images" : "o escribe la ruta, p. ej. /Volumes/EMMC Images"}" style="flex:1;min-width:220px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit"></div>
-  <h3 style="margin:6px 0 0">Opciones</h3>
+      <input id="dirRutaMano" placeholder="${DIR_ES_WIN ? "o escribe la ruta, p. ej. \\\\10.0.0.1\\EMMC Images" : "o escribe la ruta, p. ej. /Volumes/EMMC Images"}" style="flex:1;min-width:220px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit"></div>`;
+  // cómo conectar la ASIAIR o N.I.N.A.: solo a la vista si no se ha encontrado ninguna carpeta
+  h += `<details class="vigDet" id="dirAyuda" ${ayAbierta ? "open" : ""}><summary><b>Conectar la ASIAIR o N.I.N.A.</b></summary>
+    <div class="seg" id="dirTab"><button data-t="asiair">ASIAIR (por la red)</button><button data-t="nina">N.I.N.A.</button></div>
+    <div class="drCaja" data-tab="asiair">
+      <ol style="margin:0;padding-left:18px">
+        <li>El ordenador y la ASIAIR tienen que estar en la misma wifi: la de casa, o la de la propia ASIAIR (entonces su IP suele ser 10.0.0.1).</li>
+        <li>Escribe la IP de la ASIAIR y pulsa «Conectar». Se abrirá ${explorador}: ${DIR_ES_WIN ? "abre la carpeta compartida donde guarda las fotos." : "entra como «Invitado» y elige el almacenamiento donde guarda las fotos."}</li>
+        <li>Vuelve aquí: la carpeta aparecerá arriba (si no sale, pulsa «Buscar de nuevo»).</li>
+      </ol>
+      <div style="display:flex;gap:8px;margin-top:8px"><input id="dirIp" value="${esc(e.ip||"")}" placeholder="IP, p. ej. 192.168.1.50" style="flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit"><button class="btn small" id="dirConectar">Conectar</button></div>
+    </div>
+    <div class="drCaja" data-tab="nina">
+      <p style="margin:0 0 6px"><b>En este mismo PC:</b> ASTRO encuentra sola la carpeta donde tu perfil de N.I.N.A. guarda las imágenes.</p>
+      <p style="margin:0"><b>En otro PC:</b> comparte esa carpeta en Windows (botón derecho → Propiedades → Compartir) y conéctate a su IP igual que con la ASIAIR.</p>
+    </div>
+  </details>`;
+  h += `<details class="vigDet" id="dirOpc" ${ay.opc ? "open" : ""}><summary><b>Opciones</b> <span class="note" id="dirOpcRes"></span></summary>
   <div style="display:flex;flex-direction:column;gap:5px;font-size:14px">
     <label style="display:flex;gap:8px;align-items:center">Qué tomas revisar <select id="dirHoras" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit">
       <option value="0">Solo las nuevas, desde ahora</option><option value="1">También las de la última hora</option><option value="3">También las de las últimas 3 horas</option><option value="12">Toda la noche (últimas 12 horas)</option></select></label>
@@ -7175,8 +7211,9 @@ async function dirConfig(buscando){
     <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dirNotif" ${o.notif?"checked":""}> Notificaciones del sistema (aunque estés en otra ventana)</label>
     <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dirDespierto" ${o.despierto?"checked":""}> Que el ordenador no se duerma mientras revisa</label>
   </div>
+  </details>
   <div class="note">Deja el ordenador enchufado y esta pestaña abierta: si la cierras, la revisión se para.</div>
-  <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">${frames.some(f=>f.night) ? `<button class="btn" id="dirResumen">Resumen de la noche por WhatsApp</button>` : ""}<button class="btn primary" id="dirEmpezar" ${DIR.fuentes.length?"":"disabled"}>Empezar la revisión</button></div>`;
+  <div class="accFija">${frames.some(f=>f.night) ? `<button class="btn" id="dirResumen">Resumen de la noche por WhatsApp</button>` : ""}<button class="btn primary" id="dirEmpezar" ${DIR.fuentes.length?"":"disabled"}>Empezar la revisión</button></div>`;
   box.innerHTML = h;
   $("dirHoras").value = String(o.horas||0);
   box.querySelectorAll('input[name="dirF"]').forEach(r => r.onchange = ()=>{ DIR.elegida = DIR.fuentes[+r.value].ruta; $("dirRutaMano").value = "";
@@ -7196,6 +7233,14 @@ async function dirConfig(buscando){
   };
   $("dirEmpezar").onclick = dirEmpezar;
   if ($("dirResumen")) $("dirResumen").onclick = () => abrirWhatsApp(false, "resumen");
+  const pestana = t => { ay.tab = t; box.querySelectorAll("#dirTab button").forEach(x => x.classList.toggle("on", x.dataset.t === t)); box.querySelectorAll("[data-tab]").forEach(c => c.style.display = c.dataset.tab === t ? "" : "none"); };
+  box.querySelectorAll("#dirTab button").forEach(x => x.onclick = () => pestana(x.dataset.t)); pestana(ay.tab);
+  $("dirAyuda").querySelector("summary").onclick = () => { ay.abierta = !$("dirAyuda").open; };
+  $("dirOpc").querySelector("summary").onclick = () => { ay.opc = !$("dirOpc").open; };
+  const resumen = () => { $("dirOpcRes").textContent = $("dirHoras").selectedOptions[0].textContent; }; resumen();
+  // lo que se elige en las opciones se recuerda también si se vuelve a buscar carpetas
+  const guardarOp = () => { dirGuardarOpciones({horas:+$("dirHoras").value, guardar:$("dirGuardar").checked, sonido:$("dirSonido").checked, notif:$("dirNotif").checked, despierto:$("dirDespierto").checked}); resumen(); };
+  ["dirHoras", "dirGuardar", "dirSonido", "dirNotif", "dirDespierto"].forEach(id => $(id).onchange = guardarOp);
 }
 
 async function dirEmpezar(){
@@ -9511,7 +9556,7 @@ async function abrirCursos(){
 $("btnIndicadores").onclick = ()=> abrirIndicadores(filters.object.size === 1 ? [...filters.object][0] : "");
 $("btnResumen").onclick = ()=> abrirWhatsApp(false, "resumen");
 $("critCerrar").onclick = ()=> { $("critBox").classList.remove("show"); CRIT = null; };
-$("stkCriterio").onclick = ev => { ev.preventDefault(); $("stackBox").classList.remove("show"); abrirCriterio($("stkObj").value); };
+$("stkCriterio").onclick = ev => { ev.preventDefault(); mmOrigen("stackBox"); $("stackBox").classList.remove("show"); clearTimeout(STK_T); abrirCriterio($("stkObj").value); };
 $("varCerrar").onclick = ()=> $("varBox").classList.remove("show");
 $("addImpProy").onclick = e => { e.preventDefault(); importarProyecto(); };
 
@@ -10104,6 +10149,74 @@ const DIBUJOS = {addBox: "anadir", nochesBox: "noches", dirBox: "directo", stack
     else fila.style.justifyContent = "flex-end";
   }
 })();
+
+/* ============ Ventanas: se cierran todas igual y se puede volver a la anterior ============
+   Esc cierra la de arriba. Un clic en el fondo también, salvo en las que tienen formularios o trabajo en marcha.
+   Si una ventana se abre desde otra, enseña «← la anterior» para volver a ella. La última que se abre queda siempre encima. */
+const MM = {pila: [], origen: null, estaticas: new Set([...document.querySelectorAll(".modal")].map(m => m.id)),
+  cerrar: {stackBox: "stkClose", namesBox: "nmClose", renameBox: "renClose", lotesBox: "lotesCerrar", informeBox: "infCerrar"},
+  sinFuera: new Set(["varBox", "namesBox", "renameBox", "lotesBox", "critBox", "eqBox", "lugBox", "waBox", "dirBox", "projBox", "informeBox", "addBox", "stackBox", "regBox"]),
+  reabrir: {stackBox: () => stkOpen(), genBox: () => abrirGeneral()}};
+function mmOrigen(id){ MM.origen = {id, t: Date.now()}; }          // «la ventana que se abre a continuación viene de esta»
+function mmTitulo(m){ const h = m.querySelector("h2, h3"); return h ? h.textContent.trim() : ""; }
+function mmCerrar(m){
+  if (m.id === "projBox") return cerrarProy();
+  const b = m.querySelector("#" + (MM.cerrar[m.id] || m.id.replace(/Box$/, "Close"))) || m.querySelector("#" + m.id.replace(/Box$/, "Cerrar"))
+    || [...m.querySelectorAll("button")].reverse().find(x => x.textContent.trim() === tr("Cerrar"));
+  if (b) b.click(); else if (MM.estaticas.has(m.id)) m.classList.remove("show"); else m.remove();
+}
+function mmIrAtras(m){
+  const a = m._venDe; mmCerrar(m);
+  if (a && a.isConnected && !a.classList.contains("show")) (MM.reabrir[a.id] || (() => a.classList.add("show")))();
+}
+function mmVolver(m){
+  let b = m.querySelector(":scope > .box > .mmVolver, :scope > .box > .cabIlus > .mmVolver");
+  const a = m._venDe;
+  if (!a || !a.isConnected || !m.classList.contains("show")){ if (b) b.remove(); return; }
+  if (!b){
+    b = document.createElement("button"); b.type = "button"; b.className = "btn small mmVolver"; b.onclick = () => mmIrAtras(m);
+    const cab = m.querySelector(":scope > .box > .cabIlus"), box = m.querySelector(":scope > .box");
+    if (cab) cab.appendChild(b); else if (box) box.insertBefore(b, box.firstChild);
+  }
+  b.textContent = "← " + (mmTitulo(a) || tr("Volver"));
+}
+function mmSync(m){
+  const vis = m.isConnected && m.classList.contains("show"), i = MM.pila.indexOf(m);
+  if (vis && i < 0){
+    const debajo = MM.pila[MM.pila.length - 1], o = MM.origen && Date.now() - MM.origen.t < 8000 ? document.getElementById(MM.origen.id) : null;
+    MM.origen = null;
+    MM.pila.push(m); m.style.zIndex = Math.min(29, 24 + MM.pila.length);
+    m._venDe = [debajo, o].find(x => x && x !== m && x.isConnected) || null;
+    m._foco = document.activeElement;
+    m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true");
+    mmVolver(m);
+  } else if (!vis && i >= 0){
+    MM.pila.splice(i, 1); m.style.zIndex = ""; m._venDe = null; mmVolver(m);
+    const f = m._foco; m._foco = null; try { if (f && f.isConnected && f.focus && MM.pila.length === 0) f.focus({preventScroll: true}); } catch(_){}
+  }
+}
+(function ventanas(){
+  const ob = new MutationObserver(recs => recs.forEach(r => mmSync(r.target)));
+  const mirar = m => { if (!m._mm){ m._mm = true; ob.observe(m, {attributes: true, attributeFilter: ["class"]}); } mmSync(m); };
+  document.querySelectorAll(".modal").forEach(mirar);
+  // las ventanas que se crean al abrirlas (Acerca de, Informar de un problema…) y las que se quitan del todo
+  new MutationObserver(recs => recs.forEach(r => {
+    r.addedNodes.forEach(n => { if (n.nodeType === 1 && n.classList.contains("modal")) mirar(n); });
+    r.removedNodes.forEach(n => { if (n.nodeType === 1 && n.classList && n.classList.contains("modal")) mmSync(n); });
+  })).observe(document.body, {childList: true});
+  window.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || e.defaultPrevented || document.body.classList.contains("parpAbierto")) return;
+    const m = MM.pila[MM.pila.length - 1]; if (!m) return;
+    e.preventDefault(); e.stopImmediatePropagation(); mmCerrar(m);
+  }, true);
+  let abajo = null;
+  document.addEventListener("pointerdown", e => { abajo = e.target; }, true);
+  document.addEventListener("click", e => {
+    const m = e.target;
+    if (!(m instanceof HTMLElement) || !m.classList.contains("modal") || abajo !== m || MM.sinFuera.has(m.id) || MM.pila[MM.pila.length - 1] !== m) return;
+    mmCerrar(m);
+  });
+})();
 $("btnMas").onclick = ev => { ev.stopPropagation(); $("menuLista").classList.toggle("show"); };
 document.addEventListener("click", ()=> $("menuLista").classList.remove("show"));
 $("menuLista").addEventListener("click", ()=> $("menuLista").classList.remove("show"));
@@ -10111,7 +10224,7 @@ $("btnReport").addEventListener("click", ()=> mostrarVista("tomas"));
 function modoAñadir(copiar, guardar){
   $("batchCopy").checked = !!copiar;
   document.querySelectorAll("#modoAdd button").forEach(b=>b.classList.toggle("on", (b.dataset.copiar==="1")===!!copiar));
-  $("addDestino").innerHTML = copiar ? `${tr("Se copian a")} <b class="notr">${esc(ROOT_NAME)}</b>` : tr("Los archivos se quedan donde están. Si los añades «Desde una carpeta del disco», ASTRO recuerda dónde están y podrá apilarlos desde ahí.");
+  $("addDestino").innerHTML = copiar ? `${tr("Se copian a")} <b class="notr">${esc(ROOT_NAME)}</b>` : tr("Se quedan donde están. Para apilarlas después, añádelas con «Desde una carpeta del disco».");
   if (guardar) fetch("/api/pref",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({copiar:!!copiar})}).catch(()=>{});
 }
 document.querySelectorAll("#modoAdd button").forEach(b => b.onclick = ()=>modoAñadir(b.dataset.copiar==="1", true));
