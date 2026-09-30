@@ -8457,7 +8457,7 @@ th{background:var(--surface);font-weight:700}
 .status{border-radius:10px}
 .modal .box{border-radius:18px}
 .menuIdiomas{position:fixed;z-index:80;display:flex;flex-direction:column;gap:2px;min-width:180px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px -12px rgba(20,12,30,.35)}.menuIdiomas button{border:0;background:transparent;color:var(--text);font:inherit;font-weight:600;text-align:left;padding:8px 12px;border-radius:8px;cursor:pointer}.menuIdiomas button:hover{background:var(--surface2)}.menuIdiomas button.on{background:var(--accent-soft);color:var(--accent)}
-/* ===== Bonus track: cien enlaces del cielo ===== */
+/* ===== Bonus track: 101 enlaces del cielo ===== */
 .bloque.bonus .ic{background:var(--oro-soft);color:var(--oro)}
 .chip.oro{background:var(--oro-soft);color:var(--oro)}
 .enlBarra{position:sticky;top:0;z-index:3;background:var(--bg);display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0 8px}
@@ -9123,9 +9123,9 @@ function pintarNav(){
   $("bloques").innerHTML = ORDEN.map(id => { const b = BL(id);
     return `<button class="bloque foto" data-b="${b.id}" style="--foto:url('/img/ciencia-${b.id}.jpg')"><span class="cab"><span class="ic">${icono(b.id)}</span><b class="notr">${esc(T(b).titulo)}</b></span>
       <span class="d notr">${esc(T(b).corto)}</span>${b.estado === "ya" ? '<span class="chip ya">Ya disponible</span>' : '<span class="chip">En preparación</span>'}</button>`; }).join("")
-    + `<button class="bloque foto bonus notr" data-vista="enlaces" style="--foto:url('/img/ciencia-enlaces.jpg')"><span class="cab"><span class="ic">${ENL_ICONO}</span><b>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</b></span>
-      <span class="d">${esc(trLT("Los cien sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre para qué sirve cada uno.", "The hundred astronomy and astrophotography sites worth keeping at hand, with a line on what each one is for."))}</span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></button>`;
-  $("navBonus").innerHTML = `<div class="grupo">${esc(trLT("Bonus track", "Bonus track"))}</div><button class="nav" data-vista="enlaces"><span class="ic">${ENL_ICONO}</span><span>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</span></button>`;
+    + `<button class="bloque foto bonus notr" data-vista="enlaces" style="--foto:url('/img/ciencia-enlaces.jpg')"><span class="cab"><span class="ic">${ENL_ICONO}</span><b>${esc(trLT("101 enlaces del cielo", "101 sky links"))}</b></span>
+      <span class="d">${esc(trLT("Los 101 sitios de astronomía y astrofotografía que merece la pena tener a mano, con una línea sobre para qué sirve cada uno.", "The 101 astronomy and astrophotography sites worth keeping at hand, with a line on what each one is for."))}</span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></button>`;
+  $("navBonus").innerHTML = `<div class="grupo">${esc(trLT("Bonus track", "Bonus track"))}</div><button class="nav" data-vista="enlaces"><span class="ic">${ENL_ICONO}</span><span>${esc(trLT("101 enlaces del cielo", "101 sky links"))}</span></button>`;
   document.querySelectorAll("[data-vista]").forEach(x => x.onclick = () => ir(x.dataset.vista, x.dataset.b));
   document.querySelectorAll(".bloque[data-b]").forEach(x => x.onclick = () => ir("bloque", x.dataset.b));
   ajustarBloques();
@@ -10439,7 +10439,7 @@ function acercaDe(){
   document.body.appendChild(d);
 }
 
-/* ============ Bonus track: cien enlaces del cielo ============ */
+/* ============ Bonus track: 101 enlaces del cielo ============ */
 const _ENL_OTRO = IDIOMA === "es" || IDIOMA === "en" ? {} : __ENL_OTRO__;   // temas, textos y nombres traducidos (idiomas/xx.json)
 const ENL_TEMAS = [
  ["planificar", "Planificar la noche", "Tiempo, seeing, cielo oscuro y qué fotografiar hoy.", "Planning the night", "Weather, seeing, dark skies and what to shoot tonight."],
@@ -10518,6 +10518,7 @@ const ENLACES = [
  ["ciencia", "Transient Name Server", "https://www.wis-tns.org", "", "Donde se registran y se consultan las supernovas y otros transitorios.", "Where supernovae and other transients are reported and looked up."],
  ["ciencia", "PVOL", "http://pvol2.ehu.eus/pvol2/", "", "Base de datos de imágenes planetarias de aficionados de la UPV/EHU, usada en artículos científicos.", "UPV/EHU's database of amateur planetary images, used in scientific papers."],
  ["ciencia", "Zooniverse", "https://www.zooniverse.org", "", "Ciencia ciudadana: galaxias, supernovas y exoplanetas clasificados por voluntarios.", "Citizen science: galaxies, supernovae and exoplanets classified by volunteers."],
+ ["comunidad", "Astrocitas", "https://www.youtube.com/@astrocitas", "s", "El canal de YouTube de astrofotografía de Tomás Moreno, el autor de ASTRO.", "The astrophotography YouTube channel of Tomás Moreno, the author of ASTRO."],
  ["comunidad", "AstroBin", "https://www.astrobin.com", "", "La galería de astrofotografía de referencia, con el equipo y los datos de cada foto.", "The go-to astrophotography gallery, with the gear and data behind each image."],
  ["comunidad", "Cloudy Nights", "https://www.cloudynights.com/forums/", "", "El foro más grande en inglés sobre equipo, captura y procesado.", "The largest English-language forum on gear, capture and processing."],
  ["comunidad", "Stargazers Lounge", "https://stargazerslounge.com", "", "Foro británico, muy activo y amable con los que empiezan.", "A British forum, very active and friendly to beginners."],
@@ -10582,7 +10583,7 @@ function abrirEnlaces(){
       return `<section class="enlSec" data-tema="${t[0]}"><div class="enlCab"><h3>${esc(tt)}</h3><span class="note">${esc(ti)}</span><span class="n">${es.length}</span></div><div class="enlGrid">${
         es.map(e => { num++; const n = nombreEnl(e), d = textoEnl(e), dom = dominioEnl(e[2]);
           return `<a class="enlItem" href="${esc(e[2])}" target="_blank" rel="noopener" data-q="${esc(sinTildes(n + " " + e[1] + " " + d + " " + dom))}"><span class="enlNum">${String(num).padStart(3, "0")}</span><span class="enlCuerpo"><span class="enlFila"><b>${esc(n)}</b>${etiquetasEnl(e[3])}</span><span class="enlDom">${esc(dom)}</span><span class="enlDes">${esc(d)}</span></span></a>`; }).join("")}</div></section>`; }).join("");
-    v.innerHTML = `<div class="top ilus"><div><h2>${esc(trLT("Cien enlaces del cielo", "A hundred sky links"))}</h2><div class="sub">${esc(trLT("Lo que merece estar en favoritos para planificar, capturar, procesar y hacer ciencia desde casa, con una línea sobre para qué sirve cada sitio.", "What deserves a bookmark for planning, capturing, processing and doing science from home, with a line on what each site is for."))}</div></div><span class="spacer"></span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></div>
+    v.innerHTML = `<div class="top ilus"><div><h2>${esc(trLT("101 enlaces del cielo", "101 sky links"))}</h2><div class="sub">${esc(trLT("Lo que merece estar en favoritos para planificar, capturar, procesar y hacer ciencia desde casa, con una línea sobre para qué sirve cada sitio.", "What deserves a bookmark for planning, capturing, processing and doing science from home, with a line on what each site is for."))}</div></div><span class="spacer"></span><span class="chip oro">${esc(trLT("Bonus track", "Bonus track"))}</span></div>
       <div class="enlBarra"><input class="enlBusca" id="enlBusca" type="search" autocomplete="off" placeholder="${esc(trLT("Buscar: seeing, variables, PixInsight, Luna…", "Search: seeing, variables, PixInsight, Moon…"))}" aria-label="${esc(trLT("Buscar enlaces", "Search links"))}"><span class="note" id="enlCuenta"></span></div>
       <div class="enlChips" id="enlChips"><button class="enlChip on" data-tema="">${esc(trLT("Todo", "All"))}</button>${ENL_TEMAS.map(t => `<button class="enlChip" data-tema="${t[0]}">${esc(temaEnl(t)[0])}<span>${ENLACES.filter(e => e[0] === t[0]).length}</span></button>`).join("")}</div>
       ${secs}
