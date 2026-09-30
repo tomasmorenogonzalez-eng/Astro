@@ -1,6 +1,6 @@
 # Cursos de astrofotografía (bonus de ASTRO)
 
-Los cursos de Tomás Moreno se entregan aparte, a quien apoya ASTRO (10 € o más). Su contenido **no** está en este
+Los cursos de Tomás Moreno se entregan aparte, a quien apoya ASTRO (10 $ o más). Su contenido **no** está en este
 repositorio, que es público; aquí solo está lo que los adapta al equipo de cada alumno.
 
 - `personaliza.js`: el motor. Toma el equipo de ASTRO («Mi equipo») o del panel «Tu equipo» y:

@@ -8115,7 +8115,7 @@ async function abrirCursos(){
   } else {
     h += `<div style="border:1px solid var(--line);border-left:4px solid #F2C14E;border-radius:12px;padding:12px 14px;margin:10px 0">
         <b>${esc(trLT("Un regalo para quien apoya ASTRO", "A gift for ASTRO supporters"))}</b>
-        <div class="note">${esc(trLT("Si apoyas ASTRO con 10 € o más, te llevas los cursos completos. Llegan en un archivo .zip: guárdalo y elígelo aquí.", "If you support ASTRO with €10 or more, you get the full courses. They come as a .zip file: save it and choose it here."))}</div>
+        <div class="note">${esc(trLT("Si apoyas ASTRO con 10 $ o más, te llevas los cursos completos. Llegan en un archivo .zip: guárdalo y elígelo aquí.", "If you support ASTRO with $10 or more, you get the full courses. They come as a .zip file: save it and choose it here."))}</div>
         ${e.url ? `<div style="margin-top:8px"><button class="btn" id="cursosConseguir" style="background:#FFC439;border-color:#FFC439;color:#111">${esc(trLT("Conseguir los cursos", "Get the courses"))}</button></div>`
                 : `<div class="note" style="margin-top:6px">${esc(trLT("Para conseguirlos, escribe a", "To get them, write to"))} <b class="notr">toms101972@hotmail.com</b></div>`}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px"><button class="btn primary" id="cursosInstalar">${esc(trLT("Ya tengo el paquete: elegirlo…", "I have the package: choose it…"))}</button></div>`;
