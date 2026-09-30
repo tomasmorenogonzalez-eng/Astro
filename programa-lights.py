@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.30.3"
+VERSION_PROG = "2026.09.30.4"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1124,7 +1124,9 @@ tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowr
 .mapaTip{position:absolute;display:none;pointer-events:none;background:rgba(20,16,34,.94);color:#F2EEFF;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:7px 10px;font-size:12.5px;line-height:1.45;max-width:260px;z-index:3}
 .mapaTip .note{color:#B8B0D0}
 .mapaLeyenda{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;margin:8px 0 4px;font-size:12.5px} .mapaLeyenda .spacer{flex:1}
-.mapaLeyenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px} .arcSubH{margin:14px 0 6px;font-size:14.5px}
+.mapaLeyenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.mapaTycho{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center} .mapaTycho .bad{color:var(--bad)}
+.mapaBarra{display:inline-block;width:140px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;vertical-align:middle} .mapaBarra i{display:block;height:100%;background:var(--accent,#8B6CF6)} .arcSubH{margin:14px 0 6px;font-size:14.5px}
 .hist{position:relative;margin:4px 0 10px}
 .hist::before{content:"";position:absolute;left:115px;top:10px;bottom:10px;width:2px;background:var(--line2)}
 .histI{display:grid;grid-template-columns:100px 12px 1fr;gap:10px;align-items:start;padding:5px 0}
@@ -4566,14 +4568,18 @@ function renderArchivo(){
 /* ============ Mapa del cielo: los proyectos sobre el cielo, cada uno con su campo ============ */
 // Dos vistas. De lejos, todo el cielo en proyección de Hammer, con el este a la izquierda (como se ve el cielo) y la
 // costura (el borde) en el mayor hueco entre proyectos. Al acercarse, un trozo de cielo en proyección estereográfica,
-// como una carta celeste, centrado donde se mira. El fondo (estrellas hasta la magnitud 6 con su color, la Vía Láctea,
-// las figuras y los nombres de las constelaciones) viene de cielo/cielo.json (d3-celestial, de Olaf Frohn, licencia BSD).
+// como una carta celeste, centrado donde se mira. El fondo: la Vía Láctea y las figuras y los nombres de las
+// constelaciones (cielo/cielo.json, de d3-celestial, de Olaf Frohn, licencia BSD) y las estrellas con su color, hasta la
+// magnitud 8 (cielo/estrellas.bin, del catálogo Big Sky, de Steve Berardi, licencia MIT: Hipparcos y Tycho-2). Cuantas
+// más se acerca uno, más débiles se ven. Si se descarga Tycho-2 (unos 2,5 millones más, hasta la 12), al acercarse
+// salen también, solo las de lo que se ve. Las estrellas van en teselas de 5° × 5°, de la más brillante a la más débil.
 // El campo de cada proyecto: el de su astrometría (con su ángulo) o, si no la tiene, el de la escala y el tamaño de sus
 // tomas, sin ángulo (a trazos).
-const RADM = Math.PI / 180, ZOOM_CERCA = 2.6;
+const RADM = Math.PI / 180, ZOOM_CERCA = 2.6, TOPE_ESTRELLAS = 40000;
 const MAPA = {zoom:1, px:0, py:0, ra0:0, modo:"todo", c:{ra:0, dec:0}, R:0, datos:[], puntos:[], arr:null, clave:"", hover:null, pedido:0, ver:verMapaGuardado()};
 const COLOR_MAPA = {sin_analizar:"#8C84A8", en_curso:"#B98CFF", apilado_nuevas:"#E8B84A", apilado:"#5FCF95", terminado:"#5FCF95", pausa:"#9C93B8"};
-let CIELO = null, CIELO_PIDIENDO = false;
+let CIELO = null, CIELO_PIDIENDO = false, PAL_BV = null;
+const TYCHO = {estado:null, datos:null, pidiendo:false, fallo:false, vigia:0};
 function verMapaGuardado(){
   const v = {const:true, via:true, rejilla:true, nombres:true};
   try { Object.assign(v, JSON.parse(localStorage.getItem("astro-mapa-ver") || "{}")); } catch (e){}
@@ -4582,7 +4588,58 @@ function verMapaGuardado(){
 function cargarCielo(){
   if (CIELO || CIELO_PIDIENDO) return;
   CIELO_PIDIENDO = true;
-  api("/api/cielo").then(r => r.json()).then(d => { CIELO = prepararCielo(d); pedirPintarMapa(); }).catch(() => { CIELO_PIDIENDO = false; });
+  Promise.all([api("/api/cielo").then(r => r.json()), api("/api/cielo/estrellas").then(r => r.arrayBuffer())])
+    .then(([d, b]) => { CIELO = prepararCielo(d, b); pedirPintarMapa(); }).catch(() => { CIELO_PIDIENDO = false; });
+  estadoTycho();
+}
+function leerEstrellas(buf){
+  // un .bin de estrellas (herramientas/cielo/hacer_cielo.py): teselas y, en cada una, de la más brillante a la más débil
+  const dv = new DataView(buf);
+  if (buf.byteLength < 32 || String.fromCharCode(...new Uint8Array(buf, 0, 8)) !== "ASTROCI1") throw new Error("estrellas");
+  const paso = dv.getUint16(8, true), nc = dv.getUint16(10, true), nf = dv.getUint16(12, true), n = dv.getUint32(16, true), o = 32 + 4 * nc * nf;
+  if (buf.byteLength !== o + 6 * n) throw new Error("estrellas");
+  const cuenta = new Uint32Array(buf, 32, nc * nf), ini = new Uint32Array(nc * nf + 1);
+  for (let t = 0; t < nc * nf; t++) ini[t + 1] = ini[t] + cuenta[t];
+  return {paso, nc, nf, n, m0: dv.getFloat32(20, true), esc: dv.getFloat32(24, true), ini,
+    ra: new Uint16Array(buf, o, n), dec: new Uint16Array(buf, o + 2 * n, n), mag: new Uint8Array(buf, o + 4 * n, n), bv: new Int8Array(buf, o + 5 * n, n)};
+}
+function estadoTycho(){
+  api("/api/cielo/tycho/estado").then(r => r.json()).then(e => {
+    const antes = TYCHO.estado; TYCHO.estado = e;
+    if (!e.hay){ TYCHO.datos = null; TYCHO.fallo = false; }
+    if (antes && !antes.hay && e.hay) pedirPintarMapa();
+    pintarTychoUI();
+    clearTimeout(TYCHO.vigia);
+    if (e.bajando) TYCHO.vigia = setTimeout(estadoTycho, 700);
+  }).catch(() => {});
+}
+function cargarTycho(){
+  if (TYCHO.pidiendo || TYCHO.datos || TYCHO.fallo) return;
+  TYCHO.pidiendo = true;
+  api("/api/cielo/tycho").then(r => r.arrayBuffer()).then(b => { TYCHO.datos = leerEstrellas(b); pedirPintarMapa(); })
+    .catch(() => { TYCHO.fallo = true; }).finally(() => { TYCHO.pidiendo = false; });
+}
+function tychoAccion(que){
+  api("/api/cielo/tycho/" + que, {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"})
+    .then(r => r.json()).then(e => { TYCHO.estado = e; if (!e.hay){ TYCHO.datos = null; pedirPintarMapa(); } pintarTychoUI(); if (e.bajando) TYCHO.vigia = setTimeout(estadoTycho, 700); })
+    .catch(e => toast(trLT("No se ha podido: {1}", "It couldn't be done: {1}", e.message || e)));
+}
+function pintarTychoUI(){
+  const el = $("mapaTycho"), e = TYCHO.estado; if (!el || !e) return;
+  const mb = n => numEs(n / 1e6, 0) + " MB";
+  let h;
+  if (e.bajando){
+    const pc = e.total ? Math.round(100 * e.hecho / e.total) : 0;
+    h = `${esc(trLT("Descargando Tycho-2…", "Downloading Tycho-2…"))} <b>${e.total ? pc + " %" : mb(e.hecho)}</b> <span class="mapaBarra"><i style="width:${pc}%"></i></span>`;
+  } else if (e.hay){
+    h = `${esc(trLT("Tycho-2 instalado: al acercarte salen unos 2,5 millones de estrellas más, hasta la magnitud 12.", "Tycho-2 installed: zoom in to see about 2.5 million more stars, down to magnitude 12."))}
+      <button class="btn small" data-tycho="quitar">${esc(trLT("Quitar", "Remove"))}</button>`;
+  } else {
+    h = `${e.error ? `<span class="bad">${esc(trLT("No se ha podido descargar: {1}", "The download failed: {1}", e.error))}</span> ` : ""}${esc(trLT("¿Más estrellas? Descarga el catálogo Tycho-2: unos 2,5 millones más, hasta la magnitud 12, que salen al acercarte ({1}).", "More stars? Download the Tycho-2 catalogue: about 2.5 million more, down to magnitude 12, shown as you zoom in ({1}).", mb(e.tamano || 15e6)))}
+      <button class="btn small" data-tycho="descargar">${esc(e.error ? trLT("Reintentar", "Try again") : trLT("Descargar", "Download"))}</button>`;
+  }
+  el.innerHTML = h;
+  el.querySelectorAll("[data-tycho]").forEach(b => b.onclick = () => { b.disabled = true; tychoAccion(b.dataset.tycho); });
 }
 function colorBV(bv){      // color aproximado de una estrella por su índice B−V
   const T = [[-0.4, [150, 175, 255]], [0, [198, 212, 255]], [0.3, [240, 242, 255]], [0.6, [255, 243, 228]], [1.0, [255, 214, 165]], [1.5, [255, 186, 118]], [2.2, [255, 160, 90]]];
@@ -4590,12 +4647,18 @@ function colorBV(bv){      // color aproximado de una estrella por su índice B�
   const [b0, c0] = T[i], [b1, c1] = T[i + 1], t = Math.max(0, Math.min(1, (bv - b0) / (b1 - b0)));
   return c0.map((v, j) => Math.round(v + (c1[j] - v) * t));
 }
-function prepararCielo(d){
-  const n = d.estrellas.length, ra = new Float32Array(n), dec = new Float32Array(n), mag = new Float32Array(n), rgb = [], col = [];
-  d.estrellas.forEach((e, i) => { ra[i] = e[0]; dec[i] = e[1]; mag[i] = e[2]; rgb[i] = colorBV(e[3]); col[i] = "rgb(" + rgb[i].join(",") + ")"; });
+function paletaBV(){
+  // el color de cada código de B−V del .bin (−128: no se sabe, blanco algo cálido); «suave», a medio camino del blanco,
+  // para las débiles: su B−V es poco fiable y el mapa saldría lleno de naranjas que no son
+  if (!PAL_BV){ PAL_BV = {rgb: [], col: [], suave: []};
+    for (let c = -128; c < 128; c++){ const v = colorBV(c === -128 ? 0.6 : c / 50), w = [255, 247, 238].map((x, j) => Math.round((x + v[j]) / 2));
+      PAL_BV.rgb.push(v); PAL_BV.col.push("rgb(" + v.join(",") + ")"); PAL_BV.suave.push("rgb(" + w.join(",") + ")"); } }
+  return PAL_BV;
+}
+function prepararCielo(d, buf){
   const paso = d.paso || 0.5, nc = Math.round(360 / paso), nf = Math.round(180 / paso), via = new Uint8Array(nc * nf);
   for (let i = 0, k = 0; i < d.via.length; i += 2){ via.fill(d.via[i], k, k + d.via[i + 1]); k += d.via[i + 1]; }
-  return {n, ra, dec, mag, rgb, col, nombres: d.nombres || {}, lineas: d.lineas || {}, cons: d.const || {}, via, paso, nc, nf};
+  return {est: leerEstrellas(buf), nombres: Array.isArray(d.nombres) ? d.nombres : [], lineas: d.lineas || {}, cons: d.const || {}, via, paso, nc, nf};
 }
 const nombreConst = c => { const n = c[3] || {}; return (IDIOMA === "pt" ? n.la : n[IDIOMA]) || n.la || ""; };
 const fuenteMapa = () => getComputedStyle(document.body).fontFamily || "system-ui, sans-serif";
@@ -4700,6 +4763,7 @@ function htmlMapaCielo(ps){
       <button class="btn small" data-mapa="todo">${esc(trLT("Todo el cielo", "Whole sky"))}</button></div>
     <canvas id="mapaCanvas"></canvas><div class="mapaTip" id="mapaTip"></div></div>
     <div class="mapaLeyenda">${ley}<span class="spacer"></span><span class="mapaCapas">${capas}</span></div>
+    <div class="note mapaTycho" id="mapaTycho"></div>
     <div class="note">${esc(trLT("Recuadro: su campo (a trazos si no se sabe su ángulo: resuélvelo con Siril en su Encuadre)", "Box: its field (dashed if its angle isn't known: solve it with Siril in its Framing)"))}</div>
     ${sinPos ? `<div class="note">${esc(trLT("{1} proyectos no salen: sus tomas no dicen dónde apuntan y su nombre no está en el catálogo.", "{1} projects aren't shown: their frames don't say where they point and their name isn't in the catalogue.", nfmt(sinPos)))}</div>` : ""}
     <div class="note">${esc(trLT("Rueda o botones para acercar, arrastra para moverte y pulsa un proyecto para abrirlo.", "Scroll wheel or buttons to zoom, drag to move and click a project to open it."))}</div>`;
@@ -4728,7 +4792,8 @@ function desenfocar(v, w, h, r){     // desenfoque de caja, en horizontal y en v
 function pintarVia(ctx, pr, W, H){
   // la Vía Láctea con sus cinco niveles de brillo, calculada a baja resolución, desenfocada y ampliada; más cálida hacia
   // el centro de la galaxia (Sagitario)
-  const C = CIELO, f = 3, w = Math.ceil(W / f), h = Math.ceil(H / f);
+  // (la rejilla es de medio grado: de cerca basta con calcularla a menos resolución)
+  const C = CIELO, f = Math.max(3, Math.min(10, Math.round(pr.ppg / 6))), w = Math.ceil(W / f), h = Math.ceil(H / f);
   let off = MAPA.offVia; if (!off){ off = MAPA.offVia = document.createElement("canvas"); }
   if (off.width !== w || off.height !== h){ off.width = w; off.height = h; }
   const A = [0, 0.11, 0.19, 0.28, 0.38, 0.5], n = w * h, R_ = new Float32Array(n), G_ = new Float32Array(n), B_ = new Float32Array(n), A_ = new Float32Array(n);
@@ -4787,26 +4852,69 @@ function pintarFiguras(ctx, pr){
   }
   ctx.stroke();
 }
+// hasta qué magnitud se ven según lo cerca que se mira (píxeles por grado): la 5,8 con todo el cielo, la 8 a unos 16 px/°
+// y, con Tycho-2, la 9 a unos 30 px/°, la 10,5 a unos 90 px/° y la 12 muy de cerca: siempre más o menos las mismas en
+// la pantalla
+const limiteEstrellas = g => Math.max(5.8, Math.min(TYCHO.estado && TYCHO.estado.hay ? 12.5 : 8, 5.8 + Math.log2(Math.max(1, g / 3.5))));
+// el tamaño y el brillo, según lo que le falta a cada una para el límite: las que acaban de aparecer, puntitos tenues
+const radioEstrella = (m, lim) => { const s = Math.max(0, lim - m); return Math.min(4.5, s <= 4 ? 0.55 + 0.28 * s : 1.67 + 0.16 * (s - 4)); };
+const alfaEstrella = (m, lim) => Math.min(1, 0.42 + 0.14 * Math.max(0, lim - m));
+const codigoMag = (E, m) => Math.floor((m - E.m0) * E.esc + 1e-6);
+function hastaCodigo(E, t, cod){      // dónde acaban, en la tesela t, las estrellas con código de magnitud ≤ cod
+  let lo = E.ini[t], hi = E.ini[t + 1];
+  while (lo < hi){ const k = (lo + hi) >> 1; if (E.mag[k] <= cod) lo = k + 1; else hi = k; }
+  return lo;
+}
+function teselasVisibles(E, pr, W, H){
+  const out = [], nt = E.nc * E.nf;
+  if (pr.modo === "todo"){ for (let t = 0; t < nt; t++) if (E.ini[t + 1] > E.ini[t]) out.push(t); return out; }
+  // de cerca: las teselas que caen dentro del círculo que abarca la vista (más media diagonal de tesela)
+  const c = MAPA.c; let rad = 0;
+  for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H], [W / 2, 0], [W / 2, H], [0, H / 2], [W, H / 2]]){ const q = pr.inv(x, y); if (q) rad = Math.max(rad, sepGrados(c, q)); }
+  rad += E.paso * 0.72 + 0.3;
+  for (let f = 0; f < E.nf; f++){
+    const dc = -90 + (f + 0.5) * E.paso; if (Math.abs(dc - c.dec) > rad + E.paso) continue;
+    for (let k = 0; k < E.nc; k++){ const t = f * E.nc + k; if (E.ini[t + 1] > E.ini[t] && sepGrados(c, {ra: (k + 0.5) * E.paso, dec: dc}) <= rad) out.push(t); }
+  }
+  return out;
+}
 function pintarEstrellas(ctx, pr, W, H){
-  const C = CIELO, g = pr.ppg, fz = Math.max(0.75, Math.min(1.9, 0.8 + 0.35 * Math.log2(Math.max(1, g / 3)))), limite = g < 4 ? 5.8 : 6.5;
-  for (let i = C.n - 1; i >= 0; i--){                // de las débiles a las brillantes
-    const m = C.mag[i]; if (m > limite) continue;
-    const p = pr.P(C.ra[i], C.dec[i]); if (!p || p[0] < -30 || p[1] < -30 || p[0] > W + 30 || p[1] > H + 30) continue;
-    const r = Math.max(0.45, (0.3 + Math.max(0, 6.4 - m) * 0.36) * fz);
-    if (m < 2.3){
-      const [cr, cg, cb] = C.rgb[i], rr = r * 4.5, gl = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rr);
-      gl.addColorStop(0, `rgba(${cr},${cg},${cb},0.32)`); gl.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
-      ctx.fillStyle = gl; ctx.fillRect(p[0] - rr, p[1] - rr, 2 * rr, 2 * rr);
+  const C = CIELO, g = pr.ppg, PAL = paletaBV();
+  let lim = limiteEstrellas(g);
+  if (lim > 8 && TYCHO.estado && TYCHO.estado.hay && !TYCHO.datos) cargarTycho();
+  const fuentes = [C.est].concat(lim > 8 && TYCHO.datos ? [TYCHO.datos] : []), vis = fuentes.map(E => teselasVisibles(E, pr, W, H));
+  // donde hay muchísimas (la Vía Láctea de cerca), un poco menos hondo: que el mapa siga yendo fluido (se cuentan las de las
+  // teselas enteras, unas cuatro veces las que caben en la pantalla)
+  const cuantas = l => fuentes.reduce((s, E, k) => { const cod = codigoMag(E, l); return s + vis[k].reduce((a, t) => a + hastaCodigo(E, t, cod) - E.ini[t], 0); }, 0);
+  while (lim > 6 && cuantas(lim) > TOPE_ESTRELLAS) lim -= 0.2;
+  MAPA.limite = lim;
+  for (let k = fuentes.length - 1; k >= 0; k--){        // primero las débiles (Tycho-2), luego las de dentro de ASTRO
+    const E = fuentes[k], cod = codigoMag(E, lim);
+    for (const t of vis[k]){
+      const col = t % E.nc, fil = (t / E.nc) | 0, i0 = E.ini[t];
+      for (let i = hastaCodigo(E, t, cod) - 1; i >= i0; i--){        // de las débiles a las brillantes
+        const p = pr.P((col + E.ra[i] / 65535) * E.paso, -90 + (fil + E.dec[i] / 65535) * E.paso);
+        if (!p || p[0] < -30 || p[1] < -30 || p[0] > W + 30 || p[1] > H + 30) continue;
+        const m = E.m0 + E.mag[i] / E.esc, b = E.bv[i] + 128, r = radioEstrella(m, lim);
+        if (m < 2.3){
+          const [cr, cg, cb] = PAL.rgb[b], rr = r * 4.5, gl = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rr);
+          gl.addColorStop(0, `rgba(${cr},${cg},${cb},0.32)`); gl.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+          ctx.globalAlpha = 1; ctx.fillStyle = gl; ctx.fillRect(p[0] - rr, p[1] - rr, 2 * rr, 2 * rr);
+        }
+        // las que rozan el límite, más tenues: al acercarse van apareciendo poco a poco
+        ctx.globalAlpha = alfaEstrella(m, lim);
+        ctx.fillStyle = m > 6.5 ? PAL.suave[b] : PAL.col[b];
+        if (r < 0.8) ctx.fillRect(p[0] - r, p[1] - r, 2 * r, 2 * r);
+        else { ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 2 * Math.PI); ctx.fill(); }
+      }
     }
-    ctx.globalAlpha = Math.max(0.35, Math.min(1, 1.2 - m * 0.13)); ctx.fillStyle = C.col[i];
-    ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 2 * Math.PI); ctx.fill();
   }
   ctx.globalAlpha = 1;
   if (MAPA.ver.nombres && g >= 7){
     ctx.font = "500 11px " + fuenteMapa(); ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,236,210,0.62)";
-    for (const [k, nom] of Object.entries(C.nombres)){ const i = +k; if (C.mag[i] > (g < 15 ? 1.6 : 2.6)) continue;
-      const p = pr.P(C.ra[i], C.dec[i]); if (!p || p[0] < 0 || p[1] < 0 || p[0] > W || p[1] > H) continue;
-      ctx.fillText(nom, p[0] + 3 + (6.4 - C.mag[i]) * 0.36 * fz, p[1] + 4); }
+    for (const [ra, dec, m, nom] of C.nombres){ if (m > (g < 15 ? 1.6 : 2.6)) continue;
+      const p = pr.P(ra, dec); if (!p || p[0] < 0 || p[1] < 0 || p[0] > W || p[1] > H) continue;
+      ctx.fillText(nom, p[0] + radioEstrella(m, lim) + 3, p[1] + 4); }
   }
 }
 const chocaCaja = (b, cajas) => cajas.some(c => b[0] < c[0] + c[2] && c[0] < b[0] + b[2] && b[1] < c[1] + c[3] && c[1] < b[1] + b[3]);
@@ -4955,7 +5063,7 @@ function mapaIrA(obj){
 }
 function enlazarMapa(){
   const cv = $("mapaCanvas"); if (!cv) return;
-  pintarMapaCielo();
+  pintarMapaCielo(); pintarTychoUI();
   const zoomEn = (f, x, y) => {
     const W = cv.clientWidth, H = cv.clientHeight, s0 = escalaTodo(W, H);
     if (x == null){ x = W / 2; y = H / 2; }
@@ -11076,8 +11184,153 @@ def cielo_txt():
             with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cielo", "cielo.json"), encoding="utf-8") as fh:
                 _CIELO["t"] = fh.read()
         except OSError:
-            _CIELO["t"] = '{"estrellas":[],"lineas":{},"const":{},"via":[],"nombres":{}}'
+            _CIELO["t"] = '{"lineas":{},"const":{},"via":[],"nombres":[]}'
     return _CIELO["t"]
+
+
+def _bin_vacio():
+    import struct
+    return b"ASTROCI1" + struct.pack("<4H", 5, 72, 36, 0) + struct.pack("<I2fI", 0, -1.5, 15.0, 0) + bytes(4 * 72 * 36)
+
+
+def estrellas_bin():
+    """Las estrellas del mapa hasta la magnitud 8 (cielo/estrellas.bin, del catálogo Big Sky: Hipparcos y Tycho-2)."""
+    if "b" not in _CIELO:
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cielo", "estrellas.bin"), "rb") as fh:
+                _CIELO["b"] = fh.read()
+        except OSError:
+            _CIELO["b"] = _bin_vacio()
+    return _CIELO["b"]
+
+
+# ── Tycho-2 (unos 2,5 millones de estrellas más, de la magnitud 8 a la 12): una descarga opcional desde el mapa ──
+# El archivo lo genera herramientas/cielo/hacer_cielo.py y está en el repositorio (descargas/cielo-tycho2.bin). No es un
+# dato del usuario: se guarda con la configuración de ASTRO (la misma para cualquier carpeta de datos y para los datos de
+# ejemplo).
+TYCHO_URL = os.environ.get("ASTRO_TYCHO_URL") or "https://raw.githubusercontent.com/tomasmorenogonzalez-eng/Astro/main/descargas/cielo-tycho2.bin"
+TYCHO_TAMANO = 15064250
+_TYCHO = {"bajando": False, "total": 0, "error": ""}
+_TYCHO_LOCK = threading.Lock()
+
+
+def tycho_ruta():
+    if os.environ.get("ASTRO_TYCHO_RUTA"):
+        return os.environ["ASTRO_TYCHO_RUTA"]
+    if sys.platform == "darwin":
+        d = os.path.expanduser("~/Library/Application Support/ASTRO")
+    elif os.name == "nt":
+        d = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "ASTRO")
+    else:
+        d = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "ASTRO")
+    return os.path.join(d, "Cielo", "cielo-tycho2.bin")
+
+
+def bin_estrellas_valido(ruta):
+    """Un .bin de estrellas completo: la cabecera y el tamaño que dice (una descarga cortada no lo es)."""
+    import struct
+    try:
+        with open(ruta, "rb") as fh:
+            cab = fh.read(32)
+        if len(cab) < 32 or cab[:8] != b"ASTROCI1":
+            return False
+        _paso, nc, nf, _x = struct.unpack_from("<4H", cab, 8)
+        return os.path.getsize(ruta) == 32 + 4 * nc * nf + 6 * struct.unpack_from("<I", cab, 16)[0]
+    except (OSError, ValueError):
+        return False
+
+
+def tycho_estado():
+    ruta = tycho_ruta()
+    hay = not _TYCHO["bajando"] and bin_estrellas_valido(ruta)
+    try:
+        hecho = os.path.getsize(ruta + ".parte") if _TYCHO["bajando"] else 0
+    except OSError:
+        hecho = 0
+    return {"hay": hay, "bajando": _TYCHO["bajando"], "hecho": hecho, "total": _TYCHO["total"] or TYCHO_TAMANO,
+            "error": _TYCHO["error"], "tamano": os.path.getsize(ruta) if hay else TYCHO_TAMANO}
+
+
+def _es_error_ssl(e):
+    import ssl
+    return isinstance(e, ssl.SSLError) or isinstance(getattr(e, "reason", None), ssl.SSLError) or "CERTIFICATE" in str(e).upper()
+
+
+def _abrir_https(url, timeout):
+    """urlopen con los certificados de certifi (van dentro de la aplicación; en el Mac el Python empaquetado no
+    encuentra los del sistema) y, si fallan, con los del sistema (Windows, redes de empresa)."""
+    import ssl
+    ctxs = []
+    try:
+        import certifi
+        ctxs.append(ssl.create_default_context(cafile=certifi.where()))
+    except Exception:
+        pass
+    ctxs.append(ssl.create_default_context())
+    ultimo = None
+    for ctx in ctxs:
+        try:
+            return _ureq.urlopen(_ureq.Request(url, headers={"User-Agent": "ASTRO"}), timeout=timeout, context=ctx)
+        except Exception as e:
+            if not _es_error_ssl(e):
+                raise
+            ultimo = e
+    raise ultimo
+
+
+def _bajar_tycho():
+    import shutil
+    ruta = tycho_ruta()
+    parte = ruta + ".parte"
+    try:
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        try:
+            with _abrir_https(TYCHO_URL, 30) as r, open(parte, "wb") as fh:
+                _TYCHO["total"] = int(r.headers.get("Content-Length") or 0)
+                while True:
+                    b = r.read(1 << 18)
+                    if not b:
+                        break
+                    fh.write(b)
+        except Exception as e:
+            # último recurso: curl usa los certificados del sistema (llavero del Mac, almacén de Windows)
+            curl = shutil.which("curl") or ("/usr/bin/curl" if os.path.exists("/usr/bin/curl") else "")
+            if not (_es_error_ssl(e) and curl):
+                raise
+            extra = {"creationflags": 0x08000000} if os.name == "nt" else {}
+            out = subprocess.run([curl, "-sfL", "--max-time", "1800", "-A", "ASTRO", "-o", parte, TYCHO_URL], capture_output=True, **extra)
+            if out.returncode:
+                raise RuntimeError("curl %d" % out.returncode)
+        if not bin_estrellas_valido(parte):
+            raise RuntimeError("archivo incompleto / incomplete file")
+        os.replace(parte, ruta)
+    except Exception as e:
+        _TYCHO["error"] = (str(e) or type(e).__name__)[:200]
+        try:
+            os.remove(parte)
+        except OSError:
+            pass
+    finally:
+        _TYCHO["bajando"] = False
+
+
+def tycho_descargar():
+    with _TYCHO_LOCK:
+        if not _TYCHO["bajando"] and not bin_estrellas_valido(tycho_ruta()):
+            _TYCHO.update(bajando=True, total=0, error="")
+            threading.Thread(target=_bajar_tycho, daemon=True).start()
+    return tycho_estado()
+
+
+def tycho_quitar():
+    with _TYCHO_LOCK:
+        if not _TYCHO["bajando"]:
+            try:
+                os.remove(tycho_ruta())
+            except OSError:
+                pass
+            _TYCHO["error"] = ""
+    return tycho_estado()
 
 
 def que_fotografio(fecha=None, extra=None):
@@ -16779,6 +17032,15 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, CATALOGO_TXT)
         if p.path == "/api/cielo":
             return self._send(200, cielo_txt())
+        if p.path == "/api/cielo/estrellas":
+            return self._send(200, estrellas_bin(), "application/octet-stream")
+        if p.path == "/api/cielo/tycho/estado":
+            return self._send(200, json.dumps(tycho_estado(), ensure_ascii=False))
+        if p.path == "/api/cielo/tycho":
+            if _TYCHO["bajando"] or not bin_estrellas_valido(tycho_ruta()):
+                return self._send(404, "no", "text/plain; charset=utf-8")
+            with open(tycho_ruta(), "rb") as fh:
+                return self._send(200, fh.read(), "application/octet-stream")
         if p.path == "/api/equipo":
             return self._send(200, json.dumps({"equipo": leer_equipo(), "sensores": SENSORES_CAM, "tipos_tel": list(TIPOS_TEL),
                                                "tipos_filtro": TIPOS_FILTRO, "bortle": BORTLE_SQM}, ensure_ascii=False))
@@ -16911,6 +17173,9 @@ class H(BaseHTTPRequestHandler):
             if isinstance(d, dict):
                 _MOVIL["estado"], _MOVIL["recibido"] = d, time.time()
             return self._send(200, '{"ok":true}')
+        if p.path in ("/api/cielo/tycho/descargar", "/api/cielo/tycho/quitar"):
+            self._body()
+            return self._send(200, json.dumps(tycho_descargar() if p.path.endswith("descargar") else tycho_quitar(), ensure_ascii=False))
         if p.path == "/api/idioma":
             d = json.loads(self._body() or b"{}")
             guardar_idioma(d.get("idioma", "es"))

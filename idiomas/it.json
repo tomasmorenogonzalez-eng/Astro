@@ -3099,7 +3099,14 @@
 "Rejilla": "Griglia",
 "Nombres de estrellas": "Nomi delle stelle",
 "Ir a…": "Vai a…",
-"Cargando el cielo…": "Caricamento del cielo…"
+"Cargando el cielo…": "Caricamento del cielo…",
+"No se ha podido: {1}": "Non è stato possibile: {1}",
+"Descargando Tycho-2…": "Download di Tycho-2 in corso…",
+"Tycho-2 instalado: al acercarte salen unos 2,5 millones de estrellas más, hasta la magnitud 12.": "Tycho-2 installato: ingrandendo compaiono circa 2,5 milioni di stelle in più, fino alla magnitudine 12.",
+"No se ha podido descargar: {1}": "Download non riuscito: {1}",
+"¿Más estrellas? Descarga el catálogo Tycho-2: unos 2,5 millones más, hasta la magnitud 12, que salen al acercarte ({1}).": "Più stelle? Scarica il catalogo Tycho-2: circa 2,5 milioni in più, fino alla magnitudine 12, che compaiono ingrandendo ({1}).",
+"Reintentar": "Riprova",
+"Descargar": "Scarica"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",

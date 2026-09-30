@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.28.7",
+  "es": [
+   "Más estrellas en el «Mapa del cielo»: ahora llega a la magnitud 8 (unas 48 000) y, cuanto más te acercas, más débiles se ven. Y si quieres aún más, puedes descargar el catálogo Tycho-2 desde el propio mapa: unos 2,5 millones de estrellas, hasta la magnitud 12, que salen solo al acercarte."
+  ],
+  "en": [
+   "More stars in the «Sky map»: it now goes down to magnitude 8 (about 48,000), and the closer you zoom, the fainter they get. If you want even more, you can download the Tycho-2 catalogue from the map itself: about 2.5 million stars, down to magnitude 12, shown only as you zoom in."
+  ],
+  "fr": [
+   "Plus d'étoiles dans la « Carte du ciel » : elle descend maintenant jusqu'à la magnitude 8 (environ 48 000), et plus vous zoomez, plus elles sont faibles. Pour aller encore plus loin, vous pouvez télécharger le catalogue Tycho-2 depuis la carte : environ 2,5 millions d'étoiles, jusqu'à la magnitude 12, qui n'apparaissent qu'en zoomant."
+  ],
+  "de": [
+   "Mehr Sterne in der „Himmelskarte“: Sie reicht jetzt bis Magnitude 8 (rund 48.000), und je weiter du hineinzoomst, desto schwächere Sterne erscheinen. Wer noch mehr will, lädt direkt in der Karte den Tycho-2-Katalog herunter: rund 2,5 Millionen Sterne bis Magnitude 12, die nur beim Hineinzoomen auftauchen."
+  ],
+  "it": [
+   "Più stelle nella «Mappa del cielo»: ora arriva alla magnitudine 8 (circa 48.000) e più ingrandisci, più deboli si vedono. Se ne vuoi ancora di più, puoi scaricare il catalogo Tycho-2 dalla mappa stessa: circa 2,5 milioni di stelle, fino alla magnitudine 12, che compaiono solo ingrandendo."
+  ],
+  "pt": [
+   "Mais estrelas no «Mapa do céu»: agora chega à magnitude 8 (cerca de 48 000) e, quanto mais se aproxima, mais fracas se veem. Se quiser ainda mais, pode descarregar o catálogo Tycho-2 no próprio mapa: cerca de 2,5 milhões de estrelas, até à magnitude 12, que só aparecem ao aproximar."
+  ]
+ },
+ {
   "version": "0.28.6",
   "es": [
    "El «Mapa del cielo» del Archivo, renovado: estrellas hasta la magnitud 6 con su color, la Vía Láctea con su forma real, las figuras y los nombres de las constelaciones y tus proyectos con el recuadro de su campo, su nombre y sus horas. De lejos se ve todo el cielo; al acercarte pasa a una carta celeste centrada donde miras. Con «Ir a…» saltas a un proyecto.",

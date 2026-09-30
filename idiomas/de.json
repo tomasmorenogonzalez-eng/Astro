@@ -3099,7 +3099,14 @@
 "Rejilla": "Gitter",
 "Nombres de estrellas": "Sternnamen",
 "Ir a…": "Gehe zu…",
-"Cargando el cielo…": "Himmel wird geladen…"
+"Cargando el cielo…": "Himmel wird geladen…",
+"No se ha podido: {1}": "Das hat nicht geklappt: {1}",
+"Descargando Tycho-2…": "Tycho-2 wird heruntergeladen…",
+"Tycho-2 instalado: al acercarte salen unos 2,5 millones de estrellas más, hasta la magnitud 12.": "Tycho-2 installiert: Beim Hineinzoomen erscheinen rund 2,5 Millionen weitere Sterne, bis Magnitude 12.",
+"No se ha podido descargar: {1}": "Download fehlgeschlagen: {1}",
+"¿Más estrellas? Descarga el catálogo Tycho-2: unos 2,5 millones más, hasta la magnitud 12, que salen al acercarte ({1}).": "Mehr Sterne? Lade den Tycho-2-Katalog herunter: rund 2,5 Millionen weitere, bis Magnitude 12, die beim Hineinzoomen erscheinen ({1}).",
+"Reintentar": "Erneut versuchen",
+"Descargar": "Herunterladen"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

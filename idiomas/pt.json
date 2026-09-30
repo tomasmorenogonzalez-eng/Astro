@@ -3099,7 +3099,14 @@
 "Rejilla": "Grelha",
 "Nombres de estrellas": "Nomes das estrelas",
 "Ir a…": "Ir para…",
-"Cargando el cielo…": "A carregar o céu…"
+"Cargando el cielo…": "A carregar o céu…",
+"No se ha podido: {1}": "Não foi possível: {1}",
+"Descargando Tycho-2…": "A descarregar o Tycho-2…",
+"Tycho-2 instalado: al acercarte salen unos 2,5 millones de estrellas más, hasta la magnitud 12.": "Tycho-2 instalado: ao aproximar, aparecem cerca de 2,5 milhões de estrelas a mais, até à magnitude 12.",
+"No se ha podido descargar: {1}": "Não foi possível descarregar: {1}",
+"¿Más estrellas? Descarga el catálogo Tycho-2: unos 2,5 millones más, hasta la magnitud 12, que salen al acercarte ({1}).": "Mais estrelas? Descarregue o catálogo Tycho-2: cerca de 2,5 milhões a mais, até à magnitude 12, que aparecem ao aproximar ({1}).",
+"Reintentar": "Tentar de novo",
+"Descargar": "Descarregar"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",

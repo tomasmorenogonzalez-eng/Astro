@@ -1,25 +1,47 @@
 #!/usr/bin/env python3
-"""Genera cielo/cielo.json (el fondo del «Mapa del cielo» del Archivo) a partir de los datos de d3-celestial
-(Olaf Frohn, licencia BSD de 3 cláusulas: https://github.com/ofrohn/d3-celestial).
+"""Genera el fondo del «Mapa del cielo» del Archivo.
 
 Uso:
-    python3 herramientas/cielo/hacer_cielo.py <carpeta con stars.6.json, constellations.lines.json,
-                                                constellations.json, starnames.json y mw.json>
+    python3 herramientas/cielo/hacer_cielo.py <carpeta de d3-celestial> <estrellas de Big Sky (.parquet)>
 
-Lo que sale (todo en grados, ascensión recta de 0 a 360):
-  estrellas: [ar, dec, magnitud, B-V] hasta la magnitud 6 (unas 5000)
-  nombres:   {índice de la estrella: nombre} de las más brillantes
-  lineas:    {constelación: [[ar, dec, ar, dec, …], …]} las figuras
-  const:     {constelación: [ar, dec, rango, {es, en, fr, de, it, la}]} dónde va su nombre
-  via:       la Vía Láctea en una rejilla de medio grado (720 × 360, de dec −90 a +90): cuántas de sus cinco
-             capas de brillo cubren cada celda, en tramos [valor, longitud, valor, longitud…]"""
+  · La carpeta de d3-celestial (Olaf Frohn, licencia BSD de 3 cláusulas, https://github.com/ofrohn/d3-celestial)
+    con constellations.lines.json, constellations.json, starnames.json, mw.json y stars.8.json.
+  · Las estrellas: el catálogo Big Sky completo (Steve Berardi, licencia MIT, https://github.com/steveberardi/bigsky;
+    Hipparcos, Tycho-1 y Tycho-2, unos 2,5 millones), el archivo «stars.bigksy.0.1.3.mag16.parquet» de
+    https://github.com/steveberardi/starplot-bigsky/releases. Hace falta pyarrow (pip install pyarrow).
+
+Lo que sale:
+  cielo/cielo.json         las figuras y los nombres de las constelaciones, la Vía Láctea y los nombres de las
+                           estrellas más brillantes (va dentro de ASTRO)
+  cielo/estrellas.bin      las estrellas hasta la magnitud 8 (unas 48 000; va dentro de ASTRO)
+  descargas/cielo-tycho2.bin  las demás, de la 8 a la 16 (unos 2,5 millones): se descarga desde ASTRO si se pide
+
+cielo.json (todo en grados, ascensión recta de 0 a 360):
+  nombres: [[ar, dec, magnitud, nombre], …] de las estrellas con nombre más brillantes que la 2,6
+  lineas:  {constelación: [[ar, dec, ar, dec, …], …]} las figuras
+  const:   {constelación: [ar, dec, rango, {es, en, fr, de, it, la}]} dónde va su nombre
+  via:     la Vía Láctea en una rejilla de medio grado (720 × 360, de dec −90 a +90): cuántas de sus cinco capas de
+           brillo cubren cada celda, en tramos [valor, longitud, valor, longitud…]
+
+Los .bin (little-endian): el cielo en teselas de 5° × 5° (36 filas de declinación desde −90, 72 columnas de ascensión
+recta desde 0) y, dentro de cada tesela, las estrellas de la más brillante a la más débil:
+  0   «ASTROCI1»
+  8   u16 lado de la tesela en grados · u16 columnas · u16 filas · u16 0
+  16  u32 estrellas · f32 m0 · f32 escala (magnitud = m0 + código / escala) · u32 0
+  32  u32 estrellas de cada tesela (fila a fila)
+  …   u16 ar dentro de la tesela (0…65535) · u16 dec dentro de la tesela · u8 magnitud · i8 B−V × 50 (−128: no se sabe)"""
 import json
 import os
+import struct
 import sys
 
 import numpy as np
 
-PASO = 0.5
+PASO = 0.5                  # rejilla de la Vía Láctea
+TESELA, NCOL, NFIL = 5, 72, 36
+M0, ESCALA = -1.5, 15.0     # magnitudes de −1,5 a 15,5 en 256 pasos
+CORTE = 8.0                 # hasta aquí van dentro de ASTRO; el resto, en la descarga
+RAIZ = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 
 def ar(lon):
@@ -54,21 +76,65 @@ def capa_via(multipoligono):
     return dentro
 
 
-def main(carpeta):
+def escribir_bin(ruta, ra, dec, mag, bv):
+    """Las estrellas en teselas, cada tesela de la más brillante a la más débil."""
+    ra = np.mod(ra, 360.0)
+    col = np.clip((ra // TESELA).astype(np.int64), 0, NCOL - 1)
+    fil = np.clip(((dec + 90) // TESELA).astype(np.int64), 0, NFIL - 1)
+    tes = fil * NCOL + col
+    orden = np.lexsort((mag, tes))
+    ra, dec, mag, bv, tes, col, fil = ra[orden], dec[orden], mag[orden], bv[orden], tes[orden], col[orden], fil[orden]
+    u_ra = np.clip(np.round((ra - col * TESELA) / TESELA * 65535), 0, 65535).astype("<u2")
+    u_dec = np.clip(np.round((dec + 90 - fil * TESELA) / TESELA * 65535), 0, 65535).astype("<u2")
+    u_mag = np.clip(np.round((mag - M0) * ESCALA), 0, 255).astype("u1")
+    u_bv = np.where(np.isnan(bv), -128, np.clip(np.round(np.nan_to_num(bv) * 50), -127, 127)).astype("i1")
+    cuenta = np.bincount(tes, minlength=NCOL * NFIL).astype("<u4")
+    os.makedirs(os.path.dirname(ruta), exist_ok=True)
+    with open(ruta, "wb") as fh:
+        fh.write(b"ASTROCI1" + struct.pack("<4H", TESELA, NCOL, NFIL, 0) + struct.pack("<I2fI", len(ra), M0, ESCALA, 0))
+        fh.write(cuenta.tobytes())
+        for a in (u_ra, u_dec, u_mag, u_bv):
+            fh.write(a.tobytes())
+    print("%s: %d estrellas (%.1f MB)" % (os.path.relpath(ruta, RAIZ), len(ra), os.path.getsize(ruta) / 1e6))
+
+
+def main(carpeta, parquet):
+    import pyarrow.parquet as pq
     L = lambda n: json.load(open(os.path.join(carpeta, n), encoding="utf-8"))
-    est, nombres_d3 = L("stars.6.json"), L("starnames.json")
-    estrellas, nombres = [], {}
-    for f in sorted(est["features"], key=lambda f: f["properties"]["mag"]):
-        lon, lat = f["geometry"]["coordinates"]
+    nombres_d3 = L("starnames.json")
+    # B−V de d3-celestial (Hipparcos) para las que Big Sky no lo trae (Sirio, entre otras)
+    bv_hip = {}
+    for f in L("stars.8.json")["features"]:
         try:
-            bv = round(float(f["properties"].get("bv") or 0.6), 2)
-        except ValueError:
-            bv = 0.6
-        mag = round(f["properties"]["mag"], 2)
-        n = (nombres_d3.get(str(f["id"])) or {}).get("name", "")
-        if n and mag < 2.6:
-            nombres[len(estrellas)] = n
-        estrellas.append([ar(lon), round(lat, 3), mag, bv])
+            bv_hip[int(f["id"])] = float(f["properties"].get("bv"))
+        except (TypeError, ValueError):
+            pass
+
+    t = pq.read_table(parquet, columns=["ra", "dec", "magnitude", "bv", "hip"])
+    ra = t["ra"].to_numpy().astype(float)
+    dec = t["dec"].to_numpy().astype(float)
+    mag = t["magnitude"].to_numpy().astype(float)
+    bv = t["bv"].to_numpy(zero_copy_only=False).astype(float)
+    hip = t["hip"].to_numpy(zero_copy_only=False).astype(float)
+    falta = np.isnan(bv) & ~np.isnan(hip)
+    for i in np.nonzero(falta)[0]:
+        bv[i] = bv_hip.get(int(hip[i]), np.nan)
+
+    nombres, vistos = [], set()
+    for i in np.argsort(mag, kind="stable"):
+        if mag[i] >= 2.6:
+            break
+        if np.isnan(hip[i]) or int(hip[i]) in vistos:
+            continue
+        vistos.add(int(hip[i]))
+        n = (nombres_d3.get(str(int(hip[i]))) or {}).get("name", "")
+        if n:
+            nombres.append([round(ra[i] % 360, 3), round(dec[i], 3), round(mag[i], 2), n])
+
+    base = mag <= CORTE
+    escribir_bin(os.path.join(RAIZ, "cielo", "estrellas.bin"), ra[base], dec[base], mag[base], bv[base])
+    escribir_bin(os.path.join(RAIZ, "descargas", "cielo-tycho2.bin"), ra[~base], dec[~base], mag[~base], bv[~base])
+
     lineas = {}
     for f in L("constellations.lines.json")["features"]:
         lineas[f["id"]] = [[v for p in tramo for v in (ar(p[0]), round(p[1], 3))] for tramo in f["geometry"]["coordinates"]]
@@ -94,17 +160,16 @@ def main(carpeta):
             j += 1
         tramos += [int(plano[i]), j - i]
         i = j
-    salida = {"fuente": "d3-celestial (c) 2015 Olaf Frohn, BSD-3-Clause", "paso": PASO,
-              "estrellas": estrellas, "nombres": nombres, "lineas": lineas, "const": const, "via": tramos}
-    dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "cielo", "cielo.json")
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    salida = {"fuente": "d3-celestial (c) 2015 Olaf Frohn, BSD-3-Clause; estrellas: Big Sky (c) 2023 Steve Berardi, MIT",
+              "paso": PASO, "nombres": nombres, "lineas": lineas, "const": const, "via": tramos}
+    dest = os.path.join(RAIZ, "cielo", "cielo.json")
     with open(dest, "w", encoding="utf-8") as fh:
         json.dump(salida, fh, ensure_ascii=False, separators=(",", ":"))
-    print("%d estrellas, %d con nombre, %d constelaciones, %d tramos de Vía Láctea · %s (%.0f kB)" % (
-        len(estrellas), len(nombres), len(lineas), len(tramos) // 2, os.path.normpath(dest), os.path.getsize(dest) / 1024))
+    print("cielo/cielo.json: %d nombres de estrellas, %d constelaciones, %d tramos de Vía Láctea (%.0f kB)" % (
+        len(nombres), len(lineas), len(tramos) // 2, os.path.getsize(dest) / 1024))
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         raise SystemExit(__doc__)
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])
