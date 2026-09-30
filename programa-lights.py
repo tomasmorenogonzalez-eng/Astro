@@ -1341,6 +1341,101 @@ body.parpAbierto{overflow:hidden}
 .arcEst.e-archivado{background:transparent;border-style:dashed}
 .arcEstados .dotE.e-curso{background:var(--accent)} .arcEstados .dotE.e-capturado{background:var(--warn)} .arcEstados .dotE.e-procesado{background:var(--ok)}
 
+/* ── 0.30: la página de un proyecto: estado, horas, cadena de pasos y procesado ── */
+.pgEstados{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px}
+.pgE{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:999px;font:inherit;font-size:13.5px;font-weight:650;cursor:pointer}
+.pgE i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--faint)}
+.pgE.e-curso i{background:var(--accent)} .pgE.e-capturado i{background:var(--warn)} .pgE.e-procesado i{background:var(--ok)}
+.pgE.e-archivado i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--muted)}
+.pgE.pas{color:var(--muted)}
+.pgE:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.pgE.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.pgE.on i{background:var(--on-accent)} .pgE.on.e-archivado i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--on-accent)}
+.pgE:disabled{cursor:default} .pgE:disabled:not(.on){opacity:.5}
+.pgE:focus-visible,.pgPaso:focus-visible,.pgChip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pgEstTxt{color:var(--muted);line-height:1.45;font-size:13.5px;margin:0 0 12px;max-width:760px}
+.pgRes{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.pgChip{display:inline-flex;align-items:center;gap:7px;max-width:100%;border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:999px;padding:4px 11px;font:inherit;font-size:13px;font-weight:650;text-decoration:none;cursor:pointer}
+.pgChip b{font-size:11px;letter-spacing:.06em;color:var(--accent)} .pgChip.red b{font-size:13px}
+.pgChip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.pgChip:hover{border-color:var(--accent);background:var(--accent-soft)}
+/* ¿necesito más horas? */
+.pgHoras{background:var(--surface);border-radius:14px;box-shadow:var(--sombra);padding:14px 18px 12px;margin:0 0 14px}
+.pgHorasCab{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;margin:0 0 8px} .pgHorasCab .spacer{flex:1}
+.pgHoras.compacta{padding-top:11px;padding-bottom:11px} .pgHoras.compacta .pgHorasCab{margin:0} .pgHoras.compacta .pgResp{margin:8px 0 0} .pgHorasCab h3{margin:0;font-size:16px} .pgHorasCab .note{font-size:13px}
+.pgResp{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0 0 12px}
+.pgResp b{font-size:22px;font-weight:800;letter-spacing:-.01em} .pgResp span{color:var(--muted);font-size:13.5px} .pgResp.ok b{color:var(--ok)}
+.pgRapido{display:inline-flex;gap:6px}
+.pgFiltros{display:grid;gap:7px}
+.pgF{display:grid;grid-template-columns:minmax(64px,92px) minmax(60px,1fr) 62px 98px 72px;gap:10px;align-items:center}
+.pgF .fchip{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgBar{height:8px;border-radius:5px;background:var(--surface3);overflow:hidden} .pgBar i{display:block;height:100%;border-radius:5px;min-width:2px}
+.pgFh{text-align:right;font-weight:650;white-space:nowrap}
+.pgFm{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.pgFm input,.pgRepartir input,.pgForm input{padding:5px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
+.pgFm input,.pgRepartir input{width:64px;text-align:right}
+.pgFm input:focus,.pgRepartir input:focus,.pgForm input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.pgFf{text-align:right;font-size:12.5px;color:var(--muted);white-space:nowrap} .pgFf.ok{color:var(--ok);font-weight:800}
+.pgRepartir{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.pgRepartir .spacer{flex:1}
+.pgDet{margin:12px 0 0} .pgDet>summary{cursor:pointer;font-weight:700;padding:3px 0}
+.pgHoras .pgDet{border-top:1px solid var(--line);padding-top:6px;margin-top:10px}
+/* la cadena de pasos */
+.pgCadena{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:0 0 8px}
+.pgPaso{display:flex;align-items:center;gap:10px;min-width:0;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;color:var(--text);cursor:pointer;box-shadow:var(--sombra)}
+.pgPaso:hover{border-color:var(--line2);background:var(--surface2)}
+.pgPaso.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.pgNum{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;background:var(--surface2);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line2)}
+.pgPaso.hecho .pgNum{background:var(--ok);color:var(--on-accent);box-shadow:none}
+.pgPaso.pend .pgNum{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.pgPaso.activo .pgNum{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.pgPaso.aviso .pgNum{background:var(--warn);color:var(--on-accent);box-shadow:none} .pgPaso.mal .pgNum{background:var(--bad);color:var(--on-accent);box-shadow:none}
+.pgPaso.espera{opacity:.75}
+.pgPT{display:flex;flex-direction:column;min-width:0;line-height:1.25} .pgPT b{font-size:14px}
+.pgPT small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgPaso.aviso .pgPT small{color:var(--warn)} .pgPaso.mal .pgPT small{color:var(--bad)}
+.pgPanel{background:var(--surface);border-radius:14px;box-shadow:var(--sombra);padding:16px 18px;margin:0 0 14px;min-height:80px}
+.pgPanel .arcDos{margin-bottom:12px} .pgPanel .arcH:first-child{margin-top:0}
+.pgAcc{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0} .pgAcc a{font-size:13.5px}
+.pgBloque{margin:0 0 4px} .pgBloque h4{margin:0 0 8px;font-size:14.5px} .pgBloque p{margin:0 0 8px;line-height:1.45}
+.pgBloque+.pgBloque{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.pgDos{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:start}
+.pgDos>*{min-width:0} .pgH4b{margin-top:14px!important}
+.pgCalBar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--surface3);margin:0 0 8px} .pgCalBar i{display:block;height:100%}
+.pgCalLey{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--muted)}
+.pgCalLey span{display:inline-flex;align-items:center;gap:6px} .pgCalLey i{flex:none;width:9px;height:9px;border-radius:50%;display:inline-block}
+.pgApilados{display:grid}
+.pgAp{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:8px 0;border-top:1px solid var(--line)} .pgAp:first-child{border-top:0;padding-top:0}
+.pgAp b{min-width:112px} .pgAp .note{flex:1;min-width:120px}
+/* procesado */
+.pgArchivo{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2)}
+.pgIco{flex:none;width:42px;height:42px;border-radius:10px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:800;font-size:11px;letter-spacing:.04em}
+.pgArchN{flex:1 1 160px;display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.pgArchN b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgArchN small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .pgArchN small.arcMal{white-space:normal}
+.pgArchAcc{display:flex;flex-wrap:wrap;gap:6px}
+.pgForm{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.pgForm input[type=text],.pgForm input[type=url]{flex:1 1 220px;min-width:0}
+.pgEnlaces{display:grid}
+.pgEnl{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)} .pgEnl:first-child{border-top:0;padding-top:0}
+.pgEnl a{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3;text-decoration:none;color:var(--text)}
+.pgEnl a b{font-weight:700} .pgEnl a span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgEnl a:hover b{color:var(--accent);text-decoration:underline} .pgEnl .note{white-space:nowrap;font-size:12.5px}
+.pgInvita{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0 0;padding:10px 12px;border-radius:12px;background:var(--ok-bg)} .pgInvita span{font-weight:650}
+.pgFicha{white-space:pre-wrap;word-break:break-word;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;line-height:1.55;margin:8px 0}
+.pgMas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.pryRes{margin:10px 0 0} .pryResT{margin-top:3px;font-size:12px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:860px){
+  .pgCadena{grid-template-columns:repeat(2,minmax(0,1fr))} .pgPaso:last-child:nth-child(odd){grid-column:1/-1}
+  .pgDos{grid-template-columns:minmax(0,1fr)}
+  .app{background:none}
+}
+@media (max-width:640px){
+  .pgHoras,.pgPanel{padding-left:14px;padding-right:14px}
+  .pgF{grid-template-columns:minmax(52px,auto) 1fr 92px 58px;gap:6px 8px} .pgBar{grid-column:1/-1;order:9} .pgFh{text-align:left}
+  .pgResp b{font-size:19px}
+}
+
 /* ── 0.30: la lista de proyectos: estados, filtros, tarjetas y tabla ── */
 #cabObjetos .note{font-size:13px}
 .pryEstados{margin:0 0 10px}
@@ -1567,10 +1662,6 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
   <label style="display:flex;gap:8px;align-items:center;font-size:14px">Empezar a numerar en <input type="number" id="renStart" value="1" min="0" style="width:80px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"> con <input type="number" id="renPad" value="3" min="1" max="6" style="width:60px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"> cifras</label>
   <div class="preview" id="renPreview"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="renClose">Cancelar</button><button class="btn primary" id="renApply">Renombrar</button></div>
-</div></div>
-<div class="modal" id="objBox"><div class="box" style="width:min(1060px,100%)">
-  <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="objTitle">Resumen</h2><button class="btn small" id="objClose">Cerrar</button></div>
-  <div id="objBody"></div>
 </div></div>
 <div class="modal" id="varBox"><div class="box" style="width:min(1000px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="varTitulo">Proyecto con varios equipos</h2><button class="btn small" id="varCerrar">Cerrar</button></div>
@@ -3532,6 +3623,19 @@ function sesionesHTML(obj, fl){
         <span>${esc(k)}<div class="m">${gl.length} toma${gl.length !== 1 ? "s" : ""} · ${fmtH(horasDe(kept.filter(f => !f.fuera)))}${fw ? " · FWHM " + fw.toFixed(1) : ""}</div></span>
         <span><span class="dot ok"></span>${cc.ok} <span class="dot warn"></span>${cc.warn} <span class="dot bad"></span>${cc.bad}</span></div>`; }).join("");
 }
+// lo que se ha publicado de un proyecto procesado: la imagen final y las redes, con un clic hasta cada publicación
+function pryResultado(obj){
+  const pr = (ARC.procesado || {})[obj], enl = pr ? pr.enlaces || [] : [];
+  if (!pr || (!pr.tif && !enl.length)) return "";
+  return `<div class="pgRes pryRes">${pr.tif ? `<button class="pgChip" data-pry-tif="${esc(obj)}" title="${esc(pr.tif)}"><b>TIF</b></button>` : ""}${enl.slice(0, 4).map(e =>
+    `<a class="pgChip red" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" title="${esc(e.url)}"><span class="notr">${esc(pgNombreRed(e))}</span><b>↗</b></a>`).join("")}${enl.length > 4 ? `<span class="note">+${enl.length - 4}</span>` : ""}</div>`;
+}
+function pryResTxt(obj){
+  const pr = (ARC.procesado || {})[obj], enl = pr ? pr.enlaces || [] : [];
+  if (!pr || (!pr.tif && !enl.length)) return "";
+  const redes = [...new Set(enl.map(pgNombreRed))], t = [pr.tif ? "TIF" : "", ...redes.slice(0, 2), redes.length > 2 ? "+" + (redes.length - 2) : ""].filter(Boolean).join(" · ");
+  return `<div class="note pryResT notr" title="${esc(redes.join(", "))}">${esc(t)}</div>`;
+}
 function pryTarjeta(p, porClave){
   const {obj, fl, ok, meta, pct, noches} = p, h = p.seg / 3600;
   const porF = [...groupBy(ok, f => f.filter || "sin filtro")].sort((a, b) => ordenFiltros(a[0], b[0]));
@@ -3556,10 +3660,11 @@ function pryTarjeta(p, porClave){
         <div class="fila">${pct !== null ? anilloSVG(pct) : ""}<div class="horas"><b>${fmtH(h)}</b>${meta > 0 ? ` <span class="dato">de ${fmtH(meta)}</span>` : ` <span class="dato">útiles</span>`}
           <div class="dato"><span>${noches.length} noche${noches.length !== 1 ? "s" : ""} · ${fl.length} toma${fl.length !== 1 ? "s" : ""}</span>${pct >= 100 ? '<span> · </span><span style="color:var(--ok)">objetivo cumplido</span>' : ""}${meta > 0 ? "" : '<span> · </span><a href="#" data-resumen="' + esc(obj) + '">poner objetivo</a>'}</div></div></div>
         ${barras ? `<div class="fbars">${barras}</div>` : ""}
+        ${pryResultado(obj)}
         <div class="prox" data-prox="${esc(obj)}">${PROX[obj] || ""}</div>
         ${(o.proyecto && o.proyecto.montaje_nombre) ? `<div class="dato" style="margin-top:4px"><span>Proyecto con</span> <span class="notr">${esc(o.proyecto.montaje_nombre)}</span></div>` : ""}
         <div class="pie"><span class="mini" title="${c.ok} válidas · ${c.warn} con avisos · ${c.bad} rechazables"><i style="width:${100 * c.ok / tot}%;background:var(--ok)"></i><i style="width:${100 * c.warn / tot}%;background:var(--warn)"></i><i style="width:${100 * c.bad / tot}%;background:var(--bad)"></i></span>
-          <button class="btn small" data-vertomas="${esc(obj)}">Tomas</button><button class="btn primary small" data-resumen="${esc(obj)}">Resumen</button></div>
+          <button class="btn small" data-vertomas="${esc(obj)}">Tomas</button><button class="btn primary small" data-resumen="${esc(obj)}">Abrir</button></div>
         <details class="ses" data-ses="${esc(obj)}"><summary>Sesiones (${new Set(fl.map(f => (f.night || "?") + (f.filter || ""))).size})</summary><div class="sesCuerpo"></div></details>
         ${gestionObjeto(obj, fl, (porClave.get(claveObjeto(obj)) || []).filter(x => x !== obj))}
       </div></div>`;
@@ -3600,7 +3705,7 @@ function pryFila(p, celdas, maxH){
   return `<tr ${p.sin ? "" : `data-pry-abrir="${esc(p.obj)}" tabindex="0"`}>
     <td class="pn"><div class="pnW"><span class="pth" ${img ? `style="background-image:url('${img}')"` : ""}></span><div><b class="notr">${esc(p.obj)}</b>
       <div class="note" title="${esc([p.sin ? trLT("aún sin tomas", "no frames yet") : tipo, eq].filter(Boolean).join(" · "))}">${p.sin ? esc(trLT("aún sin tomas", "no frames yet")) + (eq ? " · " : "") : tipo ? `<span>${esc(tipo)}</span>${eq ? " · " : ""}` : ""}${eq ? `<span class="notr">${esc(eq)}</span>` : ""}</div></div></div></td>
-    <td>${chipEstado(p.est)}</td>
+    <td>${chipEstado(p.est)}${p.sin ? "" : pryResTxt(p.obj)}</td>
     <td class="pt"><b>${esc(fmtH(h))}</b>${p.meta > 0 ? ` <span class="note">${esc(trLT("de {1}", "of {1}", fmtH(p.meta)))}</span><span class="pfb"><i style="width:${p.pct}%;background:${p.pct >= 100 ? "var(--ok)" : "var(--accent)"}"></i></span>` : ""}</td>
     <td class="num">${nfmt(p.noches.length)}</td><td class="ul">${p.ultima ? esc(fechaDia(p.ultima)) : "—"}</td>${celdas.map(([x, fi]) => pryCelda(x, fi, maxH)).join("")}</tr>`;
 }
@@ -3736,6 +3841,7 @@ function pintarProyectos(){
   box.querySelectorAll("[data-quitarp]").forEach(b => b.onclick = ev => { ev.preventDefault(); quitarProyecto(b.dataset.quitarp); });
   box.querySelectorAll("[data-varios]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); abrirVarios(b.dataset.varios); });
   box.querySelectorAll("[data-resumen]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); resumenObjeto(b.dataset.resumen); });
+  box.querySelectorAll("[data-pry-tif]").forEach(b => b.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); pgTif(b.dataset.pryTif, "abrir"); });
   box.querySelectorAll("[data-vertomas]").forEach(b => b.onclick = () => { filters.object = new Set([b.dataset.vertomas]); filters.filter = new Set(); filters.q = ""; $("q").value = ""; mostrarVista("tomas"); renderFilters(); renderTable(); });
   box.querySelectorAll("details.ses").forEach(d => d.ontoggle = () => {
     if (!d.open || d.dataset.hecho) return; d.dataset.hecho = "1";
@@ -4682,7 +4788,7 @@ function abrirDesdeEnlace(){
   if (h === "archivo"){ mostrarVista("archivo"); return; }
   if (h.startsWith("archivo=")){
     let o = ""; try { o = decodeURIComponent(h.slice(8)); } catch(_){}
-    if (o && frames.some(f => (f.object||"").trim() === o)) abrirProyecto(o); else mostrarVista("archivo");
+    if (o && frames.some(f => (f.object||"").trim() === o)){ mostrarVista("objetos"); abrirProyecto(o); } else mostrarVista("archivo");
     return;
   }
   if (h.startsWith("obj=")){
@@ -4701,7 +4807,7 @@ window.addEventListener("hashchange", abrirDesdeEnlace);
 /* ============ Archivo: años de tomas indexadas leyendo solo la cabecera; se analizan y depuran dentro de cada proyecto ============ */
 const ARC = {q:"", anio:"", mes:"", equipo:"", pendientes:false, orden:"horas", pestana:"proyectos", cal:null, calPedida:0, carpetas:null,
              indexando:null, ultimo:null, analizando:null, parar:false, proyecto:"", apilados:{},
-             estados:{}, apil:null, apilPedida:0, estado:"", sesMax:150, sesProy:40};
+             estados:{}, procesado:{}, apil:null, apilPedida:0, estado:"", sesMax:150, sesProy:40};
 // «Archivo» ya está en el diccionario como «archivo de ordenador» (fichier, Datei…): el apartado tiene su propia clave
 const ARCHIVO_TXT = () => IDIOMA === "es" ? "Archivo" : IDIOMA === "en" ? "Archive" : (DIC["Archivo (apartado)"] ?? "Archive");
 if ($("navArchivo")) $("navArchivo").textContent = ARCHIVO_TXT();
@@ -4850,7 +4956,7 @@ function arcPintarProgreso(){
 async function arcCargarProyectos(forzar){
   if (ARC.apilCargando || (!forzar && ARC.apil && Date.now() - ARC.apilPedida < 30000)) return;
   ARC.apilPedida = Date.now(); ARC.apilCargando = true;
-  try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.estados = r.estados || {}; ARC.apil = r.apilados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []); }
+  try { const r = await (await api("/api/archivo/proyectos")).json(); ARC.estados = r.estados || {}; ARC.apil = r.apilados || {}; ARC.limites = r.limites || {}; ARC.noUnir = new Set(r.no_unir || []); ARC.procesado = r.procesado || {}; }
   catch(_){ ARC.apil = ARC.apil || {}; }
   finally { ARC.apilCargando = false; }
   retomarConTomasNuevas();
@@ -4892,6 +4998,9 @@ function textoEventoHist(e){
       return [trLT("Límites", "Limits"), d + (e.fuera != null ? " · " + (e.fuera === 1 ? trLT("1 toma fuera del apilado", "1 frame left out of the stack")
         : trLT("{1} tomas fuera del apilado", "{1} frames left out of the stack", nfmt(e.fuera))) : ""), "evento"];
     }
+    case "procesado": return [textoEstado("procesado"), e.que === "tif" ? trLT("Apuntaste la imagen final: {1}", "You added the final image: {1}", e.archivo || "")
+      : e.que === "tif_quitado" ? trLT("Quitaste la imagen final", "You removed the final image")
+      : e.red ? trLT("Lo compartiste en {1}", "You shared it on {1}", e.red) : trLT("Apuntaste un enlace de dónde lo compartes", "You added a link to where you shared it"), "ok"];
     case "union": return [trLT("Nombre", "Name"), trLT("Se le unieron las tomas de {1}", "The frames of {1} were merged into it", listaNombresTxt(e.nombres || [])), "evento"];
     case "nombre": return [trLT("Nombre", "Name"), trLT("Antes se llamaba {1}", "It used to be called {1}", listaNombresTxt(e.nombres || [])), "evento"];
     case "fuera": return [trLT("Tomas", "Frames"), conNoches(e.fuera === false ? (uno ? trLT("1 toma vuelve al apilado", "1 frame goes back into the stack") : trLT("{1} tomas vuelven al apilado", "{1} frames go back into the stack", n))
@@ -5889,22 +5998,118 @@ async function guardarInicio(v){
   try { await api("/api/pref", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({inicio:v})}); } catch(_){}
 }
 
-/* --- página de un proyecto: analizar → depurar → calibración → apilar → continuar --- */
+/* --- página de un proyecto: cómo está, cuánto falta y la cadena Tomas › Analizar › Calidad › Apilado › Procesado --- */
 let VISTA_ANTES = "archivo";         // desde dónde se abrió la página de un proyecto
 function enlaceVolver(){
   const v = ["panel", "objetos", "tomas"].includes(VISTA_ANTES) ? VISTA_ANTES : "archivo";
   const t = v === "panel" ? VISTAS.panel[0] : v === "objetos" ? VISTAS.objetos[0] : v === "tomas" ? VISTAS.tomas[0] : ARCHIVO_TXT();
   return `<a href="#" class="arcVolver" onclick="mostrarVista('${v}');return false">← ${esc(tr(t))}</a>`;
 }
+// paso: el de la cadena que está abierto; det: los desplegables que el usuario ha abierto o cerrado; pend: hay un repintado
+// esperando a que se termine de escribir; tifOk: si el archivo de la imagen final existe (se comprueba de vez en cuando)
+const PG = {obj: "", paso: "", fijo: false, det: {}, pend: false, tifOk: {}, manual: false, cfg: false};
 function abrirProyecto(obj){
   if (VISTA_ACTUAL !== "proyecto") VISTA_ANTES = VISTA_ACTUAL;
+  if (PG.obj !== obj){ PG.obj = obj; PG.paso = ""; PG.fijo = false; PG.manual = false; PG.det = {}; }
   ARC.proyecto = obj; ARC.sesProy = 40; mostrarVista("proyecto");
   if (!ARC.apilados[obj]) fetch("/api/apilado/lista?objeto=" + encodeURIComponent(obj)).then(r => r.json()).then(l => { ARC.apilados[obj] = l || []; if (VISTA_ACTUAL === "proyecto") renderProyecto(); }).catch(() => {});
   window.scrollTo({top:0});
 }
-function renderProyecto(){
+const pgBtn = (txt, acc, prim) => `<button class="btn small${prim ? " primary" : ""}" data-arc-acc="${acc}">${esc(txt)}</button>`;
+const pgAbierto = (k, def) => PG.det[k] === undefined ? !!def : !!PG.det[k];
+const pgNombreArchivo = r => String(r || "").split(/[\\/]/).pop();
+const pgCarpetaDe = r => { r = String(r || ""); const i = Math.max(r.lastIndexOf("/"), r.lastIndexOf("\\")); return i > 0 ? r.slice(0, i) : ""; };
+function pgHost(u){ try { return new URL(u).hostname.replace(/^www\./, ""); } catch(_){ return String(u).slice(0, 40); } }
+// la red social, por la dirección del enlace; si no se conoce, se enseña el dominio
+const PG_REDES = [["instagram.com", "Instagram"], ["facebook.com", "Facebook"], ["fb.com", "Facebook"], ["fb.watch", "Facebook"], ["x.com", "X"], ["twitter.com", "X"],
+  ["bsky.app", "Bluesky"], ["threads.net", "Threads"], ["threads.com", "Threads"], ["astrobin.com", "AstroBin"], ["flickr.com", "Flickr"], ["reddit.com", "Reddit"],
+  ["youtube.com", "YouTube"], ["youtu.be", "YouTube"], ["t.me", "Telegram"], ["tiktok.com", "TikTok"], ["pinterest.com", "Pinterest"], ["500px.com", "500px"],
+  ["mastodon.social", "Mastodon"], ["wa.me", "WhatsApp"]];
+function pgRed(u){ const h = pgHost(u).toLowerCase(), r = PG_REDES.find(([d]) => h === d || h.endsWith("." + d)); return r ? r[1] : ""; }
+const pgNombreRed = e => e.red || pgHost(e.url);
+function pgCopiar(txt, aviso){
+  const ok = () => toast(aviso);
+  const viejo = () => { try { const t = document.createElement("textarea"); t.value = txt; t.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(t); t.select(); const b = document.execCommand("copy"); t.remove(); b ? ok() : toast(trLT("No se pudo copiar", "Could not copy")); } catch(_){ toast(trLT("No se pudo copiar", "Could not copy")); } };
+  try { navigator.clipboard.writeText(txt).then(ok, viejo); } catch(_){ viejo(); }
+}
+
+/* ── lo que se guarda del proyecto en el servidor: su objetivo de horas y su resultado final ── */
+function pgMetaGuardar(obj, filtros){
+  const prev = OBJETIVOS[obj] || {};
+  if (Object.keys(filtros).length || +prev.total > 0) OBJETIVOS[obj] = Object.assign({}, prev, {filtros, actualizado: new Date().toISOString()}); else delete OBJETIVOS[obj];
+  return api("/api/objetivos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(OBJETIVOS)})
+    .then(() => { toast(trLT("Objetivo guardado", "Goal saved")); render(); })
+    .catch(e => toast(trLT("No se pudo guardar: {1}", "Could not save: {1}", e.message || e)));
+}
+// el reparto de las horas de un objetivo entre los filtros: L el doble que cada color y la banda estrecha, una vez y media
+const pgPeso = fi => { const F = String(fi).toUpperCase(); return F === "L" ? 2 : /^(R|G|B)$/.test(F) ? 1 : /^(H|HA|S|SII|O|OIII)$/.test(F) ? 1.5 : 1; };
+function pgRepartir(obj, tot, fis){
+  if (!fis.length) return toast(trLT("Este proyecto aún no tiene tomas con filtro", "This project has no frames with a filter yet"));
+  // en pasos de media hora y de modo que la suma sea justo lo que se ha pedido (el resto va a quien más se acerca al siguiente paso)
+  const suma = fis.reduce((a, fi) => a + pgPeso(fi), 0), unidades = Math.round(2 * tot);
+  const cuota = fis.map(fi => { const q = unidades * pgPeso(fi) / suma; return {fi, n: Math.floor(q), r: q - Math.floor(q)}; });
+  let resto = unidades - cuota.reduce((a, x) => a + x.n, 0);
+  cuota.slice().sort((a, b) => b.r - a.r).forEach(x => { if (resto > 0){ x.n++; resto--; } });
+  const filtros = {}; cuota.forEach(x => { if (x.n > 0) filtros[x.fi] = x.n / 2; });
+  return pgMetaGuardar(obj, filtros);
+}
+async function pgGuardarProcesado(obj, cambios){
+  const prev = (ARC.procesado || {})[obj] || {};
+  const nuevo = Object.assign({tif: prev.tif || "", enlaces: prev.enlaces || [], nota: prev.nota || ""}, cambios, {objeto: obj});
+  try {
+    const r = await (await api("/api/archivo/proyectos", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({procesado: nuevo})})).json();
+    ARC.procesado = r.procesado || {}; ARC.estados = r.estados || ARC.estados; if (ARC.hist) delete ARC.hist[obj];
+  } catch(e){ toast(tr(String(e.message || e))); return false; }
+  renderProyecto(true); return true;
+}
+// ¿existe el archivo de la imagen final? Se pregunta al servidor cada minuto como mucho (un disco en red puede tardar)
+function pgComprobarTif(obj, tif){
+  const k = obj + "|" + tif, c = PG.tifOk[k];
+  if (c && (c.pidiendo || Date.now() - c.t < 60000)) return c.ok;
+  PG.tifOk[k] = {ok: c ? c.ok : undefined, t: c ? c.t : 0, pidiendo: true};
+  api("/api/archivo/procesado/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto: obj, accion: "existe"})})
+    .then(r => r.json()).then(r => { const cambia = !c || c.ok !== r.ok; PG.tifOk[k] = {ok: !!r.ok, t: Date.now()}; if (cambia && VISTA_ACTUAL === "proyecto" && PG.obj === obj) renderProyecto(); })
+    .catch(() => { PG.tifOk[k] = {ok: c ? c.ok : undefined, t: Date.now()}; });
+  return c ? c.ok : undefined;
+}
+async function pgTif(obj, accion){
+  if (accion === "elegir" || accion === "cambiar"){
+    let r; try { r = await (await api("/api/archivo/procesado/elegir", {method:"POST"})).json(); } catch(e){ return toast(tr(String(e.message || e))); }
+    if (r.ruta){ PG.manual = false; return pgGuardarProcesado(obj, {tif: r.ruta}); }
+    if (r.fallo){ PG.manual = true; renderProyecto(true); toast(trLT("No he podido abrir la ventana para elegir el archivo: pega su ruta", "I couldn't open the file window: paste its path")); }
+    return;
+  }
+  if (accion === "pegar"){ PG.manual = true; renderProyecto(true); setTimeout(() => { const i = $("pgRuta"); if (i) i.focus(); }, 60); return; }
+  if (accion === "quitar"){ PG.manual = false; return pgGuardarProcesado(obj, {tif: ""}); }
+  try {
+    const r = await (await api("/api/archivo/procesado/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({objeto: obj, accion})})).json();
+    if (!r.ok){ PG.tifOk[obj + "|" + (((ARC.procesado || {})[obj] || {}).tif || "")] = {ok: false, t: Date.now()};
+      toast(r.motivo === "no_existe" ? trLT("No encuentro el archivo: ¿está el disco conectado?", "I can't find the file: is the drive connected?") : trLT("Aún no has elegido el archivo", "You haven't chosen the file yet")); renderProyecto(true); }
+  } catch(e){ toast(tr(String(e.message || e))); }
+}
+async function pgAnadirEnlace(obj){
+  const url = ($("pgEnlUrl").value || "").trim();
+  if (!/^https?:\/\/\S+$/i.test(url)) return toast(trLT("Pega el enlace completo, empezando por https://", "Paste the full link, starting with https://"));
+  const prev = ((ARC.procesado || {})[obj] || {}).enlaces || [];
+  if (prev.some(e => e.url === url)) return toast(trLT("Ese enlace ya está en la lista", "That link is already in the list"));
+  await pgGuardarProcesado(obj, {enlaces: prev.concat([{red: pgRed(url) || pgHost(url), url, fecha: $("pgEnlFecha").value || fechaISO(new Date())}])});
+}
+
+/* ── la página ── */
+function pgSiguiente(X){       // el paso que toca al abrir el proyecto
+  if (X.est.k === "procesado") return "procesado";
+  if (X.c.na) return "analizar";
+  if (!X.ap.length || X.est.nuevas) return "apilado";
+  return "procesado";
+}
+function renderProyecto(forzar){
   const el = $("vistaProyecto"), obj = ARC.proyecto; if (!el || VISTA_ACTUAL !== "proyecto" || !obj) return;
+  // si se está escribiendo en la página (el objetivo de una hora, un enlace…), el repintado de fondo espera: borraba lo escrito
+  const ac = document.activeElement;
+  if (!forzar && ac && el.contains(ac) && /^(INPUT|SELECT|TEXTAREA)$/.test(ac.tagName)){ PG.pend = true; return; }
+  PG.pend = false;
   arcCalibracion(); arcCargarProyectos(); if (ARC.carpetas === null){ ARC.carpetas = []; arcCargarCarpetas(); }
+  if (!PLAN_CFG && !PG.cfg){ PG.cfg = true; cfgPlan().then(() => { if (VISTA_ACTUAL === "proyecto") renderProyecto(); }); }
   const todas = frames.filter(f => (f.object || "").trim() === obj), fl = todas.filter(f => !f.discarded);
   const p = arcProyectos(fl)[0];
   $("tituloVista").textContent = obj;
@@ -5917,13 +6122,11 @@ function renderProyecto(){
   const analizadas = fl.length - c.na, pc = Math.round(100 * analizadas / Math.max(1, fl.length));
   const an = ARC.analizando && ARC.analizando.obj === obj ? ARC.analizando : null;
   const cal = ARC.cal ? ARC.cal[obj] : null, ap = ARC.apilados[obj] || [];
-  // horas por filtro y temporada
-  const filtros = [...p.filtros.keys()].sort((a, b) => p.filtros.get(b) - p.filtros.get(a));
-  const celda = (fi, a) => { const s = ok.filter(f => nomFiltro(f.filter) === fi && anioDe(f) === a).reduce((x, f) => x + (f.exp || 0), 0); return s ? esc(fmtH(s / 3600)) : `<span class="note">·</span>`; };
-  const paso = (n, estado, titulo, cuerpo) => `<div class="arcPaso ${estado}"><div class="arcNum">${estado === "hecho" ? "✓" : n}</div><div class="arcPasoTxt"><h4>${esc(titulo)}</h4>${cuerpo}</div></div>`;
-  const btn = (txt, acc, prim) => `<button class="btn small ${prim ? "primary" : ""}" data-arc-acc="${acc}">${esc(txt)}</button>`;
   const est = estadoProyecto(obj, p, ok), calq = calResumen(p.cal), fechaMan = (ARC.estados[obj] || {}).fecha || "";
-  let h = enlaceVolver();
+  const pr = (ARC.procesado || {})[obj] || {};
+  const X = {obj, p, todas, fl, ok, mt, c, fuera, disc, analizadas, pc, an, cal, ap, est, calq, pr, anios};
+  // el paso que toca se decide al tener los apilados a mano; mientras, se enseña el primero
+  if (!PG.fijo && ARC.apilados[obj] !== undefined){ PG.paso = pgSiguiente(X); PG.fijo = true; } else if (!PG.paso) PG.paso = "tomas";
   const kx = est.k === "curso" ? (p.n && p.sinAnalizar >= p.n ? "sin_analizar" : est.ap ? (est.nuevas ? "apilado_nuevas" : "apilado") : "en_curso") : est.k;
   const expl = {
     nuevo: trLT("Aún sin tomas.", "No frames yet."),
@@ -5937,65 +6140,117 @@ function renderProyecto(){
     capturado: trLT("Lo diste por capturado el {1}. No sale en lo que falta ni en los planes de la noche.", "You marked it as captured on {1}. It doesn't show up in what's left or in the night plans.", fechaDia(fechaMan)),
     procesado: trLT("Lo diste por procesado el {1}.", "You marked it as processed on {1}.", fechaDia(fechaMan)),
     archivado: trLT("Lo archivaste el {1}: no sale en lo que falta ni en los planes de la noche.", "You archived it on {1}: it doesn't show up in what's left or in the night plans.", fechaDia(fechaMan))}[kx];
-  h += `<div class="arcEstBarra">${chipEstado(est.k)}<span class="arcEstTxt">${esc(expl || "")}</span>
-    <label class="note">${esc(trLT("Estado", "Status"))} <select id="arcEstSel">
-      <option value="" ${est.man ? "" : "selected"}>${esc(trLT("En curso (automático)", "In progress (automatic)"))}</option>
-      ${["capturado", "procesado", "archivado"].map(k => `<option value="${k}" ${est.k === k ? "selected" : ""}>${esc(textoEstado(k))}</option>`).join("")}</select></label></div>`;
-  h += `<div class="counts arcCifras">
-    <div class="tile dest"><b>${esc(fmtH(p.seg / 3600))}</b><span>${esc(trLT("útiles", "usable"))}${mt.meta ? " · " + esc(trLT("{1} % del objetivo", "{1}% of the goal", Math.round(100 * mt.cons / mt.meta))) : ""}</span></div>
-    <div class="tile"><b>${nfmt(fl.length)}</b><span>${esc(trLT("tomas", "frames"))}</span></div>
-    <div class="tile"><b>${nfmt(p.noches.size)}</b><span>${esc(trLT("noches", "nights"))}</span></div>
-    <div class="tile"><b>${esc(anios.length ? anios[0] + (anios.length > 1 ? "–" + anios[anios.length - 1] : "") : "—")}</b><span>${esc(trLT("temporadas", "seasons"))}</span></div>
-    <div class="tile"><b>${nfmt(p.equipos.size)}</b><span>${esc(p.equipos.size === 1 ? [...p.equipos][0] : trLT("equipos", "setups"))}</span></div>
-    <div class="tile"><b>${calq ? esc(Math.round(100 * calq.pct) + " %") : "—"}</b><span>${calq ? esc(trLT("útiles de las analizadas", "of analysed frames usable")) + (txtFwhm(calq) ? " · FWHM " + esc(txtFwhm(calq)) : "") : esc(trLT("sin analizar", "not analysed"))}</span></div></div>`;
-  h += `<div class="arcDos"><div class="tablewrap"><table class="arcFxA"><thead><tr><th>${esc(trLT("Filtro", "Filter"))}</th>${anios.map(a => `<th>${esc(a)}</th>`).join("")}<th>${esc(trLT("Total", "Total"))}</th></tr></thead><tbody>
+  let h = enlaceVolver();
+  h += pgEstados(X, expl) + pgResultado(X) + pgHoras(X) + pgCadena(X);
+  h += `<div class="pgPanel" role="tabpanel" id="pgPanel">${pgPanel(X)}</div>`;
+  h += pgMas(X);
+  try { h += htmlHistorial(obj, fl, ap); } catch(e){ console.error(e); }
+  el.innerHTML = h;
+  pgEnlazar(el, X);
+}
+
+/* el estado: cinco pasos, y un clic cambia al que quieras (el que está puesto y «Nuevo» no se pulsan) */
+function pgEstados(X, expl){
+  const ks = ORDEN_ESTADOS, act = ks.indexOf(X.est.k);
+  const ayuda = {nuevo: trLT("Aún sin tomas", "No frames yet"),
+    curso: trLT("Sigues capturando: ASTRO te dice qué falta y qué noches te convienen", "You're still capturing: ASTRO tells you what's left and which nights suit you"),
+    capturado: trLT("Ya tienes las tomas que querías: deja de salir en lo que falta y en los planes de la noche", "You have the frames you wanted: it stops showing up in what's left and in the night plans"),
+    procesado: trLT("Ya tienes el resultado final", "You have the final result"),
+    archivado: trLT("Lo guardas, fuera de tu vista", "Kept, but out of your way")};
+  return `<div class="pgEstados" role="group" aria-label="${esc(trLT("Estado del proyecto", "Project status"))}">${ks.map((k, i) =>
+    `<button class="pgE e-${k}${i < act ? " pas" : ""}${i === act ? " on" : ""}" data-pg-estado="${k}" title="${esc(ayuda[k])}"${k === "nuevo" || i === act ? " disabled" : ""}${i === act ? ' aria-current="step"' : ""}><i></i><span>${esc(textoEstado(k))}</span></button>`).join("")}</div>
+    ${expl ? `<div class="pgEstTxt">${esc(expl)}</div>` : ""}`;
+}
+// el resultado final y dónde lo has compartido, a la vista desde arriba
+function pgResultado(X){
+  const pr = X.pr, enl = pr.enlaces || [];
+  if (!pr.tif && !enl.length) return "";
+  return `<div class="pgRes">${pr.tif ? `<button class="pgChip" data-pg-tif="abrir" title="${esc(pr.tif)}"><b>TIF</b><span class="notr">${esc(pgNombreArchivo(pr.tif))}</span></button>` : ""}${enl.map(e =>
+    `<a class="pgChip red" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" title="${esc(e.url)}"><span class="notr">${esc(pgNombreRed(e))}</span><b>↗</b></a>`).join("")}</div>`;
+}
+
+/* ¿necesito más horas? lo que llevas por filtro, el objetivo (se escribe ahí mismo) y cuánto falta */
+function pgHoras(X){
+  const {obj, fl, ok, mt, est} = X, o = OBJETIVOS[obj] || {}, metaF = o.filtros || {}, kf = f => f.filter || "sin filtro";
+  const porF = groupBy(ok, kf), hTot = horasDe(ok), nN = new Set(ok.map(f => f.night).filter(Boolean)).size, ritmo = nN ? hTot / nN : 0;
+  const fis = [...new Set([...fl.map(kf), ...Object.keys(metaF).filter(k => +metaF[k] > 0)])].sort(ordenFiltros);
+  const falta = Math.max(0, mt.meta - mt.cons), hecho = mt.meta > 0 && falta <= 0.01;
+  const maxH = Math.max(0.01, ...fis.map(fi => horasDe(porF.get(fi) || [])));
+  const abierto = pgAbierto("horas", est.k === "curso");
+  let cab;
+  if (mt.meta > 0 && !hecho){
+    const nn = ritmo > 0 ? Math.max(1, Math.ceil(falta / ritmo)) : 0, t = fmtH(falta);
+    cab = `<div class="pgResp"><b>${esc(t === "1 h" ? trLT("Falta {1}", "{1} to go", t) : trLT("Faltan {1}", "{1} to go", t))}</b>
+      <span>${esc(trLT("para tu objetivo de {1}", "to reach your goal of {1}", fmtH(mt.meta)))}${nn ? " · " + esc(nn === 1 ? trLT("≈ 1 noche a tu ritmo", "≈ 1 night at your pace") : trLT("≈ {1} noches a tu ritmo", "≈ {1} nights at your pace", nfmt(nn))) : ""}</span></div>`;
+  } else if (hecho){
+    cab = `<div class="pgResp ok"><b>✓ ${esc(trLT("Objetivo cumplido", "Goal reached"))}</b><span>${esc(trLT("{1} de {2}", "{1} of {2}", fmtH(mt.cons), fmtH(mt.meta)))}</span>
+      ${est.k === "curso" ? `<button class="btn small primary" data-pg-capturar>${esc(trLT("Darlo por capturado", "Mark it as captured"))}</button>` : ""}</div>`;
+  } else if (!abierto){
+    cab = "";
+  } else {
+    cab = `<div class="pgResp gris"><b>${esc(trLT("Sin objetivo de horas", "No hours goal"))}</b><span>${esc(trLT("Elige cuántas quieres y ASTRO te dirá cuánto falta", "Choose how many you want and ASTRO will tell you how much is left"))}</span>
+      <span class="pgRapido">${[10, 20, 40].map(h => `<button class="btn small" data-pg-rep="${h}">${h} h</button>`).join("")}</span></div>`;
+  }
+  const filas = fis.map(fi => {
+    const hh = horasDe(porF.get(fi) || []), mm = +metaF[fi] || 0, f = Math.max(0, mm - hh), pct = mm > 0 ? Math.min(100, 100 * hh / mm) : 100 * hh / maxH;
+    return `<div class="pgF"><span class="fchip notr" style="--c:${COLOR_FILTRO(fi)}">${esc(nomFiltro(fi))}</span>
+      <span class="pgBar"><i style="width:${pct.toFixed(1)}%;background:${mm > 0 && hh >= mm ? "var(--ok)" : COLOR_FILTRO(fi)}"></i></span>
+      <span class="pgFh">${esc(fmtH(hh))}</span>
+      <label class="pgFm"><span>/</span><input type="number" min="0" step="0.5" class="pgMeta" data-fi="${esc(fi)}" value="${mm || ""}" placeholder="—" aria-label="${esc(trLT("Objetivo de horas de {1}", "Hours goal for {1}", nomFiltro(fi)))}"><span>h</span></label>
+      <span class="pgFf${mm > 0 && f <= 0.01 ? " ok" : ""}">${mm > 0 ? (f > 0.01 ? "−" + esc(fmtH(f)) : "✓") : ""}</span></div>`; }).join("");
+  const sumaMeta = Object.values(metaF).reduce((a, v) => a + (+v > 0 ? +v : 0), 0), hayMeta = sumaMeta > 0;
+  const tog = `<button class="btn small" data-pg-horas="${abierto ? 0 : 1}" aria-expanded="${abierto}">${esc(abierto ? trLT("Ocultar el detalle", "Hide the detail") : trLT("Detalle por filtro", "Detail by filter"))}</button>`;
+  return `<section class="pgHoras${abierto ? "" : " compacta"}"><div class="pgHorasCab"><h3>${esc(trLT("¿Necesito más horas?", "Do I need more hours?"))}</h3><span class="note">${esc(trLT("{1} útiles en {2}", "{1} usable over {2}", fmtH(hTot), nNoches(nN)))}</span><span class="spacer"></span>${tog}</div>
+    ${cab}
+    ${!abierto ? "</section>" : `<div class="pgFiltros">${filas}</div>
+    <div class="pgRepartir"><span>${esc(trLT("Repartir", "Split"))}</span><input id="pgRepTot" type="number" min="0" step="0.5" placeholder="20" value="${sumaMeta > 0 ? sumaMeta : +o.total > 0 ? +o.total : ""}" aria-label="${esc(trLT("Horas totales", "Total hours"))}"><span>${esc(trLT("horas entre los filtros", "hours among the filters"))}</span>
+      <button class="btn small" id="pgRepBtn" title="${esc(trLT("L recibe el doble que cada color y la banda estrecha (H, S, O) una vez y media. Luego puedes cambiar cada cifra.", "L gets twice as much as each colour and narrowband (H, S, O) one and a half times. Then you can change each figure."))}">${esc(trLT("Repartir", "Split"))}</button>
+      ${hayMeta ? `<a href="#" id="pgQuitarMeta">${esc(trLT("Quitar el objetivo", "Remove the goal"))}</a>` : ""}<span class="spacer"></span>
+      <button class="btn small" data-pg-integ title="${esc(trLT("ASTRO apila una parte y todas tus tomas de cada filtro y mide si la señal débil y el detalle siguen creciendo, cuántas horas más harían falta para notarlo y qué canal va más flojo.", "ASTRO stacks a part and all of your frames of each filter and measures whether the faint signal and the detail keep growing, how many more hours it would take to notice it and which channel is weakest."))}">${esc(trLT("¿Merece la pena seguir?", "Is it worth going on?"))}</button></div>
+    <details class="pgDet" data-pgd="noches"${pgAbierto("noches", false) ? " open" : ""}><summary>${esc(trLT("Cuándo hacerlo", "When to do it"))}</summary><div id="objNoches"></div></details></section>`}`;
+}
+
+/* la cadena: Tomas › Analizar › Calidad › Apilado › Procesado. Cada paso dice cómo va y, al pulsarlo, se abre debajo */
+function pgCadena(X){
+  const {c, an, ap, est, calq, cal, analizadas, fl, p, pr} = X;
+  const redes = new Set((pr.enlaces || []).map(pgNombreRed)).size;
+  const paso = (k, n, st, nombre, res) => `<button class="pgPaso ${st}${PG.paso === k ? " on" : ""}" role="tab" aria-selected="${PG.paso === k}" data-pg-paso="${k}"><i class="pgNum">${st === "hecho" ? "✓" : n}</i><span class="pgPT"><b>${esc(nombre)}</b><small>${esc(res)}</small></span></button>`;
+  const stCal = !analizadas ? "espera" : !calq ? "espera" : calq.pct < 0.5 ? "mal" : calq.pct < 0.8 ? "aviso" : "hecho";
+  const stPr = pr.tif || redes || est.k === "procesado" ? "hecho" : ap.length ? "pend" : "espera";
+  const resPr = [pr.tif ? "TIF" : "", redes ? (redes === 1 ? trLT("1 red", "1 network") : trLT("{1} redes", "{1} networks", nfmt(redes))) : ""].filter(Boolean).join(" · ") || (est.k === "procesado" ? textoEstado("procesado") : trLT("Sin resultado final", "No final result"));
+  return `<div class="pgCadena" role="tablist" aria-label="${esc(trLT("Pasos del proyecto", "Project steps"))}">
+    ${paso("tomas", 1, "hecho", trLT("Tomas", "Frames"), `${nfmt(fl.length)} · ${nNoches(p.noches.size)}`)}
+    ${paso("analizar", 2, an ? "activo" : c.na ? "pend" : "hecho", trLT("Analizar", "Analyse"), an ? trLT("{1} de {2}", "{1} of {2}", nfmt(an.hechas + an.errores), nfmt(an.total)) : c.na ? trLT("{1} por analizar", "{1} to analyse", nfmt(c.na)) : trLT("Todas analizadas", "All analysed"))}
+    ${paso("calidad", 3, stCal, trLT("Calidad", "Quality"), calq && analizadas ? trLT("{1} % útiles", "{1}% usable", Math.round(100 * calq.pct)) + (txtFwhm(calq) ? " · " + txtFwhm(calq) : "") : "—")}
+    ${paso("apilado", 4, ap.length ? (est.nuevas ? "pend" : "hecho") : "pend", trLT("Apilado", "Stacking"), ap.length ? (est.nuevas ? trLT("+{1} tomas nuevas", "+{1} new frames", nfmt(est.nuevas)) : fechaDia(String(ap[0].fecha).slice(0, 10))) : (cal && (cal.sin_dark || cal.sin_flat) ? trLT("Sin apilar · falta calibración", "Not stacked · calibration missing") : trLT("Sin apilar", "Not stacked")))}
+    ${paso("procesado", 5, stPr, trLT("Procesado", "Processing"), resPr)}</div>`;
+}
+function pgPanel(X){
+  const f = {tomas: pgPanelTomas, analizar: pgPanelAnalizar, calidad: pgPanelCalidad, apilado: pgPanelApilado, procesado: pgPanelProcesado}[PG.paso] || pgPanelTomas;
+  try { return f(X); } catch(e){ console.error(e); return ""; }
+}
+
+/* 1 · Tomas: lo que hay (por filtro y temporada, por equipo, por lugar) y cada noche */
+function pgLugares(fl){
+  const m = new Map();
+  for (const f of fl){ const l = lugarDeToma(f); if (!l) continue;
+    let x = m.get(l.k); if (!x){ x = {nombre: l.nombre, noches: new Set(), seg: 0}; m.set(l.k, x); }
+    if (f.night) x.noches.add(f.night); if (esUtil(f)) x.seg += f.exp || 0; }
+  return [...m.values()].sort((a, b) => b.seg - a.seg);
+}
+function pgPanelTomas(X){
+  const {obj, p, ok, fl, anios} = X;
+  const filtros = [...p.filtros.keys()].sort((a, b) => p.filtros.get(b) - p.filtros.get(a));
+  const celda = (fi, a) => { const s = ok.filter(f => nomFiltro(f.filter) === fi && anioDe(f) === a).reduce((x, f) => x + (f.exp || 0), 0); return s ? esc(fmtH(s / 3600)) : `<span class="note">·</span>`; };
+  const lugares = pgLugares(fl);
+  let h = `<div class="arcDos"><div class="tablewrap"><table class="arcFxA"><thead><tr><th>${esc(trLT("Filtro", "Filter"))}</th>${anios.map(a => `<th>${esc(a)}</th>`).join("")}<th>${esc(trLT("Total", "Total"))}</th></tr></thead><tbody>
     ${filtros.map(fi => `<tr><td><span class="fchip" style="--c:${COLOR_FILTRO(fi)}">${esc(fi)}</span></td>${anios.map(a => `<td class="num">${celda(fi, a)}</td>`).join("")}<td class="num"><b>${esc(fmtH(p.filtros.get(fi) / 3600))}</b></td></tr>`).join("")}
     </tbody></table></div>
     <div class="arcEquipos"><h4>${esc(trLT("Equipos", "Setups"))}</h4>${[...p.equipos].map(e => { const s = ok.filter(f => equipoDe(f) === e).reduce((x, f) => x + (f.exp || 0), 0);
-      return `<div><span>${esc(e)}</span><b>${esc(fmtH(s / 3600))}</b></div>`; }).join("")}</div></div>`;
-  h += `<div class="arcPasos">`;
-  // 1. analizar
-  h += paso(1, c.na ? (an ? "activo" : "") : "hecho", trLT("Analizar", "Analyse"),
-    an ? `<div class="arcBarraProg"><i style="width:${Math.round(100 * (an.hechas + an.errores) / Math.max(1, an.total))}%"></i></div>
-          <p>${esc(trLT("Analizando {1} de {2}", "Analysing {1} of {2}", nfmt(an.hechas + an.errores), nfmt(an.total)))}${an.hechas > 3 ? " · " + esc(trLT("quedan unos {1}", "about {1} left", duracion((Date.now() - an.t0) / 1000 / (an.hechas + an.errores) * (an.total - an.hechas - an.errores)))) : ""}${an.errores ? " · " + esc(trLT("{1} no se han podido leer", "{1} could not be read", nfmt(an.errores))) : ""}</p>
-          ${btn(trLT("Parar", "Stop"), "parar")}`
-    : c.na ? `<p>${esc(trLT("Analizadas {1} de {2} tomas ({3} %). ASTRO mide en cada una las estrellas, las trazas, las nubes y el enfoque. Se hace aquí mismo, en segundo plano, leyendo cada toma de su carpeta.", "Analysed {1} of {2} frames ({3}%). ASTRO measures the stars, trails, clouds and focus of each one. It happens right here, in the background, reading each frame from its folder.", nfmt(analizadas), nfmt(fl.length), pc))}</p>
-          <div class="arcBarraProg"><i style="width:${pc}%"></i></div>${btn(trLT("Analizar las {1} que faltan", "Analyse the {1} remaining", nfmt(c.na)), "analizar", true)}`
-    : `<p>${esc(trLT("Todas las tomas están analizadas.", "All frames are analysed."))}</p>`);
-  // 2. depurar
-  h += paso(2, c.na ? "espera" : "", trLT("Depurar", "Clean up"),
-    `<p>${c.na && !analizadas ? esc(trLT("Primero hay que analizarlas: sin medirlas no se sabe cuáles valen.", "Analyse them first: without measuring them there is no way to know which ones are good."))
-      : `<span class="arcOk">${esc(trLT("{1} válidas", "{1} valid", nfmt(c.ok)))}</span> · <span class="arcAviso">${esc(trLT("{1} con avisos", "{1} with warnings", nfmt(c.warn)))}</span> · <span class="arcMal">${esc(trLT("{1} rechazables", "{1} rejected", nfmt(c.bad)))}</span>${fuera ? " · " + esc(trLT("{1} fuera del apilado", "{1} left out of the stack", nfmt(fuera))) : ""}${disc ? " · " + esc(trLT("{1} descartadas", "{1} discarded", nfmt(disc))) : ""}`}</p>
-     ${btn(trLT("Ver las tomas", "See the frames"), "tomas")}${analizadas ? btn(trLT("Parpadeo: pasarlas una a una", "Blink: go through them one by one"), "parpadeo") : ""}${analizadas ? btn(trLT("Indicadores y límites del proyecto", "Project indicators and limits"), "indicadores") : ""}${btn(trLT("Criterio y «quedarme con las mejores»", "Criteria and “keep only the best”"), "criterio")}${btn(trLT("Cómo evoluciona, noche a noche", "How it's progressing, night by night"), "resumen")}`);
-  // 3. calibración
-  h += paso(3, cal && !cal.sin_dark && !cal.sin_flat ? "hecho" : "", trLT("Calibración", "Calibration"),
-    `<p>${!ARC.cal ? "…" : !cal ? esc(trLT("Sin tomas útiles.", "No usable frames."))
-      : !cal.sin_dark && !cal.sin_flat ? esc(trLT("Todas las tomas tienen darks y flats en la biblioteca.", "Every frame has darks and flats in the library."))
-      : esc(trLT("Sin darks: {1} tomas · sin flats: {2} tomas, en {3} noches.", "No darks: {1} frames · no flats: {2} frames, on {3} nights.", nfmt(cal.sin_dark), nfmt(cal.sin_flat), nfmt(cal.noches_sin)))}</p>
-     ${cal ? btn(trLT("Qué calibra cada noche", "What calibrates each night"), "cobertura") : ""}${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}${cal && (cal.sin_dark || cal.sin_flat) && ARC.calPend && (ARC.calPend.dirs || ARC.calPend.archivos) ? btn(trLT("Añadir la calibración de tus carpetas", "Add the calibration from your folders"), "calenviar", true) : ""}`);
-  // 4. apilar
-  h += paso(4, ap.length ? (est.nuevas ? "" : "hecho") : "", trLT("Apilar", "Stack"),
-    `<p>${ap.length ? esc(trLT("Último apilado: {1} ({2}).", "Latest stack: {1} ({2}).", fechaDia(String(ap[0].fecha).slice(0, 10)), (ap[0].filtros || []).map(nomFiltro).join(", "))) + (ap.length > 1 ? " " + esc(trLT("{1} apilados en total.", "{1} stacks in total.", ap.length)) : "")
-        + (est.nuevas ? " " + esc(trLT("Desde entonces hay {1} tomas útiles nuevas.", "There are {1} new usable frames since then.", nfmt(est.nuevas))) : "")
-      : esc(trLT("Con Siril, cada filtro con la calibración que le toca y, si hay varios equipos, cada uno por su lado antes de combinarlos.", "With Siril, each filter with its calibration and, with several setups, each one on its own before combining them."))}</p>
-     ${btn(ap.length && est.nuevas ? trLT("Volver a apilar con Siril", "Stack again with Siril") : trLT("Apilar con Siril", "Stack with Siril"), "apilar", !c.na)}`);
-  // 5. procesar: la vista previa automática y, para la versión final, los masters o el TIFF en tu programa
-  const vistaU = ap.length ? (ap[0].vista || []) : [];
-  h += paso(5, !ap.length ? "espera" : vistaU.length ? "hecho" : "", trLT("Procesar", "Process"),
-    `<p>${!ap.length ? esc(trLT("Después de apilar. ASTRO hace un primer revelado automático para que veas cómo va; la versión final la procesas tú, partiendo de los masters lineales o del TIFF.", "After stacking. ASTRO makes a first automatic development so you can see how it's going; you do the final processing yourself, starting from the linear masters or the TIFF."))
-      : vistaU.length ? esc(trLT("Hay una vista previa revelada del último apilado. Para la versión final, abre el TIFF de 16 bits o los masters en tu programa (PixInsight, Siril, GIMP, Photoshop…).", "There is a developed preview of the latest stack. For the final version, open the 16-bit TIFF or the masters in your program (PixInsight, Siril, GIMP, Photoshop…)."))
-      : esc(trLT("El último apilado aún no tiene vista previa revelada.", "The latest stack doesn't have a developed preview yet."))}</p>
-     ${ap.length ? (vistaU.length ? btn(trLT("Ver la vista previa y abrirla en…", "See the preview and open it in…"), "resumen", true) : btn(trLT("Crear la vista previa", "Create the preview"), "vista", true)) + btn(trLT("Abrir la carpeta del apilado", "Open the stack folder"), "carpeta") : ""}`);
-  // 6. continuar
-  const pend = pendientesDe(obj);
-  h += est.man ? paso(6, "hecho", trLT("Continuar", "Carry on"),
-      `<p>${esc(trLT("Has dado este proyecto por {1}. Si vuelves a él, retómalo y ASTRO te dirá otra vez qué falta y qué noches te convienen.", "You've marked this project as {1}. If you come back to it, pick it up again and ASTRO will tell you once more what's left and which nights suit you.", textoEstado(est.k).toLowerCase()))}</p>${btn(trLT("Retomar el proyecto", "Pick the project up again"), "retomar", true)}${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen")}`)
-    : paso(6, "", trLT("Continuar", "Carry on"),
-    `<p>${mt.meta ? esc(trLT("Llevas {1} de {2} del objetivo.", "You have {1} of the {2} goal.", fmtH(mt.cons), fmtH(mt.meta))) + (pend && pend.length ? " " + esc(trLT("Falta: {1}.", "Still to do: {1}.", pend.map(x => nomFiltro(x.fi) + " " + fmtH(x.falta)).join(", "))) : "")
-      : esc(trLT("Ponle un objetivo de horas por filtro y ASTRO te dirá cuánto falta y qué noches te convienen.", "Give it a goal in hours per filter and ASTRO will tell you how much is left and which nights suit you."))}</p>
-     ${btn(trLT("Resumen y objetivo", "Summary and goal"), "resumen", true)}${btn(trLT("Próximas noches", "Upcoming nights"), "noches")}${mt.meta && mt.cons >= mt.meta - 0.01 ? btn(trLT("Darlo por capturado", "Mark it as captured"), "terminar") : ""}`);
-  h += `</div>`;
-  // sesiones del proyecto: cada noche, con qué equipo, cuánto de cada filtro y cómo salió
+      return `<div><span>${esc(e)}</span><b>${esc(fmtH(s / 3600))}</b></div>`; }).join("")}
+      ${lugares.length ? `<h4 class="pgH4b">${esc(trLT("Lugares", "Places"))}</h4>${lugares.map(x => `<div><span class="notr">${esc(x.nombre)}<small class="note"> · ${esc(nNoches(x.noches.size))}</small></span><b>${esc(fmtH(x.seg / 3600))}</b></div>`).join("")}` : ""}</div></div>`;
+  h += `<div id="objEquipos"></div>`;
+  // sesiones: cada noche, con qué equipo, cuánto de cada filtro y cómo salió
   const ses = arcAgruparSesiones(fl), ksS = [...ses.keys()].sort().reverse(), visS = ksS.slice(0, ARC.sesProy);
   let filasS = "";
   for (const k of visS){
@@ -6008,27 +6263,167 @@ function renderProyecto(){
         <td>${txtCalNoche([obj], k)}</td>
         <td style="white-space:nowrap"><button class="btn small" data-arc-noche="${esc(k)}">${esc(trLT("Ver tomas", "See frames"))}</button> <button class="btn small" data-arc-parp="${esc(k)}" title="${esc(trLT("Pasar las tomas de esta noche una a una", "Go through this night's frames one by one"))}">${esc(trLT("Parpadeo", "Blink"))}</button></td></tr>`; });
   }
-  h += `<h3 class="arcH">${esc(trLT("Sesiones", "Sessions"))} <span class="note">${esc(nNoches(ksS.length))}</span></h3>
+  h += `<h3 class="arcH">${esc(trLT("Sesiones", "Sessions"))} <span class="note">${esc(nNoches(ksS.length))}</span><span class="spacer"></span>${pgBtn(trLT("Ver todas las tomas", "See all the frames"), "tomas")}</h3>
     <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Filtros", "Filters"))}</th>
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th><th></th></tr></thead><tbody>${filasS}</tbody></table></div>
     ${ksS.length > visS.length ? `<div style="margin-top:8px"><button class="btn small" id="arcSesProyMas">${esc(trLT("Ver todas las noches", "Show all nights"))}</button></div>` : ""}`;
+  return h;
+}
+
+/* 2 · Analizar */
+function pgPanelAnalizar(X){
+  const {c, an, fl, analizadas, pc} = X;
+  if (an) return `<div class="arcBarraProg"><i style="width:${Math.round(100 * (an.hechas + an.errores) / Math.max(1, an.total))}%"></i></div>
+    <p>${esc(trLT("Analizando {1} de {2}", "Analysing {1} of {2}", nfmt(an.hechas + an.errores), nfmt(an.total)))}${an.hechas > 3 ? " · " + esc(trLT("quedan unos {1}", "about {1} left", duracion((Date.now() - an.t0) / 1000 / (an.hechas + an.errores) * (an.total - an.hechas - an.errores)))) : ""}${an.errores ? " · " + esc(trLT("{1} no se han podido leer", "{1} could not be read", nfmt(an.errores))) : ""}</p>
+    <div class="pgAcc">${pgBtn(trLT("Parar", "Stop"), "parar")}</div>`;
+  if (c.na) return `<div class="arcBarraProg"><i style="width:${pc}%"></i></div>
+    <p>${esc(trLT("{1} de {2} tomas analizadas. ASTRO mide estrellas, trazas, nubes y enfoque en segundo plano, leyendo cada toma de su carpeta.", "{1} of {2} frames analysed. ASTRO measures stars, trails, clouds and focus in the background, reading each frame from its folder.", nfmt(analizadas), nfmt(fl.length)))}</p>
+    <div class="pgAcc">${pgBtn(trLT("Analizar las {1} que faltan", "Analyse the {1} remaining", nfmt(c.na)), "analizar", true)}</div>`;
+  return `<p class="arcOk">✓ ${esc(trLT("Todas las tomas están analizadas.", "All frames are analysed."))}</p>`;
+}
+
+/* 3 · Calidad: cuántas valen, cómo evoluciona noche a noche y si el encuadre coincide entre noches */
+function pgPanelCalidad(X){
+  const {obj, c, fl, fuera, disc, analizadas, calq, mt} = X;
+  if (!analizadas) return `<p class="note">${esc(trLT("Primero hay que analizar las tomas: sin medirlas no se sabe cuáles valen.", "Analyse the frames first: without measuring them there is no way to know which ones are good."))}</p>
+    <div class="pgAcc"><button class="btn small primary" data-pg-paso="analizar">${esc(trLT("Ir a Analizar", "Go to Analyse"))}</button></div>`;
+  const tot = Math.max(1, fl.length);
+  const partes = [[c.ok, "var(--ok)", trLT("{1} válidas", "{1} valid", nfmt(c.ok))], [c.warn, "var(--warn)", trLT("{1} con avisos", "{1} with warnings", nfmt(c.warn))],
+    [c.bad, "var(--bad)", trLT("{1} rechazables", "{1} rejected", nfmt(c.bad))], [c.na, "var(--surface3)", trLT("{1} sin analizar", "{1} not analysed", nfmt(c.na))]].filter(x => x[0]);
+  let h = `<div class="pgCalBar">${partes.map(([n, col, t]) => `<i style="width:${(100 * n / tot).toFixed(1)}%;background:${col}" title="${esc(t)}"></i>`).join("")}</div>
+    <div class="pgCalLey">${partes.map(([n, col, t]) => `<span><i style="background:${col}"></i>${esc(t)}</span>`).join("")}${fuera ? `<span>${esc(trLT("{1} fuera del apilado", "{1} left out of the stack", nfmt(fuera)))}</span>` : ""}${disc ? `<span>${esc(trLT("{1} descartadas", "{1} discarded", nfmt(disc)))}</span>` : ""}${calq && txtFwhm(calq) ? `<span>FWHM ${esc(txtFwhm(calq))}</span>` : ""}</div>
+    <div class="pgAcc">${pgBtn(trLT("Parpadeo: pasarlas una a una", "Blink: go through them one by one"), "parpadeo")}${pgBtn(trLT("Criterio y «quedarme con las mejores»", "Criteria and “keep only the best”"), "criterio")}${pgBtn(trLT("Indicadores y límites", "Indicators and limits"), "indicadores")}${pgBtn(trLT("Ver las tomas", "See the frames"), "tomas")}</div>`;
+  let evo = ""; try { evo = evolucionHTML(obj, mt.meta); } catch(e){ console.error(e); }
+  if (evo) h += `<details class="pgDet" data-pgd="evol"${pgAbierto("evol", true) ? " open" : ""}><summary>${esc(trLT("Cómo evoluciona, noche a noche", "How it's progressing, night by night"))}</summary>${evo}</details>`;
   try { h += htmlEncuadre(obj); } catch(e){ console.error(e); }
-  try { h += htmlHistorial(obj, fl, ap); } catch(e){ console.error(e); }
-  el.innerHTML = h;
+  return h;
+}
+
+/* 4 · Apilado: la calibración que le toca a cada noche y los apilados que ya hay */
+function pgPanelApilado(X){
+  const {c, ap, est, cal} = X;
+  const calOk = cal && !cal.sin_dark && !cal.sin_flat;
+  let h = `<div class="pgBloque"><h4>${esc(trLT("Calibración", "Calibration"))}</h4>
+    <p>${!ARC.cal ? "…" : !cal ? esc(trLT("Sin tomas útiles.", "No usable frames."))
+      : calOk ? `<span class="arcOk">✓ ${esc(trLT("Todas las tomas tienen darks y flats en la biblioteca.", "Every frame has darks and flats in the library."))}</span>`
+      : `<span class="arcAviso">${esc(trLT("Sin darks: {1} tomas · sin flats: {2} tomas, en {3} noches.", "No darks: {1} frames · no flats: {2} frames, on {3} nights.", nfmt(cal.sin_dark), nfmt(cal.sin_flat), nfmt(cal.noches_sin)))}</span>`}</p>
+    <div class="pgAcc">${cal ? pgBtn(trLT("Qué calibra cada noche", "What calibrates each night"), "cobertura") : ""}${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}${cal && (cal.sin_dark || cal.sin_flat) && ARC.calPend && (ARC.calPend.dirs || ARC.calPend.archivos) ? pgBtn(trLT("Añadir la calibración de tus carpetas", "Add the calibration from your folders"), "calenviar", true) : ""}</div></div>`;
+  h += `<div class="pgBloque"><h4>${esc(trLT("Apilados", "Stacks"))}</h4>`;
+  if (ap.length){
+    h += `<div class="pgApilados">${ap.slice(0, 6).map((a, i) => `<div class="pgAp"><b>${esc(fechaDia(String(a.fecha).slice(0, 10)))}</b>
+      <span class="chips">${(a.filtros || []).map(fi => `<span class="fchip notr" style="--c:${COLOR_FILTRO(fi)}">${esc(nomFiltro(fi))}</span>`).join("")}</span>
+      <span class="note">${a.tomas ? esc(trLT("{1} tomas · {2}", "{1} frames · {2}", nfmt(a.tomas), fmtH(a.horas || 0))) : ""}${a.ponderado ? " · " + esc(trLT("con pesos", "weighted")) : ""}</span>
+      <button class="btn small" data-pg-carpeta="${i}">${esc(trLT("Abrir la carpeta", "Open the folder"))}</button></div>`).join("")}</div>
+      ${ap.length > 6 ? `<div class="note">${esc(trLT("{1} apilados en total.", "{1} stacks in total.", nfmt(ap.length)))}</div>` : ""}`;
+    if (est.nuevas) h += `<p class="arcAviso">${esc(trLT("Desde el último apilado hay {1} tomas útiles nuevas.", "Since the latest stack there are {1} new usable frames.", nfmt(est.nuevas)))}</p>`;
+  } else h += `<p class="note">${esc(trLT("Aún sin apilar.", "Not stacked yet."))}</p>`;
+  h += `<div class="pgAcc">${pgBtn(ap.length ? trLT("Volver a apilar con Siril", "Stack again with Siril") : trLT("Apilar con Siril", "Stack with Siril"), "apilar", !c.na && (!ap.length || !!est.nuevas))}</div></div>`;
+  return h;
+}
+
+/* 5 · Procesado: la vista previa de ASTRO, la imagen final y dónde la has compartido */
+function pgFichaTxt(X){
+  const {obj, ok, p, fl} = X;
+  if (!ok.length) return "";
+  const noches = [...new Set(ok.map(f => f.night).filter(Boolean))].sort();
+  const lin = [obj];
+  lin.push(trLT("{1} de integración en {2}", "{1} of integration over {2}", fmtH(horasDe(ok)), nNoches(noches.length)) +
+    (noches.length ? " (" + (noches.length > 1 ? fechaDia(noches[0]) + " – " + fechaDia(noches[noches.length - 1]) : fechaDia(noches[0])) + ")" : ""));
+  lin.push([...groupBy(ok, f => f.filter || "sin filtro")].sort((a, b) => ordenFiltros(a[0], b[0])).map(([fi, l]) => {
+    const n = new Map(); l.forEach(f => n.set(f.exp, (n.get(f.exp) || 0) + 1));
+    const ex = [...n].sort((a, b) => b[1] - a[1])[0][0];
+    return `${nomFiltro(fi)}: ${fmtH(horasDe(l))} (${nfmt(l.length)} × ${numEs(ex)} s)`; }).join(" · "));
+  lin.push([...p.equipos].join(" + "));
+  const g = med(ok.map(f => f.gain)), t = med(ok.map(f => f.temp));
+  if (g != null || t != null) lin.push([g != null ? "gain " + numEs(g) : "", t != null ? numEs(Math.round(t)) + " °C" : ""].filter(Boolean).join(" · "));
+  const lu = pgLugares(fl).map(x => x.nombre); if (lu.length) lin.push(trLT("Lugar: {1}", "Location: {1}", lu.join("; ")));
+  return lin.filter(Boolean).join("\n");
+}
+function pgPanelProcesado(X){
+  const {obj, ap, pr, est} = X, u = ap[0], vista = u ? (u.vista || []) : [], enl = pr.enlaces || [], tif = pr.tif || "";
+  const existe = tif ? pgComprobarTif(obj, tif) : undefined;
+  let izq = `<div class="pgBloque"><h4>${esc(trLT("Vista previa del último apilado", "Preview of the latest stack"))}</h4>`;
+  if (!u) izq += `<p class="note">${esc(trLT("Aún sin apilar: después de apilar, ASTRO hace un primer revelado automático para que veas cómo va.", "Not stacked yet: after stacking, ASTRO makes a first automatic development so you can see how it's going."))}</p>`;
+  else izq += (vista.length ? `<div id="objVista">${galeriaHTML(vista)}</div>` : `<p class="note">${esc(trLT("Este apilado aún no tiene vista previa.", "This stack doesn't have a preview yet."))}</p>`) +
+    `<div class="pgAcc">${pgBtn(vista.length ? trLT("Rehacer la vista previa", "Redo the preview") : trLT("Crear la vista previa", "Create the preview"), "vista", !vista.length)}<button class="btn small" data-pg-carpeta="0">${esc(trLT("Abrir la carpeta", "Open the folder"))}</button></div>`;
+  izq += `</div>`;
+  let der = `<div class="pgBloque"><h4>${esc(trLT("Resultado final", "Final result"))}</h4>`;
+  if (tif) der += `<div class="pgArchivo"><span class="pgIco">${esc((tif.split(".").pop() || "").slice(0, 4).toUpperCase())}</span>
+      <span class="pgArchN"><b class="notr" title="${esc(tif)}">${esc(pgNombreArchivo(tif))}</b>${existe === false ? `<small class="arcMal">${esc(trLT("No encuentro el archivo: ¿está el disco conectado?", "I can't find the file: is the drive connected?"))}</small>` : `<small class="notr" title="${esc(pgCarpetaDe(tif))}">${esc(pgCarpetaDe(tif))}</small>`}</span>
+      <span class="pgArchAcc"><button class="btn small" data-pg-tif="abrir">${esc(trLT("Abrir", "Open"))}</button><button class="btn small" data-pg-tif="revelar">${esc(trLT("Mostrar", "Show"))}</button><button class="btn small" data-pg-tif="cambiar">${esc(trLT("Cambiar", "Change"))}</button><button class="btn small" data-pg-tif="quitar" aria-label="${esc(trLT("Quitar", "Remove"))}" title="${esc(trLT("Quitar", "Remove"))}">✕</button></span></div>`;
+  else der += `<p class="note">${esc(trLT("La imagen con la que terminas el proyecto (TIF, PNG o JPG), para tenerla a mano.", "The image you finish the project with (TIF, PNG or JPG), kept at hand."))}</p>
+    <div class="pgAcc"><button class="btn small primary" data-pg-tif="elegir">${esc(trLT("Elegir el archivo…", "Choose the file…"))}</button><a href="#" data-pg-tif="pegar">${esc(trLT("o pega su ruta", "or paste its path"))}</a></div>`;
+  if (PG.manual) der += `<form class="pgForm" id="pgRutaForm"><input id="pgRuta" type="text" class="notr" placeholder="${esc(trLT("Ruta del archivo", "Path of the file"))}" aria-label="${esc(trLT("Ruta del archivo", "Path of the file"))}"><button class="btn small primary" type="submit">${esc(trLT("Guardar", "Save"))}</button></form>`;
+  der += `</div><div class="pgBloque"><h4>${esc(trLT("Compartido en", "Shared on"))}</h4>`;
+  if (enl.length) der += `<div class="pgEnlaces">${enl.map((e, i) => `<div class="pgEnl"><a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer" title="${esc(e.url)}"><b class="notr">${esc(pgNombreRed(e))}</b><span class="notr">${esc(pgHost(e.url))}</span></a>
+      <span class="note">${e.fecha ? esc(fechaDia(e.fecha)) : ""}</span><button class="btn small" data-pg-enl-quitar="${i}" aria-label="${esc(trLT("Quitar el enlace", "Remove the link"))}" title="${esc(trLT("Quitar el enlace", "Remove the link"))}">✕</button></div>`).join("")}</div>`;
+  else der += `<p class="note">${esc(trLT("Aún no lo has compartido en ningún sitio. Pega aquí el enlace de cada publicación y quedan juntas.", "You haven't shared it anywhere yet. Paste the link to each post here and they stay together."))}</p>`;
+  der += `<form class="pgForm" id="pgEnlForm"><input id="pgEnlUrl" type="url" class="notr" placeholder="${esc(trLT("https://… el enlace de tu publicación", "https://… the link to your post"))}" aria-label="${esc(trLT("Enlace de la publicación", "Link to the post"))}" required>
+    <input id="pgEnlFecha" type="date" value="${fechaISO(new Date())}" aria-label="${esc(trLT("Fecha", "Date"))}"><button class="btn small primary" type="submit">${esc(trLT("Añadir", "Add"))}</button></form></div>`;
+  if ((tif || enl.length) && est.k !== "procesado") der += `<div class="pgInvita"><span>${esc(trLT("Ya tienes el resultado.", "You have the result."))}</span><button class="btn small primary" data-pg-procesar>${esc(trLT("Darlo por procesado", "Mark it as processed"))}</button></div>`;
+  const ficha = pgFichaTxt(X);
+  if (ficha) der += `<details class="pgDet" data-pgd="ficha"${pgAbierto("ficha", false) ? " open" : ""}><summary>${esc(trLT("Ficha técnica para compartir", "Technical sheet to share"))}</summary>
+    <pre class="pgFicha notr" id="pgFichaTxt">${esc(ficha)}</pre><button class="btn small" id="pgFichaCopiar">${esc(trLT("Copiar", "Copy"))}</button></details>`;
+  return `<div class="pgDos">${izq}<div>${der}</div></div>`;
+}
+function pgMas(X){
+  const o = OBJETIVOS[X.obj] || {};
+  return `<div class="pgMas"><button class="btn small" data-pg-exportar>${esc(trLT("Exportar el proyecto…", "Export the project…"))}</button>
+    <button class="btn small" data-pg-varios>${esc((o.equipos || []).length ? trLT("Editar los equipos…", "Edit the setups…") : trLT("Varios equipos…", "Several setups…"))}</button>
+    ${o.proyecto ? `<button class="btn small" data-pg-quitarp>${esc(trLT("Quitar proyecto", "Remove project"))}</button>` : ""}</div>`;
+}
+
+/* lo que hacen los botones de la página */
+function pgEnlazar(el, X){
+  const obj = X.obj;
   el.querySelectorAll("[data-arc-acc]").forEach(b => b.onclick = () => arcAccion(b.dataset.arcAcc, obj));
   el.querySelectorAll("[data-arc-noche]").forEach(b => b.onclick = () => { const n = b.dataset.arcNoche;
     filters.object = new Set([obj]); filters.filter = new Set(); filters.q = n; $("q").value = n; mostrarVista("tomas"); renderFilters(); renderTable(); });
   el.querySelectorAll("[data-arc-parp]").forEach(b => b.onclick = () => { const n = b.dataset.arcParp;
     abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj && f.night === n), obj + " · " + fechaDia(n)); });
-  if ($("arcSesProyMas")) $("arcSesProyMas").onclick = () => { ARC.sesProy = 100000; renderProyecto(); };
-  if ($("arcEstSel")) $("arcEstSel").onchange = e => arcPonerEstado(obj, e.target.value);
+  if ($("arcSesProyMas")) $("arcSesProyMas").onclick = () => { ARC.sesProy = 100000; renderProyecto(true); };
+  el.querySelectorAll("[data-pg-estado]").forEach(b => b.onclick = () => arcPonerEstado(obj, b.dataset.pgEstado === "curso" ? "" : b.dataset.pgEstado));
+  el.querySelectorAll("[data-pg-horas]").forEach(b => b.onclick = () => { PG.det.horas = b.dataset.pgHoras === "1"; renderProyecto(true); });
+  el.querySelectorAll("[data-pg-paso]").forEach(b => b.onclick = () => { PG.paso = b.dataset.pgPaso; PG.fijo = true; renderProyecto(true); });
+  el.querySelectorAll("[data-pg-capturar]").forEach(b => b.onclick = () => arcPonerEstado(obj, "capturado"));
+  el.querySelectorAll("[data-pg-procesar]").forEach(b => b.onclick = () => arcPonerEstado(obj, "procesado"));
+  // el objetivo: se guarda al cambiar la cifra
+  el.querySelectorAll(".pgMeta").forEach(inp => {
+    inp.onchange = () => { const filtros = {}; el.querySelectorAll(".pgMeta").forEach(i => { if (+i.value > 0) filtros[i.dataset.fi] = +i.value; }); inp.blur(); pgMetaGuardar(obj, filtros); };
+    inp.onkeydown = ev => { if (ev.key === "Enter"){ ev.preventDefault(); inp.blur(); } };
+  });
+  const fis = [...new Set(X.fl.map(f => f.filter || "sin filtro"))].sort(ordenFiltros);
+  el.querySelectorAll("[data-pg-rep]").forEach(b => b.onclick = () => pgRepartir(obj, +b.dataset.pgRep, fis));
+  if ($("pgRepBtn")) $("pgRepBtn").onclick = () => { const t = +$("pgRepTot").value; if (!(t > 0)) return toast(trLT("Escribe las horas totales", "Enter the total hours")); pgRepartir(obj, t, fis); };
+  if ($("pgRepTot")) $("pgRepTot").onkeydown = ev => { if (ev.key === "Enter"){ ev.preventDefault(); $("pgRepBtn").click(); } };
+  if ($("pgQuitarMeta")) $("pgQuitarMeta").onclick = ev => { ev.preventDefault(); pgMetaGuardar(obj, {}); };
+  el.querySelectorAll("[data-pg-integ]").forEach(b => b.onclick = () => abrirIntegracion(obj));
+  el.querySelectorAll("[data-pg-exportar]").forEach(b => b.onclick = () => exportarProyecto(obj));
+  el.querySelectorAll("[data-pg-varios]").forEach(b => b.onclick = () => abrirVarios(obj));
+  el.querySelectorAll("[data-pg-quitarp]").forEach(b => b.onclick = () => quitarProyecto(obj));
+  el.querySelectorAll("[data-pg-carpeta]").forEach(b => b.onclick = () => { const u = (ARC.apilados[obj] || [])[+b.dataset.pgCarpeta]; if (u) fetch("/api/apilado/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})}); });
+  // procesado
+  el.querySelectorAll("[data-pg-tif]").forEach(b => b.onclick = ev => { ev.preventDefault(); pgTif(obj, b.dataset.pgTif); });
+  if ($("pgRutaForm")) $("pgRutaForm").onsubmit = ev => { ev.preventDefault(); const r = ($("pgRuta").value || "").trim().replace(/^["']|["']$/g, ""); if (r) pgGuardarProcesado(obj, {tif: r}).then(ok => { if (ok) PG.manual = false; }); };
+  if ($("pgEnlForm")) $("pgEnlForm").onsubmit = ev => { ev.preventDefault(); pgAnadirEnlace(obj); };
+  el.querySelectorAll("[data-pg-enl-quitar]").forEach(b => b.onclick = () => { const l = (((ARC.procesado || {})[obj] || {}).enlaces || []).slice(); l.splice(+b.dataset.pgEnlQuitar, 1); pgGuardarProcesado(obj, {enlaces: l}); });
+  if ($("pgFichaCopiar")) $("pgFichaCopiar").onclick = () => pgCopiar($("pgFichaTxt").textContent, trLT("Ficha copiada: pégala donde la compartas", "Sheet copied: paste it where you share it"));
+  // los desplegables recuerdan si estaban abiertos; «Cuándo hacerlo» calcula las noches al abrirse
+  el.querySelectorAll("details[data-pgd]").forEach(d => d.ontoggle = () => { PG.det[d.dataset.pgd] = d.open; if (d.open && d.dataset.pgd === "noches"){ VISTA_OBJ = obj; pintarNochesObjeto(obj); } });
+  if (pgAbierto("horas", X.est.k === "curso") && pgAbierto("noches", false)){ VISTA_OBJ = obj; pintarNochesObjeto(obj); }
+  if (PG.paso === "tomas") pintarFichas(obj);
+  if (PG.paso === "calidad") enlazarEvolucion(obj);
+  if (PG.paso === "procesado" && X.ap[0] && (X.ap[0].vista || []).length && $("objVista")) activarGaleria($("objVista"), X.ap[0].vista);
 }
+// lo que se escribe en la página no se pierde si llega un repintado de fondo: se repinta al salir del campo
+(() => { const v = $("vistaProyecto"); if (v) v.addEventListener("focusout", () => { if (PG.pend) setTimeout(() => { if (PG.pend) renderProyecto(); }, 400); }); })();
+
 function arcAccion(a, obj){
   if (a === "analizar") return analizarProyecto(obj);
   if (a === "parar"){ ARC.parar = true; return; }
   if (a === "tomas"){ filters.object = new Set([obj]); mostrarVista("tomas"); render(); return; }
   if (a === "criterio") return abrirCriterio(obj);
-  if (a === "historial"){ ARC.histTodo = obj; return renderProyecto(); }
+  if (a === "historial"){ ARC.histTodo = obj; return renderProyecto(true); }
   if (a === "resolver") return resolverProyecto(obj);
   if (a === "pararastro") return api("/api/astrometria/parar", {method:"POST"}).catch(() => {});
   if (a === "parpadeo") return abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj), obj);
@@ -6041,13 +6436,11 @@ function arcAccion(a, obj){
     toast(trLT("Midiendo el encuadre de {1} tomas…", "Measuring the framing of {1} frames…", l.length));
     return;
   }
-  if (a === "carpeta" || a === "vista"){
+  if (a === "vista"){
     const u = (ARC.apilados[obj] || [])[0]; if (!u) return;
-    if (a === "carpeta") return fetch("/api/apilado/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})});
     return fetch("/api/apilado/vista", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})})
       .then(async r => { if (!r.ok) return toast(await r.text()); delete ARC.apilados[obj]; stkOpen(); });
   }
-  if (a === "resumen") return resumenObjeto(obj);
   if (a === "apilar"){ STK_PREF = obj; return stkOpen(); }
   if (a === "noches") return abrirNoches();
   if (a === "retomar") return arcPonerEstado(obj, "");
@@ -6268,26 +6661,6 @@ async function activarGaleria(raiz, lista){
 }
 function fechaApilado(s){ const [d,t] = String(s||"").split("_"); return fechaCorta(d) + " " + (d||"").slice(0,4) + (t && t.length>=4 ? ", " + t.slice(0,2) + ":" + t.slice(2,4) : ""); }
 let VISTA_OBJ = null;
-async function pintarVistaObjeto(obj){
-  VISTA_OBJ = obj;
-  let ap = []; try { ap = await (await fetch("/api/apilado/lista?objeto="+encodeURIComponent(obj))).json(); } catch(_){}
-  const box = $("objVista"); if (!box || VISTA_OBJ !== obj || !ap.length) return;
-  const u = ap[0], hay = u.vista.length > 0;
-  let h = `<div class="etapa"><h3><span class="num">1</span>${esc(trLT("Apilado", "Stacking"))}</h3><div class="note"><span>Último apilado: ${esc(fechaApilado(u.fecha))}</span> · <span class="notr">${esc(u.filtros.map(nomFiltro).join(", "))}</span>${ap.length>1?` · <span>${ap.length} apilados en total</span>`:""}.
-      ${esc(trLT("Los masters lineales (.fit) están en su carpeta.", "The linear masters (.fit) are in its folder."))}</div>
-    <button class="btn small" id="objCarpetaAp">Abrir la carpeta del apilado</button></div>
-    <div class="etapa proc"><h3><span class="num">2</span>${esc(trLT("Procesado automático: vista previa", "Automatic processing: preview"))}</h3>`;
-  h += hay ? galeriaHTML(u.vista) : `<div class="note" style="margin:6px 0">Este apilado aún no tiene vista previa. Créala para ver cómo ha quedado sin salir de ASTRO.</div>`;
-  h += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">${hay?"":`<button class="btn primary small" id="objCrearVista">Crear la vista previa</button>`}${hay?`<button class="btn small" id="objCrearVista">Rehacer la vista previa</button>`:""}</div></div>`;
-  box.innerHTML = h;
-  if (hay) activarGaleria(box, u.vista);
-  $("objCarpetaAp").onclick = ()=>fetch("/api/apilado/abrir",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({carpeta:u.carpeta})});
-  $("objCrearVista").onclick = async ()=>{
-    const r = await fetch("/api/apilado/vista",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({carpeta:u.carpeta})});
-    if (!r.ok) return alert(await r.text());
-    $("objBox").classList.remove("show"); stkOpen();
-  };
-}
 
 /* ============ Planificador: próximas noches ============ */
 let PLAN_CFG = null;
@@ -6695,7 +7068,7 @@ async function abrirNoches(){
 async function pintarNochesObjeto(obj){
   const box = $("objNoches"); if (!box) return;
   const c = await cfgPlan(); if (!$("objNoches") || VISTA_OBJ !== obj) return;
-  let h = `<h3 style="margin:16px 0 4px">Cuándo hacerlo</h3>`;
+  let h = "";
   if (!c.lugar){ box.innerHTML = h + formLugarHTML(c); activarLugar(box, ()=>pintarNochesObjeto(obj)); return; }
   const k = coordsObjeto(obj);
   if (!k){
@@ -6735,7 +7108,7 @@ async function pintarNochesObjeto(obj){
   } else h += `<div class="note" style="margin-top:6px">Ponle un objetivo arriba y te diré qué noches sirven para cada filtro.</div>`;
   h += `<div style="margin-top:6px"><button class="btn small" id="objVerNoches">Ver las próximas noches</button> <span class="note">Coordenadas${k.manual?" (escritas a mano)":""}: <span class="notr">${(k.ra/15).toFixed(2)} h, ${k.dec.toFixed(2)}°</span></span></div>`;
   box.innerHTML = h;
-  $("objVerNoches").onclick = ()=>{ $("objBox").classList.remove("show"); abrirNoches(); };
+  $("objVerNoches").onclick = ()=> abrirNoches();
   if ($("objCurva")) pintarCurva($("objCurva"), obj, k);
 }
 $("btnNoches").onclick = abrirNoches;
@@ -7509,7 +7882,7 @@ async function quitarProyecto(obj){
   if (!confirm(`¿Quitar el proyecto de ${obj}? Las tomas no se tocan.`)) return;
   try { OBJETIVOS = await (await api("/api/proyecto",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:obj, quitar:true})})).json(); }
   catch(e){ return toast("No se pudo quitar: "+(e.message||e)); }
-  render(); pintarSugerencia(true); if ($("objBox").classList.contains("show")) $("objBox").classList.remove("show");
+  render(); pintarSugerencia(true);
 }
 function metaDe(obj, ok){
   const o = OBJETIVOS[obj]; if (!o) return {meta:0, cons:0};
@@ -7818,7 +8191,7 @@ async function guardarVarios(){
 }
 function anadirTomasEquipo(obj, id){
   const s = ((OBJETIVOS[obj] || {}).equipos || []).find(x => x.id === id); if (!s) return;
-  ["varBox", "objBox"].forEach(m => $(m).classList.remove("show"));
+  $("varBox").classList.remove("show");
   abrirAñadir({obj, s});
 }
 function pintarAddEquipo(){
@@ -7829,13 +8202,19 @@ function pintarAddEquipo(){
   $("addEquipoQuitar").onclick = () => { ADD_EQUIPO = null; pintarAddEquipo(); };
 }
 function claseDe(f){ return f.color ? tr("en color") : tr("monocroma"); }
+const FICHAS_C = new Map();      // las fichas de equipo de cada proyecto, para no pedirlas al servidor en cada repintado de la página
 async function pintarFichas(obj){
-  const cont = $("objEquipos"); if (!cont) return;
+  if (!$("objEquipos")) return;
   const o = OBJETIVOS[obj] || {}, declarados = (o.equipos || []).length;
+  const clave = [frames.length, declarados, (o.equipos || []).map(x => x.id).join(","), (ARC.apilados[obj] || []).length].join("|"), c = FICHAS_C.get(obj);
   let d;
-  try { d = await (await api("/api/proyecto/fichas", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({objeto: obj})})).json(); }
-  catch(_){ return; }
-  if ($("objEquipos") !== cont) return;
+  if (c && c.clave === clave && Date.now() - c.t < 120000) d = c.d;
+  else {
+    try { d = await (await api("/api/proyecto/fichas", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({objeto: obj})})).json(); }
+    catch(_){ return; }
+    FICHAS_C.set(obj, {clave, d, t: Date.now()});
+  }
+  const cont = $("objEquipos"); if (!cont || PG.obj !== obj) return;
   const fs = d.fichas || [];
   if (fs.length < 2 && !declarados){ cont.innerHTML = ""; return; }
   const ref = fs.find(f => f.referencia), activas = fs.filter(f => f.utiles);
@@ -7890,13 +8269,13 @@ async function pintarFichas(obj){
       <button class="btn small" id="objVariosEdit">${declarados ? "Editar los equipos…" : "Convertir en proyecto con varios equipos…"}</button></div>
     ${nota ? `<div class="note" style="margin-bottom:6px">${nota}</div>` : ""}${resumen}
     <div class="fichas">${fs.map(ficha).join("")}</div>`);
-  $("objVariosEdit").onclick = () => { $("objBox").classList.remove("show"); abrirVarios(obj); };
+  $("objVariosEdit").onclick = () => abrirVarios(obj);
   cont.querySelectorAll("[data-fanadir]").forEach(b => b.onclick = () => anadirTomasEquipo(obj, b.dataset.fanadir));
   cont.querySelectorAll("[data-fasignar]").forEach(b => b.onclick = async () => {
     const f = fs[+b.dataset.fasignar], id = b.parentNode.querySelector(".fasig").value, ids = new Set(f.ids || []);
     let n = 0; for (const x of frames) if (ids.has(x.id)){ x.equipo_id = id; n++; }
     while (saving) await new Promise(r => setTimeout(r, 120));
-    await saveDb(); toast(n === 1 ? "1 toma asignada" : `${n} tomas asignadas`); pintarFichas(obj);
+    await saveDb(); FICHAS_C.delete(obj); toast(n === 1 ? "1 toma asignada" : `${n} tomas asignadas`); pintarFichas(obj);
   });
 }
 
@@ -8734,122 +9113,8 @@ const horasDe = l => l.reduce((a,f)=>a+(f.exp||0),0)/3600;
 const fmtH = h => h>=10 ? h.toFixed(0)+" h" : h>=1 ? (IDIOMA==="en" ? h.toFixed(1) : h.toFixed(1).replace(".",",")).replace(/[.,]0$/,"")+" h" : Math.round(h*60)+" min";
 const fechaCorta = d => { if (!d) return "?"; const [y,m,dd] = d.split("-"); return `${+dd} ${["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][+m-1]}`; };
 function ordenFiltros(a,b){ const o = ["L","R","G","B","H","HA","S","SII","O","OIII"]; const i = x => { const k = o.indexOf(String(x).toUpperCase()); return k<0 ? 99 : k; }; return i(a)-i(b) || String(a).localeCompare(String(b)); }
-function lineaObjetivo(obj, fl){
-  const ok = fl.filter(esUtil), h = horasDe(ok), noches = new Set(ok.map(f=>f.night).filter(Boolean)).size;
-  const {meta, cons: conseguido} = metaDe(obj, ok);
-  let barra = "";
-  if (meta > 0){
-    const pct = Math.min(100, Math.round(100*conseguido/meta));
-    barra = `<div style="height:6px;border-radius:4px;background:var(--line);margin:4px 0 2px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${pct>=100?"var(--ok)":"var(--accent)"}"></i></div>
-      <div class="m">${pct>=100?"✓ Objetivo cumplido":`${pct}% del objetivo de ${fmtH(meta)} · faltan ${fmtH(Math.max(0, meta-conseguido))}`}</div>`;
-  }
-  return `<div style="margin:2px 0 8px"><div class="m">${fmtH(h)} útiles · ${noches} noche${noches!==1?"s":""}</div>${barra}<button class="btn small" data-resumen="${esc(obj)}" style="margin-top:4px">Resumen y objetivo</button></div>`;
-}
-async function resumenObjeto(obj){
-  RESUMEN_OBJ = obj;
-  $("objBox").classList.add("show"); $("objTitle").innerHTML = `<span class="notr">${esc(obj)}</span>`; $("objBody").innerHTML = `<div class="note">Calculando…</div>`;
-  const fl = frames.filter(f=>(f.object||"")===obj), ok = fl.filter(esUtil);
-  const c = {ok:0,warn:0,bad:0,disc:0}; fl.forEach(f=>{ const s = shownStatus(f); if (c[s]!==undefined) c[s]++; });
-  const noches = [...new Set(ok.map(f=>f.night).filter(Boolean))].sort();
-  const porF = groupBy(ok, f=>f.filter||"sin filtro");
-  const filtrosUsados = [...new Set(fl.map(f=>f.filter||"sin filtro"))].sort(ordenFiltros);
-  const equipos = [...new Set(fl.map(f=>[f.cam,f.tel].filter(Boolean).join(" + ")).filter(Boolean))];
-  const porNoche = [...groupBy(ok, f=>f.night||"?")].map(([n,l])=>({n, fw: med(l.map(f=>f.fwhm)), h: horasDe(l)})).filter(x=>x.fw);
-  const mejor = porNoche.sort((a,b)=>a.fw-b.fw)[0];
-  const angulos = [...new Set(fl.map(f=>f.rot ?? f.header?.ROTATANG ?? f.header?.ROTATOR ?? null).filter(v=>v!==null&&v!==undefined).map(v=>Math.round(+v)))];
-  // calibraciones disponibles (el mismo cálculo que el apilado)
-  let plan = null; try { plan = await (await api("/api/apilado/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:obj, avisos:true})})).json(); } catch(_){}
-  if (RESUMEN_OBJ !== obj) return;          // mientras tanto se abrió el resumen de otro objeto: este ya no se pinta
-  const calib = {}; if (plan) for (const pf of plan.filtros||[]){ const g = pf.grupos||[]; calib[pf.filtro] = {
-      dark: g.every(x=>x.dark), flat: g.every(x=>x.flat), bias: g.every(x=>x.bias || x.cflat || !x.flat || /master/i.test(x.flat)),
-      faltan: g.flatMap(x=>[!x.dark?`darks de ${fmtExpS(x.exp/x.n)} (${x.noches.map(fechaNocheCorta).join(", ")})`:null, !x.flat?`flats (${x.noches.map(fechaNocheCorta).join(", ")})`:null]).filter(Boolean) }; }
-  const obj0 = OBJETIVOS[obj] || {filtros:{}};
-  const meta = fi => +(obj0.filtros||{})[fi] || 0;
-  const hF = fi => horasDe(porF.get(fi)||[]);
-  const nochesF = fi => new Set((porF.get(fi)||[]).map(f=>f.night)).size;
-  const ritmo = fi => { const n = nochesF(fi); return n ? hF(fi)/n : (noches.length ? horasDe(ok)/noches.length : null); };
-  // --- resumen escrito ---
-  const hTot = horasDe(ok), metaTot = filtrosUsados.reduce((a,fi)=>a+meta(fi),0);
-  const faltaF = filtrosUsados.map(fi=>({fi, falta: Math.max(0, meta(fi)-hF(fi))})).filter(x=>x.falta>0.01).sort((a,b)=>b.falta-a.falta);
-  const faltaTot = faltaF.reduce((a,x)=>a+x.falta,0);
-  const calFalta = Object.entries(calib).flatMap(([fi,x])=>x.faltan.map(t=>!fi || fi==="SIN_FILTRO" ? t : `${t} del filtro ${fi}`));
-  // cada frase en su propio trozo, para que se traduzca entera
-  const Y = " " + Y_CONJ + " ", nN = noches.length;
-  let txt = `<b class="notr">${esc(obj)}</b>: <span>${nN > 1 ? `${fmtH(hTot)} útiles en ${nN} noches (${fechaCorta(noches[0])} – ${fechaCorta(noches[nN-1])}).` : nN === 1 ? `${fmtH(hTot)} útiles en 1 noche (${fechaCorta(noches[0])}).` : `${fmtH(hTot)} útiles.`}</span>`;
-  if (equipos.length) txt += ` <span>Equipo:</span> <span class="notr">${esc(equipos.join(Y))}</span>.`;
-  if (mejor && mejor.n) txt += ` <span>Mejor noche: ${fechaCorta(mejor.n)} (FWHM ${numEs(mejor.fw, 2)} px).</span>`;
-  if (metaTot>0) txt += faltaTot>0.01 ? ` <b>${faltaF.length ? `Te faltan ${fmtH(faltaTot)} para el objetivo de ${fmtH(metaTot)}, sobre todo en ${faltaF.slice(0,2).map(x=>nomFiltroFrase(x.fi)).join(Y)}.` : `Te faltan ${fmtH(faltaTot)} para el objetivo de ${fmtH(metaTot)}.`}</b>` : ` <b>Objetivo de integración cumplido.</b>`;
-  else if (+obj0.total > 0){ const falta = Math.max(0, +obj0.total - hTot);
-    txt += falta > 0.01 ? ` <b>Proyecto de ${fmtH(+obj0.total)}: te faltan ${fmtH(falta)}.</b>` : ` <b>Proyecto de ${fmtH(+obj0.total)} cumplido.</b>`;
-    if (obj0.proyecto && obj0.proyecto.montaje_nombre) txt += ` <span>Montaje:</span> <span class="notr">${esc(obj0.proyecto.montaje_nombre)}${obj0.proyecto.filtro_nombre ? " · " + esc(obj0.proyecto.filtro_nombre) : ""}</span>`; }
-  else txt += ` Aún no tiene objetivo: ponlo abajo para saber cuánto te falta.`;
-  if (calFalta.length) txt += ` <span>Para apilar faltan calibraciones:</span> ${calFalta.slice(0,3).map(x=>`<span>${esc(x)}</span>`).join("; ")}${calFalta.length>3?"…":""}.`;
-  let h = `<div class="status ${metaTot>0 && faltaTot<=0.01 && !calFalta.length ? "ok" : "warn"}" style="line-height:1.5;display:block"><div>${txt}</div></div><div id="objVista"></div>`;
-  h += `<div style="display:flex;gap:18px;flex-wrap:wrap;margin:10px 0;font-size:13px">
-    <span><span class="dot ok"></span>${c.ok} válidas</span><span><span class="dot warn"></span>${c.warn} con avisos</span><span><span class="dot bad"></span>${c.bad} rechazables</span><span>${c.disc} descartadas</span>
-    <a href="#" id="objCriterio">Ajustar el criterio…</a>
-    ${angulos.length?`<span>Ángulo${angulos.length>1?"s":""} de cámara: ${angulos.map(a=>a+"°").join(", ")}</span>`:""}</div>`;
-  // --- tabla por filtro con objetivo editable ---
-  h += `<div style="overflow:auto"><table class="tbl" style="width:100%;min-width:0;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;border-bottom:1px solid var(--line)">
-    <th>Filtro</th><th>Tomas</th><th>Horas</th><th>Objetivo (h)</th><th style="width:110px">Progreso</th><th>Falta</th><th>Noches</th></tr></thead><tbody>`;
-  for (const fi of filtrosUsados){
-    const hh = hF(fi), mm = meta(fi), pct = mm>0 ? Math.min(100, Math.round(100*hh/mm)) : null, falta = Math.max(0, mm-hh), r = ritmo(fi);
-    const cal = calib[fi]; const chip = (ok, t) => `<span class="dot ${ok?"ok":"bad"}"></span>${t} `;
-    h += `<tr style="border-bottom:1px solid var(--line)"><td><b>${esc(fi)}</b>${cal?`<div class="note" style="white-space:nowrap">${chip(cal.dark,"darks")}${chip(cal.flat,"flats")}</div>`:""}</td><td>${(porF.get(fi)||[]).length}</td><td>${fmtH(hh)}</td>
-      <td><input type="number" min="0" step="0.5" class="objH" data-f="${esc(fi)}" value="${mm||""}" placeholder="—" style="width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"></td>
-      <td>${pct===null?'<span class="note">sin objetivo</span>':`<div style="height:8px;border-radius:4px;background:var(--line);overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${pct>=100?"var(--ok)":"var(--accent)"}"></i></div><span class="note">${pct}%</span>`}</td>
-      <td>${pct===null?"—":falta>0.01?fmtH(falta):"✓"}</td><td>${pct===null||falta<=0.01?"—":r?"≈ "+Math.max(1,Math.ceil(falta/r)):"?"}</td>
-      </tr>`;
-  }
-  h += `</tbody></table></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
-      <span style="font-size:13px">Repartir</span><input id="objTotal" type="number" min="0" step="1" placeholder="p. ej. 20" value="${+obj0.total > 0 ? +obj0.total : ""}" style="width:80px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--bg)"><span style="font-size:13px">horas entre los filtros</span>
-      <button class="btn small" id="objRepartir">Repartir</button><span class="note" style="flex:1">L recibe el doble que cada color y la banda estrecha (H, S, O) una vez y media. Luego puedes cambiar cada cifra.</span>
-      ${obj0.proyecto ? `<button class="btn" id="objQuitarP">Quitar proyecto</button>` : ""}<button class="btn primary" id="objGuardar">Guardar objetivo</button></div>
-    <div class="note" style="margin-top:6px">«Noches» es una estimación: usa las horas útiles que sueles sacar por noche con ese filtro en este objeto. Cuentan como útiles las válidas y las que tienen avisos, sin las rechazables ni las descartadas.</div>`;
-  h += `<div id="objEquipos"></div>`;
-  h += `<div class="igCall"><span><b>¿Sigo con este filtro?</b> ASTRO apila una parte y todas tus tomas de cada filtro y mide si la señal débil y el detalle siguen creciendo, cuántas horas más harían falta para notarlo y qué canal va más flojo.</span><button class="btn" id="objInteg">Analizar la integración…</button></div>`;
-  h += evolucionHTML(obj, metaDe(obj, ok).meta);
-  // --- qué falta ---
-  const lista = [];
-  for (const x of faltaF){ const r = ritmo(x.fi); const nn = r ? Math.max(1,Math.ceil(x.falta/r)) : 0;
-    lista.push(`<b class="notr">${esc(nomFiltro(x.fi))}</b>: <span>${fmtH(x.falta)} de integración${nn ? ` (≈ ${nn} noche${nn>1?"s":""} como las anteriores)` : ""}</span>`); }
-  for (const t of calFalta) lista.push(`<span>Calibración:</span> <span>${esc(t)}</span>`);
-  const metaProj = metaTot || +obj0.total || 0, faltaProj = metaTot ? faltaTot : Math.max(0, metaProj - hTot);
-  if (!metaTot && faltaProj > 0.01) lista.push(`Integración del proyecto: ${fmtH(faltaProj)} para llegar a ${fmtH(metaProj)}`);
-  if (c.warn) lista.push(`Revisar ${c.warn} toma${c.warn>1?"s":""} con avisos (cuentan como útiles, pero conviene mirarlas)`);
-  const sinObj = frames.filter(f=>!(f.object||"").trim() && !f.discarded).length;
-  if (sinObj) lista.push(sinObj === 1 ? `Hay 1 toma sin objeto: si es de ${esc(obj)}, asígnala en «Nombres de objeto»` : `Hay ${sinObj} tomas sin objeto: si alguna es de ${esc(obj)}, asígnala en «Nombres de objeto»`);
-  h += `<h3 style="margin:14px 0 6px">Qué falta</h3>` + (lista.length ? `<ul style="margin:0;padding-left:20px;line-height:1.6">${lista.map(x=>`<li>${x}</li>`).join("")}</ul>` : `<div class="status ok">Nada: ${metaProj>0?"objetivo cumplido y calibraciones completas.":"calibraciones completas. Ponle un objetivo para seguir el progreso."}</div>`);
-  if (metaProj>0 && faltaProj<=0.01 && !calFalta.length) h += `<div style="margin-top:8px"><button class="btn primary" id="objApilar">Apilar ${esc(obj)}…</button></div>`;
-  h += `<div id="objNoches"></div>`;
-  h += `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><button class="btn small" id="objExportar">Exportar el proyecto…</button><span class="note" style="flex:1">Todo lo de este objeto en un ZIP con formatos abiertos, para archivarlo, compartirlo o seguir en otro ordenador.</span><button class="btn small" id="objVariosBtn">${(obj0.equipos||[]).length ? "Editar los equipos…" : "Varios equipos…"}</button></div>`;
-  $("objBody").innerHTML = h;
-  pintarVistaObjeto(obj);
-  pintarNochesObjeto(obj);
-  pintarFichas(obj);
-  enlazarEvolucion(obj);
-  $("objInteg").onclick = () => { $("objBox").classList.remove("show"); abrirIntegracion(obj); };
-  $("objVariosBtn").onclick = () => { $("objBox").classList.remove("show"); abrirVarios(obj); };
-  $("objCriterio").onclick = ev => { ev.preventDefault(); $("objBox").classList.remove("show"); abrirCriterio(obj); };
-  $("objRepartir").onclick = ()=>{
-    const tot = +$("objTotal").value; if (!(tot>0)) return toast("Escribe las horas totales");
-    // pesos: L el doble que cada color; la banda estrecha, más débil, 1,5 veces
-    const peso = fi => { const F = fi.toUpperCase(); return F==="L" ? 2 : /^(R|G|B)$/.test(F) ? 1 : /^(H|HA|S|SII|O|OIII)$/.test(F) ? 1.5 : 1; };
-    const inps = [...$("objBody").querySelectorAll(".objH")], suma = inps.reduce((a,x)=>a+peso(x.dataset.f),0);
-    for (const inp of inps) inp.value = Math.round(2*tot*peso(inp.dataset.f)/suma)/2 || "";
-  };
-  $("objGuardar").onclick = async ()=>{
-    const filtros = {}; for (const inp of $("objBody").querySelectorAll(".objH")) if (+inp.value>0) filtros[inp.dataset.f] = +inp.value;
-    const prev = OBJETIVOS[obj] || {};
-    if (Object.keys(filtros).length || +prev.total > 0) OBJETIVOS[obj] = Object.assign({}, prev, {filtros, actualizado: new Date().toISOString()}); else delete OBJETIVOS[obj];
-    try { await api("/api/objetivos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(OBJETIVOS)}); toast("Objetivo guardado"); } catch(e){ return toast("No se pudo guardar: "+e.message); }
-    render(); resumenObjeto(obj);
-  };
-  if ($("objQuitarP")) $("objQuitarP").onclick = ()=>quitarProyecto(obj);
-  $("objExportar").onclick = ()=> exportarProyecto(obj);
-  if ($("objApilar")) $("objApilar").onclick = ()=>{ $("objBox").classList.remove("show"); STK_PREF = obj; $("btnStack").click(); };
-}
+// el resumen, el objetivo de horas y cómo evoluciona el proyecto están dentro de su página
+function resumenObjeto(obj){ abrirProyecto(obj); }
 /* ============ Cómo evoluciona el proyecto, noche a noche ============ */
 function escalaToma(f){   // segundos de arco por píxel, si la cabecera trae la focal y el píxel
   const h = f.header || {}, fl = +h.FOCALLEN, px = +(h.XPIXSZ || h.PIXSIZE1);
@@ -8982,12 +9247,11 @@ function evolucionHTML(obj, meta){
       <td>${x.fw ? esc(f1(x.fw)) : "—"}</td><td>${x.bg!=null ? (IDIOMA==="en"?x.bg.toFixed(1)+"%":x.bg.toFixed(1).replace(".",",")+" %") : "—"}</td><td>${x.estrellas ?? "—"}</td>
       <td><span class="dot ${x.cal==="buena"?"ok":x.cal==="normal"?"warn":"bad"}"></span>${esc(cal[x.cal])}${x.motivo ? `<div class="note">${esc(x.motivo)}</div>` : ""}${x.fuera ? `<div class="note">${esc(tr("fuera del apilado"))}</div>` : ""}</td>
       <td>${x.hq > 0 ? `<button class="btn small" data-ses="${k}" data-fuera="${x.fuera ? 0 : 1}">${x.fuera ? "Volver a incluir" : "Dejar fuera"}</button>` : ""}</td></tr>`).join("");
-  return `<h3 style="margin:14px 0 6px">Cómo evoluciona</h3>
-    <div class="evTxt">${frases.map(f=>`<span>${f}</span>`).join(" ")}</div>
+  return `<div class="evTxt">${frases.map(f=>`<span>${f}</span>`).join(" ")}</div>
     ${botones ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${botones}</div>` : ""}
     ${ns.length > 1 ? `<div class="evGraf"><div class="drG"><b>Horas útiles por noche</b> <span class="note">· <span style="color:var(--accent)">— ${esc(tr("acumulado"))}</span></span><div class="evLeyendas">${leyenda}</div>${graficaHorasNoche(ev)}</div>
       ${graficaCalidadNoche(ev) ? `<div class="drG"><b>FWHM por noche</b> <span class="note">· ${esc(tr("barras: fondo de cielo"))}</span><div class="evLeyendas"><span class="evLey"><i style="background:var(--ok)"></i>${esc(tr("buena"))}</span><span class="evLey"><i style="background:var(--warn)"></i>${esc(tr("normal"))}</span><span class="evLey"><i style="background:var(--bad)"></i>${esc(tr("floja"))}</span></div>${graficaCalidadNoche(ev)}</div>` : ""}</div>` : ""}
-    <details class="evNoches"><summary>${ev.varios ? `Noche a noche, por equipo (${lista.length})` : `Noche a noche (${lista.length})`}</summary><div style="overflow:auto"><table class="tbl" style="width:100%;min-width:0;border-collapse:collapse;font-size:13px">
+    <details class="evNoches" data-pgd="evnoches"${pgAbierto("evnoches", false) ? " open" : ""}><summary>${ev.varios ? `Noche a noche, por equipo (${lista.length})` : `Noche a noche (${lista.length})`}</summary><div style="overflow:auto"><table class="tbl" style="width:100%;min-width:0;border-collapse:collapse;font-size:13px">
       <thead><tr style="text-align:left"><th>Noche</th><th>Filtros</th><th>Útiles</th><th>Rechazadas</th><th>FWHM</th><th>Fondo</th><th>Estrellas</th><th>Calidad</th><th>Apilado</th></tr></thead><tbody>
       ${filas}
       </tbody></table></div></details>
@@ -8995,7 +9259,7 @@ function evolucionHTML(obj, meta){
 }
 function enlazarEvolucion(obj){
   // botones de «Cómo evoluciona»: dejar fuera del apilado una noche (o todas las flojas) y volver a incluirlas
-  const b = $("objBody"); if (!b || !EV_SES || EV_SES.obj !== obj) return;
+  const b = $("vistaProyecto"); if (!b || !EV_SES || EV_SES.obj !== obj) return;
   const l = EV_SES.lista;
   b.querySelectorAll("[data-ses]").forEach(x => x.onclick = () => cambiarFuera(obj, l[+x.dataset.ses].ids, x.dataset.fuera === "1"));
   if ($("evFueraFlojas")) $("evFueraFlojas").onclick = () => cambiarFuera(obj, l.filter(x=>x.cal==="floja" && !x.fuera && x.hq > 0).flatMap(x=>x.ids), true);
@@ -9009,11 +9273,6 @@ async function cambiarFuera(obj, ids, fuera, despues){
   await saveDb(); render();
   toast(fuera ? (n === 1 ? "1 toma fuera del apilado" : `${n} tomas fuera del apilado`) : (n === 1 ? "1 toma vuelve al apilado" : `${n} tomas vuelven al apilado`));
   if (despues) return despues();
-  if (!$("objBox").classList.contains("show")) return;
-  const box = $("objBox").querySelector(".box"), y = box.scrollTop, abierto = !!document.querySelector("#objBody .evNoches[open]");
-  await resumenObjeto(obj);
-  const d = document.querySelector("#objBody .evNoches"); if (d && abierto) d.open = true;
-  box.scrollTop = y;
 }
 /* ============ Proyectos: exportar e importar (formato abierto) ============ */
 let PROY_T = null;
@@ -9258,7 +9517,6 @@ $("addImpProy").onclick = e => { e.preventDefault(); importarProyecto(); };
 
 function fechaNocheCorta(n){ return /^\d{4}-\d\d-\d\d$/.test(n||"") ? fechaCorta(n) : (n||"?"); }
 function fmtExpS(e){ return e ? numEs(Math.round(e*10)/10)+" s" : "?"; }
-$("objClose").onclick = ()=> $("objBox").classList.remove("show");
 
 /* ============ ¿Sigo con este filtro? Análisis de la integración ============ */
 // ASTRO apila con Siril la octava parte, la cuarta, la mitad y todas las tomas de cada filtro (subconjuntos encajados,
@@ -9786,10 +10044,9 @@ $("regInput").onchange = e => { const l = [...e.target.files]; e.target.value = 
 /* ============ Navegación: pestañas, menú, añadir sesión ============ */
 const VISTAS = {panel:["Panel general","Cómo van tus proyectos y tus noches"], objetos:["Proyectos","Cómo va cada uno y cuándo te conviene seguir"], tomas:["Todas las tomas","Cada toma con su valoración: filtra, ordena y descarta las que no valen"],
                 archivo:["Archivo","Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir"], proyecto:["Proyecto",""]};
-let VISTA_ACTUAL = "panel", RESUMEN_OBJ = "";
+let VISTA_ACTUAL = "panel";
 // desde dónde se va a la biblioteca de calibración: su botón «Volver a…» trae aquí mismo
 function volverDesde(){
-  if ($("objBox").classList.contains("show") && RESUMEN_OBJ) return "obj:" + RESUMEN_OBJ;
   if (VISTA_ACTUAL === "proyecto" && ARC.proyecto) return "arc:" + ARC.proyecto;
   return VISTA_ACTUAL;
 }
@@ -9832,7 +10089,7 @@ $("btnGeneral").onclick = () => abrirGeneral();
 // «Indexar directorios» abre el Archivo en sus proyectos, no en el mapa o el calendario (que son del panel general)
 document.querySelectorAll(".pest").forEach(p => p.onclick = ()=>{ if (p.dataset.vista === "archivo" && ["mapa","calendario"].includes(ARC.pestana)) ARC.pestana = "proyectos"; mostrarVista(p.dataset.vista); });
 // cada ventana de un apartado lleva arriba su dibujo de la ventana de inicio, con el título y «Cerrar» encima
-const DIBUJOS = {addBox: "anadir", objBox: "objetos", nochesBox: "noches", dirBox: "directo", stackBox: "apilar", varBox: "varios"};
+const DIBUJOS = {addBox: "anadir", nochesBox: "noches", dirBox: "directo", stackBox: "apilar", varBox: "varios"};
 (function ilustrarCabeceras(){
   for (const [id, dib] of Object.entries(DIBUJOS)){
     const box = document.querySelector(`#${id} > .box`), fila = box && box.firstElementChild, h2 = fila && fila.querySelector("h2");
@@ -17072,7 +17329,7 @@ def archivo_apilados():
 
 
 ESTADOS_PROYECTO = ("terminado", "pausa", "capturado", "procesado", "archivado")   # los dos primeros son de antes: cuentan como «capturado»
-TIPOS_HISTORIAL = ("estado", "limites", "union", "nombre", "fuera", "descartadas", "recuperadas", "analisis", "calibracion", "astrometria")
+TIPOS_HISTORIAL = ("estado", "limites", "union", "nombre", "fuera", "descartadas", "recuperadas", "analisis", "calibracion", "astrometria", "procesado")
 _HIST_LOCK = threading.RLock()
 
 
@@ -17277,6 +17534,87 @@ def archivo_proyectos(d=None):
         return _archivo_proyectos(d)
 
 
+IMAGEN_FINAL_EXT = (".tif", ".tiff", ".png", ".jpg", ".jpeg", ".psd", ".psb", ".fit", ".fits", ".fts", ".xisf", ".webp", ".xcf", ".bmp", ".pdf")
+
+
+def _resp_proyectos(v, est, lim, no_unir):
+    pr = v.get("procesado") if isinstance(v.get("procesado"), dict) else {}
+    return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir, "procesado": pr}
+
+
+def _procesado_limpio(q):
+    """La ficha de «procesado» de un proyecto: el archivo de la imagen final y los enlaces de dónde la has compartido.
+    Devuelve (ficha, error); la ficha sale vacía si no queda nada."""
+    out = {}
+    tif = str(q.get("tif") or "").strip()
+    if tif:
+        if len(tif) > 1024 or re.search(r"[\x00-\x1f]", tif):
+            return {}, _L("Esa ruta no es válida.", "That path is not valid.")
+        if not tif.lower().endswith(IMAGEN_FINAL_EXT):
+            return {}, _L("Elige una imagen (TIF, PNG, JPG…).", "Choose an image (TIF, PNG, JPG…).")
+        out["tif"] = tif
+    enl = []
+    for x in (q.get("enlaces") if isinstance(q.get("enlaces"), list) else [])[:40]:
+        if not isinstance(x, dict):
+            continue
+        url = str(x.get("url") or "").strip()
+        if len(url) > 600 or not re.match(r"^https?://[^\s<>\"']+$", url, re.I):
+            continue
+        red = re.sub(r"[\x00-\x1f<>]", "", str(x.get("red") or "")).strip()[:40]
+        fecha = str(x.get("fecha") or "")
+        enl.append({"red": red, "url": url, "fecha": fecha if re.match(r"^\d{4}-\d\d-\d\d$", fecha) else ""})
+    if enl:
+        out["enlaces"] = enl
+    nota = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", str(q.get("nota") or "")).strip()[:600]
+    if nota:
+        out["nota"] = nota
+    return out, ""
+
+
+def procesado_abrir(obj, accion):
+    """Abre (o muestra en su carpeta) el archivo de la imagen final que el usuario apuntó en un proyecto, y nada más."""
+    v = leer_archivo_cfg()
+    pr = v.get("procesado") if isinstance(v.get("procesado"), dict) else {}
+    ficha = pr.get(obj) if isinstance(pr.get(obj), dict) else {}
+    ruta = str(ficha.get("tif") or "")
+    if not ruta:
+        return {"ok": False, "motivo": "sin_archivo"}
+    if not ruta.lower().endswith(IMAGEN_FINAL_EXT) or not os.path.isfile(ruta):
+        return {"ok": False, "motivo": "no_existe"}
+    if accion in ("abrir", "revelar"):
+        abrir_sistema(ruta, revelar=(accion == "revelar"))
+    return {"ok": True}
+
+
+def elegir_imagen_final():
+    """Ventana del sistema para elegir el archivo de la imagen final de un proyecto; devuelve (ruta, fallo)."""
+    texto = _L("Elige la imagen final (TIF, PNG o JPG)", "Choose the final image (TIF, PNG or JPG)")
+    r = _dialogo_ventana("archivo", texto, ("Imagen (*.tif;*.tiff;*.png;*.jpg;*.jpeg;*.psd;*.fits;*.xisf)",))
+    if r is not None:
+        return r, False
+    ruta, fallo = "", True
+    try:
+        if ES_MAC:
+            r = subprocess.run(["osascript", "-e", "activate", "-e",
+                                'POSIX path of (choose file with prompt "%s" of type {"tif", "tiff", "png", "jpg", "jpeg", "psd", "fits", "xisf"})' % texto.replace('"', "'")],
+                               capture_output=True, text=True, timeout=600)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0 and not re.search(r"cancel|-128", r.stderr or "", re.I)
+        elif ES_WIN:
+            ps = ("Add-Type -AssemblyName System.Windows.Forms;"
+                  "$f=New-Object System.Windows.Forms.OpenFileDialog;"
+                  "$f.Title='" + texto.replace("'", "’") + "';$f.Filter='Imagen (*.tif;*.tiff;*.png;*.jpg;*.jpeg;*.psd;*.fits;*.xisf)|*.tif;*.tiff;*.png;*.jpg;*.jpeg;*.psd;*.fits;*.xisf';"
+                  "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
+                  "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.FileName}")
+            r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
+                               timeout=600, encoding="utf-8", errors="replace", **SIN_VENTANA)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0
+    except Exception:
+        pass
+    return ruta, fallo
+
+
 def _archivo_proyectos(d=None):
     v = leer_archivo_cfg()
     est = v.get("estados") if isinstance(v.get("estados"), dict) else {}
@@ -17289,12 +17627,14 @@ def _archivo_proyectos(d=None):
             est.pop(obj, None); lim.pop(obj, None)
             h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
             h.pop(obj, None)
+            if isinstance(v.get("procesado"), dict):
+                v["procesado"].pop(obj, None)
             v["estados"], v["limites"], v["historial"] = est, lim, h
             foto = v.get("cal_foto")
             if isinstance(foto, dict):
                 foto.pop(obj, None)
             guardar_archivo_cfg(v)
-        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+        return _resp_proyectos(v, est, lim, no_unir)
     if d and isinstance(d.get("renombrar"), dict):
         # varios nombres del mismo objeto se unen en uno: su estado y sus límites pasan al que queda, si él no tiene
         hacia = str(d["renombrar"].get("hacia") or "").strip()
@@ -17306,6 +17646,20 @@ def _archivo_proyectos(d=None):
                         valor = dic.pop(x)
                         dic.setdefault(hacia, valor)
             v["estados"], v["limites"] = est, lim
+            pr = v.get("procesado") if isinstance(v.get("procesado"), dict) else {}
+            for x in desde:
+                if isinstance(pr.get(x), dict):
+                    otro = pr.pop(x)
+                    if isinstance(pr.get(hacia), dict):
+                        dest = pr[hacia]
+                        if otro.get("tif") and not dest.get("tif"):
+                            dest["tif"] = otro["tif"]
+                        vistas = {e.get("url") for e in dest.get("enlaces") or []}
+                        dest["enlaces"] = (dest.get("enlaces") or []) + [e for e in otro.get("enlaces") or [] if e.get("url") not in vistas]
+                    else:
+                        pr[hacia] = otro
+            if pr:
+                v["procesado"] = pr
             h = v.get("historial") if isinstance(v.get("historial"), dict) else {}
             junto = list(h.get(hacia) or [])
             for x in desde:
@@ -17315,7 +17669,7 @@ def _archivo_proyectos(d=None):
             v["historial"] = h
             _historial(v, hacia, "nombre" if d["renombrar"].get("tipo") == "nombre" else "union", {"nombres": desde})
             guardar_archivo_cfg(v)
-        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+        return _resp_proyectos(v, est, lim, no_unir)
     if d and isinstance(d.get("lote"), dict):
         # varios proyectos de golpe (por ejemplo, dar por capturados los que llevan más de un año sin tomas): un estado
         # para todos, o ninguno para devolverlos a «en curso»; cada uno lo apunta en su historial
@@ -17335,7 +17689,31 @@ def _archivo_proyectos(d=None):
                     _historial(v, obj, "estado", {"estado": nuevo, "antes": antes})
             v["estados"] = est
             guardar_archivo_cfg(v)
-        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+        return _resp_proyectos(v, est, lim, no_unir)
+    if d and isinstance(d.get("procesado"), dict):
+        # el resultado final de un proyecto (el archivo de la imagen) y dónde lo has compartido: se guarda la ficha entera
+        q = d["procesado"]
+        obj = str(q.get("objeto") or "").strip()
+        if obj:
+            nuevo, error = _procesado_limpio(q)
+            if error:
+                raise RuntimeError(error)
+            pr = v.get("procesado") if isinstance(v.get("procesado"), dict) else {}
+            antes = pr.get(obj) if isinstance(pr.get(obj), dict) else {}
+            if nuevo:
+                pr[obj] = nuevo
+            else:
+                pr.pop(obj, None)
+            v["procesado"] = pr
+            if (nuevo.get("tif") or "") != (antes.get("tif") or ""):
+                _historial(v, obj, "procesado", {"que": "tif" if nuevo.get("tif") else "tif_quitado",
+                                                 "archivo": re.split(r"[\\/]", nuevo.get("tif") or "")[-1]})
+            vistas = {e.get("url") for e in antes.get("enlaces") or []}
+            for e in nuevo.get("enlaces") or []:
+                if e["url"] not in vistas:
+                    _historial(v, obj, "procesado", {"que": "enlace", "red": e.get("red") or ""})
+            guardar_archivo_cfg(v)
+        return _resp_proyectos(v, est, lim, no_unir)
     if d and isinstance(d.get("no_unir"), str):
         # «no son el mismo»: ese grupo de nombres no se vuelve a proponer
         k = d["no_unir"].strip()
@@ -17343,7 +17721,7 @@ def _archivo_proyectos(d=None):
             no_unir.append(k)
             v["no_unir"] = no_unir[-500:]
             guardar_archivo_cfg(v)
-        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+        return _resp_proyectos(v, est, lim, no_unir)
     if d and "limites" in d:
         # límites fijos de un proyecto (FWHM en ″ o px, excentricidad y peso): lo que los pasa queda fuera del apilado
         obj = str(d.get("objeto") or "").strip()
@@ -17359,7 +17737,7 @@ def _archivo_proyectos(d=None):
                 lim.pop(obj, None)
             v["limites"] = lim
             guardar_archivo_cfg(v)
-        return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+        return _resp_proyectos(v, est, lim, no_unir)
     if d:
         obj = str(d.get("objeto") or "").strip()
         if obj and isinstance(d.get("historial"), dict):
@@ -17381,7 +17759,7 @@ def _archivo_proyectos(d=None):
                 _historial(v, obj, "estado", extra)
             v["estados"] = est
             guardar_archivo_cfg(v)
-    return {"estados": est, "apilados": archivo_apilados(), "limites": lim, "no_unir": no_unir}
+    return _resp_proyectos(v, est, lim, no_unir)
 
 # ── carpetas vigiladas: ASTRO las revisa al abrirse y cada rato, y añade solo las tomas nuevas ──
 VIGILADAS_CFG = os.path.join(ROOT, "vigiladas.json")
@@ -18919,7 +19297,16 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/archivo/carpetas":
                 return self._send(200, json.dumps(archivo_carpetas(json.loads(self._body() or b"{}")), ensure_ascii=False))
             if p.path == "/api/archivo/proyectos":
-                return self._send(200, json.dumps(archivo_proyectos(json.loads(self._body() or b"{}")), ensure_ascii=False))
+                try:
+                    return self._send(200, json.dumps(archivo_proyectos(json.loads(self._body() or b"{}")), ensure_ascii=False))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/archivo/procesado/elegir":
+                ruta, fallo = elegir_imagen_final()
+                return self._send(200, json.dumps({"ruta": ruta, "fallo": fallo}, ensure_ascii=False))
+            if p.path == "/api/archivo/procesado/abrir":
+                d = json.loads(self._body() or b"{}")
+                return self._send(200, json.dumps(procesado_abrir(str(d.get("objeto") or "").strip(), str(d.get("accion") or "abrir")), ensure_ascii=False))
             if p.path == "/api/astrometria/resolver":
                 try:
                     return self._send(200, json.dumps(astrometria_resolver(json.loads(self._body() or b"{}")), ensure_ascii=False))
