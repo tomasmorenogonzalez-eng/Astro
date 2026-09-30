@@ -515,6 +515,24 @@ def _imagen(nombre):
         return None
 
 
+def _enlace_astrocitas(padre, w):
+    """Anagrama de Astrocitas y «Astrocitas en YouTube»: al pulsarlo se abre el canal en el navegador."""
+    f = tk.Frame(padre, bg="#FFFFFF", cursor="hand2")
+    partes = [f]
+    img = _imagen("escudo-astrocitas.png")
+    if img is not None:
+        w._imgs.append(img)
+        l = tk.Label(f, image=img, bg="#FFFFFF", bd=0, cursor="hand2"); l.pack(side="left", padx=(0, 7)); partes.append(l)
+    t = tk.Label(f, text=T("astrocitas_yt"), bg="#FFFFFF", fg=VIOLETA, font=("Helvetica", 10, "bold"), cursor="hand2")
+    t.pack(side="left"); partes.append(t)
+    abrir = lambda e=None: _abrir_url_externa(ASTROCITAS_URL)
+    for p in partes:
+        p.bind("<Button-1>", abrir)
+    t.bind("<Enter>", lambda e: t.config(font=("Helvetica", 10, "bold", "underline")))
+    t.bind("<Leave>", lambda e: t.config(font=("Helvetica", 10, "bold")))
+    return f
+
+
 def _pantalla_baja(w):
     """Pantallas de poca altura (portátiles de 13"): cabecera más baja y tarjetas sin descripción
     (la ventana completa, con los escudos del pie, mide unos 970 px)."""
@@ -572,17 +590,21 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
             tk.Label(cab, text=" BETA ", bg="#F2C14E", fg="#3A2A00", font=("Helvetica", 11, "bold")).pack(side="right", padx=16)
     pie = tk.Frame(w, bg="#FFFFFF", highlightthickness=1, highlightbackground="#E8E4ED"); pie.pack(fill="x", side="bottom")
     # en las ventanas grandes, los escudos de las tres asociaciones a la derecha del nombre (los que estén en «imagenes»)
-    escudos = [im for im in (_imagen(n) for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png")) if im is not None] if grande else []
+    # el anagrama de Astrocitas va debajo del nombre, como enlace al canal; a la derecha, los escudos de las asociaciones
+    escudos = [im for im in (_imagen(n) for n in ("escudo-azarquiel.png", "escudo-miguelturra.png")) if im is not None] if grande else []
     if escudos:
         fila = tk.Frame(pie, bg="#FFFFFF"); fila.pack(side="right", padx=(4, 18), pady=5)
         for im in escudos:
             w._imgs.append(im)
             tk.Label(fila, image=im, bg="#FFFFFF", bd=0).pack(side="left", padx=5)
         ancho_esc = sum(im.width() + 10 for im in escudos) + 22
-        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 40 - ancho_esc,
-                 justify="left", anchor="w").pack(side="left", fill="x", expand=True, padx=(22, 8), pady=7)
+        quien = tk.Frame(pie, bg="#FFFFFF"); quien.pack(side="left", fill="x", expand=True, padx=(22, 8), pady=7)
+        tk.Label(quien, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 40 - ancho_esc,
+                 justify="left", anchor="w").pack(anchor="w")
+        _enlace_astrocitas(quien, w).pack(anchor="w", pady=(5, 0))
     else:
-        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=7)
+        tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=(7, 0))
+        _enlace_astrocitas(pie, w).pack(pady=(3, 7))
     cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=28 if grande else 24, pady=(18, 22))
     return w, cuerpo
 
@@ -1449,6 +1471,11 @@ TXT_APP = {
 }
 for _l, _d in TXT_APP.items():
     TXT[_l].update(_d)
+# enlace al canal de Astrocitas, debajo del nombre del autor (se pulsa el anagrama)
+ASTROCITAS_URL = "https://www.youtube.com/@astrocitas"
+for _l, _t in {"es": "Astrocitas en YouTube", "en": "Astrocitas on YouTube", "fr": "Astrocitas sur YouTube",
+               "de": "Astrocitas auf YouTube", "it": "Astrocitas su YouTube", "pt": "Astrocitas no YouTube"}.items():
+    TXT[_l]["astrocitas_yt"] = _t
 TXT_DONAR = {
     "es": {"donar_t": "Apoya ASTRO", "donar_d": "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.", "donar_btn": "Donar con PayPal"},
     "en": {"donar_t": "Support ASTRO", "donar_d": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "donar_btn": "Donate with PayPal"},
@@ -1600,6 +1627,9 @@ a{color:var(--accent)}
 .pie .datos{color:var(--muted);font-size:13px;word-break:break-all}
 .autor{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding:14px 28px 18px;color:var(--muted);font-size:12.5px;background:var(--surface)}
 .autor .escudos{display:flex;gap:12px;align-items:center}.autor .escudos img{height:44px;width:auto}
+.autor .quien{display:flex;flex-direction:column;gap:7px;align-items:flex-start;flex:1 1 320px;min-width:0}
+.autor .astrocitas{display:inline-flex;gap:8px;align-items:center;color:var(--muted);text-decoration:none;font-weight:600;border-radius:8px;padding:2px 8px 2px 2px;margin-left:-2px}
+.autor .astrocitas img{height:30px;width:auto;transition:transform .15s}.autor .astrocitas:hover{color:var(--text);background:var(--line)}.autor .astrocitas:hover img{transform:scale(1.08)}
 .modal{position:fixed;inset:0;background:rgba(12,8,20,.45);display:none;align-items:flex-start;justify-content:center;padding:60px 20px;z-index:10;overflow:auto}
 .modal.show{display:flex}
 .caja{background:var(--surface);color:var(--text);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:24px 28px;max-width:640px;width:100%}
@@ -1644,9 +1674,14 @@ def _selector_idioma_html():
 
 
 def _autor_html():
-    esc = "".join('<img src="/img/%s" alt="">' % n for n in ("escudo-astrocitas.png", "escudo-azarquiel.png", "escudo-miguelturra.png")
-                  if os.path.exists(os.path.join(recursos(), "imagenes", "web", n)) or os.path.exists(os.path.join(recursos(), "imagenes", n)))
-    return '<footer class="autor"><span>%s</span><span class="escudos">%s</span></footer>' % (_h(AUTOR[IDIOMA["v"]]), esc)
+    hay = lambda n: os.path.exists(os.path.join(recursos(), "imagenes", "web", n)) or os.path.exists(os.path.join(recursos(), "imagenes", n))
+    # el anagrama de Astrocitas va debajo del nombre, como enlace al canal; a la derecha, los escudos de las asociaciones
+    esc = "".join('<img src="/img/%s" alt="">' % n for n in ("escudo-azarquiel.png", "escudo-miguelturra.png") if hay(n))
+    ana = '<img src="/img/escudo-astrocitas.png" alt="">' if hay("escudo-astrocitas.png") else ""
+    enlace = '<a class="astrocitas" href="%s" target="_blank" rel="noopener" title="%s">%s<span>%s</span></a>' % (
+        _h(ASTROCITAS_URL), _h(T("astrocitas_yt")), ana, _h(T("astrocitas_yt")))
+    return '<footer class="autor"><span class="quien"><span>%s</span>%s</span><span class="escudos">%s</span></footer>' % (
+        _h(AUTOR[IDIOMA["v"]]), enlace, esc)
 
 
 def pagina_espera():
