@@ -1,4 +1,4 @@
-# ✦ ASTRO
+# ✦ ASTRONOMIE
 
 [Español](README.md) · [English](README.md#in-english) · **Français** · [Deutsch](README.de.md) · [Italiano](README.it.md) · [Português](README.pt.md)
 
