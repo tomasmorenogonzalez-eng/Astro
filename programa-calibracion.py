@@ -838,9 +838,9 @@ function ponerVolverAstro(p){
   const a = document.getElementById("volverLights"); if (!a || !p) return;
   const v = VOLVER_ASTRO || "", obj = v.startsWith("obj:") ? v.slice(4) : "", proy = v.startsWith("arc:") ? v.slice(4) : "";
   a.href = `http://127.0.0.1:${p}/#` + (obj ? "obj=" + encodeURIComponent(obj) : proy ? "archivo=" + encodeURIComponent(proy)
-    : v === "tomas" ? "tomas" : v === "archivo" ? "archivo" : "objetos");
+    : v === "tomas" ? "tomas" : v === "archivo" ? "archivo" : v === "objetos" ? "objetos" : "panel");
   a.querySelector("small").textContent = VOLVER_ASTRO === null ? trLT("Ir a", "Go to") : trLT("Volver a", "Back to");
-  a.querySelector("b").textContent = obj || proy || (v === "tomas" ? trLT("Todas las tomas", "All frames") : v === "archivo" ? (IDIOMA === "es" ? "Archivo" : IDIOMA === "en" ? "Archive" : (DIC["Archivo (apartado)"] ?? "Archive")) : trLT("Mis objetos", "My targets"));
+  a.querySelector("b").textContent = obj || proy || (v === "tomas" ? trLT("Todas las tomas", "All frames") : v === "archivo" ? (IDIOMA === "es" ? "Archivo" : IDIOMA === "en" ? "Archive" : (DIC["Archivo (apartado)"] ?? "Archive")) : v === "objetos" ? trLT("Proyectos", "Projects") : trLT("Panel general", "Overview"));
   a.title = trLT("Control de lights", "Light frame checker");
   a.style.display = "";
 }
