@@ -3,7 +3,7 @@ rem Fabrica ASTRO.exe en este PC. Necesita Python 3 de python.org (marca "Add py
 cd /d "%~dp0"
 py -3 -m venv .entorno || python -m venv .entorno || goto fallo
 call .entorno\Scripts\activate.bat || goto fallo
-python -m pip install --upgrade pip pyinstaller pillow certifi pywebview || goto fallo
+python -m pip install --upgrade pip pyinstaller pillow certifi pywebview sgp4 || goto fallo
 pyinstaller ASTRO.spec --noconfirm || goto fallo
 echo.
 echo LISTO: la aplicacion esta en la carpeta dist (ASTRO.exe).

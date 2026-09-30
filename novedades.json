@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.28.8",
+  "es": [
+   "El núcleo de la Vía Láctea en «Próximas noches»: arriba, si estás en temporada y hasta cuándo (o cuándo empieza la próxima) y, en cada noche, a qué horas se ve con noche cerrada, cuánto sube, hacia dónde mirar y si molesta la Luna. Tiene en cuenta tu horizonte.",
+   "Nuevo «Enfoque por filtro» en Herramientas: con la posición y la temperatura del enfocador que N.I.N.A., SGP, KStars o MaxIm DL guardan en cada toma, calcula cuántos pasos cambia el foco de un filtro a otro (los números para el «Focus offset» de N.I.N.A.) y cuántos por cada grado de temperatura.",
+   "Satélites en el plan de esta noche: en «Consejos» te avisa si la Estación Espacial u otro satélite brillante cruza el campo del objeto y a qué hora, para que sepas qué tomas pueden salir con traza. Las órbitas se descargan de CelesTrak una vez al día y el cálculo se hace en tu ordenador."
+  ],
+  "en": [
+   "The Milky Way core in «Upcoming nights»: at the top, whether it's in season and until when (or when the next season starts) and, on each night, when it's up in astronomical darkness, how high it gets, which way to look and whether the Moon is in the way. It takes your horizon into account.",
+   "New «Focus by filter» in Tools: from the focuser position and temperature that N.I.N.A., SGP, KStars or MaxIm DL write into every frame, it works out how many steps focus shifts from one filter to another (the numbers for N.I.N.A.'s «Focus offset») and how many per degree of temperature.",
+   "Satellites in tonight's plan: under «Tips» it warns you if the Space Station or another bright satellite crosses the target's field, and when, so you know which frames may show a trail. Orbits are downloaded from CelesTrak once a day and everything is computed on your computer."
+  ],
+  "fr": [
+   "Le cœur de la Voie lactée dans « Prochaines nuits » : en haut, si c'est la saison et jusqu'à quand (ou quand commence la prochaine) et, pour chaque nuit, à quelle heure il est visible en nuit astronomique, à quelle hauteur il monte, dans quelle direction regarder et si la Lune gêne. Votre horizon est pris en compte.",
+   "Nouvel outil « Mise au point par filtre » dans Outils : à partir de la position et de la température du focuser que N.I.N.A., SGP, KStars ou MaxIm DL enregistrent dans chaque pose, il calcule de combien de pas la mise au point change d'un filtre à l'autre (les valeurs du « Focus offset » de N.I.N.A.) et de combien par degré de température.",
+   "Les satellites dans le plan de cette nuit : dans « Conseils », ASTRO vous prévient si la Station spatiale ou un autre satellite brillant traverse le champ de l'objet, et à quelle heure, pour savoir quelles poses risquent d'avoir une traînée. Les orbites sont téléchargées depuis CelesTrak une fois par jour et tout est calculé sur votre ordinateur."
+  ],
+  "de": [
+   "Das Milchstraßenzentrum in „Kommende Nächte“: oben, ob gerade Saison ist und bis wann (oder wann die nächste beginnt), und für jede Nacht, wann es in astronomischer Nacht zu sehen ist, wie hoch es steigt, in welche Richtung du schauen musst und ob der Mond stört. Dein Horizont wird berücksichtigt.",
+   "Neu unter Werkzeuge: „Fokus pro Filter“. Aus der Fokussiererposition und -temperatur, die N.I.N.A., SGP, KStars oder MaxIm DL in jede Aufnahme schreiben, berechnet es, um wie viele Schritte sich der Fokus von Filter zu Filter verschiebt (die Werte für den „Focus offset“ in N.I.N.A.) und um wie viele pro Grad Temperatur.",
+   "Satelliten im Plan für heute Nacht: Unter „Tipps“ warnt ASTRO, wenn die Raumstation oder ein anderer heller Satellit das Bildfeld des Objekts kreuzt, und zu welcher Uhrzeit – so weißt du, welche Aufnahmen eine Spur haben können. Die Bahndaten kommen einmal täglich von CelesTrak, gerechnet wird auf deinem Computer."
+  ],
+  "it": [
+   "Il nucleo della Via Lattea in «Prossime notti»: in alto, se siamo in stagione e fino a quando (o quando inizia la prossima) e, per ogni notte, a che ora si vede in notte astronomica, quanto sale, dove guardare e se la Luna disturba. Tiene conto del tuo orizzonte.",
+   "Nuovo «Messa a fuoco per filtro» in Strumenti: dalla posizione e dalla temperatura del focheggiatore che N.I.N.A., SGP, KStars o MaxIm DL salvano in ogni posa, calcola di quanti passi cambia il fuoco da un filtro all'altro (i valori per il «Focus offset» di N.I.N.A.) e di quanti per ogni grado di temperatura.",
+   "I satelliti nel piano di stanotte: in «Consigli» ti avvisa se la Stazione Spaziale o un altro satellite luminoso attraversa il campo dell'oggetto, e a che ora, così sai quali pose possono avere una scia. Le orbite si scaricano da CelesTrak una volta al giorno e il calcolo si fa sul tuo computer."
+  ],
+  "pt": [
+   "O núcleo da Via Láctea em «Próximas noites»: no topo, se está na época e até quando (ou quando começa a próxima) e, em cada noite, a que horas se vê em noite astronómica, quanto sobe, para onde olhar e se a Lua incomoda. Tem em conta o seu horizonte.",
+   "Nova ferramenta «Focagem por filtro» em Ferramentas: a partir da posição e da temperatura do focador que o N.I.N.A., o SGP, o KStars ou o MaxIm DL guardam em cada exposição, calcula quantos passos muda a focagem de um filtro para outro (os valores para o «Focus offset» do N.I.N.A.) e quantos por cada grau de temperatura.",
+   "Satélites no plano desta noite: em «Conselhos», avisa se a Estação Espacial ou outro satélite brilhante atravessa o campo do objeto, e a que horas, para saber que exposições podem ficar com rasto. As órbitas são descarregadas do CelesTrak uma vez por dia e o cálculo é feito no seu computador."
+  ]
+ },
+ {
   "version": "0.28.7",
   "es": [
    "Más estrellas en el «Mapa del cielo»: ahora llega a la magnitud 8 (unas 48 000) y, cuanto más te acercas, más débiles se ven. Y si quieres aún más, puedes descargar el catálogo Tycho-2 desde el propio mapa: unos 2,5 millones de estrellas, hasta la magnitud 12, que salen solo al acercarte.",

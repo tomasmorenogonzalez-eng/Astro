@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.30.5"
+VERSION_PROG = "2026.09.30.6"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -254,6 +254,8 @@ DIC_EN.update({'Suelta para añadir la sesión': 'Drop here to add', 'Idioma': '
 # Traducciones de los registros de la ASIAIR
 DIC_EN.update({"Registros de la ASIAIR": "ASIAIR logs", "Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma": "The ASIAIR logs (session and guiding): what happened each night and why a frame went wrong", "La ASIAIR guarda cada noche dos diarios: el de la sesión automática (Autorun_Log) y el del guiado (PHD2_GuideLog). Con ellos ASTRO sabe qué pasó durante cada toma —el RMS del guiado, si se asentó tras el dither, el último enfoque, el giro de meridiano— y te explica por qué salió mal una toma. También sirven los de PHD2 con N.I.N.A.": "Every night the ASIAIR keeps two logs: the automatic session log (Autorun_Log) and the guiding log (PHD2_GuideLog). With them ASTRO knows what happened during each frame —guiding RMS, whether it settled after dithering, the last autofocus, the meridian flip— and tells you why a frame went wrong. PHD2 logs from N.I.N.A. work too.", "＋ Añadir registros…": "＋ Add logs…", "Añadir registros…": "Add logs…", "Buscar en una carpeta…": "Look in a folder…", "# registros de sesión": "# session logs", "# registro de sesión": "# session log", "# de guiado": "# guiding", "Todavía no hay ninguno": "None yet", "Al añadir o vigilar la carpeta de la ASIAIR, ASTRO también lee solo los registros que haya dentro.": "When you add or watch the ASIAIR folder, ASTRO also reads any logs inside it on its own.", "Añade los archivos Autorun_Log_…txt y PHD2_GuideLog_…txt de la ASIAIR (pueden ser los de inglés o los de chino: con uno basta).": "Add the ASIAIR Autorun_Log_…txt and PHD2_GuideLog_…txt files (English or Chinese, either one is enough).", "# problemas": "# problems", "# problema": "# problem", "parada": "stopped", "completa": "completed", "guiado RMS #″ (AR #″ · Dec #″)": "guiding RMS #″ (RA #″ · Dec #″)", "sin registro de guiado": "no guiding log", "enfoque: estrellas de #": "autofocus: star size #", "# en ASTRO": "# in ASTRO", "Cada intento de centrado alejaba más el telescopio: la corrección se aplica al revés. Suele pasar después del giro de meridiano, cuando no se invierte la declinación. Revisa en la ASIAIR el lado del pilar y la opción de invertir la declinación tras el giro.": "Each centring attempt moved the telescope further away: the correction is being applied the wrong way round. It usually happens after the meridian flip, when declination is not reversed. Check the pier side and the option to reverse declination after the flip in the ASIAIR.", "Una toma con la montura sin seguir o sin estrellas: no sirve. Pasa cuando la ASIAIR sigue disparando al amanecer, con nubes o con la montura aparcada; ponle una hora de fin a la sesión.": "One frame taken with the mount not tracking or without stars: it is useless. This happens when the ASIAIR keeps shooting at dawn, under clouds or with the mount parked; give the session an end time.", "# tomas con la montura sin seguir o sin estrellas: no sirven. Pasa cuando la ASIAIR sigue disparando al amanecer, con nubes o con la montura aparcada; ponle una hora de fin a la sesión.": "# frames taken with the mount not tracking or without stars: they are useless. This happens when the ASIAIR keeps shooting at dawn, under clouds or with the mount parked; give the session an end time.", "Un enfoque automático falló: las tomas siguientes se hicieron con el enfoque anterior.": "One autofocus run failed: the following frames were taken with the previous focus.", "# enfoques automáticos fallaron: las tomas siguientes se hicieron con el enfoque anterior.": "# autofocus runs failed: the following frames were taken with the previous focus.", "En # de # tomas el guiado no se había asentado al empezar: se agotó la espera tras el dither. Sube el tiempo máximo de espera o relaja el umbral de asentamiento.": "In # of # frames guiding had not settled when the exposure started: the wait after dithering timed out. Raise the maximum settle time or relax the settle threshold.", "En una toma el guiado se disparó: RMS de #″ (en el resto de la noche, #″).": "In one frame guiding went wild: RMS #″ (#″ for the rest of the night).", "# tomas seguidas en las que el guiado se disparó: RMS de # a #″ (en el resto de la noche, #″).": "# frames in a row in which guiding went wild: RMS # to #″ (#″ for the rest of the night).", "Fue la primera toma, y empezó antes de que el guiado se asentara.": "It was the first frame, and it started before guiding had settled.", "Empezó justo después de un enfoque automático: al volver a guiar cambió la estrella guía o la guía quedó mal calibrada.": "It started right after an autofocus run: when guiding resumed the guide star changed or the calibration was off.", "El error está sobre todo en declinación (#″ frente a #″ en AR): suele ser holgura, el equilibrio en DEC o una calibración vieja.": "The error is mostly in declination (#″ versus #″ in RA): usually backlash, DEC balance or an old calibration.", "El error está sobre todo en AR (#″ frente a #″ en declinación): error periódico de la montura, viento o equilibrio en AR.": "The error is mostly in RA (#″ versus #″ in declination): periodic error of the mount, wind or RA balance.", "PHD2 perdió la estrella guía el # % del tiempo durante las tomas: nubes, rocío en la guía o una estrella guía demasiado débil (sube la exposición del guiado).": "PHD2 lost the guide star # % of the time during the frames: clouds, dew on the guide scope or a guide star that is too faint (increase the guide exposure).", "La guía ve #″/px y tu imagen #″/px: con esa diferencia la guía no nota errores que en la imagen sí se ven. Una focal de guiado más larga o una guía fuera de eje lo mejoran.": "The guider sees #″/px and your image #″/px: with that difference the guider misses errors that do show in the image. A longer guide focal length or an off-axis guider improves it.", "El guiado no llegó a estabilizarse": "Guiding never settled", "El giro de meridiano falló": "The meridian flip failed", "La montura no pudo ir al objeto": "The mount could not slew to the target", "Parada a mano": "Stopped by hand", "Toma a toma": "Frame by frame", "RMS del guiado en cada toma": "Guiding RMS in each frame", "el guiado no se había asentado": "guiding had not settled", "tu escala": "your scale", "válida": "valid", "con avisos": "with warnings", "rechazable": "rejected", "sin enlazar": "not linked", "sin asentar": "not settled", "N.º": "No.", "RMS″": "RMS″", "AR″": "RA″", "Dec″": "Dec″", "Pico″": "Peak″", "Pérdidas": "Star lost", "Toma en ASTRO": "Frame in ASTRO", "enfoque fallido": "failed autofocus", "tras el giro": "after the flip", "sin seguimiento": "no tracking", "Archivos (#)": "Files (#)", "guiado": "guiding", "sesión": "session", "Quitar": "Remove", "Las copias están en": "The copies are in", "¿Seguro? Pulsa otra vez": "Sure? Click again", "# registro nuevo": "# new log", "# registros nuevos": "# new logs", "No he encontrado registros nuevos en esa carpeta": "I found no new logs in that folder", "No se ha podido abrir la ventana para elegir la carpeta: usa «Añadir registros…»": "The folder picker could not be opened: use «Add logs…»", "# registro añadido": "# log added", "# registros añadidos": "# logs added", "# ya estaba": "# was already there", "# ya estaban": "# were already there", "# no es un registro de la ASIAIR ni de PHD2": "# is not an ASIAIR or PHD2 log", "# no son registros de la ASIAIR ni de PHD2": "# are not ASIAIR or PHD2 logs", "Nada que añadir": "Nothing to add", "No he podido leer los registros:": "I could not read the logs:", "Registro de la ASIAIR": "ASIAIR log", "n.º": "no.", "empezó a las #:# (hora de la ASIAIR)": "started at #:# (ASIAIR time)", "Guiado": "Guiding", "RMS #″ (AR #″ · Dec #″) · pico #″": "RMS #″ (RA #″ · Dec #″) · peak #″", "# px de tu imagen (#″/px)": "# px on your image (#″/px)", "estrella perdida el # %": "guide star lost # % of the time", "sin datos: falta el registro de PHD2 de esa noche": "no data: the PHD2 log for that night is missing", "Antes de empezar": "Before it started", "dither; el guiado se asentó en # s": "dither; guiding settled in # s", "dither; el guiado no se asentó: se agotó la espera (# s)": "dither; guiding did not settle: the wait timed out (# s)", "el guiado se asentó en # s": "guiding settled in # s", "el guiado no se asentó: se agotó la espera (# s)": "guiding did not settle: the wait timed out (# s)", "sin dither": "no dither", "tras el giro de meridiano": "after the meridian flip", "Enfoque": "Focus", "el último enfoque automático falló: sigue el anterior": "the last autofocus failed: the previous focus was kept", "enfocado # min antes": "focused # min before", "enfocado # min antes, estrellas de #": "focused # min before, star size #", "enfocado # min antes, estrellas de # a # °C": "focused # min before, star size # at # °C", "enfocado # min antes a # °C": "focused # min before at # °C", "Aviso": "Warning", "la montura no seguía o no había estrellas": "the mount was not tracking or there were no stars", "Registro de la ASIAIR: la montura no seguía o no había estrellas cuando se hizo esta toma": "ASIAIR log: the mount was not tracking or there were no stars when this frame was taken", "Guiado durante la toma: RMS #″ (AR #″ · Dec #″), pico #″; # píxeles de tu imagen": "Guiding during the frame: RMS #″ (RA #″ · Dec #″), peak #″; # pixels on your image", "Guiado durante la toma: RMS #″ (AR #″ · Dec #″), pico #″": "Guiding during the frame: RMS #″ (RA #″ · Dec #″), peak #″", "El guiado fue bueno en esta toma (RMS #″): el alargamiento no viene del guiado; mira el viento, el equilibrio, el enfoque o el tilt": "Guiding was good in this frame (RMS #″): the elongation does not come from guiding; check wind, balance, focus or tilt", "PHD2 perdió la estrella guía el # % de la toma: nubes o estrella guía débil": "PHD2 lost the guide star # % of the frame: clouds or a faint guide star", "Empezó antes de que el guiado se asentara tras el dither (se agotó la espera)": "It started before guiding settled after dithering (the wait timed out)", "El último enfoque automático falló: esta toma se hizo con el enfoque anterior": "The last autofocus failed: this frame was taken with the previous focus", "Folder with the ASIAIR or PHD2 logs": "Folder with the ASIAIR or PHD2 logs", "No es un registro de la ASIAIR (Autorun_Log) ni de PHD2 (PHD2_GuideLog).": "It is not an ASIAIR (Autorun_Log) or PHD2 (PHD2_GuideLog) log.", "¿Sigo con este filtro?": "Should I keep going with this filter?", "Analizar la integración…": "Analyse the integration…", "Analizar la integración": "Analyse the integration", "ASTRO apila una parte y todas tus tomas de cada filtro y mide si la señal débil y el detalle siguen creciendo, cuántas horas más harían falta para notarlo y qué canal va más flojo.": "ASTRO stacks part and all of your frames of each filter and measures whether the faint signal and the detail keep growing, how many more hours you would need to notice it and which channel is lagging.", "ASTRO apila con Siril la octava parte, la cuarta, la mitad y todas tus tomas útiles de cada filtro, y mide en cada apilado cuánto baja el ruido, cuánto crece la señal de las zonas más débiles del objeto y cuánta estructura nueva asoma a cada escala. Así sabes si compensa seguir sumando horas con ese filtro, cuántas harían falta para notarlo y qué canal va más flojo.": "ASTRO uses Siril to stack an eighth, a quarter, half and all of your usable frames of each filter, and in each stack it measures how much the noise drops, how much the signal in the faintest parts of the target grows and how much new structure emerges at each scale. That tells you whether it pays to keep adding hours with that filter, how many you would need to notice it and which channel is lagging.", "pocas": "too few", "Este objeto no tiene tomas útiles.": "This target has no usable frames.", "Tarda unos minutos por filtro: Siril calibra, alinea y apila cuatro veces. Hacen falta al menos # tomas útiles del mismo equipo.": "It takes a few minutes per filter: Siril calibrates, aligns and stacks four times. You need at least # usable frames from the same setup.", "Resultado": "Result", "Midiendo…": "Measuring…", "Midiendo": "Measuring", "midiendo": "measuring", "Merece la pena seguir": "Worth carrying on", "Aún mejora, pero cada vez menos": "Still improving, but less and less", "Con este filtro ya has llegado": "You're done with this filter", "El ruido no baja como debería": "Noise isn't dropping as it should", "No se ve nebulosidad que medir": "No nebulosity to measure", "Del primer apilado al último el ruido debería haber bajado a la mitad o más, y apenas ha cambiado: te limita otra cosa. Suele ser la calibración (darks o flats que no casan), un gradiente distinto cada noche o ruido «en paseo» por no hacer dither. Antes de sumar más horas, revisa eso.": "From the first stack to the last the noise should have dropped to half or less, and it has barely changed: something else is limiting you. It is usually calibration (darks or flats that don't match), a gradient that changes every night or walking noise from not dithering. Check that before adding more hours.", "En este filtro no aparece nebulosidad por encima del ruido: el objeto es pequeño o casi todo estrellas, o la señal en este filtro es muy débil. Lo que mide aquí es solo cómo baja el ruido.": "No nebulosity rises above the noise in this filter: the target is small or mostly stars, or the signal in this filter is very weak. Here it only measures how the noise drops.", "Con # h, el halo del objeto (lo que tiene entre el # y el # % del brillo de su parte más brillante) tiene una señal/ruido de #.": "With # h, the target's halo (the parts between # and # % of the brightness of its brightest part) has a signal-to-noise of #.", "Con # min, el halo del objeto (lo que tiene entre el # y el # % del brillo de su parte más brillante) tiene una señal/ruido de #.": "With # min, the target's halo (the parts between # and # % of the brightness of its brightest part) has a signal-to-noise of #.", "Todavía es poco: el halo sale granulado y se pierde al quitar el ruido.": "Still low: the halo looks grainy and gets lost when you remove the noise.", "Ya se ve, pero con grano.": "It shows, but grainy.", "Ya sale limpio.": "It already looks clean.", "Lo que sigue apareciendo al sumar horas (la estructura extensa creció un # % en la última duplicación del tiempo) es nebulosidad todavía más tenue, por debajo del # % del brillo del objeto: solo compensa si buscas esa señal tan débil.": "What keeps appearing as you add hours (extended structure grew # % in the last doubling of time) is even fainter nebulosity, below # % of the target's brightness: it only pays off if you are after that very faint signal.", "En la última duplicación del tiempo, la estructura extensa que asoma por encima del ruido creció un # %: todavía está apareciendo nebulosidad débil.": "In the last doubling of time, the extended structure rising above the noise grew # %: faint nebulosity is still appearing.", "En la última duplicación del tiempo, la estructura extensa creció un # %: sigue saliendo algo, pero poco.": "In the last doubling of time, extended structure grew # %: something still appears, but not much.", "En la última duplicación del tiempo, la estructura extensa solo creció un # %: ya asoma casi todo lo que hay en este filtro. Más horas solo suavizan el ruido.": "In the last doubling of time, extended structure only grew # %: almost everything there is in this filter already shows. More hours only smooth the noise.", "Para mejorar un # % la señal débil harían falta unas # h más; doblando el tiempo, ganaría un # %.": "To improve the faint signal by # % you would need about # h more; doubling the time would gain # %.", "Para mejorar un # % la señal débil harían falta unas # min más; doblando el tiempo, ganaría un # %.": "To improve the faint signal by # % you would need about # min more; doubling the time would gain # %.", "La señal/ruido del halo crece menos de lo esperado (lo ideal es con la raíz cuadrada del tiempo): puede haber noches bastante peores que otras o algo de gradiente.": "The halo's signal-to-noise grows less than expected (ideally with the square root of time): some nights may be much worse than others, or there is some gradient.", "Equilibrio del color": "Colour balance", "El canal más flojo es el": "The weakest channel is", ": en las zonas brillantes del objeto su señal/ruido es un # % más baja que la de": ": in the bright parts of the target its signal-to-noise is # % lower than that of", "y": "and", ". Para igualarlo harían falta unas # h más de ese filtro, con un cielo parecido; es donde más rinden tus próximas horas.": ". To even it out you would need about # h more of that filter under a similar sky; that is where your next hours pay off most.", ". Para igualarlo harían falta unas # min más de ese filtro, con un cielo parecido; es donde más rinden tus próximas horas.": ". To even it out you would need about # min more of that filter under a similar sky; that is where your next hours pay off most.", "Los canales": "The channels", "están equilibrados: ninguno tiene menos del # % de la señal/ruido de los otros en las zonas brillantes.": "are balanced: none has less than # % of the others' signal-to-noise in the bright parts.", "(Aproximado: no he podido alinear todos los filtros por sus estrellas, así que cada uno se mide en su propia zona brillante.)": "(Approximate: I could not align all the filters by their stars, so each one is measured in its own bright area.)", "Señal/ruido de la zona débil según las horas": "Faint-area signal-to-noise versus hours", "horas (escala logarítmica)": "hours (log scale)", "medido": "measured", "ideal: raíz cuadrada del tiempo": "ideal: square root of time", "Escala": "Scale", "Última duplicación": "Last doubling", "Porcentaje del campo (sin estrellas) donde asoma estructura por encima del ruido a cada escala.": "Share of the field (without stars) where structure rises above the noise at each scale.", "Cada apilado usa las tomas repartidas por todas tus noches, con la misma calibración, alineación y rechazo que un apilado normal, reducido a unos # píxeles. La señal/ruido se mide suavizando a # píxeles de esa imagen reducida, más o menos lo que deja una reducción de ruido suave.": "Each stack uses frames spread over all your nights, with the same calibration, alignment and rejection as a normal stack, reduced to about # pixels. Signal-to-noise is measured smoothing to # pixels of that reduced image, roughly what a gentle noise reduction leaves.", "Hay otro apilado en marcha: espera a que termine.": "Another stack is running: wait for it to finish.", "Cancelado": "Cancelled", "Elige al menos un filtro": "Choose at least one filter", "Hacen falta al menos dos apilados para comparar": "At least two stacks are needed to compare", "Hacen falta al menos # tomas útiles de un filtro para ver cómo mejora al sumar horas.": "You need at least # usable frames of a filter to see how it improves as you add hours.", "Ya hay un apilado en marcha: espera a que termine.": "A stack is already running: wait for it to finish.", "No se ha podido analizar ningún filtro.": "No filter could be analysed."})
 DIC_EN.update({"Indicadores de calidad": "Quality indicators", "Gradiente": "Gradient"})
+# Enfoque por filtro (0.28.8)
+DIC_EN.update({"Enfoque por filtro": "Focus by filter", "Cuánto cambia el enfoque de un filtro a otro y con la temperatura, según tus tomas": "How much focus shifts from one filter to another and with temperature, from your frames"})
 DIC_EN.update({"Se había guardado desde otra ventana de ASTRO: se ha juntado con los cambios de esta.": "Something was saved from another ASTRO window: it has been merged with the changes in this one.", "Se había guardado desde otra ventana de ASTRO: esta se ha puesto al día.": "Something was saved from another ASTRO window: this one has been brought up to date.", "ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5). No se ha guardado nada desde ella.": "ASTRO is now using another data folder: reload this window (F5). Nothing has been saved from it.", "ASTRO está usando ahora otra carpeta de datos: vuelve a cargar esta ventana (F5).": "ASTRO is now using another data folder: reload this window (F5).", "La revisión en directo se ha parado": "The live review has stopped", "Esta ventana ya no puede guardar: vuelve a cargarla (F5) y vuelve a empezar la sesión.": "This window can no longer save: reload it (F5) and start the session again.", "Las tomas del proyecto están en esta ventana, pero no se han podido guardar todavía: no cierres ASTRO.": "The project's frames are in this window, but they could not be saved yet: don't close ASTRO.", "Espera a que termine de preparar el apilado de este objeto": "Wait until the stack for this target has been prepared"})
 DIC_EN.update({"Dar más peso a las tomas con mejor señal": "Give more weight to the frames with the best signal", "Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.": "Siril weights each frame by its noise, as PixInsight does: a frame with half the SNR of the rest counts for a quarter, not the same as them."})
 DIC_EN.update({"Tus proyectos de todos los años: cuántas horas llevas, qué falta y cómo seguir": "All your projects over the years: how many hours you have, what's missing and how to carry on", "Tus proyectos de todos los años: indexa las carpetas, mira cómo van y analiza, depura y apila cada uno": "All your projects over the years: index the folders, see how they're going, then analyse, clean up and stack each one", "Indexada desde el Archivo: todavía sin analizar. Analízala desde su proyecto, en el Archivo.": "Indexed from the Archive: not analysed yet. Analyse it from its project, in the Archive.", "Ya se está indexando otra carpeta.": "Another folder is already being indexed."})      # Archivo
@@ -684,6 +686,13 @@ td.chk,th.chk{width:30px; cursor:default}
 .plCab{display:flex;gap:10px;align-items:center} .plLuna{font-size:26px;width:34px;text-align:center;flex:0 0 34px}
 .plNoche ul{margin:6px 0 2px 44px;padding-left:16px;line-height:1.6;font-size:13.5px}
 .plNoche.nublada{opacity:.62}
+.plVLRes{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:13px;line-height:1.5}
+.plVLRes>div{flex:1;min-width:0} .plVLRes .plVLi{width:22px;height:22px;flex:0 0 22px;margin-top:1px}
+.plVLVer{display:flex;gap:5px;align-items:center;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.plVL{display:flex;gap:7px;align-items:center;margin:5px 0 0 44px;font-size:13px;line-height:1.45}
+.plVLi{width:18px;height:18px;flex:0 0 18px;color:var(--accent)} .plVLok{color:var(--ok)}
+.enfT{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13.5px;background:var(--surface2);line-height:1.5}
+.enfLeer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;border-top:1px solid var(--line);padding-top:10px}
 #btnDirecto .punto{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);margin-right:7px;vertical-align:1px}
 #btnDirecto.vivo .punto{background:#E53935;animation:latido 1.6s infinite} #btnDirecto.alerta{border-color:var(--bad);color:var(--bad)}
 @keyframes latido{0%,100%{opacity:1}50%{opacity:.25}}
@@ -904,7 +913,7 @@ a{color:var(--accent)}
 .sug h3{margin:4px 0 10px;font-size:20px}.sugAlias{font-weight:500;color:var(--muted);font-size:15px}
 .sugTuyo{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);vertical-align:middle;margin-left:4px}
 .sugFilas{display:grid;gap:8px;font-size:14px}
-.sugFilas>div{display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:baseline}
+.sugFilas>div{display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:baseline} .sugFilas>div[hidden]{display:none}
 .sugK{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .sugProy{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .sugProy .pista{width:140px;height:8px;border-radius:4px;background:var(--surface3);overflow:hidden;display:inline-block}
@@ -1251,6 +1260,7 @@ body.parpAbierto{overflow:hidden}
     <button class="nav" id="btnIndicadores"><svg class="i" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-5 3 3 5-6"/></svg><span>Indicadores de calidad</span></button>
     <button class="nav" id="btnCriterio"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Criterio de calidad</span></button>
     <button class="nav" id="btnRegistros" title="Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M8.5 15h2l1.5-3.5 2 6 1.3-2.5H17"/></svg><span>Registros de la ASIAIR</span></button>
+    <button class="nav" id="btnEnfoque" title="Cuánto cambia el enfoque de un filtro a otro y con la temperatura, según tus tomas"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="1.4"/></svg><span>Enfoque por filtro</span></button>
     <button class="nav" id="btnRename"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Renombrar por lotes</span></button>
     <button class="nav" id="btnCursos" title="Los cursos de astrofotografía de Tomás Moreno, adaptados a tu equipo"><svg class="i" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 11.5h5"/></svg><span>Cursos (bonus)</span></button>
     <div class="pieLat">
@@ -2411,7 +2421,9 @@ function arreglarCamaras(){
   }
   if (n) scheduleSave();
 }
-function trimHeader(h){ const out = {}; let n = 0; for (const k in h){ if (n++ > 90) break; const v = h[k]; out[k] = (typeof v==="string" && v.length>120) ? v.slice(0,120)+"…" : v; } return out; }
+function trimHeader(h){ const out = {}; let n = 0; for (const k in h){ if (n++ > 90) break; const v = h[k]; out[k] = (typeof v==="string" && v.length>120) ? v.slice(0,120)+"…" : v; }
+  for (const k of ["FOCPOS","FOCUSPOS","FOCTEMP","FOCUSTEM","AMBTEMP"]) if (h[k] !== undefined && out[k] === undefined) out[k] = h[k];   // el enfoque, aunque la cabecera sea larga
+  return out; }
 
 /* ============ Valoración: absoluta y relativa a la sesión ============ */
 function sessionKey(f){ return [f.object||"", f.night||"", f.filter||"", f.cam||""].join("|"); }
@@ -4045,7 +4057,8 @@ function objetoDeRuta(c){
 }
 // de la cabecera, solo lo que no está ya en la ficha (y hace falta para apilar, la escala, el color o el lugar)
 const CAB_GUARDAR = ["FOCALLEN","XPIXSZ","YPIXSZ","PIXSIZE1","OBJCTRA","OBJCTDEC","RA","DEC","CRVAL1","CRVAL2","SITELAT","SITELONG","SITEELEV",
-                     "OBSGEO-B","OBSGEO-L","BAYERPAT","COLORTYP","ROWORDER","XBAYROFF","YBAYROFF","NAXIS3","SET-TEMP"];
+                     "OBSGEO-B","OBSGEO-L","BAYERPAT","COLORTYP","ROWORDER","XBAYROFF","YBAYROFF","NAXIS3","SET-TEMP",
+                     "FOCPOS","FOCUSPOS","FOCTEMP","FOCUSTEM","AMBTEMP"];
 function recDesdeCabecera(it){
   const cab = {};
   for (const [k, v] of Object.entries(it.cab || {})) cab[k] = /^[-+]?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(String(v).trim()) ? Number(v) : v;
@@ -4056,6 +4069,7 @@ function recDesdeCabecera(it){
     bgPct:null, gradient:null, ruido:null, snr:null, score:null, status:"na", reasons:[] };
   Object.assign(rec, extractMeta(cab));
   for (const k of CAB_GUARDAR) if (cab[k] !== undefined && cab[k] !== "") rec.header[k] = cab[k];
+  rec.focoLeido = true;
   rec.w = numOrNull(cab.NAXIS1); rec.h = numOrNull(cab.NAXIS2);
   if (!rec.object) rec.object = objetoDeRuta(it.carpeta);
   if (!rec.dateObs && it.mtime) rec.dateObs = new Date(it.mtime).toISOString().slice(0, 19);
@@ -5884,6 +5898,46 @@ function activarLugar(raiz, alCambiar){
   activarHorizonte(raiz, {alt_min: +(raiz.querySelector(".plAlt")||{}).value || 30, horizonte: a0 ? a0.horizonte||null : null});
 }
 
+// ── núcleo de la Vía Láctea en «Próximas noches»: la temporada arriba y, en cada noche, a qué horas y hacia dónde ──
+const VL_CACHE = new Map();
+async function calcularNucleo(dias){
+  const c = await cfgPlan(); if (!c.lugar) return null;
+  const hoyN = new Date(Date.now() - 8*3600e3).toDateString();
+  const key = JSON.stringify([dias, c.lugar, c.horizonte||null, hoyN]); if (VL_CACHE.has(key)) return VL_CACHE.get(key);
+  const r = await api("/api/nucleo",{method:"POST",headers:{"Content-Type":"application/json"}, body:JSON.stringify({lat:c.lugar.lat, lon:c.lugar.lon, dias})});
+  if (!r.ok) return null;
+  const v = await r.json(); VL_CACHE.set(key, v); return v;
+}
+function dirTxt(az){ return DIRS8[Math.round((((+az)%360)+360)%360/45) % 8]; }
+function diaMes(iso){ return new Date(iso+"T12:00:00").toLocaleDateString(LOCALE, {day:"numeric", month:"long"}); }
+function vlEnNoches(){ try { return localStorage.getItem("astroVLNoches") !== "0"; } catch(_){ return true; } }
+const VL_ICONO = `<svg class="plVLi" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="11" ry="3.6" transform="rotate(-24 12 12)" fill="currentColor" opacity=".28"/><ellipse cx="12" cy="12" rx="6" ry="2.2" transform="rotate(-24 12 12)" fill="currentColor" opacity=".5"/><circle cx="12" cy="12" r="2.1" fill="currentColor"/></svg>`;
+function vlResumenHTML(vl){
+  if (!vl) return "";
+  const t = vl.temporada; let txt;
+  if (vl.nunca) txt = vl.tope < vl.umbral ? trLT("Desde tu latitud apenas asoma: como mucho sube {1}°.", "From your latitude it barely clears the horizon: {1}° at most.", numEs(Math.max(0, vl.tope), 0))
+    : trL("Con tu latitud y tu horizonte no llega a verse una hora seguida de noche cerrada en todo el año.", "With your latitude and horizon it is never up for a whole hour of astronomical darkness, all year round.");
+  else if (t && t.en_curso) txt = t.hasta ? trLT("Estás en temporada: se ve al menos una hora de noche cerrada cada noche hasta el {1}.", "In season: at least an hour of astronomical darkness every night until {1}.", diaMes(t.hasta))
+    : trL("Estás en temporada.", "In season.");
+  else if (t){ const [h0, h1] = String(t.horario||"").split("–"), asoma = (vl.noches||[]).some(n => n.horas >= 0.3);
+    txt = (asoma ? trL("Estas noches se ve menos de una hora seguida.", "These nights it is up for less than an hour at a time.") + " " : "")
+      + (t.hasta ? trLT("La temporada empieza el {1} (ese día, de {2} a {3}) y dura hasta el {4}.", "The season starts on {1} ({2}–{3} that night) and lasts until {4}.", diaMes(t.desde), h0, h1, diaMes(t.hasta))
+        : trLT("La temporada empieza el {1} (ese día, de {2} a {3}).", "The season starts on {1} ({2}–{3} that night).", diaMes(t.desde), h0, h1)); }
+  else return "";
+  const alto = vl.nunca ? "" : trLT("Desde aquí sube como mucho {1}°. Cuento desde {2}° sobre el horizonte, no desde tu altura mínima, que es para cielo profundo.", "From here it peaks at {1}°. I count from {2}° above the horizon, not from your minimum altitude, which is meant for deep sky.", numEs(vl.tope, 0), numEs(vl.umbral, 0));
+  return `<div class="plVLRes notr">${VL_ICONO}<div><b>${esc(trL("Núcleo de la Vía Láctea", "Milky Way core"))}</b> <span>${esc(txt)}</span>${alto ? `<div class="note">${esc(alto)}</div>` : ""}</div>
+    ${vl.nunca ? "" : `<label class="plVLVer"><input type="checkbox" class="plVLChk" ${vlEnNoches() ? "checked" : ""}> ${esc(trL("en cada noche", "on each night"))}</label>`}</div>`;
+}
+function vlNocheHTML(n){
+  if (!n || !(n.horas >= 0.3)) return "";
+  const p = Math.round((n.ilum||0)*100);
+  const luna = n.sin_luna >= n.horas - 0.05 ? trL("sin Luna", "no Moon")
+    : p < 12 ? trLT("Luna muy fina ({1} %)", "thin crescent Moon ({1}%)", p)
+    : n.sl_desde ? trLT("sin Luna de {1} a {2}", "Moon-free {1}–{2}", n.sl_desde, n.sl_hasta)
+    : trLT("con Luna al {1} %", "Moon up ({1}%)", p);
+  return `<div class="plVL notr">${VL_ICONO}<span><b>${esc(trL("Núcleo de la Vía Láctea", "Milky Way core"))}</b> ${esc(n.desde)}–${esc(n.hasta)} · ${esc(trLT("hasta {1}° al {2}", "up to {1}° {2}", Math.round(n.alt_max), dirTxt(n.az)))} · <span class="${n.sin_luna >= n.horas - 0.05 || p < 12 ? "plVLok" : ""}">${esc(luna)}</span></span></div>`;
+}
+
 // ── ventana «Próximas noches» ──
 async function abrirNoches(){
   $("nochesBox").classList.add("show"); $("nochesBody").innerHTML = `<div class="note">Calculando…</div>`;
@@ -5892,12 +5946,14 @@ async function abrirNoches(){
   const nombres = [...new Set(frames.filter(f=>(f.object||"").trim()).map(f=>f.object.trim()))].filter(n => !estadoManual(n));   // sin los terminados ni los que están en pausa
   const objs = [], sinCoord = [];
   for (const n of nombres){ const k = coordsObjeto(n); if (k) objs.push({nombre:n, ra:k.ra, dec:k.dec}); else sinCoord.push(n); }
-  let ns; try { ns = await calcularNoches(objs, dias); } catch(e){ $("nochesBody").innerHTML = `<div class="status bad">${esc(e.message)}</div>`; return; }
+  let ns, vl; try { [ns, vl] = await Promise.all([calcularNoches(objs, dias), calcularNucleo(dias).catch(()=>null)]); } catch(e){ $("nochesBody").innerHTML = `<div class="status bad">${esc(e.message)}</div>`; return; }
+  const vlCada = vl && !vl.nunca && vlEnNoches();
   const met = await prevision(c);
   const pend = {}; for (const o of objs) pend[o.nombre] = pendientesDe(o.nombre);
   const hayObjetivos = Object.values(pend).some(p=>p.length);
   let h = `<details class="plCfg"><summary>Lugar, horizonte y altura mínima · <span class="notr">${esc(nombreLugar(lugarActivo(c)))}</span></summary>${formLugarHTML(c)}</details>
     <div class="note" style="margin:6px 0 10px">Cuenta solo la noche astronómica y el tiempo con el objeto por encima de ${c.alt_min||30}°. ${met ? "La nubosidad es la prevista para la noche astronómica (Open-Meteo.com, próximos 7 días)." : met === undefined ? "Sin conexión a internet: no hay previsión del tiempo." : "La previsión del tiempo está desactivada."} <a href="https://clearoutside.com/forecast/${c.lugar.lat.toFixed(2)}/${c.lugar.lon.toFixed(2)}" target="_blank" rel="noopener">Pronóstico detallado</a></div>`;
+  h += vlResumenHTML(vl);
   if (!objs.length) h += `<div class="status warn" style="display:block">Tus tomas no traen coordenadas (RA/DEC). Escríbelas en «Resumen y objetivo» de cada objeto.</div>`;
   else if (!hayObjetivos) h += `<div class="status warn" style="display:block;margin-bottom:10px">Aún no has puesto objetivos: te enseño cuánto se ve cada objeto. Pon un objetivo en «Resumen y objetivo» y te diré qué filtro toca cada noche.</div>`;
   for (const [i, n] of ns.entries()){
@@ -5920,6 +5976,7 @@ async function abrirNoches(){
       <div class="note">${n.horas_oscuras>0?`Noche astronómica ${n.inicio}–${n.fin} (${fmtH(n.horas_oscuras)})`:"Sin noche astronómica"} · ${lunaTexto(n.luna)}</div>
       ${w ? `<div class="plTiempoTxt${w.media<=20?" ok":w.media>80?" mal":""}">${tiempoTexto(w)}</div>` : ""}</div></div>
       ${w ? tiempoHorasHTML(w, Object.assign({_hoy: i===0}, n)) : ""}
+      ${vlCada ? vlNocheHTML((vl.noches||[]).find(x=>x.fecha===n.fecha)) : ""}
       ${filas.length ? `<ul>${filas.slice(0,4).map(f=>`<li><b class="notr">${esc(f.o)}</b> — ${f.txt} <span class="note notr">(${f.vw})</span></li>`).join("")}</ul>` : `<div class="note" style="padding:2px 0 4px 44px">${hayObjetivos?"Nada de lo que te falta se puede hacer bien esta noche.":"Ningún objeto se ve lo bastante alto."}</div>`}
     </div>`;
   }
@@ -5927,6 +5984,8 @@ async function abrirNoches(){
   h += `<div class="note" style="margin-top:10px">Reglas: la banda ancha (L, RGB, color) necesita la Luna bajo el horizonte o por debajo del 15 %; Hα y SII sirven con Luna si está a más de 30° del objeto (45° si pasa del 75 %); OIII y los filtros de doble banda, con Luna de menos del 50 % a más de 60°, o de menos del 80 % a más de 90°.</div>`;
   $("nochesBody").innerHTML = h;
   activarLugar($("nochesBody").querySelector(".plCfg"), abrirNoches);
+  const vk = $("nochesBody").querySelector(".plVLChk");
+  if (vk) vk.onchange = ()=>{ try { localStorage.setItem("astroVLNoches", vk.checked ? "1" : "0"); } catch(_){} abrirNoches(); };
 }
 // ── sección del resumen de un objeto ──
 async function pintarNochesObjeto(obj){
@@ -6633,7 +6692,7 @@ async function pintarSugerencia(forzar){
           <div class="note">${porque} <span>Cielo:</span> <span class="notr">${esc(cielo || "SQM "+numEs(s.sqm,1))}</span>${lunaArriba ? ` <span>· Luna al ${ilum} %</span>` : ""}${s.sqm_origen === "defecto" ? ` <a href="#" class="sugCielo">¿Cómo es tu cielo?</a>` : ""}</div></span></div>
         <div><span class="sugK">Horario</span><span><b class="notr">${esc(r.ventana)}</b> <span>· ${fmtH(r.horas)} útiles</span>${cambio ? `<div class="note">${cambio}</div>` : ""}</span></div>
         <div><span class="sugK">Proyecto</span><span>${proy}</span></div>
-        ${tips.length ? `<div><span class="sugK">Consejos</span><span>${tips.map(t=>`<div>${t}</div>`).join("")}</span></div>` : ""}
+        <div id="sugConsejos"${tips.length ? "" : " hidden"}><span class="sugK">Consejos</span><span>${tips.map(t=>`<div>${t}</div>`).join("")}<div id="sugSat" class="notr" hidden></div></span></div>
       </div>
       <div class="sugPie">${s.alternativas && s.alternativas.length ? `<span class="note">Otras ideas:</span> ${s.alternativas.map(a=>{ const al = (ES ? (a.es||a.en) : a.en) || ""; return `<span class="sugAlt" title="${esc(a.montaje)}"><b class="notr">${esc(a.nombre)}</b>${al && claveObjeto(al)!==claveObjeto(a.nombre) ? ` <span class="notr">${esc(al)}</span>` : ""} <span class="note">· <span>${esc(CLASE_CORTA[a.clase])}</span> · <span class="notr">${fmtH(a.horas)}</span></span></span>`; }).join("")}` : ""}
         <span style="flex:1"></span><span class="sugBotones"><button class="btn small" id="sugEquipo">Mi equipo</button><button class="btn small" id="sugWaAuto">WhatsApp cada tarde…</button><button class="btn small" id="sugNina" title="Una secuencia para N.I.N.A. con el objeto, sus coordenadas y las instrucciones del plan">Para N.I.N.A.</button><button class="btn small" id="sugAsiair" title="Copia el objeto, sus coordenadas, el filtro y las tomas para crear el plan en la ASIAIR">Para la ASIAIR</button><button class="btn small primary" id="sugWa">Enviar por WhatsApp</button></span></div>
@@ -6643,6 +6702,33 @@ async function pintarSugerencia(forzar){
   const sc = box.querySelector(".sugCielo"); if (sc) sc.onclick = ev => { ev.preventDefault(); abrirEquipo(); };
   if ($("sugCrear")) $("sugCrear").onclick = ()=>crearProyecto(r, +$("sugMeta").value);
   heroDesdeSugerencia(s);
+  pintarSatelites(s);
+}
+// ── satélites brillantes que cruzan el campo del plan de esta noche (se calcula aparte: puede tardar un par de segundos) ──
+const SAT_CACHE = new Map();
+async function pintarSatelites(s){
+  const r = s && s.rec; if (!r || !s.noche || !s.noche.t_ini || !r.montaje) return;
+  const m = r.montaje, o = r.objeto, radio = Math.sqrt(m.fovW*m.fovW + m.fovH*m.fovH) / 120;     // media diagonal del campo, en grados
+  const key = JSON.stringify([o.ra, o.dec, radio.toFixed(3), s.noche.t_ini, s.noche.t_fin]);
+  let d = SAT_CACHE.get(key);
+  if (!d){
+    try {
+      const x = await api("/api/satelites", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ra:o.ra, dec:o.dec, radio, t_ini:s.noche.t_ini, t_fin:s.noche.t_fin})});
+      if (!x.ok) return; d = await x.json();
+    } catch(_){ return; }
+    SAT_CACHE.set(key, d);
+  }
+  const box = $("sugSat"); if (SUG !== s || !box || d.estado !== "ok") return;
+  const ps = d.pasos || [], viejas = d.dias > 3 ? " " + trLT("(órbitas de hace {1} días)", "(orbits from {1} days ago)", Math.round(d.dias)) : "";
+  const nom = p => p.muy_brillante ? trLT("{1} (muy brillante)", "{1} (very bright)", p.nombre) : p.nombre;
+  let h;
+  if (!ps.length) h = `<span class="note">${esc(trL("Ningún satélite brillante cruza el campo esta noche.", "No bright satellite crosses the field tonight.") + viejas)}</span>`;
+  else {
+    const lista = ps.slice(0, 5).map(p => `<b>${esc(p.hora)}</b> ${esc(nom(p))}`).join(" · ") + (ps.length > 5 ? " · …" : "");
+    h = `${esc(ps.length === 1 ? trL("Un satélite brillante cruza el campo:", "One bright satellite crosses the field:") : trLT("{1} satélites brillantes cruzan el campo:", "{1} bright satellites cross the field:", ps.length))} ${lista}.
+      <span class="note">${esc((ps.length === 1 ? trL("La toma de ese minuto puede salir con traza.", "The frame taken at that minute may show a trail.") : trL("Las tomas de esos minutos pueden salir con traza.", "Frames taken at those minutes may show trails.")) + viejas)}</span>`;
+  }
+  box.innerHTML = h; box.hidden = false; $("sugConsejos").hidden = false;
 }
 function planNocheDetalle(s){
   // lo que hay que hacer esta noche, en frases cortas (van como notas en N.I.N.A. y en la lista para la ASIAIR)
@@ -7203,6 +7289,167 @@ function pintarLotesHecho(){
 }
 $("btnLotes").onclick = abrirLotes;
 $("lotesCerrar").onclick = () => { $("lotesBox").classList.remove("show"); LOTES = null; };
+
+/* ============ Enfoque por filtro: el desplazamiento de cada filtro y el coeficiente de temperatura, desde las cabeceras ============ */
+// N.I.N.A., SGP, KStars o MaxIm DL guardan en cada toma la posición del enfocador (FOCPOS o FOCUSPOS) y su temperatura
+// (FOCTEMP o FOCUSTEM); con eso se ve cuánto cambia el foco de un filtro a otro y cuánto con el frío
+const CAB_FOCO = ["FOCPOS", "FOCUSPOS"], CAB_FOCO_T = ["FOCTEMP", "FOCUSTEM", "AMBTEMP"];
+const ENF = {eq: "", leyendo: null};
+function numCab(h, ks){ for (const k of ks){ const v = h ? h[k] : undefined; if (v !== undefined && v !== null && String(v).trim() !== "" && isFinite(+v)) return +v; } return null; }
+const esLum = fi => /^(l|lum|luminance|luminancia|luminanz|luminosit[àa]|clear)$/i.test(String(fi).trim());
+function medianaN(a){ a = a.filter(v => v !== null && v !== undefined && isFinite(v)).sort((x, y) => x - y); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+function agrupar(arr, clave){ const m = new Map(); for (const x of arr){ const k = clave(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); } return [...m.values()]; }
+function pendienteT(grupos){
+  // una pendiente común (pasos por °C) en la que cada grupo aporta solo lo que varía por dentro de él
+  let sxy = 0, sxx = 0, syy = 0, n = 0, rango = 0; const noches = new Set(), ts = [];
+  for (const g of grupos){
+    const p = g.filter(x => x.t !== null && x.pos !== null); if (p.length < 2) continue;
+    const r = Math.max(...p.map(x => x.t)) - Math.min(...p.map(x => x.t)); if (r < 0.5) continue;
+    const mt = p.reduce((a, x) => a + x.t, 0) / p.length, mp = p.reduce((a, x) => a + x.pos, 0) / p.length;
+    for (const x of p){ sxy += (x.t - mt) * (x.pos - mp); sxx += (x.t - mt) ** 2; syy += (x.pos - mp) ** 2; n++; noches.add(x.noche); ts.push(x.t); }
+    rango = Math.max(rango, r);
+  }
+  if (n < 4 || sxx <= 0 || rango < 3) return null;
+  return {k: sxy / sxx, r2: syy > 0 ? Math.min(1, sxy * sxy / (sxx * syy)) : 0, n, noches: noches.size, tmin: Math.min(...ts), tmax: Math.max(...ts)};
+}
+function analizarEnfoque(){
+  const porEq = new Map();
+  for (const f of frames){
+    if (f.discarded) continue;
+    const pos = numCab(f.header, CAB_FOCO); if (pos === null) continue;
+    const eq = [f.cam, f.tel].filter(Boolean).join(" · ") || "?";
+    if (!porEq.has(eq)) porEq.set(eq, []);
+    porEq.get(eq).push({pos, t: numCab(f.header, CAB_FOCO_T), fil: String(f.filter || "").trim(), noche: f.night || "", cuando: String(f.dateObs || "")});
+  }
+  const equipos = [];
+  for (const [eq, l] of porEq){
+    l.sort((a, b) => a.cuando.localeCompare(b.cuando));
+    // cada tramo seguido con el mismo filtro y la misma posición es un enfoque; su temperatura, la de su primera toma
+    const pts = [];
+    for (const x of l){
+      const u = pts[pts.length - 1];
+      if (u && u.fil === x.fil && u.pos === x.pos && u.noche === x.noche){ u.n++; continue; }
+      pts.push({fil: x.fil, pos: x.pos, t: x.t, noche: x.noche, n: 1});
+    }
+    const fils = new Map();
+    for (const p of pts){ if (!fils.has(p.fil)) fils.set(p.fil, {tomas: 0, noches: new Set()}); const q = fils.get(p.fil); q.tomas += p.n; q.noches.add(p.noche); }
+    let orden = [...fils.keys()].sort((a, b) => fils.get(b).tomas - fils.get(a).tomas);
+    const ref = orden.find(esLum) ?? orden[0];
+    orden = [ref, ...orden.filter(x => x !== ref)];
+    // el coeficiente, primero con lo que cambia dentro de cada noche (no le afecta desmontar el equipo de una noche a otra);
+    // si no hay varios enfoques por noche, comparando noches
+    let coef = pendienteT(agrupar(pts, p => p.noche + "|" + p.fil));
+    if (coef) coef.modo = "noche";
+    else {
+      const medias = agrupar(pts, p => p.noche + "|" + p.fil).map(g => ({fil: g[0].fil, noche: g[0].noche, pos: medianaN(g.map(x => x.pos)), t: medianaN(g.map(x => x.t))}));
+      coef = pendienteT(agrupar(medias, p => p.fil));
+      if (coef && coef.noches >= 3) coef.modo = "noches"; else coef = null;
+    }
+    const k = coef && coef.r2 >= 0.3 ? coef.k : 0;
+    // los desplazamientos, noche a noche entre los filtros de esa noche, con las posiciones llevadas a la misma temperatura
+    const dif = new Map();
+    for (const g of agrupar(pts, p => p.noche)){
+      const t0 = medianaN(g.map(x => x.t));
+      const m = new Map(agrupar(g, x => x.fil).map(v => [v[0].fil, medianaN(v.map(x => x.t !== null && t0 !== null ? x.pos - k * (x.t - t0) : x.pos))]));
+      for (const [fi, a] of m) for (const [fj, b] of m) if (fi !== fj){ const c = fi + "\u0001" + fj; if (!dif.has(c)) dif.set(c, []); dif.get(c).push(a - b); }
+    }
+    const filas = [];
+    for (const fi of orden){
+      const q = fils.get(fi);
+      if (fi === ref){ filas.push({fil: fi, ref: true, off: 0, noches: q.noches.size, tomas: q.tomas}); continue; }
+      let d = dif.get(fi + "\u0001" + ref) || [], via = null, off = d.length ? medianaN(d) : null;
+      if (off === null) for (const fj of orden){      // sin noches en común con la referencia: a través de otro filtro
+        if (fj === fi || fj === ref) continue;
+        const a = dif.get(fi + "\u0001" + fj), b = dif.get(fj + "\u0001" + ref);
+        if (a && a.length && b && b.length){ off = medianaN(a) + medianaN(b); via = fj; d = a; break; }
+      }
+      filas.push({fil: fi, off: off === null ? null : Math.round(off), noches: d.length, varia: d.length >= 2 ? Math.round((Math.max(...d) - Math.min(...d)) / 2) : null, via, tomas: q.tomas});
+    }
+    equipos.push({eq, ref, filas, coef, tomas: l.length, enfoques: pts.length, noches: new Set(pts.map(p => p.noche)).size, conT: l.some(x => x.t !== null)});
+  }
+  return equipos.sort((a, b) => b.tomas - a.tomas);
+}
+function abrirEnfoque(){
+  if (!$("enfBox")){
+    const d = document.createElement("div"); d.className = "modal"; d.id = "enfBox";
+    d.innerHTML = `<div class="box" style="width:min(820px,100%)"><div class="indCab"><h2 class="notr">${esc(trL("Enfoque por filtro", "Focus by filter"))}</h2><select id="enfEq" class="notr" hidden></select><span class="spacer"></span><button class="btn small" id="enfCerrar">${esc(tr("Cerrar"))}</button></div><div id="enfCuerpo" class="notr" style="display:flex;flex-direction:column;gap:10px"></div></div>`;
+    document.body.appendChild(d);
+    $("enfCerrar").onclick = () => d.classList.remove("show");
+    d.addEventListener("click", ev => { if (ev.target === d) d.classList.remove("show"); });
+    $("enfEq").onchange = e => { ENF.eq = e.target.value; pintarEnfoque(); };
+  }
+  $("enfBox").classList.add("show"); pintarEnfoque();
+}
+const fmtPasos = v => (v > 0 ? "+" : v < 0 ? "−" : "") + nfmt(Math.abs(v));
+function pintarEnfoque(){
+  const cu = $("enfCuerpo"); if (!cu) return;
+  const eqs = analizarEnfoque(), sel = $("enfEq"), sinF = fi => fi || trL("sin filtro", "no filter");
+  const pend = frames.filter(f => f.indice && f.origen && !f.focoLeido && !f.discarded && numCab(f.header, CAB_FOCO) === null);
+  let h = `<p class="note" style="margin:0;line-height:1.5">${esc(trL("Sale de la posición del enfocador (FOCPOS o FOCUSPOS) y de su temperatura (FOCTEMP o FOCUSTEM; si falta, la del ambiente, AMBTEMP) que el programa de captura guarda en cada toma. Cada vez que cambia la posición cuenta como un enfoque.",
+    "It comes from the focuser position (FOCPOS or FOCUSPOS) and its temperature (FOCTEMP or FOCUSTEM; failing that, the ambient one, AMBTEMP) that your capture program writes into every frame. Each change of position counts as one focus run."))}</p>`;
+  if (!eqs.length){
+    sel.hidden = true;
+    h += `<div class="status warn" style="display:block">${esc(trL("Ninguna de tus tomas trae la posición del enfocador. N.I.N.A., SGP, KStars y MaxIm DL la guardan en la cabecera cuando el enfocador está conectado al programa de captura; la ASIAIR y otros no siempre.",
+      "None of your frames carries the focuser position. N.I.N.A., SGP, KStars and MaxIm DL write it into the header when the focuser is connected to the capture program; the ASIAIR and others do not always do so."))}</div>`;
+  } else {
+    if (!eqs.some(e => e.eq === ENF.eq)) ENF.eq = eqs[0].eq;
+    sel.hidden = eqs.length < 2;
+    sel.innerHTML = eqs.map(e => `<option value="${esc(e.eq)}"${e.eq === ENF.eq ? " selected" : ""}>${esc(e.eq)}</option>`).join("");
+    const e = eqs.find(x => x.eq === ENF.eq), c = e.coef;
+    h += `<div style="font-size:13.5px"><b>${esc(e.eq)}</b> <span class="note">· ${esc(trLT("{1} tomas · {2} enfoques · {3} noches", "{1} frames · {2} focus runs · {3} nights", nfmt(e.tomas), nfmt(e.enfoques), nfmt(e.noches)))}</span></div>`;
+    h += `<div style="overflow:auto"><table class="drTabla"><thead><tr><th>${esc(trL("Filtro", "Filter"))}</th><th>${esc(trL("Desplazamiento", "Offset"))}</th><th>${esc(trL("Noches", "Nights"))}</th><th>${esc(trL("Varía", "Spread"))}</th></tr></thead><tbody>`
+      + e.filas.map(x => `<tr><td><b>${esc(sinF(x.fil))}</b>${x.ref ? ` <span class="note">${esc(trL("(referencia)", "(reference)"))}</span>` : ""}</td>
+        <td>${x.off === null ? `<span class="note">${esc(trLT("nunca en la misma noche que {1}", "never on the same night as {1}", sinF(e.ref)))}</span>` : `<b>${x.ref ? "0" : esc(Math.abs(x.off) === 1 ? trLT("{1} paso", "{1} step", fmtPasos(x.off)) : trLT("{1} pasos", "{1} steps", fmtPasos(x.off)))}</b>${x.via ? ` <span class="note">${esc(trLT("(a través de {1})", "(via {1})", sinF(x.via)))}</span>` : ""}`}</td>
+        <td>${x.noches || "—"}</td><td>${x.ref ? "—" : x.varia !== null ? "±" + nfmt(x.varia) : x.off !== null ? `<span class="note">${esc(trL("una noche", "one night"))}</span>` : "—"}</td></tr>`).join("")
+      + `</tbody></table></div>`;
+    if (e.filas.length > 1) h += `<p class="note" style="margin:0;line-height:1.5">${esc(trLT("Cuántos pasos hay que mover el enfocador al pasar de {1} a cada filtro. Se comparan los filtros de una misma noche, con las posiciones llevadas a la misma temperatura.", "How many steps to move the focuser when switching from {1} to each filter. Filters are compared within the same night, with positions brought to the same temperature.", sinF(e.ref)))}</p>`;
+    let t;
+    if (c){
+      const calidad = c.r2 >= 0.7 ? trL("ajuste bueno", "good fit") : c.r2 >= 0.3 ? trL("ajuste aceptable", "fair fit") : trL("poco fiable: el foco apenas sigue a la temperatura", "unreliable: focus barely follows temperature");
+      const de = c.modo === "noche"
+        ? trLT("Sale de {1} enfoques en {2} noches, de {3} a {4} °C, comparando los de una misma noche.", "Based on {1} focus runs over {2} nights, {3} to {4} °C, comparing runs within the same night.", nfmt(c.n), nfmt(c.noches), numEs(c.tmin, 0), numEs(c.tmax, 0))
+        : trLT("Sale de {1} noches, de {2} a {3} °C, comparando unas noches con otras: si desmontaste el equipo entre medias, puede engañar.", "Based on {1} nights, {2} to {3} °C, comparing one night with another: if you took the setup apart in between, it may mislead.", nfmt(c.noches), numEs(c.tmin, 0), numEs(c.tmax, 0));
+      t = `<div><b>${esc(trL("Temperatura", "Temperature"))}</b> — <b>${esc(trLT("{1} pasos por °C", "{1} steps per °C", (c.k > 0 ? "+" : c.k < 0 ? "−" : "") + numEs(Math.abs(c.k), 1)))}</b> <span class="note">· ${esc(calidad)}</span>
+        <div class="note" style="line-height:1.5">${c.r2 >= 0.3 ? esc(trLT("Si baja 5 °C, el foco se desplaza unos {1} pasos.", "If it gets 5 °C colder, focus shifts by about {1} steps.", fmtPasos(Math.round(-5 * c.k)))) + " " : ""}${esc(de)}</div></div>`;
+    } else t = `<div><b>${esc(trL("Temperatura", "Temperature"))}</b> — <span class="note">${esc(e.conT
+      ? trL("Aún no hay datos para el coeficiente: hacen falta cuatro enfoques con 3 °C de diferencia en una misma noche, o tres noches con 3 °C de diferencia.", "Not enough data for the coefficient yet: it needs four focus runs spanning 3 °C in one night, or three nights spanning 3 °C.")
+      : trL("Tus tomas no traen la temperatura del enfocador (FOCTEMP o FOCUSTEM) ni la del ambiente: sin ella no hay coeficiente.", "Your frames carry neither the focuser temperature (FOCTEMP or FOCUSTEM) nor the ambient one: without it there is no coefficient."))}</span></div>`;
+    h += `<div class="enfT">${t}</div>`;
+    h += `<p class="note" style="margin:0;line-height:1.5">${esc(trLT("En N.I.N.A., cada filtro tiene su «Focus offset» en Opciones › Equipo › Rueda de filtros: escribe ahí estos números, con {1} a 0, y al cambiar de filtro moverá el enfocador solo. El coeficiente sirve para la compensación por temperatura del enfocador, si su programa la tiene, o para decidir cada cuántos grados repetir el enfoque automático.",
+      "In N.I.N.A., each filter has its own «Focus offset» under Options › Equipment › Filter Wheel: enter these numbers there, with {1} at 0, and the focuser will move by itself on every filter change. The coefficient is for the focuser's temperature compensation, if its software has one, or to decide every how many degrees to repeat the autofocus.", sinF(e.ref)))}</p>`;
+  }
+  if (pend.length) h += `<div class="enfLeer"><span>${esc(ENF.leyendo ? trLT("Leyendo cabeceras: {1} de {2}…", "Reading headers: {1} of {2}…", nfmt(ENF.leyendo.hechas), nfmt(ENF.leyendo.total))
+      : pend.length === 1 ? trL("Una toma del Archivo se indexó antes de que ASTRO guardara el enfoque.", "One Archive frame was indexed before ASTRO kept the focus data.")
+      : trLT("{1} tomas del Archivo se indexaron antes de que ASTRO guardara el enfoque.", "{1} Archive frames were indexed before ASTRO kept the focus data.", nfmt(pend.length)))}</span>
+    ${ENF.leyendo ? `<button class="btn small" id="enfParar">${esc(trL("Parar", "Stop"))}</button>` : `<button class="btn small primary" id="enfLeer">${esc(trL("Buscar el enfoque en sus cabeceras", "Look for focus data in their headers"))}</button>`}</div>`;
+  if (ENF.aviso) h += `<div class="note">${esc(ENF.aviso)}</div>`;
+  cu.innerHTML = h;
+  const bl = $("enfLeer"); if (bl) bl.onclick = () => leerEnfoqueArchivo(pend);
+  const bp = $("enfParar"); if (bp) bp.onclick = () => { if (ENF.leyendo) ENF.leyendo.parar = true; };
+}
+async function leerEnfoqueArchivo(pend){
+  if (ENF.leyendo) return;
+  ENF.leyendo = {hechas: 0, total: pend.length, parar: false}; ENF.aviso = ""; pintarEnfoque();
+  let halladas = 0, sinArchivo = 0;
+  try {
+    for (let i = 0; i < pend.length && !ENF.leyendo.parar; i += 400){
+      const lote = pend.slice(i, i + 400);
+      const r = await (await api("/api/enfoque/leer", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({rutas: lote.map(f => f.origen)})})).json();
+      for (const f of lote){
+        const v = (r.res || {})[f.origen];
+        if (!v){ sinArchivo++; continue; }        // el disco no está conectado: se vuelve a intentar otro día
+        f.focoLeido = true; f.header = f.header || {};
+        for (const [k, x] of Object.entries(v)) f.header[k] = isFinite(+x) && String(x).trim() !== "" ? +x : x;
+        if (numCab(f.header, CAB_FOCO) !== null) halladas++;
+      }
+      ENF.leyendo.hechas = Math.min(pend.length, i + lote.length); pintarEnfoque();
+    }
+  } catch(e){ toast(tr(String(e.message || e))); }
+  ENF.leyendo = null;
+  ENF.aviso = trLT("Tomas con la posición del enfocador: {1}.", "Frames with a focuser position: {1}.", nfmt(halladas)) + (sinArchivo === 1 ? " " + trL("Una no se ha encontrado: ¿está conectado el disco?", "One could not be found: is the drive connected?")
+    : sinArchivo ? " " + trLT("{1} no se han encontrado: ¿está conectado el disco?", "{1} could not be found: is the drive connected?", nfmt(sinArchivo)) : "");
+  await saveDb(); pintarEnfoque();
+}
 
 /* ============ Criterio de calidad: la exigencia de la valoración y quedarse con las mejores ============ */
 let CRIT = null;
@@ -8241,6 +8488,7 @@ $("btnVariosMenu").onclick = ()=>{ $("menuLista").classList.remove("show"); abri
 $("btnVarios").onclick = ()=> abrirVarios("");
 $("btnGrupoMenu").onclick = ()=>{ $("menuLista").classList.remove("show"); grupoUnirse(); };
 $("btnCriterio").onclick = ()=> abrirCriterio("");
+$("btnEnfoque").onclick = abrirEnfoque;
 $("btnCursos").onclick = ()=> abrirCursos();
 
 /* ============ Cursos de astrofotografía (bonus): llegan en un paquete aparte y se abren con tu equipo ============ */
@@ -11213,6 +11461,95 @@ def curva_noche(ra, dec, lat, lon, alt_min=30.0, horizonte=None, fecha=None):
     return {"puntos": pts, "alt_min": alt_min, "horizonte": bool(hz)}
 
 
+# El núcleo de la Vía Láctea (Sagitario A*, J2000). Para fotografiarlo basta con que asome unos grados: desde España
+# nunca pasa de 20-25°, así que aquí no vale la altura mínima del planificador, que está pensada para cielo profundo.
+NUCLEO_VL = (266.4168, -29.0078)
+
+
+def _nucleo_noche(dia, la, lo, lon, ra, dec, umbral, hz, con_luna=True):
+    """El núcleo una noche: los tramos de noche astronómica con él por encima del umbral y del horizonte local, los
+    tramos de esos sin Luna, su altura máxima, el acimut en ese momento y la Luna iluminada."""
+    t0 = _mediodia_lugar(dia, lon)
+    paso = PASO_MIN * 60
+    tramos, sin_luna, alt_max, az_max, ilum = [], [], -90.0, None, None
+    for k in range(24 * 60 // PASO_MIN + 1):
+        ts = t0 + k * paso
+        jd = _jd(ts)
+        tsl = _tsl(jd, lo)
+        alt = _m.degrees(_altura(ra, dec, tsl, la))
+        if alt < umbral:
+            continue
+        sra, sdec, slam = _sol(jd)
+        if _m.degrees(_altura(sra, sdec, tsl, la)) > SOL_OSCURO:
+            continue
+        az = _acimut(ra, dec, tsl, la)
+        if hz and alt < horizonte_en(hz, az):
+            continue
+        _tramo(tramos, ts, paso)
+        if alt > alt_max:
+            alt_max, az_max = alt, az
+        if con_luna:
+            mra, mdec, mlam, mbet, mpar = _luna(jd)
+            malt = _altura(mra, mdec, tsl, la)
+            if _m.degrees(malt - mpar * _m.cos(malt)) <= 0:
+                _tramo(sin_luna, ts, paso)
+            if ilum is None:
+                elong = _m.acos(max(-1.0, min(1.0, _m.cos(mbet) * _m.cos(mlam - slam))))
+                ilum = (1 - _m.cos(elong)) / 2
+    return tramos, sin_luna, alt_max, az_max, ilum
+
+
+def nucleo_via_lactea(lat, lon, dias=14, desde=None, horizonte=None, umbral=10.0):
+    """Cuándo se puede fotografiar el núcleo de la Vía Láctea: noche a noche (a qué horas, cuánto sube, hacia dónde
+    mirar y cuánto rato no hay Luna) y la temporada, con una hora seguida como mínimo: hasta cuándo sigue o, si ya ha
+    pasado, cuándo vuelve (se busca hasta un año)."""
+    lat, lon = float(lat), float(lon)
+    la, lo = _m.radians(lat), _m.radians(lon)
+    ra, dec = _m.radians(NUCLEO_VL[0]), _m.radians(NUCLEO_VL[1])
+    hz = horizonte_puntos(horizonte)
+    tope = 90.0 - abs(lat - NUCLEO_VL[1])                 # lo más alto que llega a subir desde esa latitud
+    umbral = min(float(umbral), max(3.0, tope - 3.0))    # desde el norte de Europa apenas asoma: se baja el listón
+    hoy = _dt.date.fromtimestamp(desde) if desde else _fecha_noche()
+    horas = lambda tr: sum(b - a for a, b in tr) / 3600.0
+    out = {"umbral": round(umbral, 1), "tope": round(tope, 1), "noches": [], "temporada": None, "nunca": False}
+    if tope < umbral:
+        out["nunca"] = True
+        return out
+    for d in range(int(dias)):
+        dia = hoy + _dt.timedelta(days=d)
+        tramos, sl, amax, az, ilum = _nucleo_noche(dia, la, lo, lon, ra, dec, umbral, hz)
+        n = {"fecha": dia.isoformat(), "horas": round(horas(tramos), 1)}
+        if tramos:
+            v = _tramo_largo(tramos)
+            n.update({"desde": _hora(v[0]), "hasta": _hora(v[1]), "alt_max": round(amax, 1), "az": round(az),
+                      "sin_luna": round(horas(sl), 1), "ilum": round(ilum or 0, 2)})
+            vs = _tramo_largo(sl)
+            if vs and horas(sl) < horas(tramos) - 0.05:
+                n["sl_desde"], n["sl_hasta"] = _hora(vs[0]), _hora(vs[1])
+        out["noches"].append(n)
+
+    def bueno(d):            # la noche vale para la temporada si hay al menos una hora seguida
+        tr = _nucleo_noche(hoy + _dt.timedelta(days=d), la, lo, lon, ra, dec, umbral, hz, con_luna=False)[0]
+        v = _tramo_largo(tr)
+        return v if v and v[1] - v[0] >= 3600 else None
+
+    hoy_v = bueno(0)
+    if hoy_v:
+        fin = next((d for d in range(1, 367) if not bueno(d)), None)
+        out["temporada"] = {"en_curso": True, "hasta": (hoy + _dt.timedelta(days=fin - 1)).isoformat() if fin else None}
+    else:
+        ini = next((d for d in range(1, 367) if bueno(d)), None)
+        if ini is None:
+            out["nunca"] = True
+        else:
+            v = bueno(ini)
+            fin = next((d for d in range(ini + 1, ini + 367) if not bueno(d)), None)
+            out["temporada"] = {"en_curso": False, "desde": (hoy + _dt.timedelta(days=ini)).isoformat(),
+                                "horario": "%s–%s" % (_hora(v[0]), _hora(v[1])),
+                                "hasta": (hoy + _dt.timedelta(days=fin - 1)).isoformat() if fin else None}
+    return out
+
+
 # Catálogo para «¿Qué fotografío?»: objetos de OpenNGC (Mattia Verga, licencia CC BY-SA 4.0,
 # https://github.com/mattiaverga/OpenNGC) más algunos Sharpless, vdB y Barnard populares.
 # Cada objeto: [id, AR°, Dec°, tipo, eje mayor', eje menor', magnitud, constelación, otros nombres, nombre en inglés, nombre en español]
@@ -11260,13 +11597,7 @@ _TYCHO_LOCK = threading.Lock()
 def tycho_ruta():
     if os.environ.get("ASTRO_TYCHO_RUTA"):
         return os.environ["ASTRO_TYCHO_RUTA"]
-    if sys.platform == "darwin":
-        d = os.path.expanduser("~/Library/Application Support/ASTRO")
-    elif os.name == "nt":
-        d = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "ASTRO")
-    else:
-        d = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "ASTRO")
-    return os.path.join(d, "Cielo", "cielo-tycho2.bin")
+    return os.path.join(carpeta_astro(), "Cielo", "cielo-tycho2.bin")
 
 
 def bin_estrellas_valido(ruta):
@@ -11796,6 +12127,257 @@ def paso_meridiano(ra, lon, t_ini, t_fin):
             return ts
         prev = H
     return None
+
+
+# ── Satélites que cruzan el campo esta noche (órbitas TLE de CelesTrak y el modelo SGP4) ──
+# Se miran los satélites brillantes y las estaciones espaciales: son los que dejan trazas gordas. Las órbitas se bajan
+# de CelesTrak.org como mucho una vez al día y no se envía nada (ni el lugar ni el objeto): se calcula todo aquí.
+try:
+    from sgp4.api import Satrec as _Satrec
+except Exception:                   # sin la librería sgp4 no hay aviso de satélites, y lo demás sigue igual
+    _Satrec = None
+
+TLE_URLS = ("https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle",
+            "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle")
+_TLE = {"mtime": None, "sats": [], "intento": 0.0, "error": ""}
+_TLE_LOCK = threading.Lock()
+_SAT_CACHE = {}
+MUY_BRILLANTES = {"25544", "48274"}          # la Estación Espacial Internacional y la china (Tiangong)
+
+
+def carpeta_astro():
+    """La carpeta de datos de ASTRO en el ordenador (no en el disco de las tomas)."""
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Application Support/ASTRO")
+    if os.name == "nt":
+        return os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "ASTRO")
+    return os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "ASTRO")
+
+
+def tle_ruta():
+    return os.environ.get("ASTRO_TLE_RUTA") or os.path.join(carpeta_astro(), "Satelites", "tle.txt")
+
+
+def leer_tle(txt):
+    """[(nombre, número NORAD, línea 1, línea 2)] de un texto TLE, sin repetir satélites."""
+    ls = [x.rstrip() for x in (txt or "").splitlines() if x.strip()]
+    out, vistos = [], set()
+    for i in range(len(ls) - 1):
+        l1, l2 = ls[i], ls[i + 1]
+        if l1.startswith("1 ") and l2.startswith("2 ") and len(l1) >= 64 and len(l2) >= 64:
+            num = l1[2:7].strip()
+            if num in vistos:
+                continue
+            vistos.add(num)
+            nom = ls[i - 1].strip() if i > 0 and not ls[i - 1].startswith(("1 ", "2 ")) else num
+            out.append((nom[2:].strip() if nom.startswith("0 ") else nom, num, l1, l2))
+    return out
+
+
+def _bajar_texto(url, timeout=20):
+    try:
+        with _abrir_https(url, timeout) as r:
+            return r.read().decode("utf-8", "replace")
+    except Exception as e:
+        curl = shutil.which("curl") or ("/usr/bin/curl" if os.path.exists("/usr/bin/curl") else "")
+        if not (_es_error_ssl(e) and curl):
+            raise
+        extra = {"creationflags": 0x08000000} if os.name == "nt" else {}
+        out = subprocess.run([curl, "-sfL", "--max-time", str(timeout), "-A", "ASTRO", url], capture_output=True, **extra)
+        if out.returncode:
+            raise RuntimeError("curl %d" % out.returncode)
+        return out.stdout.decode("utf-8", "replace")
+
+
+def satelites_tle():
+    """Las órbitas guardadas; si tienen más de un día se renuevan (sin reintentar más de una vez por hora si falla).
+    Devuelve (lista de Satrec con su nombre y número, antigüedad en días) o (None, None) si no hay ninguna."""
+    ruta = tle_ruta()
+    with _TLE_LOCK:
+        try:
+            edad = time.time() - os.path.getmtime(ruta)
+        except OSError:
+            edad = None
+        if (edad is None or edad > 86400) and time.time() - _TLE["intento"] > 3600 and not os.environ.get("ASTRO_SIN_RED"):
+            _TLE["intento"] = time.time()
+            try:
+                txt = "\n".join(_bajar_texto(u) for u in TLE_URLS)
+                if len(leer_tle(txt)) < 10:
+                    raise RuntimeError("CelesTrak no ha devuelto órbitas")
+                os.makedirs(os.path.dirname(ruta), exist_ok=True)
+                with open(ruta + ".parte", "w", encoding="utf-8") as fh:
+                    fh.write(txt)
+                os.replace(ruta + ".parte", ruta)
+                _TLE["error"] = ""
+            except Exception as e:
+                _TLE["error"] = (str(e) or type(e).__name__)[:200]
+        try:
+            m = os.path.getmtime(ruta)
+        except OSError:
+            return None, None
+        if _TLE["mtime"] != m:
+            with open(ruta, encoding="utf-8") as fh:
+                tles = leer_tle(fh.read())
+            sats = []
+            for nom, num, l1, l2 in tles:
+                try:
+                    sats.append((nom, num, _Satrec.twoline2rv(l1, l2)))
+                except Exception:
+                    pass
+            _TLE.update(mtime=m, sats=sats)
+            _SAT_CACHE.clear()
+        return _TLE["sats"], (time.time() - m) / 86400.0
+
+
+def _precesar(ra, dec, jd):
+    """De J2000 al ecuador y equinoccio de la fecha (precesión IAU 1976), que es donde da SGP4 las posiciones."""
+    T = (jd - 2451545.0) / 36525.0
+    zeta = _m.radians((2306.2181 * T + 0.30188 * T * T + 0.017998 * T ** 3) / 3600.0)
+    z = _m.radians((2306.2181 * T + 1.09468 * T * T + 0.018203 * T ** 3) / 3600.0)
+    th = _m.radians((2004.3109 * T - 0.42665 * T * T - 0.041833 * T ** 3) / 3600.0)
+    A = _m.cos(dec) * _m.sin(ra + zeta)
+    B = _m.cos(th) * _m.cos(dec) * _m.cos(ra + zeta) - _m.sin(th) * _m.sin(dec)
+    C = _m.sin(th) * _m.cos(dec) * _m.cos(ra + zeta) + _m.cos(th) * _m.sin(dec)
+    return (_m.atan2(A, B) + z) % (2 * _m.pi), _m.asin(max(-1.0, min(1.0, C)))
+
+
+def _unit(x, y, z):
+    n = _m.sqrt(x * x + y * y + z * z) or 1.0
+    return x / n, y / n, z / n
+
+
+def _dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _cross(a, b):
+    return a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]
+
+
+def _ang_vec(a, b):
+    return _m.degrees(_m.acos(max(-1.0, min(1.0, _dot(a, b)))))
+
+
+def _dist_arco(T, u1, u2):
+    """Distancia angular (grados) del objeto T al tramo de cielo que recorre el satélite de u1 a u2."""
+    n = _cross(u1, u2)
+    nn = _m.sqrt(_dot(n, n))
+    if nn < 1e-12:
+        return _ang_vec(T, u1)
+    n = (n[0] / nn, n[1] / nn, n[2] / nn)
+    d = _dot(T, n)
+    P = (T[0] - d * n[0], T[1] - d * n[1], T[2] - d * n[2])
+    if _dot(_cross(u1, P), n) >= 0 and _dot(_cross(P, u2), n) >= 0:
+        return _m.degrees(_m.asin(min(1.0, abs(d))))
+    return min(_ang_vec(T, u1), _ang_vec(T, u2))
+
+
+class _Lugar:
+    """El observador (WGS84) y, para cada instante, su posición y su vertical en el sistema de SGP4 (TEME)."""
+    def __init__(self, lat, lon, alt_m=0.0):
+        a, f = 6378.137, 1 / 298.257223563
+        e2 = f * (2 - f)
+        la, self.lo = _m.radians(lat), _m.radians(lon)
+        N = a / _m.sqrt(1 - e2 * _m.sin(la) ** 2)
+        h = (alt_m or 0.0) / 1000.0
+        self.rho = (N + h) * _m.cos(la)              # distancia al eje de la Tierra
+        self.z = (N * (1 - e2) + h) * _m.sin(la)
+        self.cla, self.sla = _m.cos(la), _m.sin(la)
+
+    def en(self, jd):
+        th = _tsl(jd, self.lo)                           # tiempo sidéreo local: el meridiano del lugar en TEME
+        c, s = _m.cos(th), _m.sin(th)
+        return (self.rho * c, self.rho * s, self.z), (self.cla * c, self.cla * s, self.sla)
+
+
+def _pos_sat(sat, jd, lugar):
+    """(dirección del satélite vista desde el lugar, su altura en grados, ¿le da el Sol?) o None si SGP4 falla."""
+    ji = _m.floor(jd - 0.5) + 0.5
+    e, r, _v = sat.sgp4(ji, jd - ji)
+    if e:
+        return None
+    o, up = lugar.en(jd)
+    d = (r[0] - o[0], r[1] - o[1], r[2] - o[2])
+    u = _unit(*d)
+    alt = _m.degrees(_m.asin(max(-1.0, min(1.0, _dot(u, up)))))
+    sra, sdec, _ = _sol(jd)
+    s = (_m.cos(sdec) * _m.cos(sra), _m.cos(sdec) * _m.sin(sra), _m.sin(sdec))
+    k = _dot(r, s)                                   # sombra cilíndrica de la Tierra
+    sol = k > 0 or (_dot(r, r) - k * k) > 6371.0 ** 2
+    return u, alt, sol
+
+
+def satelites_en_campo(ra, dec, radio, t_ini, t_fin, lat, lon, alt_min=0.0, horizonte=None, alt_m=0.0):
+    """Los satélites de la lista que cruzan el campo (un círculo de «radio» grados alrededor de ra, dec J2000) entre
+    t_ini y t_fin, con el objeto por encima de alt_min y del horizonte local y el satélite iluminado por el Sol."""
+    if _Satrec is None:
+        return {"estado": "sin_sgp4", "pasos": []}
+    sats, dias = satelites_tle()
+    if not sats:
+        return {"estado": "sin_orbitas", "pasos": [], "error": _TLE["error"]}
+    if dias > 14:
+        return {"estado": "viejas", "pasos": [], "dias": round(dias, 1), "error": _TLE["error"]}
+    t_ini, t_fin = float(t_ini), min(float(t_fin), float(t_ini) + 16 * 3600)
+    clave = (round(ra, 3), round(dec, 3), round(radio, 3), int(t_ini), int(t_fin), round(lat, 3), round(lon, 3), alt_min,
+             json.dumps(horizonte), _TLE["mtime"])
+    if clave in _SAT_CACHE:
+        return _SAT_CACHE[clave]
+    lugar = _Lugar(lat, lon, alt_m)
+    hz = horizonte_puntos(horizonte)
+    la, lo = _m.radians(lat), _m.radians(lon)
+    r0, d0 = _m.radians(ra), _m.radians(dec)
+    rp, dp = _precesar(r0, d0, _jd((t_ini + t_fin) / 2))
+    T = (_m.cos(dp) * _m.cos(rp), _m.cos(dp) * _m.sin(rp), _m.sin(dp))
+
+    def objeto_arriba(ts):
+        tsl = _tsl(_jd(ts), lo)
+        alt = _m.degrees(_altura(r0, d0, tsl, la))
+        return alt >= alt_min and (not hz or alt >= horizonte_en(hz, _acimut(r0, d0, tsl, la)))
+
+    gordo, fino, afinar = 120.0, 10.0, 0.5
+    pasos = []
+    for nom, num, sat in sats:
+        t = t_ini
+        prev = None
+        while t < t_fin:
+            # por encima del horizonte (con margen) en algún extremo del tramo de 2 minutos: se mira con detalle
+            a = _pos_sat(sat, _jd(t), lugar)
+            b = _pos_sat(sat, _jd(min(t + gordo, t_fin)), lugar)
+            if a is None or b is None:
+                break
+            if a[1] > -8 or b[1] > -8:
+                tt, pa = t, a
+                while tt < min(t + gordo, t_fin):
+                    t2 = min(tt + fino, t_fin)
+                    pb = _pos_sat(sat, _jd(t2), lugar)
+                    if pb is None:
+                        break
+                    if (pa[1] > 0 or pb[1] > 0) and _dist_arco(T, pa[0], pb[0]) <= radio + 0.3:
+                        # afinar: la separación mínima y cuánto rato está dentro del campo
+                        mejor, dentro = None, []
+                        x = tt - fino
+                        while x <= t2 + fino:
+                            q = _pos_sat(sat, _jd(x), lugar)
+                            if q:
+                                s = _ang_vec(T, q[0])
+                                if mejor is None or s < mejor[0]:
+                                    mejor = (s, x, q[1], q[2])
+                                if s <= radio:
+                                    dentro.append((x, q[2]))
+                            x += afinar
+                        if mejor and mejor[0] <= radio and mejor[2] > 0 and any(sl for _, sl in dentro) and objeto_arriba(mejor[1]):
+                            if not pasos or pasos[-1]["num"] != num or mejor[1] - pasos[-1]["t"] > 60:
+                                pasos.append({"nombre": nom, "num": num, "t": int(mejor[1]), "hora": _hora(mejor[1]),
+                                              "sep": round(mejor[0], 2), "alt": round(mejor[2]), "seg": round(len(dentro) * afinar, 1),
+                                              "muy_brillante": num in MUY_BRILLANTES})
+                    tt, pa = t2, pb
+            t += gordo
+    pasos.sort(key=lambda p: p["t"])
+    out = {"estado": "ok", "pasos": pasos, "satelites": len(sats), "dias": round(dias, 1)}
+    if len(_SAT_CACHE) > 50:
+        _SAT_CACHE.clear()
+    _SAT_CACHE[clave] = out
+    return out
 
 
 def _nombre_montaje(m):
@@ -13496,7 +14078,24 @@ CAB_ARCHIVO = {"OBJECT", "TARGET", "FILTER", "FILTER1", "EXPTIME", "EXPOSURE", "
                "CAMERA", "TELESCOP", "TELESCOPE", "FOCALLEN", "XPIXSZ", "YPIXSZ", "PIXSIZE1", "OBJCTRA", "OBJCTDEC", "RA", "DEC",
                "CRVAL1", "CRVAL2", "SITELAT", "SITELONG", "SITEELEV", "OBSGEO-B", "OBSGEO-L", "BAYERPAT", "COLORTYP", "ROWORDER",
                "XBAYROFF", "YBAYROFF", "IMAGETYP", "FRAME", "BITPIX", "BZERO", "BSCALE", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3",
-               "SWCREATE", "CREATOR"}
+               "SWCREATE", "CREATOR", "FOCPOS", "FOCUSPOS", "FOCTEMP", "FOCUSTEM", "AMBTEMP"}
+CAB_ENFOQUE = ("FOCPOS", "FOCUSPOS", "FOCTEMP", "FOCUSTEM", "AMBTEMP")
+
+
+def enfoque_de_tomas(rutas):
+    """La posición del enfocador y su temperatura en la cabecera de tomas ya indexadas: antes de la 0.28.8 el Archivo
+    no las guardaba. Solo se leen FITS y XISF que existen y solo se devuelven esas cinco claves."""
+    out = {}
+    for r in (rutas or [])[:500]:
+        if not isinstance(r, str) or not re.search(r"\.(fits?|fts|xisf)$", r, re.I):
+            continue
+        try:
+            size = os.path.getsize(r)
+        except OSError:
+            continue
+        cab = info_toma(r, size, True)[2]
+        out[r] = {k: cab[k] for k in CAB_ENFOQUE if cab.get(k) not in (None, "")}
+    return {"res": out}
 
 
 def es_light(tipo):
@@ -17523,6 +18122,24 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, "Lugar no válido.", "text/plain; charset=utf-8")
                 return self._send(200, json.dumps(noches(d.get("objetos") or [], lat, lon, max(1, min(60, int(d.get("dias") or 14))),
                                                          float(d.get("alt_min") or 30), horizonte=leer_planificador().get("horizonte")), ensure_ascii=False))
+            if p.path == "/api/satelites":
+                d = json.loads(self._body() or b"{}")
+                c = leer_planificador()
+                if not c.get("lugar"):
+                    return self._send(400, "Falta el lugar de observación.", "text/plain; charset=utf-8")
+                return self._send(200, json.dumps(satelites_en_campo(
+                    float(d["ra"]), float(d["dec"]), max(0.05, min(10.0, float(d.get("radio") or 1.0))), float(d["t_ini"]), float(d["t_fin"]),
+                    float(c["lugar"]["lat"]), float(c["lugar"]["lon"]), float(c.get("alt_min") or 30), c.get("horizonte")), ensure_ascii=False))
+            if p.path == "/api/enfoque/leer":
+                d = json.loads(self._body() or b"{}")
+                return self._send(200, json.dumps(enfoque_de_tomas(d.get("rutas") if isinstance(d.get("rutas"), list) else []), ensure_ascii=False))
+            if p.path == "/api/nucleo":
+                d = json.loads(self._body() or b"{}")
+                lat, lon = float(d["lat"]), float(d["lon"])
+                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    return self._send(400, "Lugar no válido.", "text/plain; charset=utf-8")
+                return self._send(200, json.dumps(nucleo_via_lactea(lat, lon, max(1, min(60, int(d.get("dias") or 14))),
+                                                                    horizonte=leer_planificador().get("horizonte")), ensure_ascii=False))
             if p.path == "/api/equipo":
                 return self._send(200, json.dumps(guardar_equipo(json.loads(self._body() or b"{}")), ensure_ascii=False))
             if p.path == "/api/sugerencia":
