@@ -3106,7 +3106,11 @@
 "No se ha podido descargar: {1}": "Não foi possível descarregar: {1}",
 "¿Más estrellas? Descarga el catálogo Tycho-2: unos 2,5 millones más, hasta la magnitud 12, que salen al acercarte ({1}).": "Mais estrelas? Descarregue o catálogo Tycho-2: cerca de 2,5 milhões a mais, até à magnitude 12, que aparecem ao aproximar ({1}).",
 "Reintentar": "Tentar de novo",
-"Descargar": "Descarregar"
+"Descargar": "Descarregar",
+"Cámaras de astronomía": "Câmaras de astronomia",
+"Réflex y sin espejo": "Reflex e sem espelho",
+"Tus cámaras": "As suas câmaras",
+"Telescopios inteligentes": "Telescópios inteligentes"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",

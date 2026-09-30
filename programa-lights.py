@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.30.4"
+VERSION_PROG = "2026.09.30.5"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -6423,9 +6423,31 @@ const FIL_TXT = {L:"L (luminancia)", R:"R", G:"G", B:"B", UVIR:"UV/IR cut", anti
 async function cargarEquipo(){ const d = await (await api("/api/equipo")).json(); EQ_META = d; EQ = d.equipo; return d; }
 function numEs(v, dec){ if (v===null || v===undefined || v==="") return ""; const s = dec!==undefined ? (+v).toFixed(dec) : String(+v); return IDIOMA==="en" ? s : s.replace(".", ","); }
 function leerNum(v){ const x = parseFloat(String(v).replace(",", ".")); return isFinite(x) ? x : null; }
+// el sensor a partir del nombre de la cámara (el de las cabeceras FITS o el que escribe el usuario): primero las de
+// foto y los telescopios inteligentes, que llevan nombres propios; luego las de astronomía por su número
+const REGLAS_SENSOR = [
+  [/EOS ?RA?\b|5D ?MARK ?IV|5D4/,"FF30"],[/EOS ?R5\b|D850|\bZ ?[78](\b|_)/,"FF45"],[/R6 ?MARK ?II|R6M2|EOS ?R8\b|D750|D780|\bZ ?[56](\b|_)|ILCE-7M3|[ΑA]7 ?III\b/,"FF24"],
+  [/EOS ?6D\b(?! ?MARK)|EOS ?R6\b/,"FF20"],[/\b90D\b|EOS ?R7\b/,"CANON32"],[/\b(2000|250|200|750|760|800|850|77|80)D\b|EOS ?R(10|50|100)\b|EOS ?M50|REBEL ?(T6I|T6S|T7I?|T8I|SL[23])\b/,"CANON24"],
+  [/\b(550|600|650|700|1200|1300|4000|60)DA?\b|EOS ?7D\b(?! ?MARK)|REBEL ?(T[2-5]I|T5|T6|T100)\b/,"CANON18"],[/\bD3[2-5]00\b|\bD5[2-6]00\b|\bD7[12]00\b|ILCE-6[0-4]00|[ΑA]6[0-4]00\b/,"APSC24"],
+  [/X-T3\b|X-T4\b|X-T30|X-S10/,"FUJI26"],[/OM-1\b|E-M1 ?MARK ?II|E-M5 ?MARK ?III|E-M10 ?MARK ?IV|DC-G9|\bG9\b/,"M43"],
+  [/SEESTAR ?S50/,"IMX462"],[/S30 ?PRO/,"IMX585"],[/SEESTAR ?S30|DWARF ?MINI/,"IMX662"],[/DWARF ?(3|III)\b/,"IMX678"],[/DWARF ?(2|II)\b/,"IMX415"],
+  [/VESPERA ?PRO/,"IMX676"],[/VESPERA ?(2|II)\b/,"IMX585"],[/VESPERA/,"IMX462"],[/STELLINA/,"IMX178"],
+  [/POSEIDON/,"IMX571"],[/ZEUS/,"IMX455"],[/ARES|SATURN|SV605/,"IMX533"],[/ARTEMIS|SV405/,"IMX294"],[/URANUS|XENA|SV705/,"IMX585"],
+  [/MARS[- ]?C ?II|MARS ?662|662/,"IMX662"],[/NEPTUNE[- ]?C ?II|664|464|SV505/,"IMX464"],[/APOLLO[- ]?(428|M ?MINI)|IMX42[89]/,""],[/APOLLO[- ]?M ?MAX|432/,"IMX432"],
+  [/1600|163M|163C|HORIZON/,"MN34230"],[/2600|IMX571|268/,"IMX571"],[/533/,"IMX533"],[/6200|IMX455|600M|600C/,"IMX455"],[/676/,"IMX676"],[/585/,"IMX585"],[/678/,"IMX678"],[/294/,"IMX294"],[/183/,"IMX183"],
+  [/2400|IMX410|410C/,"IMX410"],[/8300|383L|QSI ?583|QHY9\b/,"KAF8300"],[/460EX|694/,"ICX694"],[/490EX|814/,"ICX814"],
+  [/178|NEPTUNE/,"IMX178"],[/224/,"IMX224"],[/174|APOLLO/,"IMX174"],[/462|290|MARS/,"IMX462"]];
 function sensorDeNombre(n){
-  const t = String(n||"").toUpperCase(), reglas = [[/2600|IMX571|268/,"IMX571"],[/533/,"IMX533"],[/6200|IMX455|600M/,"IMX455"],[/676/,"IMX676"],[/585/,"IMX585"],[/678/,"IMX678"],[/294/,"IMX294"],[/183/,"IMX183"],[/2400|IMX410/,"IMX410"],[/1600/,"MN34230"],[/174/,"IMX174"],[/462|290/,"IMX462"]];
-  for (const [re, k] of reglas) if (re.test(t)) return k; return "";
+  const t = String(n||"").toUpperCase();
+  for (const [re, k] of REGLAS_SENSOR) if (re.test(t)) return k; return "";
+}
+// sensores que solo existen en color (el resto tiene versión mono: se decide por el nombre, MC / color)
+const SOLO_COLOR = new Set(["IMX676","IMX678","IMX410","IMX464","IMX224","IMX415"]);
+function datosSensor(k){ return (EQ_META && EQ_META.sensores || []).find(x=>x[0]===k); }
+function gruposSensor(){ return [["astro", trL("Cámaras de astronomía", "Astronomy cameras")], ["ccd", "CCD"], ["foto", trL("Réflex y sin espejo", "DSLR and mirrorless")]]; }
+function opcionesSensores(v){
+  return gruposSensor().map(([g, t]) => { const ss = (EQ_META && EQ_META.sensores || []).filter(s => (s[8]||"astro") === g);
+    return ss.length ? `<optgroup label="${esc(t)}">${ss.map(s=>`<option class="notr" value="${esc(s[0])}" ${s[0]===v?"selected":""}>${esc(s[1])}</option>`).join("")}</optgroup>` : ""; }).join("");
 }
 function tipoFiltroDeNombre(n){
   const t = String(n||"").trim().toLowerCase();
@@ -6450,7 +6472,7 @@ function pintarEquipo(){
   const reds = e.reductores.map((r,i)=>filaEq("reductores", i, [inp("nombre", r.nombre, 170, "p. ej. Reductor 0,8×"), inp("factor", numEs(r.factor), 60, numEs(0.8), "decimal"),
     sel("para", (r.para||[])[0]||"", [["", "cualquier telescopio"], ...e.telescopios.map(t=>[t.id, t.nombre])], true)]));
   const cams = e.camaras.map((m,i)=>filaEq("camaras", i, [inp("nombre", m.nombre, 150, "p. ej. ASI2600MC Pro"),
-    sel("sensor", m.sensor||"", [["", "Otro sensor…"], ...(EQ_META.sensores||[]).map(s=>[s[0], s[1]])]),
+    `<select data-k="sensor" style="max-width:240px"><option value="" ${m.sensor?"":"selected"}>Otro sensor…</option>${opcionesSensores(m.sensor||"")}</select>`,
     `<label class="eqChk"><input type="checkbox" data-k="color" ${m.color?"checked":""}> color</label>`,
     inp("pix", numEs(m.pix), 56, "µm", "decimal"), `${inp("w", m.w, 62, "ancho", "numeric")}<span class="note">×</span>${inp("h", m.h, 62, "alto", "numeric")}`,
     inp("rn", numEs(m.rn), 50, "e⁻", "decimal"), inp("gain", m.gain??"", 56, "gain", "numeric")]));
@@ -6487,7 +6509,10 @@ function pintarEquipo(){
         else if (k === "para") obj.para = el.value ? [el.value] : [];
         else if (["diam","focal","factor","pix","rn","banda","w","h","gain"].includes(k)) obj[k] = leerNum(el.value);
         else obj[k] = el.value;
-        if (sec === "camaras" && k === "sensor" && el.value){ Object.assign(obj, camDeSensor(el.value)); if (/MC\b|color/i.test(obj.nombre||"") || el.value === "IMX676") obj.color = true; pintarEquipo(); }
+        if (sec === "camaras" && k === "sensor" && el.value){ const ds = datosSensor(el.value) || []; Object.assign(obj, camDeSensor(el.value));
+          if (/MC\b|color/i.test(obj.nombre||"") || SOLO_COLOR.has(el.value) || ds[8] === "foto") obj.color = true;
+          if (!obj.nombre) obj.nombre = ds[8] === "foto" ? String(ds[1]).split(" · ")[0] : el.value;
+          pintarEquipo(); }
         if (sec === "filtros" && k === "tipo"){ obj.banda = (EQ_META.tipos_filtro[el.value]||[])[1] || obj.banda; pintarEquipo(); }
         if (sec === "telescopios" && (k === "diam" || k === "focal")){ const s = tr.querySelector(".note"); if (s) s.textContent = obj.diam && obj.focal ? "f/"+numEs(obj.focal/obj.diam, 1) : ""; }
       };
@@ -7384,11 +7409,28 @@ function equiposDeTomas(){
     m.set(k, e); }
   return [...m.values()].sort((a,b)=>b.ultima.localeCompare(a.ultima) || b.n-a.n).map(e => Object.assign(e, {fovW: e.w*e.pix/e.focal*206.265/60, fovH: e.h*e.pix/e.focal*206.265/60}));
 }
-const SENSORES = [["ASI2600 / APS-C",23.5,15.7],["ASI6200 / "+trL("formato completo", "full frame"),36,24],["ASI533",11.3,11.3],["ASI294",19.1,13],["ASI183",13.2,8.8],["ASI585 / 678",11.1,6.3]]
-  .map(([n,w,h]) => [`${n} (${IDIOMA==="en"?w:String(w).replace(".",",")} × ${IDIOMA==="en"?h:String(h).replace(".",",")} mm)`, w, h]);
+// «Otro equipo…»: la focal y la cámara. Las cámaras salen del catálogo de sensores de «Mi equipo» (y de las que tengas
+// guardadas allí); los telescopios inteligentes traen su focal. Valores: c:<id> (tuya), t:<clave> (inteligente), s:<sensor>.
+function mmTxt(x){ return numEs(Math.round(x*10)/10); }
+function camarasQf(){
+  const out = [], M = EQ_META || {};
+  for (const c of (EQ && EQ.camaras) || []) if (c.pix && c.w && c.h) out.push({v:"c:"+c.id, g:"tuyas", nombre:c.nombre, w:c.w*c.pix/1000, h:c.h*c.pix/1000});
+  for (const t of M.inteligentes || []){ const s = (M.sensores||[]).find(x=>x[0]===t[4]); if (s) out.push({v:"t:"+t[0], g:"intel", nombre:t[1], focal:t[3], w:s[2]*s[4]/1000, h:s[3]*s[4]/1000}); }
+  for (const s of M.sensores || []) out.push({v:"s:"+s[0], g:s[8]||"astro", nombre:s[1], w:s[2]*s[4]/1000, h:s[3]*s[4]/1000});
+  if (!out.length) out.push({v:"s:IMX571", g:"astro", nombre:"APS-C", w:23.5, h:15.7});   // sin conexión con el servidor
+  return out;
+}
+function camaraQf(){ const cs = camarasQf(), v = $("qfSensor") ? $("qfSensor").value : lsLeer("astroQfSensor"); return cs.find(c=>c.v===v) || cs.find(c=>c.v==="s:IMX571") || cs[0]; }
+function opcionesQfSensor(v){
+  const cs = camarasQf(), sel = (cs.find(c=>c.v===v) || cs.find(c=>c.v==="s:IMX571") || cs[0]).v;
+  const G = [["tuyas", trL("Tus cámaras", "Your cameras")], ["intel", trL("Telescopios inteligentes", "Smart telescopes")], ...gruposSensor()];
+  return G.map(([g, t]) => { const xs = cs.filter(c=>c.g===g); if (!xs.length) return "";
+    return `<optgroup label="${esc(t)}">${xs.map(c=>`<option class="notr" value="${esc(c.v)}" ${c.v===sel?"selected":""}>${esc(c.nombre)} (${c.focal ? `${c.focal} mm · ${numEs(c.w/c.focal*57.2958, 1)}° × ${numEs(c.h/c.focal*57.2958, 1)}°` : `${mmTxt(c.w)} × ${mmTxt(c.h)} mm`})</option>`).join("")}</optgroup>`; }).join("");
+}
 function equipoElegido(){
   const eqs = equiposDeTomas(), v = $("qfEquipo") ? $("qfEquipo").value : (lsLeer("astroQfEquipo")||"0");
-  if (v === "manual"){ const fo = +$("qfFocal").value || 400, s = SENSORES[+$("qfSensor").value || 0]; return {nombre:`${fo} mm`, focal:fo, fovW: s[1]/fo*3437.75, fovH: s[2]/fo*3437.75}; }
+  if (v === "manual"){ const c = camaraQf(), fo = c.focal || +($("qfFocal") ? $("qfFocal").value : lsLeer("astroQfFocal")) || 400;
+    return {nombre: c.focal ? c.nombre : `${fo} mm`, focal:fo, fovW: c.w/fo*3437.75, fovH: c.h/fo*3437.75}; }
   return eqs[+v] || eqs[0] || {nombre:"400 mm + APS-C", focal:400, fovW: 23.5/400*3437.75, fovH: 15.7/400*3437.75};
 }
 function encaje(tam, eq){
@@ -7411,6 +7453,7 @@ async function abrirQueFotografio(){
   $("qfBox").classList.add("show"); const body = $("qfBody");
   const c = await cfgPlan();
   if (!c.lugar){ body.innerHTML = formLugarHTML(c); activarLugar(body, abrirQueFotografio); return; }
+  if (!EQ_META){ try { await cargarEquipo(); } catch(_){} }       // el catálogo de cámaras y las tuyas, para «Otro equipo…»
   const eqs = equiposDeTomas(); let eqSel = lsLeer("astroQfEquipo") || "0";
   if (eqSel !== "manual" && !eqs[+eqSel]) eqSel = eqs.length ? "0" : "manual";
   // «esta noche» sigue siendo la de ayer hasta las 8 de la mañana (como en el resto de ASTRO): a la 1:30 se estaba
@@ -7420,7 +7463,7 @@ async function abrirQueFotografio(){
       <label>Noche <select id="qfFecha">${dias.map((d,i)=>`<option value="${fechaISO(d)}">${i===0?"Esta noche · ":""}${esc(sinSept(d.toLocaleDateString(LOCALE,{weekday:"short",day:"numeric",month:"short"})))}</option>`).join("")}</select></label>
       <label>Lugar ${selectorLugares(c, "qfLugar")}</label>
       <label>Equipo <select id="qfEquipo">${eqs.map((e,i)=>`<option value="${i}" ${String(i)===eqSel?"selected":""}>${esc(e.nombre)} · ${e.fovW.toFixed(0)}′×${e.fovH.toFixed(0)}′</option>`).join("")}<option value="manual" ${eqSel==="manual"?"selected":""}>Otro equipo…</option></select></label>
-      <span id="qfManual" style="display:${eqSel==="manual"?"inline-flex":"none"};gap:6px;align-items:center"><input id="qfFocal" type="number" min="50" max="5000" placeholder="focal (mm)" value="${esc(lsLeer("astroQfFocal"))}" style="width:100px"><select id="qfSensor">${SENSORES.map((s,i)=>`<option value="${i}" class="notr">${esc(s[0])}</option>`).join("")}</select></span>
+      <span id="qfManual" style="display:${eqSel==="manual"?"inline-flex":"none"};gap:6px;align-items:center"><input id="qfFocal" type="number" min="5" max="5000" placeholder="focal (mm)" value="${esc(lsLeer("astroQfFocal"))}" style="width:100px;display:${camaraQf().focal?"none":""}"><select id="qfSensor" style="max-width:340px">${opcionesQfSensor(lsLeer("astroQfSensor"))}</select></span>
     </div>
     <div class="qfCab"><div class="seg" id="qfGrupo"><button data-g="todo" class="on">Todo</button><button data-g="nebulosas">Nebulosas</button><button data-g="galaxias">Galaxias</button><button data-g="cumulos">Cúmulos</button></div>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="qfTengo" ${QF.ocultarTengo?"checked":""}> Ocultar los que ya tengo</label>
@@ -7432,7 +7475,7 @@ async function abrirQueFotografio(){
   $("qfFecha").onchange = repinta; $("qfTengo").onchange = ()=>{ QF.ocultarTengo = $("qfTengo").checked; qfPintar(); };
   $("qfEquipo").onchange = ()=>{ try { localStorage.setItem("astroQfEquipo", $("qfEquipo").value); } catch(_){} $("qfManual").style.display = $("qfEquipo").value==="manual" ? "inline-flex" : "none"; qfPintar(); };
   $("qfFocal").oninput = ()=>{ try { localStorage.setItem("astroQfFocal", $("qfFocal").value); } catch(_){} clearTimeout(QF._t); QF._t = setTimeout(qfPintar, 400); };
-  $("qfSensor").onchange = qfPintar;
+  $("qfSensor").onchange = ()=>{ try { localStorage.setItem("astroQfSensor", $("qfSensor").value); } catch(_){} $("qfFocal").style.display = camaraQf().focal ? "none" : ""; qfPintar(); };
   const ql = body.querySelector(".qfLugar"); if (ql) ql.onchange = async ()=>{ await activarLugarId(ql.value); programarEstaNoche(); qfCalcular(); };
   body.querySelectorAll("#qfGrupo button").forEach(b => b.onclick = ()=>{ QF.grupo = b.dataset.g; body.querySelectorAll("#qfGrupo button").forEach(x=>x.classList.toggle("on", x===b)); qfPintar(); });
   $("qfCopiar").onclick = ()=>qfExportar("texto"); $("qfCsv").onclick = ()=>qfExportar("csv"); $("qfNina").onclick = ()=>qfExportar("nina");
@@ -11376,20 +11419,58 @@ EQUIPO_CFG = os.path.join(ROOT, "equipo.json")
 AVISOS_CFG = os.path.join(ROOT, "avisos.json")
 OBJETIVOS_F = os.path.join(ROOT, "objetivos.json")
 
-# clave, nombre, ancho, alto, píxel (µm), ruido de lectura (e-), gain habitual en ZWO (alta conversión), QE
+# clave, nombre, ancho, alto, píxel (µm), ruido de lectura (e-), gain habitual en ZWO (alta conversión), QE, grupo
+# Van por sensor, no por modelo: el mismo sensor lo montan varias marcas y lo que cuenta para el campo, el muestreo
+# y la exposición es el sensor. Los nombres no llevan palabras que traducir (el formato va como APS-C, 4/3, 1″, 24×36).
+# Grupos: «astro» (cámaras de astronomía), «ccd» (CCD clásicas) y «foto» (réflex y sin espejo). En las de foto el
+# ruido de lectura es el típico a ISO 800-1600 y la QE, la de una cámara sin modificar (con su filtro de IR).
 SENSORES_CAM = [
-    ("IMX571", "IMX571 · ASI2600, QHY268, Poseidon…", 6248, 4176, 3.76, 1.5, 100, 0.80),
-    ("IMX533", "IMX533 · ASI533, QHY533…", 3008, 3008, 3.76, 1.5, 100, 0.80),
-    ("IMX455", "IMX455 · ASI6200, QHY600…", 9576, 6388, 3.76, 1.5, 100, 0.80),
-    ("IMX676", "IMX676 · ASI676", 3552, 3552, 2.0, 0.6, 180, 0.83),
-    ("IMX585", "IMX585 · ASI585…", 3840, 2160, 2.9, 1.0, 252, 0.80),
-    ("IMX678", "IMX678 · ASI678…", 3840, 2160, 2.0, 0.8, None, 0.80),
-    ("IMX294", "IMX294 · ASI294MC", 4144, 2822, 4.63, 1.8, 120, 0.75),
-    ("IMX183", "IMX183 · ASI183", 5496, 3672, 2.4, 1.6, None, 0.80),
-    ("IMX410", "IMX410 · ASI2400", 6072, 4042, 5.94, 1.3, None, 0.80),
-    ("MN34230", "MN34230 · ASI1600", 4656, 3520, 3.8, 1.7, 139, 0.60),
-    ("IMX174", "IMX174 · ASI174", 1936, 1216, 5.86, 3.5, None, 0.77),
-    ("IMX462", "IMX462 / IMX290 · ASI462, ASI290", 1936, 1096, 2.9, 1.0, None, 0.80),
+    ("IMX571", "IMX571 · APS-C · ZWO ASI2600, QHY268, Player One Poseidon, Moravian C3-26000, Atik Apx26", 6248, 4176, 3.76, 1.5, 100, 0.80, "astro"),
+    ("IMX455", "IMX455 · 24×36 · ZWO ASI6200, QHY600, Player One Zeus 455, Moravian C3-61000, Atik Apx60", 9576, 6388, 3.76, 1.5, 100, 0.80, "astro"),
+    ("IMX410", "IMX410 · 24×36 · ZWO ASI2400MC, QHY410C", 6072, 4042, 5.94, 1.3, None, 0.80, "astro"),
+    ("IMX533", "IMX533 · 1″ · ZWO ASI533, QHY533, Player One Ares / Saturn SQR, SVBONY SV605", 3008, 3008, 3.76, 1.5, 100, 0.80, "astro"),
+    ("IMX294", "IMX294 · 4/3 · ZWO ASI294, QHY294, Player One Artemis, SVBONY SV405CC", 4144, 2822, 4.63, 1.8, 120, 0.75, "astro"),
+    ("MN34230", "MN34230 · 4/3 · ZWO ASI1600, QHY163, Atik Horizon", 4656, 3520, 3.8, 1.7, 139, 0.60, "astro"),
+    ("IMX183", "IMX183 · 1″ · ZWO ASI183, QHY183, Altair Hypercam 183", 5496, 3672, 2.4, 1.6, None, 0.80, "astro"),
+    ("IMX676", "IMX676 · ZWO ASI676MC, Vaonis Vespera Pro", 3552, 3552, 2.0, 0.6, 180, 0.83, "astro"),
+    ("IMX585", "IMX585 · ZWO ASI585, Player One Uranus, SVBONY SV705C, Seestar S30 Pro, Vespera II", 3840, 2160, 2.9, 1.0, 252, 0.80, "astro"),
+    ("IMX678", "IMX678 · ZWO ASI678MC, Dwarf 3, Celestron Origin Mark II", 3840, 2160, 2.0, 0.8, None, 0.80, "astro"),
+    ("IMX662", "IMX662 · ZWO ASI662MC, Player One Mars-C II, Seestar S30, Dwarf mini", 1920, 1080, 2.9, 0.7, None, 0.80, "astro"),
+    ("IMX462", "IMX462 / IMX290 · ZWO ASI462, ASI290, Player One Mars-C / Mars-M, Seestar S50, Vespera", 1936, 1096, 2.9, 1.0, None, 0.80, "astro"),
+    ("IMX464", "IMX464 / IMX664 · Player One Neptune-C II, Neptune 664C, SVBONY SV505C", 2712, 1538, 2.9, 1.0, None, 0.80, "astro"),
+    ("IMX178", "IMX178 · ZWO ASI178, Player One Neptune-C / Neptune-M, Celestron Origin, Stellina", 3096, 2080, 2.4, 1.4, None, 0.80, "astro"),
+    ("IMX224", "IMX224 · ZWO ASI224MC, QHY5III224", 1304, 976, 3.75, 0.8, None, 0.80, "astro"),
+    ("IMX174", "IMX174 · ZWO ASI174, QHY174, Player One Apollo-M / Apollo-C", 1936, 1216, 5.86, 3.5, None, 0.77, "astro"),
+    ("IMX432", "IMX432 · ZWO ASI432MM, Player One Apollo-M MAX", 1608, 1104, 9.0, 2.4, None, 0.77, "astro"),
+    ("IMX415", "IMX415 · Dwarf II", 3840, 2160, 1.45, 1.0, None, 0.80, "astro"),
+    ("KAF8300", "KAF-8300 · QSI 583, SBIG ST-8300, Atik 383L+, QHY9", 3326, 2504, 5.4, 8.0, None, 0.56, "ccd"),
+    ("ICX694", "ICX694 · Atik 460EX, Starlight Xpress SX-694", 2750, 2200, 4.54, 5.0, None, 0.77, "ccd"),
+    ("ICX814", "ICX814 · Atik 490EX, Starlight Xpress SX-814", 3388, 2712, 3.69, 4.0, None, 0.77, "ccd"),
+    ("CANON18", "Canon APS-C 18 MP · EOS 600D, 700D, 1300D, 4000D, 60D, 7D", 5184, 3456, 4.3, 3.5, None, 0.50, "foto"),
+    ("CANON24", "Canon APS-C 24 MP · EOS 2000D, 250D, 800D, 80D, R10, R50", 6000, 4000, 3.72, 3.0, None, 0.50, "foto"),
+    ("CANON32", "Canon APS-C 32 MP · EOS 90D, R7", 6960, 4640, 3.2, 2.0, None, 0.50, "foto"),
+    ("APSC24", "Nikon / Sony APS-C 24 MP · Nikon D3500, D5300, D5600, D7200, Sony α6000, α6400", 6000, 4000, 3.9, 2.0, None, 0.50, "foto"),
+    ("FUJI26", "Fujifilm APS-C 26 MP · X-T3, X-T4, X-T30, X-S10", 6240, 4160, 3.76, 2.0, None, 0.50, "foto"),
+    ("M43", "Micro 4/3 20 MP · Olympus / OM System OM-D, Panasonic G9", 5184, 3888, 3.3, 2.5, None, 0.50, "foto"),
+    ("FF20", "24×36 20 MP · Canon EOS 6D, R6", 5472, 3648, 6.55, 2.5, None, 0.50, "foto"),
+    ("FF24", "24×36 24 MP · Nikon D750, Z5, Z6, Sony α7 III, Canon R8, R6 Mark II", 6000, 4000, 5.95, 1.8, None, 0.50, "foto"),
+    ("FF30", "24×36 30 MP · Canon EOS R, Ra, 5D Mark IV", 6720, 4480, 5.36, 2.5, None, 0.50, "foto"),
+    ("FF45", "24×36 45 MP · Nikon D850, Z7, Z8, Canon R5", 8256, 5504, 4.35, 2.0, None, 0.50, "foto"),
+]
+# Telescopios inteligentes (óptica y cámara fijas): clave, nombre, abertura (mm), focal (mm), sensor
+INTELIGENTES = [
+    ("seestar-s50", "ZWO Seestar S50", 50, 250, "IMX462"),
+    ("seestar-s30", "ZWO Seestar S30", 30, 150, "IMX662"),
+    ("seestar-s30pro", "ZWO Seestar S30 Pro", 30, 160, "IMX585"),
+    ("dwarf3", "Dwarflab Dwarf 3", 35, 150, "IMX678"),
+    ("dwarf-mini", "Dwarflab Dwarf mini", 30, 150, "IMX662"),
+    ("dwarf2", "Dwarflab Dwarf II", 24, 100, "IMX415"),
+    ("vespera", "Vaonis Vespera", 50, 200, "IMX462"),
+    ("vespera2", "Vaonis Vespera II", 50, 250, "IMX585"),
+    ("vespera-pro", "Vaonis Vespera Pro", 50, 250, "IMX676"),
+    ("stellina", "Vaonis Stellina", 80, 400, "IMX178"),
+    ("origin", "Celestron Origin", 152, 335, "IMX178"),
+    ("origin2", "Celestron Origin Mark II", 152, 335, "IMX678"),
 ]
 TIPOS_TEL = {"refractor": 0.0, "petzval": 0.0, "newton": 0.25, "cassegrain": 0.35, "sct": 0.35, "rc": 0.40,
              "mak": 0.30, "rasa": 0.40, "objetivo": 0.0}
@@ -17042,7 +17123,7 @@ class H(BaseHTTPRequestHandler):
             with open(tycho_ruta(), "rb") as fh:
                 return self._send(200, fh.read(), "application/octet-stream")
         if p.path == "/api/equipo":
-            return self._send(200, json.dumps({"equipo": leer_equipo(), "sensores": SENSORES_CAM, "tipos_tel": list(TIPOS_TEL),
+            return self._send(200, json.dumps({"equipo": leer_equipo(), "sensores": SENSORES_CAM, "inteligentes": INTELIGENTES, "tipos_tel": list(TIPOS_TEL),
                                                "tipos_filtro": TIPOS_FILTRO, "bortle": BORTLE_SQM}, ensure_ascii=False))
         if p.path == "/api/avisos":
             return self._send(200, json.dumps(leer_avisos(), ensure_ascii=False))

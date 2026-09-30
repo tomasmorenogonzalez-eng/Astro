@@ -3106,7 +3106,11 @@
 "No se ha podido descargar: {1}": "Échec du téléchargement : {1}",
 "¿Más estrellas? Descarga el catálogo Tycho-2: unos 2,5 millones más, hasta la magnitud 12, que salen al acercarte ({1}).": "Plus d'étoiles ? Téléchargez le catalogue Tycho-2 : environ 2,5 millions de plus, jusqu'à la magnitude 12, qui apparaissent en zoomant ({1}).",
 "Reintentar": "Réessayer",
-"Descargar": "Télécharger"
+"Descargar": "Télécharger",
+"Cámaras de astronomía": "Caméras d'astronomie",
+"Réflex y sin espejo": "Reflex et hybrides",
+"Tus cámaras": "Vos caméras",
+"Telescopios inteligentes": "Télescopes intelligents"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",
