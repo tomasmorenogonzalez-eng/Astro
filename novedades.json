@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.29.0",
+  "es": [
+   "Apilado más rápido: si las tomas no llevan darks, bias ni flats, ya no se copian a 32 bits antes de alinearlas; varias noches con calibraciones distintas se juntan sin volver a copiarlas; y, si tus datos están en un disco externo y en el del ordenador hay sitio de sobra, los archivos intermedios van al del ordenador, que suele ser mucho más rápido. El resultado es igual de bueno.",
+   "La vista previa de un apilado sin flats quita también el viñeteo: las esquinas oscuras ya no dejan el objeto apagado al estirar."
+  ],
+  "en": [
+   "Faster stacking: frames with no darks, bias or flats are no longer copied to 32 bits before aligning; several nights with different calibration are joined without copying them again; and if your data are on an external drive and there is plenty of room on the computer's own disk, the intermediate files go there, as it is usually much faster. The result is just as good.",
+   "The preview of a stack without flats now removes the vignetting too: dark corners no longer leave the target looking dull after stretching."
+  ],
+  "fr": [
+   "Empilement plus rapide : les poses sans darks, bias ni flats ne sont plus copiées en 32 bits avant l'alignement ; plusieurs nuits avec des calibrations différentes sont réunies sans être recopiées ; et si vos données sont sur un disque externe et qu'il y a largement la place sur celui de l'ordinateur, les fichiers intermédiaires y vont, car il est généralement bien plus rapide. Le résultat est tout aussi bon.",
+   "L'aperçu d'un empilement sans flats retire aussi le vignetage : les coins sombres ne rendent plus l'objet terne à l'étirement."
+  ],
+  "de": [
+   "Schnelleres Stacken: Aufnahmen ohne Darks, Bias oder Flats werden vor dem Ausrichten nicht mehr in 32 Bit kopiert; mehrere Nächte mit unterschiedlicher Kalibrierung werden zusammengeführt, ohne sie erneut zu kopieren; und liegen deine Daten auf einer externen Festplatte und ist auf der des Computers reichlich Platz, landen die Zwischendateien dort, weil sie meist viel schneller ist. Das Ergebnis ist genauso gut.",
+   "Die Vorschau eines Stacks ohne Flats entfernt jetzt auch die Vignettierung: Dunkle Ecken lassen das Objekt beim Strecken nicht mehr blass aussehen."
+  ],
+  "it": [
+   "Impilamento più veloce: le pose senza dark, bias né flat non vengono più copiate a 32 bit prima dell'allineamento; più notti con calibrazioni diverse si uniscono senza ricopiarle; e se i tuoi dati sono su un disco esterno e su quello del computer c'è spazio in abbondanza, i file intermedi vanno lì, perché di solito è molto più veloce. Il risultato è altrettanto buono.",
+   "L'anteprima di un impilamento senza flat toglie anche la vignettatura: gli angoli scuri non lasciano più l'oggetto spento dopo lo stretching."
+  ],
+  "pt": [
+   "Empilhamento mais rápido: as exposições sem darks, bias nem flats já não são copiadas para 32 bits antes de alinhar; várias noites com calibrações diferentes juntam-se sem as voltar a copiar; e, se os seus dados estiverem num disco externo e houver bastante espaço no do computador, os ficheiros intermédios vão para aí, porque costuma ser muito mais rápido. O resultado é igualmente bom.",
+   "A pré-visualização de um empilhamento sem flats também remove a vinhetagem: os cantos escuros já não deixam o objeto apagado ao esticar."
+  ]
+ },
+ {
   "version": "0.28.8",
   "es": [
    "El núcleo de la Vía Láctea en «Próximas noches»: arriba, si estás en temporada y hasta cuándo (o cuándo empieza la próxima) y, en cada noche, a qué horas se ve con noche cerrada, cuánto sube, hacia dónde mirar y si molesta la Luna. Tiene en cuenta tu horizonte.",

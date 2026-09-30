@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.09.30.6"
+VERSION_PROG = "2026.09.30.7"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -5480,7 +5480,7 @@ async function stkPlan(){
   }
   h += `</tbody></table></div>`;
   if (!p.filtros.length) h = `<div class="status warn">No hay tomas utilizables de «${esc(p.objeto)}».</div>`;
-  h += `<div class="note" style="margin-top:8px">${exTxt?`<div><span>No se usan:</span> ${exTxt.split(" · ").map(x=>`<span>${esc(x)}</span>`).join(" · ")}</div>`:""}<div><span>Espacio libre en el disco: ${gb(p.libre)}</span> · <span>${p.bits===16 ? `necesita unos ${gb(p.necesita16)} mientras trabaja (archivos intermedios a 16 bits para ahorrar espacio).` : `necesita unos ${gb(p.necesita32)} mientras trabaja.`}</span></div></div>`;
+  h += `<div class="note" style="margin-top:8px">${exTxt?`<div><span>No se usan:</span> ${exTxt.split(" · ").map(x=>`<span>${esc(x)}</span>`).join(" · ")}</div>`:""}<div>${p.trabajo_interno ? `<span class="notr">${esc(trLT("Trabaja en el disco interno (más rápido): {1} libres.", "Works on the internal disk (faster): {1} free.", tr(gb(p.libre))))}</span>` : `<span>Espacio libre en el disco: ${gb(p.libre)}</span>`} · <span>${p.bits===16 ? `necesita unos ${gb(p.necesita16)} mientras trabaja (archivos intermedios a 16 bits para ahorrar espacio).` : `necesita unos ${gb(p.necesita32)} mientras trabaja.`}</span></div></div>`;
   if (!p.bits) h += `<div class="status bad">No hay espacio suficiente en el disco de datos: libera unos ${gb(p.necesita16-p.libre)}.</div>`;
   if (ex.fuera || ex.corte || ex.limite) h += `<div style="margin-top:6px"><button class="btn small" id="stkIncluir">Volver a incluir las tomas que dejaste fuera</button></div>`;
   $("stkPlan").innerHTML = h;
@@ -9246,6 +9246,56 @@ MASTERS_DIR = os.path.join(APIL_ROOT, "_masters")
 TRABAJO_DIR = os.path.join(APIL_ROOT, "_trabajo")
 EXT_LIGHT = (".fits", ".fit", ".fts", ".xisf")
 
+
+def carpeta_trabajo_interna():
+    """Carpeta para los archivos intermedios en el disco del ordenador: una caché, fuera de las copias de seguridad."""
+    if os.environ.get("ASTRO_TRABAJO_INTERNO") is not None:      # para pruebas; vacía, nunca en el disco del ordenador
+        return os.environ["ASTRO_TRABAJO_INTERNO"]
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Caches/ASTRO/Trabajo")
+    if os.name == "nt":
+        import tempfile
+        return os.path.join(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir(), "ASTRO", "Trabajo")
+    return os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "ASTRO", "Trabajo")
+
+
+def elegir_trabajo(necesita, muestra=None):
+    """Dónde dejar los archivos intermedios de un apilado: (carpeta, ¿en el disco del ordenador?, espacio libre).
+    Si los datos están en otro disco (un USB, casi siempre más lento que el del ordenador), se trabaja en el del
+    ordenador cuando caben con holgura y se puede enlazar desde ahí a las tomas (en Windows sin permiso para enlaces
+    habría que copiarlas, y eso sería peor); si no, en Apilados/_trabajo, como siempre."""
+    try:
+        libre_datos = shutil.disk_usage(DISCO).free
+    except Exception:
+        libre_datos = 0
+    interno = carpeta_trabajo_interna()
+    try:
+        if interno:
+            os.makedirs(interno, exist_ok=True)
+            if os.stat(interno).st_dev != os.stat(DISCO).st_dev:
+                libre = shutil.disk_usage(interno).free
+                if libre - necesita * 1.2 > 15e9:              # y al disco del sistema le quedan al menos 15 GB
+                    ok = True
+                    if muestra:
+                        prueba = os.path.join(interno, ".enlace-%d" % os.getpid())
+                        try:
+                            if os.path.lexists(prueba):
+                                os.remove(prueba)
+                            os.symlink(muestra, prueba)
+                            ok = os.path.isfile(prueba)
+                        except (OSError, NotImplementedError, AttributeError):
+                            ok = False
+                        finally:
+                            try:
+                                os.remove(prueba)
+                            except OSError:
+                                pass
+                    if ok:
+                        return interno, True, libre
+    except Exception:
+        pass
+    return TRABAJO_DIR, False, libre_datos
+
 JOB = {"activo": False, "estado": "", "tipo": "", "paso": 0, "pasos": 0, "texto": "", "sub": "", "log": [],
        "resultados": [], "vista": [], "avisos": [], "error": "", "carpeta": "", "cancelar": False, "inicio": None, "fin": None}
 _PROC = {"p": None}
@@ -10053,20 +10103,23 @@ def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
                         "combinar": len(equipos) > 1 and all(e["escala"] for e in equipos) and len({e["bayer"] for e in equipos}) == 1})
     n_total = sum(f["n"] for f in filtros)
     w = next((f["w"] for f in filtros if f["w"]), None); h = next((f["h"] for f in filtros if f["h"]), None)
-    try:
-        libre = shutil.disk_usage(DISCO).free
-    except Exception:
-        libre = 0
-    # lo que ocupa el filtro más grande: en color (OSC) cada toma calibrada pasa a tener 3 canales, y con varios
-    # grupos de calibración Siril hace además una copia al unirlos
-    # (con los píxeles de cada toma: en un proyecto con varias cámaras, el filtro con más tomas no es el que más ocupa)
+    # lo que ocupa el filtro más grande mientras se apila (con los píxeles de cada toma: en un proyecto con varias
+    # cámaras, el filtro con más tomas no es el que más ocupa). Con algo que calibrar, las calibradas y las alineadas a
+    # la vez (en color, con 3 canales); sin nada, solo las alineadas, con los bits de las tomas.
+    for f in filtros:
+        f["_calibrar"] = bool(f.get("bayer") or any(g["dark"] or g["bias"] or g["flat"] for g in f["grupos"]) or
+                              any(r["_ruta"].lower().endswith(".xisf") for g in f["grupos"] for r in g["_g"]["lights"]))
+
     def peso_filtro(f, bits):
-        return int(f["_px"] * (3 if f.get("bayer") else 1) * (3.2 / 2.2 if len(f.get("grupos") or []) > 1 else 1) * bits / 8 * 2.2)
+        px = f["_px"] * (3 if f.get("bayer") else 1)
+        return int(px * bits / 8 * 2.2) if f["_calibrar"] else int(px * 2 * 1.5)
     necesita32 = max([peso_filtro(f, 32) for f in filtros] or [0])
     necesita16 = max([peso_filtro(f, 16) for f in filtros] or [0])
+    trabajo, interno, libre = elegir_trabajo(necesita32, next((r["_ruta"] for r in lights), None))
     return {"objeto": objeto, "siril": siril, "siril_version": ver, "filtros": filtros, "excluidas": excluidas,
             "noches_fuera": sorted(noches_fuera),
             "n_total": n_total, "libre": libre, "necesita32": necesita32, "necesita16": necesita16,
+            "trabajo": trabajo, "trabajo_interno": interno,
             "bits": 32 if libre > necesita32 else (16 if libre > necesita16 else 0)}
 
 
@@ -10237,11 +10290,15 @@ def master_de(siril, s, bits):
 
 
 def _hacer_master(siril, s, bits, W, cal, clave, final):
-    src = enlazar(s["files"], os.path.join(W, "src_" + s["id"]))
-    seq = os.path.join(W, "seq_" + s["id"])
+    src, seq = os.path.join(W, "src_" + s["id"]), os.path.join(W, "seq_" + s["id"])
     # si se corta, no queda un master a medias; y con el hilo en el nombre, ni Ciencia ni otro apilado escriben el mismo
     tmp = os.path.join(MASTERS_DIR, "_haciendo_%s_%d_%d" % (clave, os.getpid(), threading.get_ident()))
-    lineas = ["requires 1.2.0", "set32bits", f"cd {q(src)}", enlazar_siril(src, "c", seq), f"cd {q(seq)}"]
+    if any(f.lower().endswith(".xisf") for f in s["files"]):           # Siril los convierte a FITS
+        enlazar(s["files"], src)
+        lineas = ["requires 1.2.0", "set32bits", f"cd {q(src)}", enlazar_siril(src, "c", seq), f"cd {q(seq)}"]
+    else:
+        enlazar_secuencia(s["files"], seq, "c_")
+        lineas = ["requires 1.2.0", "set32bits", f"cd {q(seq)}"]
     if s["tipo"] == "flat":
         lineas += [f"calibrate c {qo('-bias=', cal)}" if cal else "calibrate c", "stack pp_c rej 3 3 -norm=mul " + qo("-out=", tmp)]
     else:
@@ -10256,55 +10313,86 @@ def _hacer_master(siril, s, bits, W, cal, clave, final):
     return final
 
 
+def enlazar_secuencia(archivos, carpeta, base, desde=1):
+    """Enlaza las tomas en la carpeta con el nombre que usa Siril para una secuencia (base00001.fit…), sin pasar por su
+    orden «link», que en Windows sin permiso para enlaces las volvía a copiar. Siril la encuentra solo al usarla."""
+    os.makedirs(carpeta, exist_ok=True)
+    for i, a in enumerate(archivos, desde):
+        enlace(a, os.path.join(carpeta, f"{base}{i:05d}.fit"))
+    return desde + len(archivos)
+
+
+def _necesita_calibrar(g, rutas):
+    """Un grupo pasa por «calibrate» si hay algún master, si es de una cámara en color (ahí se separan los colores) o
+    si trae XISF (Siril los convierte). Sin nada de eso, «calibrate» solo copiaba cada toma a 32 bits: en un apilado
+    real de 380 tomas de 61 megapíxeles era casi una quinta parte del tiempo, para nada."""
+    gg = g["_g"]
+    return bool(gg.get("_dark") or gg.get("_bias") or gg.get("_flat") or g.get("bayer") or
+                any(r.lower().endswith(".xisf") for r in rutas))
+
+
 def _calibrar_alinear(siril, W, F, etq, grupos, n, bits):
     """Calibra y alinea las tomas de un filtro hechas con un mismo equipo. Devuelve (carpeta de las alineadas,
-    nombre de su secuencia, registradas, fallidas, número de grupos de calibración)."""
+    nombre de su secuencia, registradas, fallidas, número de grupos de calibración).
+    Todas acaban en una sola secuencia «a_» de la carpeta F_<filtro>: las calibradas se mueven ahí (sin la copia que
+    hacía «merge» al unir varios grupos) y, si no hay nada que calibrar, se enlazan las tomas tal cual."""
     JOB["paso"] += 1; JOB["texto"] = f"{etq}: calibrando y alineando {n} tomas"
-    L = ["requires 1.2.0", "set16bits" if bits == 16 else "set32bits"]
-    seqs = []
-    for i, g in enumerate(grupos, 1):
-        gg = g["_g"]
-        src = enlazar([r["_ruta"] for r in gg["lights"]], os.path.join(W, f"src_{F}_{i}"))
-        seq = os.path.join(W, f"seq_{F}_{i}")
-        ops = []
-        if gg.get("_dark"):
-            ops.append(qo("-dark=", gg['_dark']))
-        elif gg.get("_bias"):
-            ops.append(qo("-bias=", gg['_bias']))
-        if gg.get("_flat"):
-            ops.append(qo("-flat=", gg['_flat']))
-        if gg.get("_dark"):
-            ops.append("-cc=dark")
-        if g.get("bayer"):
-            ops += ["-cfa", "-equalize_cfa", "-debayer"]
-        L += [f"cd {q(src)}", enlazar_siril(src, "l", seq), f"cd {q(seq)}", "calibrate l " + " ".join(ops)]
-        seqs.append(os.path.join(seq, "pp_l_"))
+    import glob as _glob
     base = os.path.join(W, f"F_{F}")
     os.makedirs(base, exist_ok=True)
-    L.append(f"cd {q(base)}")
-    if len(seqs) > 1:
-        L.append("merge " + " ".join(q(x) for x in seqs) + " t")
-        nombre = "t"
+    bits_ord = "set16bits" if bits == 16 else "set32bits"
+    rutas = [[r["_ruta"] for r in g["_g"]["lights"]] for g in grupos]
+    calibrar = any(_necesita_calibrar(g, rs) for g, rs in zip(grupos, rutas))
+    if not calibrar:
+        # Siril quiere todas las tomas de una secuencia con la misma profundidad de bits
+        calibrar = len({str(cabecera_fits(rs[0]).get("BITPIX")) for rs in rutas if rs}) > 1
+    k = 1
+    if calibrar:
+        L, seqs = ["requires 1.2.0", bits_ord], []
+        for i, (g, rs) in enumerate(zip(grupos, rutas), 1):
+            gg = g["_g"]
+            seq = os.path.join(W, f"seq_{F}_{i}")
+            ops = []
+            if gg.get("_dark"):
+                ops.append(qo("-dark=", gg['_dark']))
+            elif gg.get("_bias"):
+                ops.append(qo("-bias=", gg['_bias']))
+            if gg.get("_flat"):
+                ops.append(qo("-flat=", gg['_flat']))
+            if gg.get("_dark"):
+                ops.append("-cc=dark")
+            if g.get("bayer"):
+                ops += ["-cfa", "-equalize_cfa", "-debayer"]
+            if any(r.lower().endswith(".xisf") for r in rs):
+                src = enlazar(rs, os.path.join(W, f"src_{F}_{i}"))
+                L += [f"cd {q(src)}", f"convert l {qo('-out=', seq)}", f"cd {q(seq)}"]
+            else:
+                enlazar_secuencia(rs, seq, "l_")
+                L.append(f"cd {q(seq)}")
+            L.append("calibrate l " + " ".join(ops))
+            seqs.append(seq)
+        correr_siril(siril, "\n".join(L) + "\n", f"calibrar_{F}")
+        for i, seq in enumerate(seqs, 1):
+            for f in sorted(_glob.glob(os.path.join(seq, "pp_l_*.fit"))):
+                os.replace(f, os.path.join(base, f"a_{k:05d}.fit"))
+                k += 1
+            shutil.rmtree(seq, ignore_errors=True)                 # los enlaces a las tomas y lo demás
+            shutil.rmtree(os.path.join(W, f"src_{F}_{i}"), ignore_errors=True)
     else:
-        L.append(f"cd {q(os.path.dirname(seqs[0]))}")
-        nombre = "pp_l"
-    L += [f"register {nombre} -2pass", f"seqapplyreg {nombre}"]
-    res = correr_siril(siril, "\n".join(L) + "\n", f"alinear_{F}")
-    for g_i in range(1, len(seqs) + 1):   # ya calibradas: los enlaces (o copias, en Windows sin permiso) sobran
-        shutil.rmtree(os.path.join(W, f"src_{F}_{g_i}"), ignore_errors=True)
-    carpeta_r = base if len(seqs) > 1 else os.path.dirname(seqs[0])
-    if len(seqs) > 1:                     # liberar espacio: calibradas intermedias
-        for g_i in range(1, len(seqs) + 1):
-            borrar(os.path.join(W, f"seq_{F}_{g_i}"), "pp_l_*.fit*")
+        for rs in rutas:
+            k = enlazar_secuencia(rs, base, "a_", k)
+    res = correr_siril(siril, "\n".join(["requires 1.2.0", bits_ord, f"cd {q(base)}", "register a -2pass", "seqapplyreg a"]) + "\n",
+                       f"alinear_{F}")
+    # las de entrada ya no hacen falta: se borran las calibradas y se quitan los enlaces (las tomas no se tocan)
+    borrar(base, "a_*.fit")
     reg, fallidas = res["registradas"], res["fallidas"]
     # Siril escribe el recuento en el idioma del usuario: contar las alineadas que ha dejado es más seguro
-    import glob as _glob
-    hechas = len(_glob.glob(os.path.join(carpeta_r, f"r_{nombre}_*.fit*")))
+    hechas = len(_glob.glob(os.path.join(base, "r_a_*.fit*")))
     if hechas:
         reg, fallidas = hechas, max(0, n - hechas)
     if reg is not None and reg < 2:
         raise RuntimeError(f"{etq}: Siril no ha podido alinear las tomas ({reg} de {n}). ¿Hay tomas de otro objeto o muy malas?")
-    return carpeta_r, nombre, reg, fallidas, len(seqs)
+    return base, "a", reg, fallidas, len(grupos)
 
 
 def _limpiar_alineado(W, F, n_grupos):
@@ -10443,7 +10531,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
     if os.path.exists(os.path.join(APIL_ROOT, obj, marca)):        # dos apilados en el mismo minuto
         marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     OUT = os.path.join(APIL_ROOT, obj, marca)
-    W = os.path.join(TRABAJO_DIR, marca)
+    W = os.path.join(plan.get("trabajo") or TRABAJO_DIR, marca)
     os.makedirs(OUT, exist_ok=True); os.makedirs(W, exist_ok=True); os.makedirs(MASTERS_DIR, exist_ok=True)
     JOB.update(_w=W, carpeta=OUT, _cflat={})
     JOB["_logf"] = open(os.path.join(OUT, "registro_siril.txt"), "w", encoding="utf-8")
@@ -10451,6 +10539,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
     filtros = [f for f in plan["filtros"] if f["filtro"] in filtros_elegidos and f["apilable"]]
     JOB["pasos"] = sum(2 * max(1, len(f.get("_equipos") or [])) + (1 if len(f.get("_equipos") or []) > 1 else 0) for f in filtros) + 2 + (1 if vista else 0)
     informe = {"objeto": plan["objeto"], "fecha": marca, "siril": plan["siril_version"], "bits_intermedios": bits,
+               "trabajo_interno": bool(plan.get("trabajo_interno")),
                "filtros": [], "avisos": [],
                "fuera_del_apilado": {"tomas": (plan.get("excluidas") or {}).get("fuera", 0), "noches": plan.get("noches_fuera") or [],
                                      "corte": (plan.get("excluidas") or {}).get("corte", 0)}}
@@ -10589,7 +10678,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
             JOB["texto"] = "Creando la vista previa"
             try:
                 imgs, av = vista_previa(OUT, siril, plan["objeto"], [(m[0]["filtro"], alineados.get(i, m[1]) if distintos else m[1])
-                                                                   for i, m in enumerate(masters_finales)])
+                                                                   for i, m in enumerate(masters_finales)], _filtros_sin_flats(informe))
                 JOB["vista"] = imgs
                 informe["vista_previa"] = [x["nombre"] for x in imgs]
                 JOB["avisos"] += av
@@ -10674,7 +10763,7 @@ def trabajo_integracion(plan, filtros_elegidos):
     obj = seguro(plan["objeto"])
     marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     OUT = os.path.join(APIL_ROOT, obj, INTEG_DIR, marca)
-    W = os.path.join(TRABAJO_DIR, "integ_" + marca)
+    W = os.path.join(plan.get("trabajo") or TRABAJO_DIR, "integ_" + marca)
     os.makedirs(OUT, exist_ok=True); os.makedirs(W, exist_ok=True); os.makedirs(MASTERS_DIR, exist_ok=True)
     JOB.update(_w=W, carpeta=OUT, _cflat={})
     JOB["_logf"] = open(os.path.join(OUT, "registro_siril.txt"), "w", encoding="utf-8")
@@ -10721,10 +10810,11 @@ def trabajo_integracion(plan, filtros_elegidos):
                 if len(sub) < 3 or (k > 1 and len(sub) == len(regs)):
                     continue
                 JOB["texto"] = f"{etq}: apilando {len(sub)} de {len(regs)} tomas"
-                d = enlazar(sub, os.path.join(W, f"sub_{F}_{k}"), "s")
+                d = os.path.join(W, f"sub_{F}_{k}")
                 seq, tmp = os.path.join(W, f"sseq_{F}_{k}"), os.path.join(W, f"parcial_{F}_{k}")
+                enlazar_secuencia(sub, seq, "s_")
                 peq = os.path.join(OUT, f"{seguro(f['filtro'])}_{len(sub):04d}")
-                L = ["requires 1.2.0", "set32bits", f"cd {q(d)}", f"link s {qo('-out=', seq)}", f"cd {q(seq)}",
+                L = ["requires 1.2.0", "set32bits", f"cd {q(seq)}",
                      f"stack s {_rechazo_n(len(sub))} -norm=addscale {qo('-out=', tmp)}", f"load {q(tmp + '.fit')}"]
                 if factor < 0.99:
                     L += lineas_resample(factor, " -interp=area")
@@ -10910,11 +11000,19 @@ def _guardar_vista(lineas, nombre_o, ancho, tif=True):
     return lineas
 
 
-def vista_previa(carpeta, siril, objeto="", masters=None):
-    """Crea la vista previa de un apilado. Devuelve (imágenes creadas, avisos)."""
+def _filtros_sin_flats(inf):
+    return {str(f.get("filtro")) for f in inf.get("filtros") or [] if any(not g.get("flat") for g in f.get("grupos") or [])}
+
+
+def vista_previa(carpeta, siril, objeto="", masters=None, sin_flats=None):
+    """Crea la vista previa de un apilado. Devuelve (imágenes creadas, avisos).
+    El fondo se quita con un plano; si el filtro se apiló sin flats, con un polinomio de grado 2, que también se lleva
+    el viñeteo: con un plano, las esquinas oscuras hacían que el estirado automático dejara el objeto apagado."""
     inf, lst = masters_apilado(carpeta)
     if masters:
         lst = [(f, r) for f, r in masters if os.path.isfile(r)]
+    sin_flats = _filtros_sin_flats(inf) if sin_flats is None else set(sin_flats)
+    fondo = lambda filtro: "subsky 2" if str(filtro) in sin_flats else "subsky 1"
     if not lst:
         raise RuntimeError("No hay masters en la carpeta del apilado.")
     obj = seguro(objeto or inf.get("objeto") or os.path.basename(os.path.dirname(carpeta)))
@@ -10976,7 +11074,7 @@ def vista_previa(carpeta, siril, objeto="", masters=None):
             x, y, w, h = _recorte((_entero(dims, "NAXIS1"), _entero(dims, "NAXIS2")), 0.015)
             L = ["requires 1.2.0", "set32bits", f"cd {q(seq)}"]
             for c, r in listos.items():
-                L += [f"load {os.path.basename(r)[:-4]}", f"crop {x} {y} {w} {h}", "subsky 1", f"save c_{c}"]
+                L += [f"load {os.path.basename(r)[:-4]}", f"crop {x} {y} {w} {h}", fondo(canales[c][0]), f"save c_{c}"]
             try:
                 JOB["texto"] = "Vista previa: quitando el gradiente del fondo"
                 correr_siril(siril, "\n".join(L) + "\n", "vista_fondo")
@@ -11004,7 +11102,7 @@ def vista_previa(carpeta, siril, objeto="", masters=None):
             nombre += "_" + str(i)
         enlace(ruta, os.path.join(W, f"s{i}.fit"))
         x, y, w, h = _recorte(dims)
-        S = ["requires 1.2.0", "set32bits", f"cd {q(W)}", f"load s{i}", f"crop {x} {y} {w} {h}", "subsky 1",
+        S = ["requires 1.2.0", "set32bits", f"cd {q(W)}", f"load s{i}", f"crop {x} {y} {w} {h}", fondo(filtro),
              f"autostretch -2.8 {FONDO_VISTA}"]
         if es_color:
             S += ([] if NB_OSC.search(filtro) else ["rmgreen"]) + ["satu 0.3"]
@@ -18426,13 +18524,14 @@ threading.Thread(target=_avisador, daemon=True).start()
 def _limpiar_trabajo_viejo():
     """Si ASTRO se cerró de golpe a mitad de un apilado, sus archivos intermedios (a veces decenas de GB) se quedaban en
     Apilados/_trabajo para siempre: se borran los que llevan más de un día sin tocarse."""
-    try:
-        for n in os.listdir(TRABAJO_DIR):
-            d = os.path.join(TRABAJO_DIR, n)
-            if os.path.isdir(d) and time.time() - os.path.getmtime(d) > 86400 and not JOB["activo"]:
-                shutil.rmtree(d, ignore_errors=True)
-    except OSError:
-        pass
+    for base in dict.fromkeys([TRABAJO_DIR, carpeta_trabajo_interna()]):
+        try:
+            for n in os.listdir(base) if base else []:
+                d = os.path.join(base, n)
+                if os.path.isdir(d) and time.time() - os.path.getmtime(d) > 86400 and not JOB["activo"]:
+                    shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
 
 
 threading.Thread(target=_limpiar_trabajo_viejo, daemon=True).start()

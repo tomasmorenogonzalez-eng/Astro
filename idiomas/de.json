@@ -3163,7 +3163,8 @@
 "{1} satélites brillantes cruzan el campo:": "{1} helle Satelliten kreuzen das Bildfeld:",
 "{1} tomas del Archivo se indexaron antes de que ASTRO guardara el enfoque.": "{1} Aufnahmen im Archiv wurden indexiert, bevor ASTRO die Fokusdaten speicherte.",
 "{1} tomas · {2} enfoques · {3} noches": "{1} Aufnahmen · {2} Fokussierungen · {3} Nächte",
-"{1} paso": "{1} Schritt"
+"{1} paso": "{1} Schritt",
+"Trabaja en el disco interno (más rápido): {1} libres.": "Arbeitet auf der internen Festplatte (schneller): {1} frei."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

@@ -3163,7 +3163,8 @@
 "{1} satélites brillantes cruzan el campo:": "{1} satélites brilhantes atravessam o campo:",
 "{1} tomas del Archivo se indexaron antes de que ASTRO guardara el enfoque.": "{1} exposições do Arquivo foram indexadas antes de o ASTRO guardar a focagem.",
 "{1} tomas · {2} enfoques · {3} noches": "{1} exposições · {2} focagens · {3} noites",
-"{1} paso": "{1} passo"
+"{1} paso": "{1} passo",
+"Trabaja en el disco interno (más rápido): {1} libres.": "Trabalha no disco interno (mais rápido): {1} livres."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",

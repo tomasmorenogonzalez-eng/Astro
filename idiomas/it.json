@@ -3163,7 +3163,8 @@
 "{1} satélites brillantes cruzan el campo:": "{1} satelliti luminosi attraversano il campo:",
 "{1} tomas del Archivo se indexaron antes de que ASTRO guardara el enfoque.": "{1} pose dell'Archivio sono state indicizzate prima che ASTRO salvasse la messa a fuoco.",
 "{1} tomas · {2} enfoques · {3} noches": "{1} pose · {2} messe a fuoco · {3} notti",
-"{1} paso": "{1} passo"
+"{1} paso": "{1} passo",
+"Trabaja en el disco interno (más rápido): {1} libres.": "Lavora sul disco interno (più veloce): {1} liberi."
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "La sua scala ({1}″/px) è {2} volte quella di {3}: nella combinazione viene ingrandita e apporta soprattutto segnale debole ed esteso, non dettaglio. Rende di più nella banda stretta debole (OIII, SII) o nel colore.",
