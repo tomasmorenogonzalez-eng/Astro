@@ -90,7 +90,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.09.30.1"
+VERSION_PROG = "2026.09.30.2"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -10518,7 +10518,7 @@ const ENLACES = [
  ["ciencia", "Transient Name Server", "https://www.wis-tns.org", "", "Donde se registran y se consultan las supernovas y otros transitorios.", "Where supernovae and other transients are reported and looked up."],
  ["ciencia", "PVOL", "http://pvol2.ehu.eus/pvol2/", "", "Base de datos de imágenes planetarias de aficionados de la UPV/EHU, usada en artículos científicos.", "UPV/EHU's database of amateur planetary images, used in scientific papers."],
  ["ciencia", "Zooniverse", "https://www.zooniverse.org", "", "Ciencia ciudadana: galaxias, supernovas y exoplanetas clasificados por voluntarios.", "Citizen science: galaxies, supernovae and exoplanets classified by volunteers."],
- ["comunidad", "Astrocitas", "https://www.youtube.com/@astrocitas", "s", "El canal de YouTube de astrofotografía de Tomás Moreno, el autor de ASTRO.", "The astrophotography YouTube channel of Tomás Moreno, the author of ASTRO."],
+ ["comunidad", "Astrocitas", "https://www.youtube.com/@astrocitas", "s", "Canal de YouTube de astrofotografía en español.", "Spanish-language astrophotography YouTube channel."],
  ["comunidad", "AstroBin", "https://www.astrobin.com", "", "La galería de astrofotografía de referencia, con el equipo y los datos de cada foto.", "The go-to astrophotography gallery, with the gear and data behind each image."],
  ["comunidad", "Cloudy Nights", "https://www.cloudynights.com/forums/", "", "El foro más grande en inglés sobre equipo, captura y procesado.", "The largest English-language forum on gear, capture and processing."],
  ["comunidad", "Stargazers Lounge", "https://stargazerslounge.com", "", "Foro británico, muy activo y amable con los que empiezan.", "A British forum, very active and friendly to beginners."],
