@@ -3093,7 +3093,13 @@
 "Para conseguirlos, escribe a": "Um sie zu bekommen, schreib an",
 "Ya tengo el paquete: elegirlo…": "Ich habe das Paket: auswählen…",
 "Instalando…": "Wird installiert…",
-"Cursos instalados": "Kurse installiert"
+"Cursos instalados": "Kurse installiert",
+"Constelaciones": "Sternbilder",
+"Vía Láctea": "Milchstraße",
+"Rejilla": "Gitter",
+"Nombres de estrellas": "Sternnamen",
+"Ir a…": "Gehe zu…",
+"Cargando el cielo…": "Himmel wird geladen…"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

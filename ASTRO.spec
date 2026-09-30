@@ -40,7 +40,7 @@ except Exception:
 
 a = Analysis(
     ["lanzador.py"],
-    datas=[(p, ".") for p in PROGRAMAS] + [("icono.png", "."), ("imagenes", "imagenes"), ("idiomas", "idiomas"), ("demo", "demo"), ("novedades.json", ".")] + extras,
+    datas=[(p, ".") for p in PROGRAMAS] + [("icono.png", "."), ("imagenes", "imagenes"), ("idiomas", "idiomas"), ("cielo", "cielo"), ("demo", "demo"), ("novedades.json", ".")] + extras,
     hiddenimports=["tkinter", "tkinter.filedialog", "tkinter.messagebox", "certifi"] + DE_LOS_PROGRAMAS + VENTANA,
     excludes=EXCLUIDOS + SIN_VENTANA,
 )

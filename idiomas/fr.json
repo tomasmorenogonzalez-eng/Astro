@@ -3093,7 +3093,13 @@
 "Para conseguirlos, escribe a": "Pour les obtenir, écrivez à",
 "Ya tengo el paquete: elegirlo…": "J'ai le paquet : le choisir…",
 "Instalando…": "Installation…",
-"Cursos instalados": "Cours installés"
+"Cursos instalados": "Cours installés",
+"Constelaciones": "Constellations",
+"Vía Láctea": "Voie lactée",
+"Rejilla": "Grille",
+"Nombres de estrellas": "Noms des étoiles",
+"Ir a…": "Aller à…",
+"Cargando el cielo…": "Chargement du ciel…"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Son échelle ({1}″/px) est {2} fois celle de {3} : à la combinaison, son image est agrandie et apporte surtout du signal faible et étendu, pas du détail. Il est plus rentable en bande étroite faible (OIII, SII) ou pour la couleur.",
