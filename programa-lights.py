@@ -1168,6 +1168,10 @@ tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowr
 .etapa h3 .num{width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;font-size:12.5px;background:var(--accent);color:#fff;flex:none}
 .etapa.proc h3 .num{background:#D99A1E} .etapa > .note{line-height:1.45;margin:0 0 8px}
 table.arcEqT{min-width:900px} tr[data-arc-eq]{cursor:pointer} tr[data-arc-eq]:hover td{background:var(--surface2)}
+table.arcLug{min-width:720px} .lugChip{display:inline-block;padding:1px 9px;border-radius:999px;background:var(--surface2);color:var(--muted);font-size:11.5px;font-weight:600;margin:0 6px} .lugAct{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:600;vertical-align:1px} td.lugAcc{white-space:nowrap;text-align:right} td.lugAcc .btn+.btn{margin-left:6px} table.arcLug td{vertical-align:middle} table.arcLug th:nth-child(2),table.arcLug th:nth-child(3),table.arcLug th:nth-child(4){text-align:right} table.arcLug td:nth-child(4){padding-right:28px} table.arcLug th:nth-child(4){padding-right:28px} .arcLugW{margin-bottom:18px} tr[data-pg-lugar]{cursor:pointer} tr[data-pg-lugar]:hover td{background:var(--surface2)}
+tr[data-pg-lugar].sel td{background:var(--surface2)} tr[data-pg-lugar].sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.lugSel{max-width:170px;padding:4px 6px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:13px}
+.lugOrigen{font-size:11.5px;color:var(--muted);margin-top:2px} .lugCaja{display:flex;flex-direction:column;align-items:flex-start}
 .arcBarra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
 .arcBarra input[type=search],.arcBarra select{padding:7px 10px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}
 .arcBarra input[type=search]{width:170px} .arcBarra select{max-width:230px}
@@ -1767,6 +1771,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
   <div id="stkElegir">
     <div class="status warn" id="stkEjemplo" style="display:none">Con los datos de ejemplo no hay imágenes reales que apilar: sus tomas son inventadas. Añade tus propias sesiones para apilar de verdad.</div>
     <div class="edit stkFila"><label for="stkObj">Objeto</label><select id="stkObj"></select></div>
+    <div class="edit stkFila" id="stkFilaLugar" style="display:none"><label for="stkLugar">Lugar</label><select id="stkLugar"></select></div>
     <div class="stkOpc">
       <label title="Incluir también las tomas «con avisos» (las «rechazables» y descartadas nunca se usan)"><input type="checkbox" id="stkWarn" checked> Incluir las tomas «con avisos»</label><a href="#" id="stkCriterio">Ajustar el criterio de calidad…</a>
       <label title="Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas."><input type="checkbox" id="stkPesos" checked> Dar más peso a las tomas con mejor señal</label>
@@ -1779,8 +1784,13 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
 </div></div>
 <div class="modal" id="lugBox"><div class="box" style="width:min(860px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Lugares de observación</h2><button class="btn small" id="lugClose">Cerrar</button></div>
-  <div class="note">Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte; cada toma trae además el suyo en la cabecera, y así puedes separar lo que hiciste en cada sitio.</div>
+  <div class="note">Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte. Y reparte tus tomas por sitio: cada una cuenta para el lugar guardado más cercano (a menos de 5 km), según las coordenadas de su cabecera o según el que le pongas tú.</div>
   <div id="lugBody" style="display:flex;flex-direction:column;gap:12px"></div>
+</div></div>
+<div class="modal" id="lnBox"><div class="box" style="width:min(1120px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Lugar de cada noche</h2><button class="btn small" id="lnClose">Cerrar</button></div>
+  <div class="note">Dónde estabas cada noche. Si la cabecera de tus tomas trae las coordenadas, ASTRO ya las usa; aquí puedes ponerlas cuando faltan (la ASIAIR, por ejemplo, no las escribe) o corregirlas. Con el lugar de cada toma ves las horas de cada sitio y puedes apilar cada lugar por separado.</div>
+  <div id="lnBody" style="display:flex;flex-direction:column;gap:10px;margin-top:8px"></div>
 </div></div>
 <div class="modal" id="genBox"><div class="box" style="width:min(760px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>General</h2><button class="btn small" id="genClose">Cerrar</button></div>
@@ -3950,20 +3960,129 @@ const pnMesC = i => new Date(2000, i, 1).toLocaleDateString(LOCALE, {month: "sho
 const pnMesL = i => new Date(2000, i, 1).toLocaleDateString(LOCALE, {month: "long"});
 const pnCapi = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-// El lugar de una toma: las coordenadas de su cabecera (SITELAT y SITELONG), agrupadas a unos 10 km, con el nombre del lugar
-// guardado en «Lugares de observación» que quede a menos de 0,2°. Sin coordenadas no hay lugar.
-let _LUG_T = new WeakMap(), _LUG_V = null;
-function lugarDeToma(f){
-  if (_LUG_V !== PLAN_CFG){ _LUG_T = new WeakMap(); _LUG_V = PLAN_CFG; }
-  if (_LUG_T.has(f)) return _LUG_T.get(f);
+/* ── El lugar de cada toma ──
+   Manda lo que has puesto a mano (f.sitio: latitud y longitud) y, si no hay nada, las coordenadas de la cabecera (SITELAT y
+   SITELONG). Con esas coordenadas, el lugar es el guardado en «Lugares de observación» que quede más cerca (a menos de
+   RADIO_LUGAR_KM). Si no hay ninguno, las tomas que caen a esa distancia unas de otras forman un lugar sin guardar. Sin
+   coordenadas no hay lugar. Se guardan las coordenadas y no el nombre del lugar: así la toma lleva su sitio consigo al exportar
+   un proyecto o pasarlo a otro ordenador, y renombrar o mover un lugar guardado no deja tomas sueltas. */
+const RADIO_LUGAR_KM = 5;
+function distKm(la1, lo1, la2, lo2){
+  const r = Math.PI / 180, a = Math.sin((la2 - la1) * r / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin((lo2 - lo1) * r / 2) ** 2;
+  return 12742 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+function lugarCoordsToma(f){
+  const s = f.sitio;
+  if (s && s.lat != null && s.lon != null){ const la = +s.lat, lo = +s.lon; if (Math.abs(la) <= 90 && Math.abs(lo) <= 180) return {lat: la, lon: lo, origen: "mano"}; }
   const h = f.header || {};
   const la = angulo(h.SITELAT ?? h["LAT-OBS"] ?? h["OBSGEO-B"] ?? null, false), lo = angulo(h.SITELONG ?? h["LONG-OBS"] ?? h["OBSGEO-L"] ?? null, false);
-  let v = null;
-  if (la !== null && lo !== null && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && (la || lo)){
-    const cerca = lugaresDe(PLAN_CFG || {}).map(l => ({l, d: sepGrados({ra: +l.lon, dec: +l.lat}, {ra: lo, dec: la})})).filter(x => x.d < 0.2).sort((a, b) => a.d - b.d)[0];
-    v = {k: la.toFixed(1) + "," + lo.toFixed(1), nombre: cerca ? nombreLugar(cerca.l) : nombreLugar({lat: la, lon: lo})};
+  return la !== null && lo !== null && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && (la || lo) ? {lat: la, lon: lo, origen: "cabecera"} : null;
+}
+let _LUG = {cfg: undefined, nf: -1, cache: new WeakMap(), guardados: null, grupos: null, varios: null};
+function lugarInvalidar(){ _LUG = {cfg: undefined, nf: -1, cache: new WeakMap(), guardados: null, grupos: null, varios: null}; }
+function lugarAlDia(){ if (_LUG.cfg !== PLAN_CFG || _LUG.nf !== frames.length){ lugarInvalidar(); _LUG.cfg = PLAN_CFG; _LUG.nf = frames.length; } return _LUG; }
+function lugaresGuardados(){ const L = lugarAlDia(); return L.guardados || (L.guardados = lugaresDe(PLAN_CFG || {}).filter(l => l && isFinite(+l.lat) && isFinite(+l.lon))); }
+// los lugares sin guardar: coordenadas de tomas que no caen en ningún lugar guardado, juntadas a menos de RADIO_LUGAR_KM
+// (se parte de las coordenadas con más tomas: así los centros no dependen del orden en que se vayan mirando las tomas)
+function lugaresSinGuardar(){
+  const L = lugarAlDia(); if (L.grupos) return L.grupos;
+  const gs = lugaresGuardados(), cuenta = new Map();
+  for (const f of frames){ const q = lugarCoordsToma(f); if (!q) continue;
+    if (gs.some(l => distKm(q.lat, q.lon, +l.lat, +l.lon) <= RADIO_LUGAR_KM)) continue;
+    const k = q.lat.toFixed(3) + "," + q.lon.toFixed(3), x = cuenta.get(k);
+    if (x) x.n++; else cuenta.set(k, {lat: +q.lat.toFixed(3), lon: +q.lon.toFixed(3), n: 1}); }
+  const grupos = [];
+  for (const c of [...cuenta.values()].sort((a, b) => b.n - a.n || a.lat - b.lat || a.lon - b.lon)){
+    const g = grupos.find(x => distKm(c.lat, c.lon, x.lat, x.lon) <= RADIO_LUGAR_KM);
+    if (g) g.n += c.n; else grupos.push({lat: c.lat, lon: c.lon, n: c.n}); }
+  return L.grupos = grupos;
+}
+function lugarDeToma(f){
+  const L = lugarAlDia(); if (L.cache.has(f)) return L.cache.get(f);
+  const q = lugarCoordsToma(f); let v = null;
+  if (q){
+    let mejor = null, dm = Infinity;
+    for (const l of lugaresGuardados()){ const d = distKm(q.lat, q.lon, +l.lat, +l.lon); if (d < dm){ dm = d; mejor = l; } }
+    if (mejor && dm <= RADIO_LUGAR_KM) v = {k: "g" + mejor.id, id: mejor.id, nombre: nombreLugar(mejor), guardado: true, lat: +mejor.lat, lon: +mejor.lon, origen: q.origen};
+    else {
+      const gs = lugaresSinGuardar();
+      let g = gs.find(x => distKm(q.lat, q.lon, x.lat, x.lon) <= RADIO_LUGAR_KM);
+      if (!g){ g = {lat: +q.lat.toFixed(3), lon: +q.lon.toFixed(3), n: 0}; gs.push(g); }
+      v = {k: "c" + g.lat + "," + g.lon, id: "", nombre: nombreLugar(g), guardado: false, lat: g.lat, lon: g.lon, origen: q.origen};
+    }
   }
-  _LUG_T.set(f, v); return v;
+  L.cache.set(f, v); return v;
+}
+// la clave del lugar de una toma para filtrar: la del lugar, o «~» si no tiene
+const PG_SINLUGAR = "~";
+const pgClaveLugar = f => (lugarDeToma(f) || {k: PG_SINLUGAR}).k;
+// ¿tiene sentido enseñar lugares? Cuando hay más de uno, guardado o en las tomas
+function lugaresVarios(){
+  const L = lugarAlDia(); if (L.varios && L.varios[0] === frames.length) return L.varios[1];
+  let v = lugaresGuardados().length > 1;
+  if (!v){ const ks = new Set(); for (const f of frames){ const l = lugarDeToma(f); if (l){ ks.add(l.k); if (ks.size > 1){ v = true; break; } } } }
+  L.varios = [frames.length, v]; return v;
+}
+// los lugares de una lista de tomas y lo que se hizo en cada uno: el de más horas primero y «sin lugar» al final
+function lugaresDeLista(lista){
+  const m = new Map();
+  for (const f of lista){
+    const l = lugarDeToma(f), k = l ? l.k : "";
+    let x = m.get(k); if (!x){ x = {k, id: l ? l.id : "", nombre: l ? l.nombre : "", guardado: !!(l && l.guardado), lat: l ? l.lat : null, lon: l ? l.lon : null, noches: new Set(), n: 0, util: 0, seg: 0, cal: calNueva(), bg: [], snr: []}; m.set(k, x); }
+    x.n++; calSumar(x.cal, f); if (f.night) x.noches.add(f.night);
+    if (esUtil(f)){ x.util++; x.seg += f.exp || 0; if (f.bgPct != null) x.bg.push(f.bgPct); if (f.snr != null) x.snr.push(f.snr); }
+  }
+  return [...m.values()].sort((a, b) => (a.k === "") - (b.k === "") || b.seg - a.seg || a.nombre.localeCompare(b.nombre));
+}
+// poner el lugar a mano: el sitio es {lat, lon} de un lugar y null quita lo puesto a mano (vuelve a mandar la cabecera)
+const sitioDeLugar = l => ({lat: +(+l.lat).toFixed(4), lon: +(+l.lon).toFixed(4)});
+function sitioDeClave(k){      // «g<id>» lugar guardado · «c<lat>,<lon>» lugar sin guardar · «» quitar · undefined: no vale
+  if (!k) return null;
+  if (k[0] === "g"){ const l = lugaresGuardados().find(x => "g" + x.id === k); return l ? sitioDeLugar(l) : undefined; }
+  const m = /^c(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(k); return m ? {lat: +m[1], lon: +m[2]} : undefined;
+}
+function ponerSitio(lista, sitio){       // devuelve lo que había antes, para poder deshacerlo: [[id, sitio anterior o undefined]]
+  const antes = [];
+  for (const f of lista){
+    const a = f.sitio;
+    if (sitio ? (a && Math.abs(+a.lat - sitio.lat) < 1e-6 && Math.abs(+a.lon - sitio.lon) < 1e-6) : !a) continue;
+    antes.push([f.id, a]);
+    if (sitio) f.sitio = {lat: sitio.lat, lon: sitio.lon}; else delete f.sitio;
+  }
+  if (antes.length) lugarInvalidar();
+  return antes;
+}
+function deshacerSitio(antes){
+  const m = new Map(antes);
+  for (const f of frames){ if (!m.has(f.id)) continue; const a = m.get(f.id); if (a) f.sitio = a; else delete f.sitio; }
+  lugarInvalidar();
+}
+// el lugar de una sesión (una noche con un equipo) en una tabla: el que tiene y un desplegable para cambiarlo. Una noche con un
+// equipo está en un solo sitio, así que el cambio va a todas sus tomas, sean del objeto que sean
+function lugarCeldaSesion(noche, equipo, fs, conOrigen){
+  const ls = lugaresDeLista(fs), uno = ls.length === 1 ? ls[0] : null, sel = uno ? uno.k : "", aMano = fs.some(f => f.sitio);
+  const ph = ls.length > 1 ? ls.map(x => (x.k ? x.nombre : trLT("sin lugar", "no place")) + " (" + nfmt(x.n) + ")").join(" · ") : !sel ? trLT("Sin lugar", "No place") : "";
+  return `<div class="lugCaja"><select class="lugSel" data-lug-noche="${esc(noche)}" data-lug-eq="${esc(equipo)}" aria-label="${esc(trLT("Lugar de la sesión", "Place of the session"))}" title="${esc(trLT("Se pone a todas las tomas de esa noche con ese equipo", "It is set on all the frames of that night taken with that setup"))}">
+      ${ph ? `<option value="-" selected disabled class="notr">${esc(ph)}</option>` : ""}${lugarOpcionesHTML(sel, aMano)}</select>
+    ${aMano || (conOrigen && sel) ? `<span class="lugOrigen">${esc(aMano ? trLT("puesto a mano", "set by hand") : trLT("según la cabecera", "from the header"))}</span>` : ""}</div>`;
+}
+function enlazarLugarSesiones(raiz){
+  raiz.querySelectorAll("select[data-lug-noche]").forEach(s => s.onchange = () => lugarPonerSesion(s.dataset.lugNoche, s.dataset.lugEq, s.value, s));
+}
+function lugarPonerSesion(noche, equipo, k, sel){
+  const sitio = sitioDeClave(k); if (sitio === undefined) return;
+  const antes = ponerSitio(frames.filter(f => f.night === noche && equipoDe(f) === equipo), sitio);
+  if (sel) sel.blur();
+  if (!antes.length) return;
+  scheduleSave(); render();
+  toast(antes.length === 1 ? trLT("Lugar puesto a 1 toma", "Place set on 1 frame") : trLT("Lugar puesto a {1} tomas", "Place set on {1} frames", nfmt(antes.length)));
+}
+// las opciones de un desplegable de lugares: los guardados y los de las tomas que aún no lo están
+function lugarOpcionesHTML(sel, conQuitar){
+  const gs = lugaresGuardados(), sg = lugaresSinGuardar().filter(g => !gs.some(l => distKm(g.lat, g.lon, +l.lat, +l.lon) <= RADIO_LUGAR_KM));
+  return gs.map(l => `<option value="g${esc(l.id)}" ${sel === "g" + l.id ? "selected" : ""} class="notr">${esc(nombreLugar(l))}</option>`).join("")
+    + sg.map(g => `<option value="c${g.lat},${g.lon}" ${sel === "c" + g.lat + "," + g.lon ? "selected" : ""} class="notr">${esc(nombreLugar(g))} · ${esc(trLT("sin guardar", "unsaved"))}</option>`).join("")
+    + (conQuitar ? `<option value="">${esc(trLT("Quitar lo puesto a mano (según la cabecera)", "Remove what was set by hand (from the header)"))}</option>` : "");
 }
 
 // la imagen de un proyecto: la vista previa de su último apilado o, si no hay, su mejor toma
@@ -4032,6 +4151,11 @@ function pnAvisos(ps, util, curso){
       : sinCal.length === 2 ? trLT("{1} y {2}: les faltan darks o flats en la biblioteca.", "{1} and {2}: darks or flats are missing in the library.", B(sinCal[0].obj), B(sinCal[1].obj))
       : trLT("{1} proyectos tienen tomas sin sus darks o flats en la biblioteca.", "{1} projects have frames without their darks or flats in the library.", nfmt(sinCal.length));
     av.push({o: 3, h: `${t} <a href="#" data-pn-cal="${esc(sinCal[0].obj)}">${esc(trLT("¿Qué me falta?", "What's missing?"))}</a>`});
+  }
+  if (lugaresVarios()){      // quien tiene varios lugares necesita saber cuál es el de cada toma
+    const sinL = frames.filter(f => !f.discarded && !lugarDeToma(f));
+    if (sinL.length) av.push({o: 3.5, h: `${esc(trLT("{1} tomas ({2}) no dicen dónde se hicieron.", "{1} frames ({2}) don't say where they were taken.", nfmt(sinL.length), nNoches(new Set(sinL.map(f => f.night).filter(Boolean)).size)))}
+      <a href="#" data-pn-lugares="1">${esc(trLT("Asignar lugar", "Set the place"))}</a>`});
   }
   const sinAn = curso.filter(p => p.sinAnalizar > 0);
   if (sinAn.length){
@@ -4119,7 +4243,7 @@ function pnTarjetaNoches(){
   }
   const opts = (mapa, sel_, todos) => `<option value="">${esc(todos)}</option>` + [...mapa].map(([k, n]) => `<option value="${esc(k)}" ${k === sel_ ? "selected" : ""} class="notr">${esc(n)}</option>`).join("");
   const filtros = [
-    lugares.size + (sinLugar && lugares.size ? 1 : 0) > 1 ? `<select class="pnSel" id="pnSelLugar">${opts(new Map([...lugares, ...(sinLugar ? [["sin", trLT("Sin lugar en la cabecera", "No site in the header")]] : [])]), PNL.lugar, trLT("Todos los lugares", "All sites"))}</select>` : "",
+    lugares.size + (sinLugar && lugares.size ? 1 : 0) > 1 ? `<select class="pnSel" id="pnSelLugar">${opts(new Map([...lugares, ...(sinLugar ? [["sin", trLT("Sin lugar", "No place")]] : [])]), PNL.lugar, trLT("Todos los lugares", "All sites"))}</select>` : "",
     equipos.size > 1 ? `<select class="pnSel" id="pnSelEquipo">${opts(new Map([...equipos].sort().map(e => [e, e])), PNL.equipo, trLT("Todos los equipos", "All setups"))}</select>` : "",
     objetos.size > 1 ? `<select class="pnSel" id="pnSelObjeto">${opts(new Map([...objetos].sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).map(o => [o, o])), PNL.objeto, trLT("Todos los objetos", "All targets"))}</select>` : ""].filter(Boolean).join("");
   return `<section class="pnCard"><div class="pnCab"><h3>${esc(trLT("Tus noches", "Your nights"))}</h3>
@@ -4157,6 +4281,7 @@ function renderPanelGeneral(){
   el.querySelectorAll("[data-pn-cal]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrirProyecto(a.dataset.pnCal); });
   el.querySelectorAll("[data-pn-analizar]").forEach(a => a.onclick = ev => { ev.preventDefault(); const o = a.dataset.pnAnalizar; if (o) abrirProyecto(o); else { ARC.pendientes = true; ARC.pestana = "proyectos"; mostrarVista("archivo"); } });
   el.querySelectorAll("[data-pn-objeto]").forEach(a => a.onclick = ev => { ev.preventDefault(); $("btnNombres").click(); });
+  el.querySelectorAll("[data-pn-lugares]").forEach(a => a.onclick = ev => { ev.preventDefault(); abrirNochesLugar(); });
   $("pnVerTodos").onclick = ev => { ev.preventDefault(); mostrarVista("objetos"); };
   el.querySelectorAll("[data-pn-modo]").forEach(b => b.onclick = () => { PNL.modo = b.dataset.pnModo; pnlGuardar(); renderPanelGeneral(); });
   for (const [k, id] of [["lugar", "pnSelLugar"], ["equipo", "pnSelEquipo"], ["objeto", "pnSelObjeto"]]){ const s = $(id); if (s) s.onchange = () => { PNL[k] = s.value; pnlGuardar(); renderPanelGeneral(); }; }
@@ -4165,12 +4290,119 @@ function renderPanelGeneral(){
 let _PNL_CAT = false, _PNL_CFG = false;
 
 /* ============ Configuración: lugares de observación y ajustes generales ============ */
-async function abrirLugares(){
-  $("lugBox").classList.add("show");
-  const c = await cfgPlan();
-  $("lugBody").innerHTML = formLugarHTML(c); activarLugar($("lugBody"), abrirLugares);
+// Los lugares con lo que hay hecho en cada uno (también los que aún no están guardados, sacados de las coordenadas de las tomas),
+// el aviso de las tomas sin lugar y, debajo, el formulario del lugar que se edita o de uno nuevo.
+function lugaresResumenHTML(c){
+  const act = lugarActivo(c), st = new Map(lugaresDeLista(frames).map(x => [x.k, x])), filas = [];
+  for (const l of lugaresGuardados()){ const k = "g" + l.id; filas.push({id: l.id, k, nombre: nombreLugar(l), lat: +l.lat, lon: +l.lon, guardado: true, x: st.get(k)}); st.delete(k); }
+  const sin = st.get(""); st.delete("");
+  for (const x of st.values()) filas.push({id: "", k: x.k, nombre: x.nombre, lat: x.lat, lon: x.lon, guardado: false, x});
+  const fila = f => { const x = f.x, activo = f.guardado && act && act.id === f.id;
+    return `<tr><td><b class="notr">${esc(f.nombre)}</b>${activo ? `<span class="lugAct" title="${esc(trLT("Próximas noches, Qué fotografiar y la previsión del tiempo se calculan para este lugar", "Upcoming nights, What to shoot and the weather forecast are worked out for this place"))}">${esc(trLT("planificas desde aquí", "you plan from here"))}</span>` : ""}
+        <div class="note notr">${esc(f.lat.toFixed(3) + ", " + f.lon.toFixed(3))}${f.guardado ? "" : ` · ${esc(trLT("sin guardar", "unsaved"))}`}</div></td>
+      <td class="num">${x ? nfmt(x.noches.size) : "0"}</td><td class="num">${x ? `<b>${esc(fmtH(x.seg / 3600))}</b>` : `<span class="note">—</span>`}</td><td class="num">${x ? nfmt(x.n) : "0"}</td>
+      <td class="lugAcc">${f.guardado ? `<button class="btn small" data-lug-editar="${esc(f.id)}">${esc(trLT("Editar", "Edit"))}</button>${activo ? "" : `<button class="btn small" data-lug-activar="${esc(f.id)}" title="${esc(trLT("Próximas noches, Qué fotografiar y la previsión del tiempo se calcularán para este lugar", "Upcoming nights, What to shoot and the weather forecast will be worked out for this place"))}">${esc(trLT("Planificar aquí", "Plan from here"))}</button>`}`
+        : `<button class="btn small primary" data-lug-guardar="${esc(f.k)}">${esc(trLT("Guardar como lugar", "Save as a place"))}</button>`}</td></tr>`; };
+  return `${filas.length ? `<div class="tablewrap"><table class="arcLug" style="min-width:0"><thead><tr><th>${esc(trLT("Lugar", "Place"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th><th></th></tr></thead>
+      <tbody>${filas.map(fila).join("")}</tbody></table></div>` : ""}
+    ${sin && sin.n ? `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:260px">${esc(trLT("{1} tomas ({2}) no tienen lugar: su cabecera no trae las coordenadas (la ASIAIR, por ejemplo, no las escribe). Díselo a ASTRO noche a noche.", "{1} frames ({2}) have no place: their header carries no coordinates (the ASIAIR, for one, doesn't write them). Tell ASTRO night by night.", nfmt(sin.n), nNoches(sin.noches.size)))}</span>
+        <button class="btn small primary" id="lugAsignar">${esc(trLT("Poner el lugar a cada noche…", "Set the place of each night…"))}</button></div>` : ""}
+    ${filas.length ? `<div><button class="btn small" id="lugOtro">${esc(trLT("＋ Otro lugar", "＋ Another place"))}</button></div>` : ""}`;
+}
+// opts: {editar: id de un lugar guardado, nuevo: true o {lat, lon} (con las coordenadas de unas tomas)}
+async function abrirLugares(opts){
+  opts = opts || {};
+  $("lnBox").classList.remove("show"); $("lugBox").classList.add("show");
+  const c = await cfgPlan(), raiz = $("lugBody"), nuevo = opts.nuevo, editar = opts.editar || "";
+  raiz.innerHTML = `${lugaresResumenHTML(c)}<div id="lugForm"></div>`;
+  const f = $("lugForm");
+  f._editar = editar; f._nuevo = !!nuevo; f._respetarActivo = true; f._hzTocado = !!nuevo;
+  f.innerHTML = formLugarHTML(c, {editar, nuevo, sinSelector: true});
+  activarLugar(f, abrirLugares);
+  raiz.querySelectorAll("[data-lug-editar]").forEach(b => b.onclick = () => { abrirLugares({editar: b.dataset.lugEditar}); });
+  raiz.querySelectorAll("[data-lug-guardar]").forEach(b => b.onclick = () => lugarGuardarSinGuardar(b.dataset.lugGuardar));
+  raiz.querySelectorAll("[data-lug-activar]").forEach(b => b.onclick = async () => { await activarLugarId(b.dataset.lugActivar); toast(trLT("Ahora planificas desde este lugar", "You now plan from this place")); abrirLugares(); programarEstaNoche(); });
+  if ($("lugOtro")) $("lugOtro").onclick = () => abrirLugares({nuevo: true});
+  if ($("lugAsignar")) $("lugAsignar").onclick = () => abrirNochesLugar();
+  if (nuevo || editar){ if (nuevo) f.querySelector(".plNombre").focus(); f.scrollIntoView({block: "nearest", behavior: "smooth"}); }
 }
 $("lugClose").onclick = () => $("lugBox").classList.remove("show");
+
+/* ============ Lugar de cada noche: ponerlo a muchas sesiones de una vez ============ */
+// Una sesión es una noche con un equipo (en un sitio): se elige el lugar de cada una, o de varias marcadas a la vez, y va a todas sus tomas.
+const LN = {solo: true, q: "", obj: "", marcadas: new Set(), max: 60, hecho: null};
+async function abrirNochesLugar(obj){
+  Object.assign(LN, {solo: true, q: "", obj: obj || "", marcadas: new Set(), max: 60, hecho: null});
+  $("lugBox").classList.remove("show"); $("lnBox").classList.add("show"); await cfgPlan(); pintarNochesLugar();
+}
+$("lnClose").onclick = () => $("lnBox").classList.remove("show");
+function lnGrupos(){
+  const m = new Map();
+  for (const f of frames){
+    if (!f.night) continue;
+    const e = equipoDe(f), k = f.night + "|" + e; let g = m.get(k);
+    if (!g){ g = {k, night: f.night, eq: e, fs: [], vivas: [], objs: new Map()}; m.set(k, g); }
+    g.fs.push(f);
+    if (!f.discarded){ g.vivas.push(f); const o = (f.object || "").trim() || "—"; g.objs.set(o, (g.objs.get(o) || 0) + (f.exp || 0)); }
+  }
+  return [...m.values()].filter(g => g.vivas.length).sort((a, b) => b.night.localeCompare(a.night) || a.eq.localeCompare(b.eq));
+}
+// pone el lugar (la clave de un desplegable) a unas tomas, lo guarda y repinta; devuelve lo que había antes
+function lugarAplicar(lista, k){
+  const sitio = sitioDeClave(k); if (sitio === undefined) return [];
+  const antes = ponerSitio(lista, sitio);
+  if (antes.length){ scheduleSave(); render(); }
+  return antes;
+}
+function pintarNochesLugar(enfocarQ){
+  if (!$("lnBox").classList.contains("show")) return;
+  const todos = lnGrupos().filter(g => !LN.obj || g.vivas.some(f => (f.object || "").trim() === LN.obj));
+  const sinLugar = g => g.vivas.some(f => !lugarDeToma(f)), nSin = todos.filter(sinLugar).length, q = LN.q.trim().toLowerCase();
+  const lista = todos.filter(g => (!LN.solo || sinLugar(g)) && (!q || [...g.objs.keys()].some(o => o.toLowerCase().includes(q))));
+  const vis = lista.slice(0, LN.max), hayLugares = lugaresGuardados().length + lugaresSinGuardar().length > 0;
+  const marcadasVis = vis.filter(g => LN.marcadas.has(g.k)).length, nMarc = todos.filter(g => LN.marcadas.has(g.k)).length;
+  const objs = g => { const o = [...g.objs].sort((a, b) => b[1] - a[1]).map(([n]) => n === "—" ? trLT("sin objeto", "no target") : n); return o.slice(0, 3).join(" · ") + (o.length > 3 ? ` · +${o.length - 3}` : ""); };
+  const filas = vis.map(g => `<tr><td class="chk"><input type="checkbox" data-ln-chk="${esc(g.k)}" ${LN.marcadas.has(g.k) ? "checked" : ""} aria-label="${esc(trLT("Marcar la sesión", "Select the session"))}"></td>
+      <td class="arcSesNoche"><b>${esc(fechaDia(g.night))}</b><div class="note">${esc(diaSemana(g.night))}</div></td><td class="notr">${esc(g.eq)}</td><td class="notr">${esc(objs(g))}</td>
+      <td class="num">${nfmt(g.vivas.length)}</td><td>${lugarCeldaSesion(g.night, g.eq, g.vivas, true)}</td></tr>`).join("");
+  $("lnBody").innerHTML = `
+    ${LN.hecho ? `<div class="lotesHecho"><span style="flex:1">${esc(LN.hecho.antes.length === 1 ? trLT("Hecho: 1 toma cambiada.", "Done: 1 frame changed.") : trLT("Hecho: {1} tomas cambiadas.", "Done: {1} frames changed.", nfmt(LN.hecho.antes.length)))}</span><button class="btn small" id="lnDeshacer">${esc(trLT("Deshacer", "Undo"))}</button></div>` : ""}
+    ${hayLugares ? "" : `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px">${esc(trLT("Aún no tienes ningún lugar guardado. Guarda uno (casa, el campo…) y vuelve aquí a asignarlo a tus noches.", "You haven't saved any place yet. Save one (home, the countryside…) and come back here to assign it to your nights."))}</span><button class="btn small primary" id="lnNuevo">${esc(trLT("Guardar un lugar", "Save a place"))}</button></div>`}
+    <div class="arcBarra" style="margin:0">
+      <div class="arcPest"><button class="${LN.solo ? "on" : ""}" data-ln-solo="1">${esc(trLT("Sin lugar", "No place"))} · ${nfmt(nSin)}</button><button class="${LN.solo ? "" : "on"}" data-ln-solo="0">${esc(trLT("Todas", "All"))} · ${nfmt(todos.length)}</button></div>
+      <input type="search" id="lnQ" value="${esc(LN.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">
+      ${LN.obj ? `<button class="btn small" id="lnObjQuitar">${esc(LN.obj)} ✕</button>` : ""}<span class="spacer"></span>
+      ${hayLugares ? `<a href="#" id="lnNuevo2">${esc(trLT("＋ Guardar un lugar nuevo", "＋ Save a new place"))}</a>` : ""}</div>
+    ${hayLugares && nMarc ? `<div class="lotesHecho"><span>${esc(nMarc === 1 ? trLT("1 sesión marcada.", "1 session selected.") : trLT("{1} sesiones marcadas.", "{1} sessions selected.", nfmt(nMarc)))}</span>
+      <select class="lugSel" id="lnLugar"><option value="-" selected disabled>${esc(trLT("Elige un lugar…", "Choose a place…"))}</option>${lugarOpcionesHTML("", true)}</select>
+      <button class="btn small primary" id="lnAplicar">${esc(trLT("Poner el lugar a las marcadas", "Set the place on the selected"))}</button><span class="spacer"></span><a href="#" id="lnDesmarcar">${esc(trLT("Quitar la marca", "Clear the selection"))}</a></div>` : ""}
+    <div class="tablewrap"><table class="arcSes" style="min-width:820px"><thead><tr><th class="chk"><input type="checkbox" id="lnTodas" ${vis.length && marcadasVis === vis.length ? "checked" : ""} aria-label="${esc(trLT("Marcar las que se ven", "Select the ones shown"))}"></th>
+      <th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Objetos", "Targets"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Lugar", "Place"))}</th></tr></thead>
+      <tbody>${filas}</tbody></table>${lista.length ? "" : `<div class="empty" style="display:block">${esc(LN.solo && !q && !nSin ? trLT("Todas las sesiones tienen lugar.", "Every session has a place.") : trLT("Ninguna sesión con esos filtros", "No sessions with those filters"))}</div>`}</div>
+    <div class="note">${esc(trLT("Se ven {1} de {2} sesiones.", "Showing {1} of {2} sessions.", nfmt(vis.length), nfmt(lista.length)))}${lista.length > vis.length ? ` <button class="btn small" id="lnMas">${esc(trLT("Ver más", "Show more"))}</button>` : ""}</div>`;
+  const b = $("lnBody");
+  b.querySelectorAll("[data-ln-solo]").forEach(x => x.onclick = () => { LN.solo = x.dataset.lnSolo === "1"; LN.max = 60; pintarNochesLugar(); });
+  $("lnQ").oninput = ev => { LN.q = ev.target.value; LN.max = 60; pintarNochesLugar(true); };
+  if (enfocarQ){ const i = $("lnQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+  if ($("lnObjQuitar")) $("lnObjQuitar").onclick = () => { LN.obj = ""; LN.max = 60; pintarNochesLugar(); };
+  b.querySelectorAll("input[data-ln-chk]").forEach(c => c.onchange = () => { c.checked ? LN.marcadas.add(c.dataset.lnChk) : LN.marcadas.delete(c.dataset.lnChk); pintarNochesLugar(); });
+  $("lnTodas").onchange = ev => { for (const g of vis) ev.target.checked ? LN.marcadas.add(g.k) : LN.marcadas.delete(g.k); pintarNochesLugar(); };
+  if ($("lnDesmarcar")) $("lnDesmarcar").onclick = ev => { ev.preventDefault(); LN.marcadas = new Set(); pintarNochesLugar(); };
+  b.querySelectorAll("select[data-lug-noche]").forEach(s => s.onchange = () => {
+    const antes = lugarAplicar(frames.filter(f => f.night === s.dataset.lugNoche && equipoDe(f) === s.dataset.lugEq), s.value);
+    if (antes.length) LN.hecho = {antes}; pintarNochesLugar(); });
+  if ($("lnAplicar")) $("lnAplicar").onclick = () => {
+    const k = $("lnLugar").value; if (k === "-") return toast(trLT("Elige primero el lugar", "Choose the place first"));
+    const antes = lugarAplicar(todos.filter(g => LN.marcadas.has(g.k)).flatMap(g => g.fs), k);
+    LN.hecho = antes.length ? {antes} : LN.hecho; LN.marcadas = new Set(); pintarNochesLugar(); };
+  if ($("lnDeshacer")) $("lnDeshacer").onclick = () => { deshacerSitio(LN.hecho.antes); LN.hecho = null; scheduleSave(); render(); toast(trLT("Cambio deshecho", "Change undone")); pintarNochesLugar(); };
+  if ($("lnMas")) $("lnMas").onclick = () => { LN.max += 60; pintarNochesLugar(); };
+  for (const id of ["lnNuevo", "lnNuevo2"]) if ($(id)) $(id).onclick = ev => { ev.preventDefault(); abrirLugares({nuevo: true}); };
+}
+function lugarGuardarSinGuardar(k){
+  const m = /^c(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(k || ""); if (!m) return;
+  abrirLugares({nuevo: {lat: +m[1], lon: +m[2]}});
+}
 function abrirGeneral(){
   const tema = document.documentElement.dataset.tema, ini = PREF_INICIO === "archivo" ? "archivo" : PREF_INICIO === "proyectos" ? "proyectos" : "";
   $("genBody").innerHTML = `
@@ -4813,7 +5045,7 @@ function abrirDesdeEnlace(){
 window.addEventListener("hashchange", abrirDesdeEnlace);
 
 /* ============ Archivo: años de tomas indexadas leyendo solo la cabecera; se analizan y depuran dentro de cada proyecto ============ */
-const ARC = {q:"", anio:"", mes:"", equipo:"", pendientes:false, orden:"horas", pestana:"proyectos", cal:null, calPedida:0, carpetas:null,
+const ARC = {q:"", anio:"", mes:"", equipo:"", lugar:"", pendientes:false, orden:"horas", pestana:"proyectos", cal:null, calPedida:0, carpetas:null,
              indexando:null, ultimo:null, analizando:null, parar:false, proyecto:"", apilados:{},
              estados:{}, procesado:{}, apil:null, apilPedida:0, estado:"", sesMax:150, sesProy:40};
 // «Archivo» ya está en el diccionario como «archivo de ordenador» (fichier, Datei…): el apartado tiene su propia clave
@@ -5100,13 +5332,30 @@ async function arcPonerEstado(obj, estado){
 }
 function textoEstado(k){ return textoEstadoP(k === "terminado" || k === "pausa" ? "capturado" : k); }
 const ORDEN_ESTADOS = ["nuevo", "curso", "capturado", "procesado", "archivado"];
+// la fecha del último apilado que incluye una toma: uno de todos los lugares o el de su lugar («» si nunca se apiló)
+function fechaApiladoToma(f, ap){
+  const l = lugarDeToma(f); let mejor = "";
+  for (const q of ap.por_lugar || []){
+    const u = q.lugar, d = String(q.fecha || "").slice(0, 10);
+    const cubre = !u ? true : u.sin ? !l : !!l && u.lat != null && distKm(l.lat, l.lon, +u.lat, +u.lon) <= RADIO_LUGAR_KM;
+    if (cubre && d > mejor) mejor = d;
+  }
+  return mejor;
+}
 function estadoProyecto(obj, p, util){
   // p: el proyecto con todas sus tomas; util: sus tomas útiles (las que entran en el apilado)
   // k es el estado del proyecto; el apilado no es un estado: «ap» y «nuevas» dicen cómo va el último apilado
   const man = estadoManual(obj), ap = ARC.apil ? ARC.apil[obj] : null;
-  let nuevas = 0;
-  if (ap){ const dia = String(ap.fecha || "").slice(0, 10); nuevas = (util || []).filter(f => (f.night || "") >= dia).length; }
-  return {k: estadoP(obj, !!(p && p.n)), man, ap, nuevas};
+  let nuevas = 0, nuevasLug = null;
+  if (ap){
+    const dia = String(ap.fecha || "").slice(0, 10);
+    if ((ap.por_lugar || []).some(q => q.lugar)){        // hay apilados de un solo lugar: cada toma cuenta desde el último que la incluyó
+      const m = new Map();
+      for (const f of util || []){ const d = fechaApiladoToma(f, ap); if (d && (f.night || "") < d) continue; nuevas++; const l = lugarDeToma(f), k = l ? l.nombre : ""; m.set(k, (m.get(k) || 0) + 1); }
+      nuevasLug = [...m].sort((a, b) => b[1] - a[1]);
+    } else nuevas = (util || []).filter(f => (f.night || "") >= dia).length;
+  }
+  return {k: estadoP(obj, !!(p && p.n)), man, ap, nuevas, nuevasLug};
 }
 function chipEstado(k){ return `<span class="arcEst e-${k}">${esc(textoEstado(k))}</span>`; }
 /* calidad de un grupo de tomas ya analizadas: qué parte vale para apilar y la FWHM mediana (en ″ si la cabecera trae la escala) */
@@ -5147,8 +5396,8 @@ function arcAgruparSesiones(lista){
     if (!f.night) continue;
     let n = noches.get(f.night); if (!n){ n = new Map(); noches.set(f.night, n); }
     const e = equipoDe(f); let x = n.get(e);
-    if (!x){ x = {n:0, util:0, seg:0, objs:new Map(), cal:calNueva()}; n.set(e, x); }
-    x.n++; calSumar(x.cal, f);
+    if (!x){ x = {n:0, util:0, seg:0, objs:new Map(), cal:calNueva(), fs:[]}; n.set(e, x); }
+    x.n++; x.fs.push(f); calSumar(x.cal, f);
     const o = (f.object || "").trim() || "—";
     let po = x.objs.get(o); if (!po){ po = {seg:0, n:0, filtros:new Map()}; x.objs.set(o, po); }
     po.n++;
@@ -5161,7 +5410,7 @@ function arcSesiones(lista){
   const noches = arcAgruparSesiones(lista), q = ARC.q.trim().toLowerCase();
   let ks = [...noches.keys()].sort().reverse();
   if (q) ks = ks.filter(k => [...noches.get(k).values()].some(x => [...x.objs.keys()].some(o => o.toLowerCase().includes(q))));
-  const vis = ks.slice(0, ARC.sesMax);
+  const vis = ks.slice(0, ARC.sesMax), conLugar = lugaresVarios();
   let filas = "";
   for (const k of vis){
     const eqs = [...noches.get(k)].sort((a, b) => b[1].seg - a[1].seg);
@@ -5169,7 +5418,7 @@ function arcSesiones(lista){
       const objs = [...x.objs].sort((a, b) => b[1].seg - a[1].seg);
       filas += `<tr class="${i ? "" : "arcSesPri"}">
         ${i ? "" : `<td rowspan="${eqs.length}" class="arcSesNoche"><b>${esc(fechaDia(k))}</b><div class="note">${esc(diaSemana(k))}</div></td>`}
-        <td class="notr">${esc(e)}</td>
+        <td class="notr">${esc(e)}</td>${conLugar ? `<td>${lugarCeldaSesion(k, e, x.fs)}</td>` : ""}
         <td>${objs.map(([o, po]) => `<div class="arcSesObj">${o === "—" ? `<span class="note">${esc(trLT("sin objeto", "no target"))}</span>` : `<a href="#" data-arc-ir="${esc(o)}" class="notr">${esc(o)}</a>`} <span class="chips">${chipsFiltros(po.filtros)}</span></div>`).join("")}</td>
         <td class="num">${nfmt(x.n)}${x.util !== x.n ? `<div class="note">${esc(trLT("{1} útiles", "{1} usable", nfmt(x.util)))}</div>` : ""}</td>
         <td class="num"><b>${esc(fmtH(x.seg / 3600))}</b></td>
@@ -5177,7 +5426,7 @@ function arcSesiones(lista){
         <td>${txtCalNoche(objs.map(([o]) => o), k)}</td></tr>`;
     });
   }
-  return `<div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Proyectos", "Projects"))}</th>
+  return `<div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th>${conLugar ? `<th>${esc(trLT("Lugar", "Place"))}</th>` : ""}<th>${esc(trLT("Proyectos", "Projects"))}</th>
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th></tr></thead>
       <tbody>${filas}</tbody></table>${ks.length ? "" : `<div class="empty" style="display:block">${esc(trLT("Ninguna sesión con esos filtros", "No sessions with those filters"))}</div>`}</div>
     <div class="note" style="margin-top:8px">${esc(trLT("{1} noches. Cada noche, los equipos que usaste y lo que hiciste con cada uno.", "{1} nights. For each night, the setups you used and what you shot with each one.", nfmt(ks.length)))}
@@ -5227,7 +5476,7 @@ function htmlCalPendiente(){
 function arcTomas(){
   // las tomas que cuentan en el archivo, con el año, el mes y el equipo elegidos
   return frames.filter(f => !f.discarded && (!ARC.anio || anioDe(f) === ARC.anio) && (!ARC.mes || (f.night || "").slice(0, 7) === ARC.mes) &&
-    (!ARC.equipo || equipoDe(f) === ARC.equipo));
+    (!ARC.equipo || equipoDe(f) === ARC.equipo) && (!ARC.lugar || pgClaveLugar(f) === ARC.lugar));
 }
 function arcProyectos(lista){
   const m = new Map();
@@ -5287,7 +5536,7 @@ function renderArchivo(){
   const q = ARC.q.trim().toLowerCase();
   const util = arcUtilPorObjeto();
   // el estado es del proyecto entero, aunque se esté mirando un año o un equipo
-  const enteros = ARC.anio || ARC.mes || ARC.equipo ? new Map(arcProyectos(frames.filter(f => !f.discarded)).map(p => [p.obj, p])) : null;
+  const enteros = ARC.anio || ARC.mes || ARC.equipo || ARC.lugar ? new Map(arcProyectos(frames.filter(f => !f.discarded)).map(p => [p.obj, p])) : null;
   for (const p of todos) p.est = estadoProyecto(p.obj, enteros ? enteros.get(p.obj) : p, util.get(p.obj));
   const porEstado = new Map(); for (const p of todos) porEstado.set(p.est.k, (porEstado.get(p.est.k) || 0) + 1);
   if (ARC.estado && !porEstado.get(ARC.estado)) ARC.estado = "";
@@ -5358,6 +5607,8 @@ function renderArchivo(){
     <select id="arcAnio">${opt("", trLT("Todos los años", "All years"), ARC.anio)}${anios.map(a => opt(a, a, ARC.anio)).join("")}</select>
     ${ARC.mes ? `<button class="btn small" id="arcMesQuitar">${esc(arcNombreMes(ARC.mes))} ✕</button>` : ""}
     <select id="arcEquipo">${opt("", trLT("Todos los equipos", "All setups"), ARC.equipo)}${equipos.map(e => opt(e, e, ARC.equipo)).join("")}</select>
+    ${(() => { if (!lugaresVarios()) return ""; const ls = lugaresDeLista(frames.filter(f => !f.discarded)); if (ARC.lugar && !ls.some(x => (x.k || PG_SINLUGAR) === ARC.lugar)) ARC.lugar = "";
+      return `<select id="arcLugar">${opt("", trLT("Todos los lugares", "All places"), ARC.lugar)}${ls.map(x => opt(x.k || PG_SINLUGAR, x.k ? x.nombre : trLT("Sin lugar", "No place"), ARC.lugar)).join("")}</select>`; })()}
     </div>`;
   if (ARC.pestana === "calendario") h += arcCalendario(anios);
   else if (ARC.pestana === "sesiones") h += arcSesiones(lista);
@@ -5994,6 +6245,8 @@ function arcEnlazar(){
   const q = $("arcQ"); if (q){ q.oninput = () => { ARC.q = q.value; clearTimeout(q._t); q._t = setTimeout(() => { const pos = q.selectionStart; renderArchivo(); const n = $("arcQ"); if (n){ n.focus(); try { n.setSelectionRange(pos, pos); } catch(_){} } }, 250); }; }
   if ($("arcAnio")) $("arcAnio").onchange = e => { ARC.anio = e.target.value; ARC.mes = ""; renderArchivo(); };
   if ($("arcEquipo")) $("arcEquipo").onchange = e => { ARC.equipo = e.target.value; renderArchivo(); };
+  if ($("arcLugar")) $("arcLugar").onchange = e => { ARC.lugar = e.target.value; renderArchivo(); };
+  enlazarLugarSesiones($("vistaArchivo"));
   if ($("arcOrden2")) $("arcOrden2").onchange = e => { ARC.orden = e.target.value; renderArchivo(); };
   if ($("arcPend")) $("arcPend").onchange = e => { ARC.pendientes = e.target.checked; renderArchivo(); };
   if ($("arcMesQuitar")) $("arcMesQuitar").onclick = () => { ARC.mes = ""; renderArchivo(); };
@@ -6015,10 +6268,10 @@ function enlaceVolver(){
 }
 // paso: el de la cadena que está abierto; det: los desplegables que el usuario ha abierto o cerrado; pend: hay un repintado
 // esperando a que se termine de escribir; tifOk: si el archivo de la imagen final existe (se comprueba de vez en cuando)
-const PG = {obj: "", paso: "", fijo: false, det: {}, pend: false, tifOk: {}, manual: false, cfg: false};
+const PG = {obj: "", paso: "", fijo: false, det: {}, pend: false, tifOk: {}, manual: false, cfg: false, lugar: ""};
 function abrirProyecto(obj){
   if (VISTA_ACTUAL !== "proyecto") VISTA_ANTES = VISTA_ACTUAL;
-  if (PG.obj !== obj){ PG.obj = obj; PG.paso = ""; PG.fijo = false; PG.manual = false; PG.det = {}; }
+  if (PG.obj !== obj){ PG.obj = obj; PG.paso = ""; PG.fijo = false; PG.manual = false; PG.det = {}; PG.lugar = ""; }
   ARC.proyecto = obj; ARC.sesProy = 40; mostrarVista("proyecto");
   if (!ARC.apilados[obj]) fetch("/api/apilado/lista?objeto=" + encodeURIComponent(obj)).then(r => r.json()).then(l => { ARC.apilados[obj] = l || []; if (VISTA_ACTUAL === "proyecto") renderProyecto(); }).catch(() => {});
   window.scrollTo({top:0});
@@ -6239,40 +6492,57 @@ function pgPanel(X){
 }
 
 /* 1 · Tomas: lo que hay (por filtro y temporada, por equipo, por lugar) y cada noche */
-function pgLugares(fl){
-  const m = new Map();
-  for (const f of fl){ const l = lugarDeToma(f); if (!l) continue;
-    let x = m.get(l.k); if (!x){ x = {nombre: l.nombre, noches: new Set(), seg: 0}; m.set(l.k, x); }
-    if (f.night) x.noches.add(f.night); if (esUtil(f)) x.seg += f.exp || 0; }
-  return [...m.values()].sort((a, b) => b.seg - a.seg);
+function pgLugares(fl){ return lugaresDeLista(fl); }
+// «Por lugar»: lo que hay hecho en cada sitio (noches, horas, calidad y cielo). Un clic en una fila deja la página solo con ese lugar
+function pgTablaLugares(ls, sel){
+  const cielo = x => {
+    const l = x.guardado ? lugaresGuardados().find(g => g.id === x.id) : null, bg = med(x.bg);
+    return [bg != null ? esc(numEs(bg, 1)) + " %" : "", l && l.bortle ? `Bortle ${esc(String(l.bortle))}` : "", l && l.sqm ? `SQM ${esc(numEs(+l.sqm, 1))}` : ""].filter(Boolean).join(" · ") || `<span class="note">—</span>`;
+  };
+  const fila = x => `<tr data-pg-lugar="${esc(x.k || PG_SINLUGAR)}" tabindex="0" class="${sel === (x.k || PG_SINLUGAR) ? "sel" : ""}">
+      <td>${x.k ? `<b class="notr">${esc(x.nombre)}</b>${x.guardado ? "" : `<div class="note">${esc(trLT("sin guardar", "unsaved"))} · <a href="#" data-pg-lugar-guardar="${esc(x.k)}">${esc(trLT("Guardar como lugar", "Save as a place"))}</a></div>`}`
+        : `<b>${esc(trLT("Sin lugar", "No place"))}</b><div class="note">${esc(trLT("las tomas sin coordenadas ni lugar puesto", "frames without coordinates or a place set"))} · <a href="#" data-pg-lugar-asignar="1">${esc(trLT("Asignar", "Assign"))}</a></div>`}</td>
+      <td class="num">${nfmt(x.noches.size)}</td><td class="num"><b>${esc(fmtH(x.seg / 3600))}</b></td>
+      <td class="num">${nfmt(x.n)}</td><td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td><td class="notr">${cielo(x)}</td></tr>`;
+  return `<h3 class="arcH" style="margin-top:0">${esc(trLT("Por lugar", "By place"))}<span class="note">${esc(trLT("Pulsa un lugar para ver solo sus tomas", "Click a place to see only its frames"))}</span>${sel ? `<span class="spacer"></span><a href="#" data-pg-lugar-todos="1">${esc(trLT("Ver todos los lugares", "Show all places"))}</a>` : ""}</h3>
+    <div class="tablewrap arcLugW"><table class="arcLug"><thead><tr><th>${esc(trLT("Lugar", "Place"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th>
+      <th>${esc(trLT("Calidad", "Quality"))}</th><th title="${esc(trLT("Fondo de cielo mediano de las tomas útiles, y lo que sabes de ese cielo", "Median sky background of the usable frames, and what you know about that sky"))}">${esc(trLT("Cielo", "Sky"))}</th></tr></thead>
+      <tbody>${ls.map(fila).join("")}</tbody></table></div>`;
 }
 function pgPanelTomas(X){
-  const {obj, p, ok, fl, anios} = X;
+  const {obj} = X;
+  let {p, ok, fl, anios} = X;
+  // con más de un lugar en el proyecto se puede separar: la tabla «Por lugar» y, al elegir uno, la página solo con sus tomas
+  const lugs = pgLugares(X.fl), reales = lugs.filter(x => x.k), varios = reales.length >= 2;
+  if (PG.lugar && !(varios && lugs.some(x => (x.k || PG_SINLUGAR) === PG.lugar))) PG.lugar = "";
+  if (PG.lugar){ fl = X.fl.filter(f => pgClaveLugar(f) === PG.lugar); p = arcProyectos(fl)[0] || p; ok = fl.filter(esUtil); anios = [...p.anios.keys()].sort(); }
   const filtros = [...p.filtros.keys()].sort((a, b) => p.filtros.get(b) - p.filtros.get(a));
   const celda = (fi, a) => { const s = ok.filter(f => nomFiltro(f.filter) === fi && anioDe(f) === a).reduce((x, f) => x + (f.exp || 0), 0); return s ? esc(fmtH(s / 3600)) : `<span class="note">·</span>`; };
-  const lugares = pgLugares(fl);
-  let h = `<div class="arcDos"><div class="tablewrap"><table class="arcFxA"><thead><tr><th>${esc(trLT("Filtro", "Filter"))}</th>${anios.map(a => `<th>${esc(a)}</th>`).join("")}<th>${esc(trLT("Total", "Total"))}</th></tr></thead><tbody>
+  // un solo lugar: la lista corta de siempre, al lado de los equipos
+  const lugares = varios ? [] : lugs;
+  let h = varios ? pgTablaLugares(lugs, PG.lugar) : "";
+  h += `<div class="arcDos"><div class="tablewrap"><table class="arcFxA"><thead><tr><th>${esc(trLT("Filtro", "Filter"))}</th>${anios.map(a => `<th>${esc(a)}</th>`).join("")}<th>${esc(trLT("Total", "Total"))}</th></tr></thead><tbody>
     ${filtros.map(fi => `<tr><td><span class="fchip" style="--c:${COLOR_FILTRO(fi)}">${esc(fi)}</span></td>${anios.map(a => `<td class="num">${celda(fi, a)}</td>`).join("")}<td class="num"><b>${esc(fmtH(p.filtros.get(fi) / 3600))}</b></td></tr>`).join("")}
     </tbody></table></div>
     <div class="arcEquipos"><h4>${esc(trLT("Equipos", "Setups"))}</h4>${[...p.equipos].map(e => { const s = ok.filter(f => equipoDe(f) === e).reduce((x, f) => x + (f.exp || 0), 0);
       return `<div><span>${esc(e)}</span><b>${esc(fmtH(s / 3600))}</b></div>`; }).join("")}
-      ${lugares.length ? `<h4 class="pgH4b">${esc(trLT("Lugares", "Places"))}</h4>${lugares.map(x => `<div><span class="notr">${esc(x.nombre)}<small class="note"> · ${esc(nNoches(x.noches.size))}</small></span><b>${esc(fmtH(x.seg / 3600))}</b></div>`).join("")}` : ""}</div></div>`;
+      ${lugares.some(x => x.k) ? `<h4 class="pgH4b">${esc(trLT("Lugares", "Places"))}</h4>${lugares.map(x => `<div><span class="notr">${esc(x.k ? x.nombre : trLT("Sin lugar", "No place"))}<small class="note"> · ${esc(nNoches(x.noches.size))}</small></span><b>${esc(fmtH(x.seg / 3600))}</b></div>`).join("")}` : ""}</div></div>`;
   h += `<div id="objEquipos"></div>`;
   // sesiones: cada noche, con qué equipo, cuánto de cada filtro y cómo salió
-  const ses = arcAgruparSesiones(fl), ksS = [...ses.keys()].sort().reverse(), visS = ksS.slice(0, ARC.sesProy);
+  const ses = arcAgruparSesiones(fl), ksS = [...ses.keys()].sort().reverse(), visS = ksS.slice(0, ARC.sesProy), conLugar = lugaresVarios();
   let filasS = "";
   for (const k of visS){
     const eqs = [...ses.get(k)].sort((a, b) => b[1].seg - a[1].seg);
     eqs.forEach(([e, x], i) => { const po = x.objs.get(obj) || {filtros:new Map()};
       filasS += `<tr class="${i ? "" : "arcSesPri"}">${i ? "" : `<td rowspan="${eqs.length}" class="arcSesNoche"><b>${esc(fechaDia(k))}</b><div class="note">${esc(diaSemana(k))}</div></td>`}
-        <td class="notr">${esc(e)}</td><td><span class="chips">${chipsFiltros(po.filtros)}</span></td>
+        <td class="notr">${esc(e)}</td>${conLugar ? `<td>${lugarCeldaSesion(k, e, x.fs)}</td>` : ""}<td><span class="chips">${chipsFiltros(po.filtros)}</span></td>
         <td class="num">${nfmt(x.n)}${x.util !== x.n ? `<div class="note">${esc(trLT("{1} útiles", "{1} usable", nfmt(x.util)))}</div>` : ""}</td>
         <td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td>
         <td>${txtCalNoche([obj], k)}</td>
         <td style="white-space:nowrap"><button class="btn small" data-arc-noche="${esc(k)}">${esc(trLT("Ver tomas", "See frames"))}</button> <button class="btn small" data-arc-parp="${esc(k)}" title="${esc(trLT("Pasar las tomas de esta noche una a una", "Go through this night's frames one by one"))}">${esc(trLT("Parpadeo", "Blink"))}</button></td></tr>`; });
   }
   h += `<h3 class="arcH">${esc(trLT("Sesiones", "Sessions"))} <span class="note">${esc(nNoches(ksS.length))}</span><span class="spacer"></span>${pgBtn(trLT("Ver todas las tomas", "See all the frames"), "tomas")}</h3>
-    <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Filtros", "Filters"))}</th>
+    <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th>${conLugar ? `<th>${esc(trLT("Lugar", "Place"))}</th>` : ""}<th>${esc(trLT("Filtros", "Filters"))}</th>
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th><th></th></tr></thead><tbody>${filasS}</tbody></table></div>
     ${ksS.length > visS.length ? `<div style="margin-top:8px"><button class="btn small" id="arcSesProyMas">${esc(trLT("Ver todas las noches", "Show all nights"))}</button></div>` : ""}`;
   return h;
@@ -6318,12 +6588,12 @@ function pgPanelApilado(X){
     <div class="pgAcc">${cal ? pgBtn(trLT("Qué calibra cada noche", "What calibrates each night"), "cobertura") : ""}${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}${cal && (cal.sin_dark || cal.sin_flat) && ARC.calPend && (ARC.calPend.dirs || ARC.calPend.archivos) ? pgBtn(trLT("Añadir la calibración de tus carpetas", "Add the calibration from your folders"), "calenviar", true) : ""}</div></div>`;
   h += `<div class="pgBloque"><h4>${esc(trLT("Apilados", "Stacks"))}</h4>`;
   if (ap.length){
-    h += `<div class="pgApilados">${ap.slice(0, 6).map((a, i) => `<div class="pgAp"><b>${esc(fechaDia(String(a.fecha).slice(0, 10)))}</b>
+    h += `<div class="pgApilados">${ap.slice(0, 6).map((a, i) => `<div class="pgAp"><b>${esc(fechaDia(String(a.fecha).slice(0, 10)))}</b>${a.lugar ? `<span class="lugChip notr" title="${esc(trLT("Solo con las tomas de este lugar", "Only with the frames from this place"))}">${esc(a.lugar.sin ? trLT("sin lugar", "no place") : a.lugar.nombre || nombreLugar(a.lugar))}</span>` : ""}
       <span class="chips">${(a.filtros || []).map(fi => `<span class="fchip notr" style="--c:${COLOR_FILTRO(fi)}">${esc(nomFiltro(fi))}</span>`).join("")}</span>
       <span class="note">${a.tomas ? esc(trLT("{1} tomas · {2}", "{1} frames · {2}", nfmt(a.tomas), fmtH(a.horas || 0))) : ""}${a.ponderado ? " · " + esc(trLT("con pesos", "weighted")) : ""}</span>
       <button class="btn small" data-pg-carpeta="${i}">${esc(trLT("Abrir la carpeta", "Open the folder"))}</button></div>`).join("")}</div>
       ${ap.length > 6 ? `<div class="note">${esc(trLT("{1} apilados en total.", "{1} stacks in total.", nfmt(ap.length)))}</div>` : ""}`;
-    if (est.nuevas) h += `<p class="arcAviso">${esc(trLT("Desde el último apilado hay {1} tomas útiles nuevas.", "Since the latest stack there are {1} new usable frames.", nfmt(est.nuevas)))}</p>`;
+    if (est.nuevas) h += `<p class="arcAviso">${esc(trLT("Desde el último apilado hay {1} tomas útiles nuevas.", "Since the latest stack there are {1} new usable frames.", nfmt(est.nuevas)))}${est.nuevasLug && est.nuevasLug.length > 1 ? `<span class="notr"> (${esc(est.nuevasLug.map(([n, c]) => (n || trLT("sin lugar", "no place")) + " " + nfmt(c)).join(" · "))})</span>` : ""}</p>`;
   } else h += `<p class="note">${esc(trLT("Aún sin apilar.", "Not stacked yet."))}</p>`;
   h += `<div class="pgAcc">${pgBtn(ap.length ? trLT("Volver a apilar con Siril", "Stack again with Siril") : trLT("Apilar con Siril", "Stack with Siril"), "apilar", !c.na && (!ap.length || !!est.nuevas))}</div></div>`;
   return h;
@@ -6344,7 +6614,7 @@ function pgFichaTxt(X){
   lin.push([...p.equipos].join(" + "));
   const g = med(ok.map(f => f.gain)), t = med(ok.map(f => f.temp));
   if (g != null || t != null) lin.push([g != null ? "gain " + numEs(g) : "", t != null ? numEs(Math.round(t)) + " °C" : ""].filter(Boolean).join(" · "));
-  const lu = pgLugares(fl).map(x => x.nombre); if (lu.length) lin.push(trLT("Lugar: {1}", "Location: {1}", lu.join("; ")));
+  const lu = pgLugares(fl).filter(x => x.k).map(x => x.nombre); if (lu.length) lin.push(trLT("Lugar: {1}", "Location: {1}", lu.join("; ")));
   return lin.filter(Boolean).join("\n");
 }
 function pgPanelProcesado(X){
@@ -6390,6 +6660,13 @@ function pgEnlazar(el, X){
   el.querySelectorAll("[data-arc-parp]").forEach(b => b.onclick = () => { const n = b.dataset.arcParp;
     abrirParpadeo(frames.filter(f => (f.object || "").trim() === obj && f.night === n), obj + " · " + fechaDia(n)); });
   if ($("arcSesProyMas")) $("arcSesProyMas").onclick = () => { ARC.sesProy = 100000; renderProyecto(true); };
+  // por lugar: un clic en una fila deja solo ese lugar; otro clic en la misma, todos
+  el.querySelectorAll("tr[data-pg-lugar]").forEach(r => { const ir = () => { const k = r.dataset.pgLugar; PG.lugar = PG.lugar === k ? "" : k; renderProyecto(true); };
+    r.onclick = ir; r.onkeydown = ev => { if (ev.key === "Enter" && ev.target === r) ir(); }; });
+  el.querySelectorAll("[data-pg-lugar-todos]").forEach(a => a.onclick = ev => { ev.preventDefault(); PG.lugar = ""; renderProyecto(true); });
+  el.querySelectorAll("[data-pg-lugar-guardar]").forEach(a => a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); lugarGuardarSinGuardar(a.dataset.pgLugarGuardar); });
+  el.querySelectorAll("[data-pg-lugar-asignar]").forEach(a => a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); abrirNochesLugar(obj); });
+  enlazarLugarSesiones(el);
   el.querySelectorAll("[data-pg-estado]").forEach(b => b.onclick = () => arcPonerEstado(obj, b.dataset.pgEstado === "curso" ? "" : b.dataset.pgEstado));
   el.querySelectorAll("[data-pg-horas]").forEach(b => b.onclick = () => { PG.det.horas = b.dataset.pgHoras === "1"; renderProyecto(true); });
   el.querySelectorAll("[data-pg-paso]").forEach(b => b.onclick = () => { PG.paso = b.dataset.pgPaso; PG.fijo = true; renderProyecto(true); });
@@ -6449,7 +6726,7 @@ function arcAccion(a, obj){
     return fetch("/api/apilado/vista", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})})
       .then(async r => { if (!r.ok) return toast(await r.text()); delete ARC.apilados[obj]; stkOpen(); });
   }
-  if (a === "apilar"){ STK_PREF = obj; return stkOpen(); }
+  if (a === "apilar"){ STK_PREF = obj; if (PG.lugar && PG.obj === obj) STK_LUGAR_PREF = PG.lugar; return stkOpen(); }
   if (a === "noches") return abrirNoches();
   if (a === "retomar") return arcPonerEstado(obj, "");
   if (a === "terminar") return arcPonerEstado(obj, "capturado");
@@ -6561,6 +6838,27 @@ function stkSugerido(objs){
   return cand.length ? cand[0].obj : "";
 }
 let STK_ELEGIDO = "";      // el objeto que eligió quien usa el programa (el que propone ASTRO no cuenta)
+let STK_LUGAR = "", STK_LUGAR_PREF = null;      // el lugar que se apila («» son todos los lugares juntos) y el que pide quien abre la ventana
+// los lugares de las tomas utilizables de un objeto, para elegir uno: solo si hay más de uno (con «sin lugar» al final si lo hay)
+function stkLugaresObjeto(obj){
+  const ls = lugaresDeLista(frames.filter(f => !f.discarded && f.status !== "bad" && (f.object || "").trim() === obj));
+  return ls.filter(x => x.k).length > 1 ? ls : [];
+}
+function stkPintarLugar(){
+  const obj = $("stkObj").value, ls = obj ? stkLugaresObjeto(obj) : [];
+  if (!ls.some(x => (x.k || PG_SINLUGAR) === STK_LUGAR)) STK_LUGAR = "";
+  $("stkFilaLugar").style.display = ls.length ? "" : "none";
+  $("stkLugar").innerHTML = ls.length ? `<option value="">${esc(trLT("Todos los lugares, juntos", "All places, together"))}</option>`
+    + ls.map(x => `<option value="${esc(x.k || PG_SINLUGAR)}" class="notr">${esc(x.k ? x.nombre : trLT("Sin lugar", "No place"))} · ${esc(nNoches(x.noches.size))} · ${esc(fmtH(x.seg / 3600))}</option>`).join("") : "";
+  $("stkLugar").value = STK_LUGAR;
+}
+// las tomas de ese lugar (null: todas) y cómo se apunta el lugar en el apilado
+function stkIds(obj){ return STK_LUGAR ? frames.filter(f => (f.object || "").trim() === obj && pgClaveLugar(f) === STK_LUGAR).map(f => f.id) : null; }
+function stkLugarInfo(obj){
+  if (!STK_LUGAR) return null;
+  if (STK_LUGAR === PG_SINLUGAR) return {sin: true, nombre: ""};
+  const x = stkLugaresObjeto(obj).find(y => y.k === STK_LUGAR); return x ? {nombre: x.nombre, lat: x.lat, lon: x.lon} : null;
+}
 async function stkOpen(){
   $("stackBox").classList.add("show");
   const objs = new Map();
@@ -6577,7 +6875,7 @@ async function stkOpen(){
     : (curso.length ? curso : resto).map(txt).join("");
   const sug = stkSugerido(objs), fo = [...filters.object].find(o => objs.has(o));
   if (STK_PREF && objs.has(STK_PREF)) sel.value = STK_PREF; else if (STK_ELEGIDO && objs.has(STK_ELEGIDO)) sel.value = STK_ELEGIDO; else if (fo) sel.value = fo; else if (sug) sel.value = sug;
-  STK_PREF = null;
+  STK_PREF = null; STK_LUGAR = STK_LUGAR_PREF || ""; STK_LUGAR_PREF = null; stkPintarLugar();
   $("stkEjemplo").style.display = EJEMPLO_ASTRO ? "block" : "none";
   const e = await (await fetch("/api/apilado/estado")).json();
   $("stkSiril").innerHTML = e.siril ? `<span class="dot ok"></span>Siril ${esc(e.siril_version||"")} encontrado.` :
@@ -6590,13 +6888,14 @@ async function stkPlan(){
   // una respuesta que llega tarde (se eligió otro objeto mientras tanto) no pisa la del objeto que se ve
   const yo = ++STK_SEQ;
   $("stkPlan").innerHTML='<div class="note">Buscando tomas, darks y flats…</div>'; $("stkGo").disabled=true;
-  const r = await fetch("/api/apilado/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:obj,avisos:$("stkWarn").checked})});
+  const lug = STK_LUGAR, ids = stkIds(obj), cuerpo = {objeto: obj, avisos: $("stkWarn").checked}; if (ids) cuerpo.ids = ids;
+  const r = await fetch("/api/apilado/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cuerpo)});
   if (yo !== STK_SEQ) return;
   if (!r.ok){ $("stkPlan").innerHTML=`<div class="status bad">${esc(await r.text())}</div>`; return; }
   const p0 = await r.json();
   if (yo !== STK_SEQ || $("stkObj").value !== obj) return;
-  const p = STK_PLAN = p0;
-  const ex = p.excluidas, exTxt = [ex.rechazadas&&`${ex.rechazadas} rechazables/sin elegir`, ex.descartadas&&`${ex.descartadas} descartadas`,
+  const p = STK_PLAN = p0; p.lugarK = lug;
+  const ex = p.excluidas, exTxt = [ex.otro_lugar&&trLT("{1} de otros lugares", "{1} from other places", nfmt(ex.otro_lugar)), ex.rechazadas&&`${ex.rechazadas} rechazables/sin elegir`, ex.descartadas&&`${ex.descartadas} descartadas`,
     ex.fuera&&`${ex.fuera} fuera del apilado (${(p.noches_fuera||[]).map(fechaCorta).join(", ")})`, ex.corte&&`${ex.corte} por tu corte de calidad`, ex.limite&&`${ex.limite} por los límites del proyecto`, ex.sin_archivo&&`${ex.sin_archivo} sin archivo en el disco`, ex.sin_conectar&&`${ex.sin_conectar} en su carpeta original, que ahora no está conectada`, ex.formato&&`${ex.formato} en formato que esta versión de Siril no lee`].filter(Boolean).join(" · ");
   let h = `<div class="stk"><table><thead><tr><th></th><th>Filtro</th><th>Tomas</th><th>Tiempo</th><th>Darks</th><th>Flats</th><th>Avisos</th></tr></thead><tbody>`;
   for (const f of p.filtros){
@@ -6618,13 +6917,16 @@ async function stkPlan(){
 }
 $("btnStack").onclick = stkOpen;
 $("stkClose").onclick = ()=>{ $("stackBox").classList.remove("show"); clearTimeout(STK_T); };
-$("stkObj").onchange = () => { STK_ELEGIDO = $("stkObj").value; stkPlan(); }; $("stkWarn").onchange = stkPlan;
+$("stkObj").onchange = () => { STK_ELEGIDO = $("stkObj").value; STK_LUGAR = ""; stkPintarLugar(); stkPlan(); }; $("stkWarn").onchange = stkPlan;
+$("stkLugar").onchange = () => { STK_LUGAR = $("stkLugar").value; stkPlan(); };
 $("stkGo").onclick = async ()=>{
   const fs=[...document.querySelectorAll(".stkF:checked")].map(c=>c.value); if (!fs.length) return toast("Marca al menos un filtro");
-  if (!STK_PLAN || STK_PLAN.objeto !== $("stkObj").value){ stkPlan(); return toast("Espera a que termine de preparar el apilado de este objeto"); }
+  if (!STK_PLAN || STK_PLAN.objeto !== $("stkObj").value || STK_PLAN.lugarK !== STK_LUGAR){ stkPlan(); return toast("Espera a que termine de preparar el apilado de este objeto"); }
   const faltan = STK_PLAN.filtros.filter(f=>fs.includes(f.filtro) && f.avisos.length);
   if (faltan.length && !_co_crudo(tr("Hay avisos en: "+faltan.map(f=>nomFiltro(f.filtro)).join(", "))+"\n\n"+faltan.map(f=>nomFiltro(f.filtro)+": "+f.avisos.map(a=>tr(a)).join("; ")).join("\n")+"\n\n"+tr("¿Apilar de todas formas?"))) return;
-  const r = await fetch("/api/apilado/iniciar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objeto:STK_PLAN.objeto,filtros:fs,avisos:$("stkWarn").checked,vista:$("stkVista").checked,pesos:$("stkPesos").checked})});
+  const ids = stkIds(STK_PLAN.objeto), cuerpo = {objeto:STK_PLAN.objeto,filtros:fs,avisos:$("stkWarn").checked,vista:$("stkVista").checked,pesos:$("stkPesos").checked};
+  if (ids){ cuerpo.ids = ids; cuerpo.lugar = stkLugarInfo(STK_PLAN.objeto); }
+  const r = await fetch("/api/apilado/iniciar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cuerpo)});
   if (!r.ok) return alert(await r.text());
   stkRunView(); stkPoll();
 };
@@ -6729,12 +7031,10 @@ function coordsObjeto(obj){
   const cs = frames.filter(f=>(f.object||"")===obj).map(coordsToma).filter(Boolean); if (!cs.length) return null;
   return {ra: medianaAng(cs.map(c=>c.ra)), dec: med(cs.map(c=>c.dec))};
 }
+// el sitio que sugiero cuando no hay ninguno guardado: donde están la mayoría de las tomas que no caen en un lugar guardado
 function lugarDeTomas(){
-  const la = [], lo = [];
-  for (const f of frames){ const h = f.header || {};
-    const a = angulo(h.SITELAT ?? h["LAT-OBS"] ?? h["OBSGEO-B"] ?? null, false), b = angulo(h.SITELONG ?? h["LONG-OBS"] ?? h["OBSGEO-L"] ?? null, false);
-    if (a!==null && b!==null && Math.abs(a)<=90 && Math.abs(b)<=180 && (a||b)){ la.push(a); lo.push(b); } }
-  return la.length ? {lat: med(la), lon: med(lo)} : null;
+  const g = lugaresSinGuardar().slice().sort((x, y) => (y.n || 0) - (x.n || 0))[0];
+  return g ? {lat: g.lat, lon: g.lon} : null;
 }
 function claseFiltro(fi){
   const t = String(fi||"").trim().toLowerCase();
@@ -6875,8 +7175,9 @@ function activarHorizonte(raiz, c){
   };
   const q = raiz.querySelector(".plHzQuitar");
   // se quita también del lugar activo: si no, al cambiar de lugar o al guardarlo volvía
-  if (q) q.onclick = async ()=>{ const c = await cfgPlan(), a = lugarActivo(c), ls = lugaresDe(c).map(x => a && x.id === a.id ? Object.assign({}, x, {horizonte:null}) : x);
-    await guardarCfgPlan(a ? {horizonte:null, lugares: ls} : {horizonte:null}); toast("Horizonte quitado"); raiz._alCambiar && raiz._alCambiar(); };
+  if (q) q.onclick = async ()=>{ const c = await cfgPlan(), a = lugarEnForm(raiz, c), act = lugarActivo(c), ls = lugaresDe(c).map(x => a && x.id === a.id ? Object.assign({}, x, {horizonte:null}) : x);
+    const d = a ? {lugares: ls} : {}; if (!a || (act && act.id === a.id)) d.horizonte = null;
+    await guardarCfgPlan(d); toast("Horizonte quitado"); raiz._alCambiar && raiz._alCambiar(); };
 }
 
 /* --- el tiempo hora a hora de una noche --- */
@@ -6947,24 +7248,31 @@ function selectorLugares(c, clase){
   if (ls.length < 2) return a ? `<span class="notr">${esc(nombreLugar(a))}</span>` : "";
   return `<select class="${clase}">${ls.map(l=>`<option class="notr" value="${esc(l.id)}" ${a&&l.id===a.id?"selected":""}>${esc(nombreLugar(l))}</option>`).join("")}</select>`;
 }
-function formLugarHTML(c){
-  const t = lugarDeTomas(), ls = lugaresDe(c), a = lugarActivo(c), l = a;
+// el lugar que enseña un formulario: el que se edita, ninguno si es nuevo y, si no, el de planificar
+function lugarEnForm(raiz, c){ if (raiz._nuevo) return null; return (raiz._editar && lugaresDe(c).find(x => x.id === raiz._editar)) || lugarActivo(c); }
+// o: {editar: id de un lugar, nuevo: true o {lat, lon}, sinSelector: sin el desplegable de arriba (la ventana de lugares ya tiene su tabla)}
+function formLugarHTML(c, o){
+  o = o || {};
+  const ls = lugaresDe(c), l = o.nuevo ? null : (o.editar && ls.find(x => x.id === o.editar)) || lugarActivo(c), t = o.sinSelector ? null : lugarDeTomas();
+  const pre = o.nuevo && typeof o.nuevo === "object" ? o.nuevo : null, lat = pre ? pre.lat : l ? l.lat : "", lon = pre ? pre.lon : l ? l.lon : "";
+  const campo = "padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:inherit";
   return `<div class="plLugar">
-    ${ls.length ? `<div class="plLugares"><span class="note">Lugar:</span> ${selectorLugares(c, "plSel")}
+    ${o.sinSelector ? `<h3 class="arcH" style="margin:0 0 6px">${esc(o.nuevo ? trLT("Lugar nuevo", "New place") : trLT("Editar «{1}»", "Edit “{1}”", nombreLugar(l)))}</h3>` : ""}
+    ${ls.length && !o.sinSelector ? `<div class="plLugares"><span class="note">Lugar:</span> ${selectorLugares(c, "plSel")}
       <button class="btn small plNuevo">＋ Otro lugar</button>${ls.length>1?`<button class="btn small plBorrar">Quitar este lugar</button>`:""}</div>` : ""}
-    <div class="note" style="margin-bottom:6px">${l ? `Coordenadas: <b class="notr">${(+l.lat).toFixed(3)}, ${(+l.lon).toFixed(3)}</b> · altura mínima ${l.alt_min||30}°` : "Para saber qué se ve cada noche necesito tu lugar de observación. Se guarda solo en tu ordenador. Puedes guardar varios (casa, observatorio, campo…)."}</div>
+    <div class="note" style="margin-bottom:6px">${o.nuevo ? esc(trLT("Escribe el nombre y las coordenadas del nuevo lugar y pulsa «Guardar»", "Type the name and coordinates of the new place and press “Save”")) : l ? `Coordenadas: <b class="notr">${(+l.lat).toFixed(3)}, ${(+l.lon).toFixed(3)}</b> · altura mínima ${l.alt_min||30}°` : "Para saber qué se ve cada noche necesito tu lugar de observación. Se guarda solo en tu ordenador. Puedes guardar varios (casa, observatorio, campo…)."}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input class="plNombre" placeholder="Nombre, p. ej. Casa u Observatorio" value="${esc(l&&l.nombre||"")}" style="width:220px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:inherit">
+      <input class="plNombre" placeholder="Nombre, p. ej. Casa u Observatorio" value="${esc(l&&l.nombre||"")}" style="width:220px;${campo}">
       ${t?`<button class="btn small plTomas">Usar el de mis tomas (<span class="notr">${t.lat.toFixed(2)}, ${t.lon.toFixed(2)}</span>)</button>`:""}
       <button class="btn small plGeo">Usar mi ubicación actual</button>
       <span style="font-size:13px">o escríbelo:</span>
-      <input class="plLat" type="number" step="0.001" placeholder="latitud" value="${l?l.lat:""}" style="width:92px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:inherit">
-      <input class="plLon" type="number" step="0.001" placeholder="longitud" value="${l?l.lon:""}" style="width:92px;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:inherit">
+      <input class="plLat" type="number" step="0.001" placeholder="latitud" value="${lat}" style="width:92px;${campo}">
+      <input class="plLon" type="number" step="0.001" placeholder="longitud" value="${lon}" style="width:92px;${campo}">
       <label style="font-size:13px">altura mínima <select class="plAlt" style="padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:inherit">${[10,15,20,25,30,35,40,45,50].map(x=>`<option ${x===((l&&l.alt_min)||30)?"selected":""}>${x}</option>`).join("")}</select>°</label>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" class="plTiempo" ${c.tiempo===false?"":"checked"}> previsión del tiempo</label>
     </div>
     ${formHorizonteHTML({horizonte: l && l.horizonte, alt_min: (l&&l.alt_min)||30})}
-    <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn small primary plGuardar">Guardar</button></div>
+    <div style="display:flex;justify-content:${o.sinSelector ? "space-between" : "flex-end"};gap:8px;margin-top:8px">${o.sinSelector && !o.nuevo && ls.length > 1 ? `<button class="btn small plBorrar">Quitar este lugar</button>` : "<span></span>"}<button class="btn small primary plGuardar">Guardar</button></div>
     <div class="note" style="margin-top:4px">La longitud es negativa al oeste de Greenwich (en España casi siempre negativa). La previsión del tiempo la da Open-Meteo.com: para pedirla se envía solo tu posición aproximada.</div>
   </div>`;
 }
@@ -6972,13 +7280,15 @@ function activarLugar(raiz, alCambiar){
   raiz._alCambiar = alCambiar;
   const guardar = async (lat, lon) => {
     if (!(Math.abs(lat)<=90 && Math.abs(lon)<=180)) return toast("Latitud o longitud no válidas");
-    const c = await cfgPlan(), ls = lugaresDe(c).slice(), a = raiz._nuevo ? null : lugarActivo(c);
+    const c = await cfgPlan(), ls = lugaresDe(c).slice(), act = lugarActivo(c), a = lugarEnForm(raiz, c);
     const hz = leerHorizonteForm(raiz);
     // sobre el lugar que había: su Bortle, SQM, seeing y lo demás que se pone en «Mi equipo» no se pierden al guardarlo aquí
     const l = Object.assign({}, a || {}, {id: a ? a.id : "l" + Date.now().toString(36), nombre: raiz.querySelector(".plNombre").value.trim(), lat:+(+lat).toFixed(4), lon:+(+lon).toFixed(4),
       alt_min:+raiz.querySelector(".plAlt").value, horizonte: hz === undefined ? (a ? a.horizonte||null : null) : hz});
     const i = ls.findIndex(x=>x.id===l.id); if (i >= 0) ls[i] = l; else ls.push(l);
-    await guardarCfgPlan({lugares: ls, lugar_activo: l.id, lugar:{lat:l.lat, lon:l.lon, nombre:l.nombre}, alt_min:l.alt_min, horizonte:l.horizonte, tiempo:raiz.querySelector(".plTiempo").checked});
+    // el lugar desde el que se planifica pasa a ser el que se guarda, salvo en la ventana de lugares, donde se queda el que había
+    const q = raiz._respetarActivo && act && act.id !== l.id ? act : l;
+    await guardarCfgPlan({lugares: ls, lugar_activo: q.id, lugar:{lat:q.lat, lon:q.lon, nombre:q.nombre||""}, alt_min:q.alt_min, horizonte:q.horizonte, tiempo:raiz.querySelector(".plTiempo").checked});
     raiz._nuevo = false; toast("Lugar guardado"); alCambiar(); programarEstaNoche();
   };
   const b1 = raiz.querySelector(".plTomas"); if (b1) b1.onclick = ()=>{ const t = lugarDeTomas(); guardar(t.lat, t.lon); };
@@ -6998,12 +7308,12 @@ function activarLugar(raiz, alCambiar){
     toast("Escribe el nombre y las coordenadas del nuevo lugar y pulsa «Guardar»");
   };
   const borrar = raiz.querySelector(".plBorrar"); if (borrar) borrar.onclick = async ()=>{
-    const c = await cfgPlan(), a = lugarActivo(c); if (!a || !confirm("¿Quitar el lugar «" + nombreLugar(a) + "»?")) return;
-    const ls = lugaresDe(c).filter(x=>x.id!==a.id), n = ls[0];
+    const c = await cfgPlan(), a = lugarEnForm(raiz, c); if (!a || !confirm("¿Quitar el lugar «" + nombreLugar(a) + "»?")) return;
+    const ls = lugaresDe(c).filter(x=>x.id!==a.id), act = lugarActivo(c), n = act && act.id !== a.id ? act : ls[0];
     await guardarCfgPlan({lugares: ls, lugar_activo: n.id, lugar:{lat:n.lat, lon:n.lon, nombre:n.nombre||""}, alt_min:n.alt_min||30, horizonte:n.horizonte||null});
     alCambiar(); programarEstaNoche();
   };
-  const a0 = lugarActivo(PLAN_CFG||{});
+  const a0 = lugarEnForm(raiz, PLAN_CFG||{});
   activarHorizonte(raiz, {alt_min: +(raiz.querySelector(".plAlt")||{}).value || 30, horizonte: a0 ? a0.horizonte||null : null});
 }
 
@@ -11132,15 +11442,20 @@ def estimar_bytes(n, w, h, bits):
     return int(n * (w or 9576) * (h or 6388) * bits / 8 * 2.2)
 
 
-def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True):
+def planificar(objeto, avisos_ok=True, incluir_sin_analizar=True, ids=None):
     siril, ver = buscar_siril()
     xisf_ok = version_ge(ver, "1.4") if ver else False
     db = leer_json(DB, {"frames": []})
     estados = {"ok"} | ({"warn"} if avisos_ok else set()) | ({"na"} if incluir_sin_analizar else set())
-    lights, excluidas = [], {"rechazadas": 0, "descartadas": 0, "fuera": 0, "corte": 0, "limite": 0, "sin_archivo": 0, "sin_conectar": 0, "formato": 0}
+    lights, excluidas = [], {"rechazadas": 0, "descartadas": 0, "fuera": 0, "corte": 0, "limite": 0, "sin_archivo": 0, "sin_conectar": 0, "formato": 0, "otro_lugar": 0}
     noches_fuera = set()
+    permitidas = {str(i) for i in ids} if isinstance(ids, (list, tuple, set)) else None     # solo las tomas de un lugar (None: todas)
     for r in db.get("frames", []):
         if (r.get("object") or "").strip() != objeto.strip():
+            continue
+        if permitidas is not None and str(r.get("id")) not in permitidas:
+            if not r.get("discarded"):
+                excluidas["otro_lugar"] += 1
             continue
         if r.get("discarded"):
             excluidas["descartadas"] += 1; continue
@@ -11650,6 +11965,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
     JOB["pasos"] = sum(2 * max(1, len(f.get("_equipos") or [])) + (1 if len(f.get("_equipos") or []) > 1 else 0) for f in filtros) + 2 + (1 if vista else 0)
     informe = {"objeto": plan["objeto"], "fecha": marca, "siril": plan["siril_version"], "bits_intermedios": bits,
                "trabajo_interno": bool(plan.get("trabajo_interno")),
+               **({"lugar": plan["lugar"]} if plan.get("lugar") else {}),
                "filtros": [], "avisos": [],
                "fuera_del_apilado": {"tomas": (plan.get("excluidas") or {}).get("fuera", 0), "noches": plan.get("noches_fuera") or [],
                                      "corte": (plan.get("excluidas") or {}).get("corte", 0)}}
@@ -11812,6 +12128,9 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
             en = idioma_actual() == "en"          # el informe, en el idioma del programa
             with open(os.path.join(OUT, "informe.txt"), "w", encoding="utf-8") as fh:
                 fh.write((_L("Apilado de %s", "Stack of %s") % plan['objeto']) + f" · {marca} · Siril {plan['siril_version']}\n\n")
+                lu = informe.get("lugar")
+                if lu:
+                    fh.write((_L("Solo las tomas del lugar: %s", "Only the frames from the place: %s") % (lu.get("nombre") or (_L("sin lugar", "no place")))) + "\n\n")
                 fu = informe.get("fuera_del_apilado") or {}
                 if fu.get("tomas"):
                     fh.write((_L("Fuera del apilado, a elección tuya: %s tomas de ", "Left out of the stack by you: %s frames from ") % fu['tomas']) +
@@ -12292,7 +12611,7 @@ def apilados_de(objeto):
             fi = [f for f in (inf.get("filtros") or []) if isinstance(f, dict)]
             out.append({"carpeta": rel_apil(c), "fecha": d, "filtros": [f for f, _ in lst], "vista": leer_vista(c),
                         "tomas": sum(int(f.get("tomas") or 0) for f in fi), "horas": round(sum(float(f.get("exposicion_h") or 0) for f in fi), 2),
-                        "ponderado": any(f.get("ponderado") for f in fi)})
+                        "ponderado": any(f.get("ponderado") for f in fi), "lugar": inf.get("lugar") if isinstance(inf.get("lugar"), dict) else None})
     return out
 
 
@@ -17432,13 +17751,22 @@ def archivo_apilados():
             subs = sorted((x for x in os.listdir(base) if not x.startswith("_") and os.path.isdir(os.path.join(base, x))), reverse=True)
         except Exception:
             continue
+        por_lugar, primero = [], None
         for x in subs[:10]:
             inf, lst = masters_apilado(os.path.join(base, x))
             if lst:
-                res[objs[d]] = {"fecha": x, "filtros": sorted({f for f, _ in lst}),
-                                "tomas": sum(int(f.get("tomas") or 0) for f in (inf.get("filtros") or []) if isinstance(f, dict)),
-                                "total": len(subs)}
-                break
+                lu = inf.get("lugar") if isinstance(inf.get("lugar"), dict) else None
+                kl = (lu.get("lat"), lu.get("lon"), bool(lu.get("sin"))) if lu else None
+                if not any(q["k"] == kl for q in por_lugar):         # el más reciente de cada lugar (None: todos los lugares juntos)
+                    por_lugar.append({"k": kl, "fecha": x, "lugar": lu})
+                if primero is None:
+                    primero = (x, inf, lst)
+        if primero:
+            x, inf, lst = primero
+            res[objs[d]] = {"fecha": x, "filtros": sorted({f for f, _ in lst}),
+                            "tomas": sum(int(f.get("tomas") or 0) for f in (inf.get("filtros") or []) if isinstance(f, dict)),
+                            "total": len(subs), "lugar": inf.get("lugar") if isinstance(inf.get("lugar"), dict) else None,
+                            "por_lugar": [{"fecha": q["fecha"], "lugar": q["lugar"]} for q in por_lugar]}
     _ARC_APIL.update(clave=clave, t=time.time(), res=res)
     return res
 
@@ -18114,16 +18442,33 @@ def importar_copiar(ruta, rel):
     return os.path.relpath(dest, ROOT).replace(os.sep, "/")
 
 
-def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True):
+def lugar_limpio(d):
+    """El lugar de un apilado, tal como lo manda la página: {nombre, lat, lon} o {sin: true} (las tomas sin lugar)."""
+    if not isinstance(d, dict):
+        return None
+    out = {"nombre": re.sub(r"[\x00-\x1f<>]", "", str(d.get("nombre") or "")).strip()[:80]}
+    try:
+        la, lo = float(d.get("lat")), float(d.get("lon"))
+        if abs(la) <= 90 and abs(lo) <= 180:
+            out["lat"], out["lon"] = round(la, 4), round(lo, 4)
+    except (TypeError, ValueError):
+        pass
+    if d.get("sin"):
+        out["sin"] = True
+    return out if (out["nombre"] or "lat" in out or out.get("sin")) else None
+
+
+def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True, ids=None, lugar=None):
     _reservar_job("Ya hay un apilado en marcha.")
     try:
-        _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos)
+        _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos, ids, lugar)
     finally:
         _JOB_RESERVA["on"] = False
 
 
-def _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos):
-    plan = planificar(objeto, avisos_ok)
+def _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos, ids=None, lugar=None):
+    plan = planificar(objeto, avisos_ok, True, ids)
+    plan["lugar"] = lugar_limpio(lugar) if ids is not None else None
     if not plan["siril"]:
         raise RuntimeError("No encuentro Siril. Instálalo desde siril.org (en Aplicaciones) y vuelve a intentarlo.")
     if not plan["bits"]:
@@ -19289,11 +19634,11 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/apilado/plan":
                 d = json.loads(self._body() or b"{}")
-                return self._send(200, json.dumps(plan_publico(planificar(d.get("objeto", ""), bool(d.get("avisos", True)))), default=str))
+                return self._send(200, json.dumps(plan_publico(planificar(d.get("objeto", ""), bool(d.get("avisos", True)), True, d.get("ids"))), default=str))
             if p.path == "/api/apilado/iniciar":
                 d = json.loads(self._body() or b"{}")
                 iniciar_apilado(d.get("objeto", ""), d.get("filtros") or [], bool(d.get("avisos", True)), bool(d.get("vista", True)),
-                                bool(d.get("pesos", True)))
+                                bool(d.get("pesos", True)), d.get("ids") if isinstance(d.get("ids"), list) else None, d.get("lugar"))
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/apilado/cancelar":
                 JOB["cancelar"] = True
