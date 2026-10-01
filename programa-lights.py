@@ -1597,6 +1597,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
         <div class="filter"><h3>Objeto</h3><div id="fObj"></div></div>
         <div class="filter"><h3>Filtro</h3><div id="fFilter"></div></div>
         <div class="filter"><h3>Cámara</h3><div id="fCam"></div></div>
+        <div class="filter" id="fLugarCaja" hidden><h3>Lugar</h3><div id="fLugar"></div></div>
         <div class="filter"><label><input type="checkbox" id="showDisc" checked> Mostrar descartadas</label></div>
       </aside>
       <section>
@@ -1651,6 +1652,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
       <label>Objeto <input id="batchObj" placeholder="p. ej. NGC 6946"></label>
       <label>Telescopio <input list="telList" id="batchTel" placeholder="si falta en la cabecera"></label>
       <label>Cámara <input list="camList" id="batchCam" placeholder="si falta en la cabecera"></label>
+      <label id="batchLugarCaja" hidden>Lugar <select id="batchLugar" title="Solo se pone a las tomas cuya cabecera no trae las coordenadas (la ASIAIR, por ejemplo)"></select></label>
       <label>Nota <input id="batchNote" placeholder="p. ej. viento racheado"></label>
       <input type="checkbox" id="batchCopy" checked hidden>
       <datalist id="telList"></datalist><datalist id="camList"></datalist>
@@ -2184,7 +2186,7 @@ const CAM_ALIASES = [[/ASI\s*6200/i,"ASI6200MM Pro"],[/ASI\s*2600/i,"ASI2600MC P
 const STATUS = {ok:"Válida", warn:"Con avisos", bad:"Rechazable", na:"Sin analizar", disc:"Descartada"};
 const DB_FILE = "lights.json", ROOT_NAME = __ROOT_JSON__, CARPETA_ID = "__CARPETA_ID__";
 let frames = [], selected = null, checked = new Set();
-let filters = {status:new Set(), object:new Set(), filter:new Set(), cam:new Set(), q:""};
+let filters = {status:new Set(), object:new Set(), filter:new Set(), cam:new Set(), lugar:new Set(), q:""};
 let sort = {k:"dateObs", dir:"desc"};
 const $ = id => document.getElementById(id);
 
@@ -2331,7 +2333,7 @@ async function _ingest(files, opts){
   let n = 0;
   // (lo escrito en «Añadir sesión» es para esa sesión: las importaciones silenciosas de las carpetas vigiladas no lo usan)
   const batch = opts.silencioso ? {obj:"", tel:"", cam:"", note:""}
-    : { obj:$("batchObj").value.trim(), tel:$("batchTel").value.trim(), cam:$("batchCam").value.trim(), note:$("batchNote").value.trim() };
+    : { obj:$("batchObj").value.trim(), tel:$("batchTel").value.trim(), cam:$("batchCam").value.trim(), note:$("batchNote").value.trim(), lugar:$("batchLugar").value };
   const eqp = (opts && opts.equipo) || null;     // tomas de un equipo de un proyecto (nunca las de las carpetas vigiladas)
   const nuevas = [];
   // índices de lo que ya hay (con bibliotecas grandes, recorrer todas las fichas por cada archivo es lento)
@@ -2348,6 +2350,7 @@ async function _ingest(files, opts){
     let rec;
     try { rec = await analyzeFile(f, batch); }
     catch(e){ res.bad++; if (f.ruta && !e.transporte) res.fallidas.push(f.ruta); addLog(`${f.name}: no se pudo procesar (${e.message||e})`, "bad"); console.error(e); continue; }
+    if (batch.lugar && !lugarCoordsToma(rec)){ const si = sitioDeClave(batch.lugar); if (si) rec.sitio = {lat: si.lat, lon: si.lon}; }       // solo si la cabecera no trae el lugar
     if (eqp){ rec.object = eqp.obj; rec.equipo_id = eqp.s.id; if (!rec.tel) rec.tel = eqp.s.tel || ""; if (!rec.cam) rec.cam = eqp.s.cam || ""; }
     else if (f.grupo && f.grupo.obj){         // de la carpeta de un proyecto en grupo: a ese proyecto y al equipo de su carpeta
       rec.object = f.grupo.obj;
@@ -3496,7 +3499,7 @@ function visible(){
   const q = filters.q.toLowerCase(), showDisc = $("showDisc").checked;
   return frames.filter(f => (showDisc || !f.discarded) &&
     (!filters.status.size || filters.status.has(shownStatus(f))) && (!filters.object.size || filters.object.has(f.object||"")) &&
-    (!filters.filter.size || filters.filter.has(f.filter||"")) && (!filters.cam.size || filters.cam.has(f.cam||"")) &&
+    (!filters.filter.size || filters.filter.has(f.filter||"")) && (!filters.cam.size || filters.cam.has(f.cam||"")) && (!filters.lugar.size || filters.lugar.has(pgClaveLugar(f))) &&
     (!q || [f.name,f.object,f.filter,f.notes,f.cam,f.tel,f.night].join(" ").toLowerCase().includes(q))
   ).sort((a,b) => { let x = keyVal(a,sort.k), y = keyVal(b,sort.k);
     if (x===null||x===undefined||x==="") x = sort.dir==="asc"?Infinity:-Infinity; if (y===null||y===undefined||y==="") y = sort.dir==="asc"?Infinity:-Infinity;
@@ -3517,6 +3520,14 @@ function renderFilters(){
   };
   build($("fStatus"), "status", k=>STATUS[k], ["ok","warn","bad","na","disc"], shownStatus);
   build($("fObj"), "object", k=>k||"(sin objeto)"); build($("fFilter"), "filter", k=>k==="SIN_FILTRO" ? nomFiltro(k) : k||"(sin filtro)"); build($("fCam"), "cam", k=>k||"(sin cámara)");
+  // el lugar, solo si hay más de uno
+  const varios = lugaresVarios(); $("fLugarCaja").hidden = !varios;
+  if (varios){
+    const nombre = k => { if (k === PG_SINLUGAR) return trLT("Sin lugar", "No place"); const f = frames.find(x => pgClaveLugar(x) === k); return f ? lugarDeToma(f).nombre : k; };
+    const cuenta = new Map(); for (const f of frames){ const k = pgClaveLugar(f); cuenta.set(k, (cuenta.get(k) || 0) + 1); }
+    const orden = [...cuenta].sort((x, y) => (x[0] === PG_SINLUGAR) - (y[0] === PG_SINLUGAR) || y[1] - x[1]).map(x => x[0]);       // el de más tomas primero y «sin lugar» al final
+    build($("fLugar"), "lugar", k => k === PG_SINLUGAR ? trLT("Sin lugar", "No place") : nombre(k), orden, pgClaveLugar);
+  } else filters.lugar.clear();
 }
 function renderCounts(){
   const c = {ok:0,warn:0,bad:0,na:0,disc:0}; frames.forEach(f=>c[shownStatus(f)]++);
@@ -4078,11 +4089,11 @@ function lugarPonerSesion(noche, equipo, k, sel){
   toast(antes.length === 1 ? trLT("Lugar puesto a 1 toma", "Place set on 1 frame") : trLT("Lugar puesto a {1} tomas", "Place set on {1} frames", nfmt(antes.length)));
 }
 // las opciones de un desplegable de lugares: los guardados y los de las tomas que aún no lo están
-function lugarOpcionesHTML(sel, conQuitar){
+function lugarOpcionesHTML(sel, conQuitar, txtQuitar){
   const gs = lugaresGuardados(), sg = lugaresSinGuardar().filter(g => !gs.some(l => distKm(g.lat, g.lon, +l.lat, +l.lon) <= RADIO_LUGAR_KM));
   return gs.map(l => `<option value="g${esc(l.id)}" ${sel === "g" + l.id ? "selected" : ""} class="notr">${esc(nombreLugar(l))}</option>`).join("")
     + sg.map(g => `<option value="c${g.lat},${g.lon}" ${sel === "c" + g.lat + "," + g.lon ? "selected" : ""} class="notr">${esc(nombreLugar(g))} · ${esc(trLT("sin guardar", "unsaved"))}</option>`).join("")
-    + (conQuitar ? `<option value="">${esc(trLT("Quitar lo puesto a mano (según la cabecera)", "Remove what was set by hand (from the header)"))}</option>` : "");
+    + (conQuitar ? `<option value="">${esc(txtQuitar || trLT("Quitar lo puesto a mano (según la cabecera)", "Remove what was set by hand (from the header)"))}</option>` : "");
 }
 
 // la imagen de un proyecto: la vista previa de su último apilado o, si no hay, su mejor toma
@@ -4569,6 +4580,7 @@ function renderPanel(f){
       <label for="eFilter">Filtro</label><input id="eFilter" value="${esc(f.filter)}">
       <label for="eCam">Cámara</label><input id="eCam" list="camList" value="${esc(f.cam)}">
       <label for="eTel">Telescopio</label><input id="eTel" list="telList" value="${esc(f.tel)}">
+      ${fichaLugarHTML(f)}
       <label for="eNotes">Notas</label><textarea id="eNotes" class="notr" rows="2">${esc(f.notes)}</textarea>
     </div>
     <dl class="kv">
@@ -4586,7 +4598,9 @@ function renderPanel(f){
     </div>`;
   p.classList.add("open");
   $("pClose").onclick = closePanel;
-  $("pSave").onclick = () => { Object.assign(f, {object:$("eObj").value.trim(), filter:$("eFilter").value.trim(), cam:$("eCam").value.trim(), tel:$("eTel").value.trim(), notes:$("eNotes").value.trim()}); evaluateAll(); scheduleSave(); render(); toast("Ficha guardada"); };
+  $("pSave").onclick = () => { Object.assign(f, {object:$("eObj").value.trim(), filter:$("eFilter").value.trim(), cam:$("eCam").value.trim(), tel:$("eTel").value.trim(), notes:$("eNotes").value.trim()});
+    const eL = $("eLugar"); if (eL && eL.value !== "-" && eL.value !== eL.dataset.k){ const si = sitioDeClave(eL.value); if (si !== undefined) ponerSitio([f], si); }
+    evaluateAll(); scheduleSave(); render(); toast("Ficha guardada"); };
   if ($("pDiscard")) $("pDiscard").onclick = () => discard([f]);
   if ($("pFuera")) $("pFuera").onclick = () => cambiarFuera(f.object||"", [f.id], true, () => renderPanel(f));
   if ($("pIncluir")) $("pIncluir").onclick = () => cambiarFuera(f.object||"", [f.id], false, () => renderPanel(f));
@@ -4598,6 +4612,13 @@ function renderPanel(f){
   if ($("pOrigen")) $("pOrigen").onclick = () => api("/api/importar/revelar", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ruta:f.origen})}).catch(()=>{});
   $("pDelete").onclick = async () => { if (!confirm(`¿Eliminar "${f.name}" de la base de datos${f.path?" y borrar el archivo del disco":""}? No se puede deshacer.`)) return;
     await eliminarTomas([f]); toast("Eliminada"); };
+}
+// el lugar de una toma en su ficha: el que tiene (por su cabecera o puesto a mano) y un desplegable para cambiarlo
+function fichaLugarHTML(f){
+  const l = lugarDeToma(f);
+  if (!l && !f.sitio && !lugaresGuardados().length && !lugaresSinGuardar().length) return "";
+  return `<label for="eLugar">${esc(trLT("Lugar", "Place"))}</label><div><select id="eLugar" data-k="${esc(l ? l.k : "-")}">${l ? "" : `<option value="-" selected disabled>${esc(trLT("Sin lugar", "No place"))}</option>`}${lugarOpcionesHTML(l ? l.k : "", !!f.sitio)}</select>
+    <div class="note">${esc(l ? (f.sitio ? trLT("puesto a mano", "set by hand") : trLT("según la cabecera", "from the header")) : trLT("La cabecera no trae las coordenadas", "The header carries no coordinates"))}</div></div>`;
 }
 let PUERTO_CAL = null;
 async function pintarCalToma(f){
@@ -8659,12 +8680,13 @@ function pintarLotes(){
       ${LOTES_CAMPOS.map(([k, t]) => `<label for="lt_${k}">${t}</label><div><input id="lt_${k}" data-k="${k}" list="ltl_${k}" autocomplete="off" placeholder="${esc(tr("sin cambios"))}"><datalist id="ltl_${k}">${opts(k)}</datalist>
         <div class="ahora"><span>Ahora:</span> <span class="notr">${esc(lotesAhora(lista, k))}</span></div></div>`).join("")}
       <label for="lt_eq" id="lt_eqLab" hidden>Equipo del proyecto</label><div id="lt_eqCaja" hidden><select id="lt_eq"></select><div class="ahora" id="lt_eqAhora"></div></div>
+      <label for="lt_lug" id="lt_lugLab" hidden>${esc(trLT("Lugar", "Place"))}</label><div id="lt_lugCaja" hidden><select id="lt_lug"></select><div class="ahora" id="lt_lugAhora"></div></div>
     </div>
     <div class="note" id="lotesResumen"></div>
     <div id="lotesHecho"></div>
     <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn primary" id="lotesAplicar" disabled>Aplicar</button></div>`;
   $("lotesCuerpo").querySelectorAll("input[data-k]").forEach(el => el.oninput = lotesCambio);
-  $("lt_eq").onchange = lotesCambio;
+  $("lt_eq").onchange = lotesCambio; $("lt_lug").onchange = lotesCambio;
   $("lotesAplicar").onclick = aplicarLotes;
   lotesCambio();
   if (LOTES.deshacer) pintarLotesHecho();
@@ -8674,7 +8696,13 @@ function lotesPedido(){
   const pedido = {};
   $("lotesCuerpo").querySelectorAll("input[data-k]").forEach(el => { const v = el.value.trim(); if (v) pedido[el.dataset.k] = v; });
   const eq = $("lt_eq"); if (!$("lt_eqCaja").hidden && eq.value !== "-") pedido.equipo_id = eq.value;
+  const lg = $("lt_lug"); if (!$("lt_lugCaja").hidden && lg.value !== "-") pedido.sitio = lg.value;        // la clave de un lugar; «» quita lo puesto a mano
   return pedido;
+}
+// ¿esta toma ya tiene el lugar pedido (la clave de un lugar)? Solo cuenta lo puesto a mano: «» es no tener nada puesto
+function lotesYaTieneSitio(f, k){
+  const nuevo = sitioDeClave(k); if (nuevo === undefined) return true;
+  const a = f.sitio; return nuevo ? !!a && Math.abs(+a.lat - nuevo.lat) < 1e-6 && Math.abs(+a.lon - nuevo.lon) < 1e-6 : !a;
 }
 function lotesCambio(){
   const lista = lotesLista(), obj = ($("lt_object").value.trim()), objs = obj ? [obj] : [...new Set(lista.map(f => (f.object || "").trim()))];
@@ -8693,11 +8721,24 @@ function lotesCambio(){
     const g = groupBy(lista, f => f.equipo_id || "");
     $("lt_eqAhora").innerHTML = `<span>Ahora:</span> <span class="notr">${esc([...g].map(([id, l]) => { const s = setups.find(x => x.id === id); return (s ? nombreSetup(s) : tr("según su cabecera")) + (g.size > 1 ? ` (${l.length})` : ""); }).join(" · "))}</span>`;
   }
+  const lcaja = $("lt_lugCaja"), lsel = $("lt_lug"), hayLug = lugaresGuardados().length + lugaresSinGuardar().length > 0;
+  lcaja.hidden = $("lt_lugLab").hidden = !hayLug;
+  if (hayLug){
+    const lopc = lugarOpcionesHTML("", true, trLT("Según su cabecera (quitar lo puesto a mano)", "From its header (remove what was set by hand)")), lclave = lopc.length + "|" + lugaresGuardados().length;
+    if (lsel.dataset.clave !== lclave){
+      const antes = lsel.dataset.clave ? lsel.value : "-";
+      lsel.dataset.clave = lclave;
+      lsel.innerHTML = `<option value="-">${esc(tr("sin cambios"))}</option>` + lopc;
+      lsel.value = [...lsel.options].some(o => o.value === antes) ? antes : "-";
+    }
+    const g = groupBy(lista, f => { const l = lugarDeToma(f); return l ? l.nombre : ""; });
+    $("lt_lugAhora").innerHTML = `<span>Ahora:</span> <span class="notr">${esc([...g].sort((a, b) => b[1].length - a[1].length).slice(0, 4).map(([n, l]) => (n || trLT("sin lugar", "no place")) + (g.size > 1 ? ` (${l.length})` : "")).join(" · "))}</span>`;
+  }
   const pedido = lotesPedido(), ks = Object.keys(pedido);
-  const cambian = lista.filter(f => ks.some(k => k === "equipo_id" ? (f.equipo_id || "") !== pedido[k] : (f[k] || "").trim() !== pedido[k])).length;
+  const cambian = lista.filter(f => ks.some(k => k === "equipo_id" ? (f.equipo_id || "") !== pedido[k] : k === "sitio" ? !lotesYaTieneSitio(f, pedido[k]) : (f[k] || "").trim() !== pedido[k])).length;
   // la frase entera en cada idioma (por trozos no se traduce bien)
   const y = (l, c) => l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + ` ${c} ` + l[l.length - 1];
-  const nom = {object: trL("el objeto", "target"), filter: trL("el filtro", "filter"), tel: trL("el telescopio", "telescope"), cam: trL("la cámara", "camera"), equipo_id: trL("el equipo del proyecto", "project setup")};
+  const nom = {object: trL("el objeto", "target"), filter: trL("el filtro", "filter"), tel: trL("el telescopio", "telescope"), cam: trL("la cámara", "camera"), equipo_id: trL("el equipo del proyecto", "project setup"), sitio: trL("el lugar", "place")};
   const frase = trLT("Se cambia {1} de {2}{3}.", "Changes the {1} of {2}{3}.", y(ks.map(k => nom[k]), Y_CONJ),
     cambian === 1 ? trL("1 toma", "1 frame") : trLT("{1} tomas", "{1} frames", cambian), cambian < lista.length ? trL(" (las demás ya lo tienen)", " (the others already have it)") : "");
   $("lotesResumen").innerHTML = !ks.length ? "" : !cambian ? `<span>${esc(tr("Las tomas elegidas ya lo tienen así."))}</span>` : `<span class="notr">${esc(frase)}</span>`;
@@ -8713,13 +8754,14 @@ async function aplicarLotes(){
     for (const k of ks){
       const nuevo = pedido[k];
       if (k === "equipo_id"){ if ((f.equipo_id || "") === nuevo) continue; a.equipo_id = f.equipo_id; if (nuevo) f.equipo_id = nuevo; else delete f.equipo_id; }
+      else if (k === "sitio"){ if (lotesYaTieneSitio(f, nuevo)) continue; const si = sitioDeClave(nuevo); a.sitio = f.sitio; if (si) f.sitio = {lat: si.lat, lon: si.lon}; else delete f.sitio; }
       else { if ((f[k] || "").trim() === nuevo) continue; a[k] = f[k]; f[k] = nuevo; }
     }
     if (Object.keys(a).length) antes.push([f.id, a]);
   }
   // un segundo clic no encuentra nada que cambiar: no borra lo que deshace el primero
   if (antes.length || !LOTES.deshacer) LOTES.deshacer = antes;
-  evaluateAll();
+  lugarInvalidar(); evaluateAll();
   while (saving) await new Promise(r => setTimeout(r, 120));
   await saveDb(); render();
   toast(antes.length === 1 ? "1 toma cambiada" : `${antes.length} tomas cambiadas`);
@@ -8732,7 +8774,7 @@ function pintarLotesHecho(){
     const m = new Map(LOTES.deshacer);
     for (const f of frames){ const a = m.get(f.id); if (!a) continue;
       for (const [k, v] of Object.entries(a)){ if (v === undefined) delete f[k]; else f[k] = v; } }
-    LOTES.deshacer = null; evaluateAll();
+    LOTES.deshacer = null; lugarInvalidar(); evaluateAll();
     while (saving) await new Promise(r => setTimeout(r, 120));
     await saveDb(); render(); toast("Cambio deshecho"); pintarLotes();
   };
@@ -10542,7 +10584,15 @@ document.querySelectorAll("#modoAdd button").forEach(b => b.onclick = ()=>modoA�
 function abrirAñadir(eqp){
   // solo «Añadir tomas» de un equipo de un proyecto abre el diálogo con ese equipo; cualquier otra forma, sin él
   ADD_EQUIPO = eqp && eqp.s && eqp.obj ? eqp : null;
-  $("addBox").classList.add("show"); vigCargar(); pintarAddEquipo();
+  $("addBox").classList.add("show"); vigCargar(); pintarAddEquipo(); pintarAddLugar();
+  if (!PLAN_CFG) cfgPlan().then(pintarAddLugar);
+}
+// el lugar de las tomas que se añaden, cuando su cabecera no trae las coordenadas: uno de los guardados
+function pintarAddLugar(){
+  const s = $("batchLugar"), gs = lugaresGuardados(), antes = s.value;
+  $("batchLugarCaja").hidden = !gs.length;
+  s.innerHTML = `<option value="">${esc(trLT("Según la cabecera de cada toma", "From each frame's header"))}</option>` + gs.map(l => `<option value="g${esc(l.id)}" class="notr">${esc(nombreLugar(l))}</option>`).join("");
+  s.value = [...s.options].some(o => o.value === antes) ? antes : "";
 }
 $("btnAdd").onclick = abrirAñadir;
 $("addClose").onclick = ()=>{ $("addBox").classList.remove("show"); ADD_EQUIPO = null; pintarAddEquipo(); };
@@ -18522,6 +18572,24 @@ EXPORT_DIR = os.path.join(ROOT, "exportados")
 PROY = {"activo": False, "tipo": "", "estado": "", "texto": "", "hechos": 0, "total": 0, "bytes": 0, "total_bytes": 0,
         "ruta": "", "error": "", "resultado": None, "cancelar": False}
 
+def _lugar_toma(x):
+    """(latitud, longitud) del lugar de una toma: el que se puso a mano o, si no, el de su cabecera. (None, None) si no hay."""
+    s = x.get("sitio")
+    if isinstance(s, dict):
+        try:
+            la, lo = float(s.get("lat")), float(s.get("lon"))
+            if abs(la) <= 90 and abs(lo) <= 180:
+                return round(la, 4), round(lo, 4)
+        except (TypeError, ValueError):
+            pass
+    h = x.get("header") or {}
+    la = _angulo(next((h[k] for k in ("SITELAT", "LAT-OBS", "OBSGEO-B") if h.get(k) not in (None, "")), None), False)
+    lo = _angulo(next((h[k] for k in ("SITELONG", "LONG-OBS", "OBSGEO-L") if h.get(k) not in (None, "")), None), False)
+    if la is None or lo is None or abs(la) > 90 or abs(lo) > 180 or (not la and not lo):
+        return None, None
+    return round(la, 4), round(lo, 4)
+
+
 CAMPOS_TOMA = {   # explicación de los campos de cada toma (va en el LEEME y en proyecto.json)
     "es": {"id": "identificador de la toma en ASTRO", "name": "nombre del archivo", "size": "tamaño en bytes",
            "object": "objeto", "night": "noche (fecha del anochecer, AAAA-MM-DD)", "dateObs": "fecha y hora de la toma (UTC)",
@@ -18536,7 +18604,7 @@ CAMPOS_TOMA = {   # explicación de los campos de cada toma (va en el LEEME y en
            "ruido": "ruido del fondo (ADU de 16 bits)", "snr": "SNR de las estrellas (mediana de las 100 más brillantes sin saturar)",
            "reasons": "motivos de la valoración", "discarded": "descartada a mano",
            "fuera": "se deja fuera del apilado (por ejemplo, de una noche floja)", "equipo_id": "equipo del proyecto con el que se hizo",
-           "notes": "notas",
+           "notes": "notas", "sitio": "lugar puesto a mano (latitud y longitud); si no hay, el lugar sale de las coordenadas de la cabecera",
            "header": "cabecera FITS/XISF", "archivo_en_zip": "dónde está la toma dentro del ZIP (si se incluyó)",
            "calibracion": "calibración que le corresponde (identificadores de la lista «calibracion»)"},
     "en": {"id": "frame identifier in ASTRO", "name": "file name", "size": "size in bytes",
@@ -18552,7 +18620,7 @@ CAMPOS_TOMA = {   # explicación de los campos de cada toma (va en el LEEME y en
            "ruido": "background noise (16-bit ADU)", "snr": "star SNR (median of the 100 brightest unsaturated stars)",
            "reasons": "reasons for the rating", "discarded": "discarded by hand",
            "fuera": "left out of the stack (for example, from a weak night)", "equipo_id": "project setup it was taken with",
-           "notes": "notes",
+           "notes": "notes", "sitio": "place set by hand (latitude and longitude); if absent, the place comes from the header coordinates",
            "header": "FITS/XISF header", "archivo_en_zip": "where the frame is inside the ZIP (if included)",
            "calibracion": "calibration assigned to it (identifiers from the «calibracion» list)"},
 }
@@ -18864,10 +18932,10 @@ def trabajo_exportar(objeto, opc, extra):
                "bad": _L("Rechazable", "Rejected"), "na": _L("Sin analizar", "Not analysed")}
         cab = (["file", "target", "night", "date_time", "filter", "exposure_s", "gain", "offset", "temperature_c", "bin", "camera",
                 "telescope", "status", "score", "fwhm_px", "elongation", "stars", "trails", "background_pct", "discarded", "left_out_of_stack",
-                "dark", "bias", "flat", "flat_calibrated_with", "setup", "notes", "reasons", "file_in_zip"] if idioma_en_uso() != "es" else
+                "dark", "bias", "flat", "flat_calibrated_with", "setup", "notes", "reasons", "file_in_zip", "place_latitude", "place_longitude"] if idioma_en_uso() != "es" else
                ["archivo", "objeto", "noche", "fecha_hora", "filtro", "exposicion_s", "gain", "offset", "temperatura_c", "bin", "camara",
                 "telescopio", "estado", "puntuacion", "fwhm_px", "alargamiento", "estrellas", "trazas", "fondo_pct", "descartada", "fuera_del_apilado",
-                "dark", "bias", "flat", "flat_calibrado_con", "equipo", "notas", "motivos", "archivo_en_zip"])
+                "dark", "bias", "flat", "flat_calibrado_con", "equipo", "notas", "motivos", "archivo_en_zip", "lugar_latitud", "lugar_longitud"])
         desc = {s["id"]: s["desc"] for s in usados.values()}
         filas = [cab]
         for x in lista_tomas:
@@ -18880,7 +18948,7 @@ def trabajo_exportar(objeto, opc, extra):
                           tr_py(desc.get(c.get("bias"), "")), tr_py(desc.get(c.get("flat"), "")),
                           tr_py(desc.get(c.get("flat_calibrado_con"), "")), tr_py(x.get("equipo") or ""), x.get("notes"),
                           " | ".join(tr_py(m.get("t") if isinstance(m, dict) else str(m)) for m in (x.get("reasons") or [])),
-                          x.get("archivo_en_zip")])
+                          x.get("archivo_en_zip")] + list(_lugar_toma(x)))
         cab_cal = (["id", "type", "master", "description", "camera", "gain", "offset", "exposure_s", "temperature_c", "filter",
                     "angle", "night", "files", "frames_using_it"] if idioma_en_uso() != "es" else
                    ["id", "tipo", "master", "descripcion", "camara", "gain", "offset", "exposicion_s", "temperatura_c", "filtro",
