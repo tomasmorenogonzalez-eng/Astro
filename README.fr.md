@@ -56,7 +56,7 @@ ASTRO fait ce travail à votre place. Il est gratuit, fonctionne sur **Mac** et 
    - Windows 10 ou 11 : **ASTRO-Windows.exe**
 2. **Double-cliquez.** ASTRO s'installe tout seul et, ensuite, se met à jour tout seul (et vous présente les nouveautés de chaque version).
 3. Choisissez la langue et le dossier où vous voulez enregistrer vos photos. Il peut se trouver sur un disque externe. Vous préférez d'abord y jeter un œil ? Cliquez sur **« Essayer avec des données d'exemple »** et explorez-le avec des poses et des mesures d'exemple, sans toucher à vos données.
-4. ASTRO s'ouvre sur la **Vue d'ensemble**, avec la barre de gauche (Vue d'ensemble, Projets, Que photographier, Mes archives, Science et Paramètres). Cliquez sur **« ＋ Ajouter une session »** ou faites glisser le dossier d'une nuit de photos et laissez ASTRO faire le reste. La fenêtre d'accueil habituelle (une section avec son illustration pour chaque chose que vous pouvez faire) reste à un clic : **Paramètres → Général → « Fenêtre d'accueil… »**.
+4. ASTRO s'ouvre sur la **Vue d'ensemble**, avec la barre de gauche (Vue d'ensemble, Projets, Que photographier, Mes archives, Science et Paramètres). Cliquez sur **« ＋ Ajouter des poses »** ou faites glisser le dossier d'une nuit de photos et laissez ASTRO faire le reste. La fenêtre d'accueil habituelle (une section avec son illustration pour chaque chose que vous pouvez faire) reste à un clic : **Paramètres → Général → « Fenêtre d'accueil… »**.
 
 Sur **Mac**, ASTRO est signé et approuvé par Apple : il s'ouvre d'un double-clic, sans avertissement.
 

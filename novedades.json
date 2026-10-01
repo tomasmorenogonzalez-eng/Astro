@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.31.1",
+  "es": [
+   "**Botones más claros**: arriba, **«＋ Añadir tomas»** (de cualquier objeto: cada toma va a su proyecto según su cabecera) y **«＋ Nuevo proyecto»**, para crear un proyecto antes de tener tomas: eliges el objeto (del catálogo o escrito a mano) y las horas que quieres reunir.",
+   "Dentro de la página de un proyecto, el botón de arriba pasa a ser **«＋ Añadir una sesión»**: las tomas que añadas van a ese proyecto aunque su cabecera escriba el objeto de otra forma (por ejemplo, «LBN576» y «LBN 576»).",
+   "**Biblioteca de calibración: «Volver a analizar»**. Si corriges unas tomas (por ejemplo, cambias un dark por otro bueno), las vuelve a leer del disco y a valorar, y el aviso desaparece si ya no hay problema: las que se ven en la lista (elígelas con los filtros) o una sola desde su ficha. Lo que cambiaste a mano en la ficha se respeta.",
+   "**Filtro de doble banda SII + OIII** en Mi equipo (L-Synergy, Askar D2 y similares). Y los filtros llamados **«HO»** o **«SO»** ya se reconocen como doble banda al planificar con Luna (antes contaban como banda ancha)."
+  ],
+  "en": [
+   "**Clearer buttons**: at the top, **«＋ Add frames»** (of any target: each frame goes to its project by its header) and **«＋ New project»**, to create a project before you have frames: choose the target (from the catalogue or typed in) and the hours you want to gather.",
+   "Inside a project's page the top button becomes **«＋ Add a session»**: the frames you add go to that project even if their header spells the target differently (for example «LBN576» and «LBN 576»).",
+   "**Calibration library: «Analyse again»**. If you fix some frames (for example, you replace a dark with a good one), it reads them from disk again and rates them again, and the warning goes away if there's no problem any more: the ones shown in the list (pick them with the filters) or a single one from its sheet. Whatever you changed by hand on the sheet is kept.",
+   "**SII + OIII dual-band filter** in My equipment (L-Synergy, Askar D2 and similar). And filters named **«HO»** or **«SO»** are now recognised as dual-band when planning with the Moon (they used to count as broadband)."
+  ],
+  "fr": [
+   "**Des boutons plus clairs** : en haut, **« ＋ Ajouter des poses »** (de n'importe quel objet : chaque pose va dans son projet d'après son en-tête) et **« ＋ Nouveau projet »**, pour créer un projet avant d'avoir des poses : vous choisissez l'objet (du catalogue ou saisi à la main) et les heures que vous voulez réunir.",
+   "Dans la page d'un projet, le bouton du haut devient **« ＋ Ajouter une session »** : les poses ajoutées vont dans ce projet même si leur en-tête écrit l'objet autrement (par exemple « LBN576 » et « LBN 576 »).",
+   "**Bibliothèque de calibration : « Analyser à nouveau »**. Si vous corrigez des poses (par exemple, vous remplacez un dark par un bon), elle les relit sur le disque et les évalue de nouveau, et l'avertissement disparaît s'il n'y a plus de problème : celles affichées dans la liste (choisissez-les avec les filtres) ou une seule depuis sa fiche. Ce que vous avez modifié à la main dans la fiche est conservé.",
+   "**Filtre double bande SII + OIII** dans Mon équipement (L-Synergy, Askar D2 et similaires). Et les filtres nommés **« HO »** ou **« SO »** sont désormais reconnus comme double bande pour planifier avec la Lune (ils comptaient comme large bande)."
+  ],
+  "de": [
+   "**Klarere Buttons**: oben **„＋ Aufnahmen hinzufügen“** (von beliebigen Objekten: Jede Aufnahme kommt anhand ihres Headers in ihr Projekt) und **„＋ Neues Projekt“**, um ein Projekt anzulegen, bevor du Aufnahmen hast: Du wählst das Objekt (aus dem Katalog oder von Hand eingegeben) und die Stunden, die du sammeln willst.",
+   "Auf der Seite eines Projekts wird der Button oben zu **„＋ Sitzung hinzufügen“**: Die Aufnahmen, die du hinzufügst, kommen in dieses Projekt, auch wenn ihr Header das Objekt anders schreibt (zum Beispiel „LBN576“ und „LBN 576“).",
+   "**Kalibrierbibliothek: „Erneut analysieren“**. Wenn du Aufnahmen korrigierst (zum Beispiel ein Dark durch ein gutes ersetzt), liest sie sie erneut von der Festplatte und bewertet sie neu, und die Warnung verschwindet, wenn es kein Problem mehr gibt: die in der Liste angezeigten (wähle sie mit den Filtern aus) oder eine einzelne über ihr Datenblatt. Was du im Datenblatt von Hand geändert hast, bleibt erhalten.",
+   "**Dualbandfilter SII + OIII** in Meine Ausrüstung (L-Synergy, Askar D2 und ähnliche). Und Filter namens **„HO“** oder **„SO“** werden jetzt bei der Planung mit dem Mond als Dualband erkannt (vorher zählten sie als Breitband)."
+  ],
+  "it": [
+   "**Pulsanti più chiari**: in alto, **«＋ Aggiungi pose»** (di qualsiasi oggetto: ogni posa va nel suo progetto in base alla sua intestazione) e **«＋ Nuovo progetto»**, per creare un progetto prima di avere pose: scegli l'oggetto (dal catalogo o scritto a mano) e le ore che vuoi raccogliere.",
+   "Nella pagina di un progetto il pulsante in alto diventa **«＋ Aggiungi una sessione»**: le pose che aggiungi vanno in quel progetto anche se la loro intestazione scrive l'oggetto in un altro modo (per esempio «LBN576» e «LBN 576»).",
+   "**Libreria di calibrazione: «Analizza di nuovo»**. Se correggi alcune pose (per esempio, sostituisci un dark con uno buono), le rilegge dal disco e le valuta di nuovo, e l'avviso sparisce se non c'è più problema: quelle che si vedono nell'elenco (sceglile con i filtri) o una sola dalla sua scheda. Quello che hai cambiato a mano nella scheda viene mantenuto.",
+   "**Filtro a doppia banda SII + OIII** in La mia attrezzatura (L-Synergy, Askar D2 e simili). E i filtri chiamati **«HO»** o **«SO»** ora vengono riconosciuti come doppia banda quando si pianifica con la Luna (prima contavano come banda larga)."
+  ],
+  "pt": [
+   "**Botões mais claros**: em cima, **«＋ Adicionar exposições»** (de qualquer objeto: cada exposição vai para o seu projeto segundo o cabeçalho) e **«＋ Novo projeto»**, para criar um projeto antes de ter exposições: escolhe o objeto (do catálogo ou escrito à mão) e as horas que quer reunir.",
+   "Na página de um projeto, o botão de cima passa a ser **«＋ Adicionar uma sessão»**: as exposições que adicionar vão para esse projeto mesmo que o cabeçalho escreva o objeto de outra forma (por exemplo «LBN576» e «LBN 576»).",
+   "**Biblioteca de calibração: «Analisar de novo»**. Se corrigir algumas exposições (por exemplo, substituir um dark por um bom), volta a lê-las do disco e a avaliá-las, e o aviso desaparece se já não houver problema: as que se veem na lista (escolha-as com os filtros) ou só uma a partir da sua ficha. O que tiver mudado à mão na ficha mantém-se.",
+   "**Filtro de banda dupla SII + OIII** em O meu equipamento (L-Synergy, Askar D2 e semelhantes). E os filtros chamados **«HO»** ou **«SO»** passam a ser reconhecidos como banda dupla ao planear com a Lua (antes contavam como banda larga)."
+  ]
+ },
+ {
   "version": "0.31.0",
   "es": [
    "**Componer canales**: mezcla tú los filtros del último apilado en una imagen de color, con Siril. En el paso «Procesado» de la página de cada proyecto, **«Componer canales…»**: eliges una paleta (LRGB, RGB, SHO, HOO, HSO, Ha+RGB) o **«A mano»** (qué filtro va a cada canal y en qué porcentaje), una luminancia y los ajustes (gradiente, brillo, color, saturación); la vista previa se rehace sola con cada cambio. **«Crear la imagen final»** la hace a tamaño completo (TIFF de 16 bits y JPG, y el FITS lineal si quieres) y queda guardada en la carpeta del apilado, y con **«Usar estos ajustes»** recuperas cualquier composición.",
