@@ -3523,10 +3523,10 @@ function renderFilters(){
   // el lugar, solo si hay más de uno
   const varios = lugaresVarios(); $("fLugarCaja").hidden = !varios;
   if (varios){
-    const nombre = k => { if (k === PG_SINLUGAR) return trLT("Sin lugar", "No place"); const f = frames.find(x => pgClaveLugar(x) === k); return f ? lugarDeToma(f).nombre : k; };
+    const nombre = k => { if (k === PG_SINLUGAR) return trLT("Sin lugar", "No site"); const f = frames.find(x => pgClaveLugar(x) === k); return f ? lugarDeToma(f).nombre : k; };
     const cuenta = new Map(); for (const f of frames){ const k = pgClaveLugar(f); cuenta.set(k, (cuenta.get(k) || 0) + 1); }
     const orden = [...cuenta].sort((x, y) => (x[0] === PG_SINLUGAR) - (y[0] === PG_SINLUGAR) || y[1] - x[1]).map(x => x[0]);       // el de más tomas primero y «sin lugar» al final
-    build($("fLugar"), "lugar", k => k === PG_SINLUGAR ? trLT("Sin lugar", "No place") : nombre(k), orden, pgClaveLugar);
+    build($("fLugar"), "lugar", k => k === PG_SINLUGAR ? trLT("Sin lugar", "No site") : nombre(k), orden, pgClaveLugar);
   } else filters.lugar.clear();
 }
 function renderCounts(){
@@ -4072,8 +4072,8 @@ function deshacerSitio(antes){
 // equipo está en un solo sitio, así que el cambio va a todas sus tomas, sean del objeto que sean
 function lugarCeldaSesion(noche, equipo, fs, conOrigen){
   const ls = lugaresDeLista(fs), uno = ls.length === 1 ? ls[0] : null, sel = uno ? uno.k : "", aMano = fs.some(f => f.sitio);
-  const ph = ls.length > 1 ? ls.map(x => (x.k ? x.nombre : trLT("sin lugar", "no place")) + " (" + nfmt(x.n) + ")").join(" · ") : !sel ? trLT("Sin lugar", "No place") : "";
-  return `<div class="lugCaja"><select class="lugSel" data-lug-noche="${esc(noche)}" data-lug-eq="${esc(equipo)}" aria-label="${esc(trLT("Lugar de la sesión", "Place of the session"))}" title="${esc(trLT("Se pone a todas las tomas de esa noche con ese equipo", "It is set on all the frames of that night taken with that setup"))}">
+  const ph = ls.length > 1 ? ls.map(x => (x.k ? x.nombre : trLT("sin lugar", "no site")) + " (" + nfmt(x.n) + ")").join(" · ") : !sel ? trLT("Sin lugar", "No site") : "";
+  return `<div class="lugCaja"><select class="lugSel" data-lug-noche="${esc(noche)}" data-lug-eq="${esc(equipo)}" aria-label="${esc(trLT("Lugar de la sesión", "Site of the session"))}" title="${esc(trLT("Se pone a todas las tomas de esa noche con ese equipo", "Set on all the frames of that night taken with that setup"))}">
       ${ph ? `<option value="-" selected disabled class="notr">${esc(ph)}</option>` : ""}${lugarOpcionesHTML(sel, aMano)}</select>
     ${aMano || (conOrigen && sel) ? `<span class="lugOrigen">${esc(aMano ? trLT("puesto a mano", "set by hand") : trLT("según la cabecera", "from the header"))}</span>` : ""}</div>`;
 }
@@ -4086,7 +4086,7 @@ function lugarPonerSesion(noche, equipo, k, sel){
   if (sel) sel.blur();
   if (!antes.length) return;
   scheduleSave(); render();
-  toast(antes.length === 1 ? trLT("Lugar puesto a 1 toma", "Place set on 1 frame") : trLT("Lugar puesto a {1} tomas", "Place set on {1} frames", nfmt(antes.length)));
+  toast(antes.length === 1 ? trLT("Lugar puesto a 1 toma", "Site set on 1 frame") : trLT("Lugar puesto a {1} tomas", "Site set on {1} frames", nfmt(antes.length)));
 }
 // las opciones de un desplegable de lugares: los guardados y los de las tomas que aún no lo están
 function lugarOpcionesHTML(sel, conQuitar, txtQuitar){
@@ -4166,7 +4166,7 @@ function pnAvisos(ps, util, curso){
   if (lugaresVarios()){      // quien tiene varios lugares necesita saber cuál es el de cada toma
     const sinL = frames.filter(f => !f.discarded && !lugarDeToma(f));
     if (sinL.length) av.push({o: 3.5, h: `${esc(trLT("{1} tomas ({2}) no dicen dónde se hicieron.", "{1} frames ({2}) don't say where they were taken.", nfmt(sinL.length), nNoches(new Set(sinL.map(f => f.night).filter(Boolean)).size)))}
-      <a href="#" data-pn-lugares="1">${esc(trLT("Asignar lugar", "Set the place"))}</a>`});
+      <a href="#" data-pn-lugares="1">${esc(trLT("Asignar lugar", "Set the site"))}</a>`});
   }
   const sinAn = curso.filter(p => p.sinAnalizar > 0);
   if (sinAn.length){
@@ -4254,7 +4254,7 @@ function pnTarjetaNoches(){
   }
   const opts = (mapa, sel_, todos) => `<option value="">${esc(todos)}</option>` + [...mapa].map(([k, n]) => `<option value="${esc(k)}" ${k === sel_ ? "selected" : ""} class="notr">${esc(n)}</option>`).join("");
   const filtros = [
-    lugares.size + (sinLugar && lugares.size ? 1 : 0) > 1 ? `<select class="pnSel" id="pnSelLugar">${opts(new Map([...lugares, ...(sinLugar ? [["sin", trLT("Sin lugar", "No place")]] : [])]), PNL.lugar, trLT("Todos los lugares", "All sites"))}</select>` : "",
+    lugares.size + (sinLugar && lugares.size ? 1 : 0) > 1 ? `<select class="pnSel" id="pnSelLugar">${opts(new Map([...lugares, ...(sinLugar ? [["sin", trLT("Sin lugar", "No site")]] : [])]), PNL.lugar, trLT("Todos los lugares", "All sites"))}</select>` : "",
     equipos.size > 1 ? `<select class="pnSel" id="pnSelEquipo">${opts(new Map([...equipos].sort().map(e => [e, e])), PNL.equipo, trLT("Todos los equipos", "All setups"))}</select>` : "",
     objetos.size > 1 ? `<select class="pnSel" id="pnSelObjeto">${opts(new Map([...objetos].sort((a, b) => a.localeCompare(b, undefined, {numeric: true})).map(o => [o, o])), PNL.objeto, trLT("Todos los objetos", "All targets"))}</select>` : ""].filter(Boolean).join("");
   return `<section class="pnCard"><div class="pnCab"><h3>${esc(trLT("Tus noches", "Your nights"))}</h3>
@@ -4309,16 +4309,16 @@ function lugaresResumenHTML(c){
   const sin = st.get(""); st.delete("");
   for (const x of st.values()) filas.push({id: "", k: x.k, nombre: x.nombre, lat: x.lat, lon: x.lon, guardado: false, x});
   const fila = f => { const x = f.x, activo = f.guardado && act && act.id === f.id;
-    return `<tr><td><b class="notr">${esc(f.nombre)}</b>${activo ? `<span class="lugAct" title="${esc(trLT("Próximas noches, Qué fotografiar y la previsión del tiempo se calculan para este lugar", "Upcoming nights, What to shoot and the weather forecast are worked out for this place"))}">${esc(trLT("planificas desde aquí", "you plan from here"))}</span>` : ""}
+    return `<tr><td><b class="notr">${esc(f.nombre)}</b>${activo ? `<span class="lugAct" title="${esc(trLT("Próximas noches, Qué fotografiar y la previsión del tiempo se calculan para este lugar", "Upcoming nights, What to shoot and the weather forecast are worked out for this site"))}">${esc(trLT("planificas desde aquí", "you plan from here"))}</span>` : ""}
         <div class="note notr">${esc(f.lat.toFixed(3) + ", " + f.lon.toFixed(3))}${f.guardado ? "" : ` · ${esc(trLT("sin guardar", "unsaved"))}`}</div></td>
       <td class="num">${x ? nfmt(x.noches.size) : "0"}</td><td class="num">${x ? `<b>${esc(fmtH(x.seg / 3600))}</b>` : `<span class="note">—</span>`}</td><td class="num">${x ? nfmt(x.n) : "0"}</td>
-      <td class="lugAcc">${f.guardado ? `<button class="btn small" data-lug-editar="${esc(f.id)}">${esc(trLT("Editar", "Edit"))}</button>${activo ? "" : `<button class="btn small" data-lug-activar="${esc(f.id)}" title="${esc(trLT("Próximas noches, Qué fotografiar y la previsión del tiempo se calcularán para este lugar", "Upcoming nights, What to shoot and the weather forecast will be worked out for this place"))}">${esc(trLT("Planificar aquí", "Plan from here"))}</button>`}`
-        : `<button class="btn small primary" data-lug-guardar="${esc(f.k)}">${esc(trLT("Guardar como lugar", "Save as a place"))}</button>`}</td></tr>`; };
-  return `${filas.length ? `<div class="tablewrap"><table class="arcLug" style="min-width:0"><thead><tr><th>${esc(trLT("Lugar", "Place"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th><th></th></tr></thead>
+      <td class="lugAcc">${f.guardado ? `<button class="btn small" data-lug-editar="${esc(f.id)}">${esc(trLT("Editar", "Edit"))}</button>${activo ? "" : `<button class="btn small" data-lug-activar="${esc(f.id)}" title="${esc(trLT("Próximas noches, Qué fotografiar y la previsión del tiempo se calcularán para este lugar", "Upcoming nights, What to shoot and the weather forecast will be worked out for this site"))}">${esc(trLT("Planificar aquí", "Plan from here"))}</button>`}`
+        : `<button class="btn small primary" data-lug-guardar="${esc(f.k)}">${esc(trLT("Guardar como lugar", "Save as a site"))}</button>`}</td></tr>`; };
+  return `${filas.length ? `<div class="tablewrap"><table class="arcLug" style="min-width:0"><thead><tr><th>${esc(trLT("Lugar", "Site"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th><th></th></tr></thead>
       <tbody>${filas.map(fila).join("")}</tbody></table></div>` : ""}
-    ${sin && sin.n ? `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:260px">${esc(trLT("{1} tomas ({2}) no tienen lugar: su cabecera no trae las coordenadas (la ASIAIR, por ejemplo, no las escribe). Díselo a ASTRO noche a noche.", "{1} frames ({2}) have no place: their header carries no coordinates (the ASIAIR, for one, doesn't write them). Tell ASTRO night by night.", nfmt(sin.n), nNoches(sin.noches.size)))}</span>
-        <button class="btn small primary" id="lugAsignar">${esc(trLT("Poner el lugar a cada noche…", "Set the place of each night…"))}</button></div>` : ""}
-    ${filas.length ? `<div><button class="btn small" id="lugOtro">${esc(trLT("＋ Otro lugar", "＋ Another place"))}</button></div>` : ""}`;
+    ${sin && sin.n ? `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:260px">${esc(trLT("{1} tomas ({2}) no tienen lugar: su cabecera no trae las coordenadas (la ASIAIR, por ejemplo, no las escribe). Díselo a ASTRO noche a noche.", "{1} frames ({2}) have no site: their header carries no coordinates (the ASIAIR, for one, doesn't write them). Tell ASTRO night by night.", nfmt(sin.n), nNoches(sin.noches.size)))}</span>
+        <button class="btn small primary" id="lugAsignar">${esc(trLT("Poner el lugar a cada noche…", "Set the site of each night…"))}</button></div>` : ""}
+    ${filas.length || frames.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${filas.length ? `<button class="btn small" id="lugOtro">${esc(trLT("＋ Otro lugar", "＋ Another site"))}</button>` : ""}${frames.length && !(sin && sin.n) ? `<button class="btn small" id="lugAsignar">${esc(trLT("Poner el lugar a cada noche…", "Set the site of each night…"))}</button>` : ""}</div>` : ""}`;
 }
 // opts: {editar: id de un lugar guardado, nuevo: true o {lat, lon} (con las coordenadas de unas tomas)}
 async function abrirLugares(opts){
@@ -4332,7 +4332,7 @@ async function abrirLugares(opts){
   activarLugar(f, abrirLugares);
   raiz.querySelectorAll("[data-lug-editar]").forEach(b => b.onclick = () => { abrirLugares({editar: b.dataset.lugEditar}); });
   raiz.querySelectorAll("[data-lug-guardar]").forEach(b => b.onclick = () => lugarGuardarSinGuardar(b.dataset.lugGuardar));
-  raiz.querySelectorAll("[data-lug-activar]").forEach(b => b.onclick = async () => { await activarLugarId(b.dataset.lugActivar); toast(trLT("Ahora planificas desde este lugar", "You now plan from this place")); abrirLugares(); programarEstaNoche(); });
+  raiz.querySelectorAll("[data-lug-activar]").forEach(b => b.onclick = async () => { await activarLugarId(b.dataset.lugActivar); toast(trLT("Ahora planificas desde este lugar", "You now plan from this site")); abrirLugares(); programarEstaNoche(); });
   if ($("lugOtro")) $("lugOtro").onclick = () => abrirLugares({nuevo: true});
   if ($("lugAsignar")) $("lugAsignar").onclick = () => abrirNochesLugar();
   if (nuevo || editar){ if (nuevo) f.querySelector(".plNombre").focus(); f.scrollIntoView({block: "nearest", behavior: "smooth"}); }
@@ -4378,18 +4378,18 @@ function pintarNochesLugar(enfocarQ){
       <td class="num">${nfmt(g.vivas.length)}</td><td>${lugarCeldaSesion(g.night, g.eq, g.vivas, true)}</td></tr>`).join("");
   $("lnBody").innerHTML = `
     ${LN.hecho ? `<div class="lotesHecho"><span style="flex:1">${esc(LN.hecho.antes.length === 1 ? trLT("Hecho: 1 toma cambiada.", "Done: 1 frame changed.") : trLT("Hecho: {1} tomas cambiadas.", "Done: {1} frames changed.", nfmt(LN.hecho.antes.length)))}</span><button class="btn small" id="lnDeshacer">${esc(trLT("Deshacer", "Undo"))}</button></div>` : ""}
-    ${hayLugares ? "" : `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px">${esc(trLT("Aún no tienes ningún lugar guardado. Guarda uno (casa, el campo…) y vuelve aquí a asignarlo a tus noches.", "You haven't saved any place yet. Save one (home, the countryside…) and come back here to assign it to your nights."))}</span><button class="btn small primary" id="lnNuevo">${esc(trLT("Guardar un lugar", "Save a place"))}</button></div>`}
+    ${hayLugares ? "" : `<div class="status warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:240px">${esc(trLT("Aún no tienes ningún lugar guardado. Guarda uno (casa, el campo…) y vuelve aquí a asignarlo a tus noches.", "You haven't saved any site yet. Save one (home, the countryside…) and come back here to assign it to your nights."))}</span><button class="btn small primary" id="lnNuevo">${esc(trLT("Guardar un lugar", "Save a site"))}</button></div>`}
     <div class="arcBarra" style="margin:0">
-      <div class="arcPest"><button class="${LN.solo ? "on" : ""}" data-ln-solo="1">${esc(trLT("Sin lugar", "No place"))} · ${nfmt(nSin)}</button><button class="${LN.solo ? "" : "on"}" data-ln-solo="0">${esc(trLT("Todas", "All"))} · ${nfmt(todos.length)}</button></div>
+      <div class="arcPest"><button class="${LN.solo ? "on" : ""}" data-ln-solo="1">${esc(trLT("Sin lugar", "No site"))} · ${nfmt(nSin)}</button><button class="${LN.solo ? "" : "on"}" data-ln-solo="0">${esc(trLT("Todas", "All"))} · ${nfmt(todos.length)}</button></div>
       <input type="search" id="lnQ" value="${esc(LN.q)}" placeholder="${esc(trLT("Buscar un objeto…", "Search a target…"))}">
       ${LN.obj ? `<button class="btn small" id="lnObjQuitar">${esc(LN.obj)} ✕</button>` : ""}<span class="spacer"></span>
-      ${hayLugares ? `<a href="#" id="lnNuevo2">${esc(trLT("＋ Guardar un lugar nuevo", "＋ Save a new place"))}</a>` : ""}</div>
+      ${hayLugares ? `<a href="#" id="lnNuevo2">${esc(trLT("＋ Guardar un lugar nuevo", "＋ Save a new site"))}</a>` : ""}</div>
     ${hayLugares && nMarc ? `<div class="lotesHecho"><span>${esc(nMarc === 1 ? trLT("1 sesión marcada.", "1 session selected.") : trLT("{1} sesiones marcadas.", "{1} sessions selected.", nfmt(nMarc)))}</span>
-      <select class="lugSel" id="lnLugar"><option value="-" selected disabled>${esc(trLT("Elige un lugar…", "Choose a place…"))}</option>${lugarOpcionesHTML("", true)}</select>
-      <button class="btn small primary" id="lnAplicar">${esc(trLT("Poner el lugar a las marcadas", "Set the place on the selected"))}</button><span class="spacer"></span><a href="#" id="lnDesmarcar">${esc(trLT("Quitar la marca", "Clear the selection"))}</a></div>` : ""}
+      <select class="lugSel" id="lnLugar"><option value="-" selected disabled>${esc(trLT("Elige un lugar…", "Choose a site…"))}</option>${lugarOpcionesHTML("", true)}</select>
+      <button class="btn small primary" id="lnAplicar">${esc(trLT("Poner el lugar a las marcadas", "Set the site on the selected"))}</button><span class="spacer"></span><a href="#" id="lnDesmarcar">${esc(trLT("Quitar la marca", "Clear the selection"))}</a></div>` : ""}
     <div class="tablewrap"><table class="arcSes" style="min-width:820px"><thead><tr><th class="chk"><input type="checkbox" id="lnTodas" ${vis.length && marcadasVis === vis.length ? "checked" : ""} aria-label="${esc(trLT("Marcar las que se ven", "Select the ones shown"))}"></th>
-      <th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Objetos", "Targets"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Lugar", "Place"))}</th></tr></thead>
-      <tbody>${filas}</tbody></table>${lista.length ? "" : `<div class="empty" style="display:block">${esc(LN.solo && !q && !nSin ? trLT("Todas las sesiones tienen lugar.", "Every session has a place.") : trLT("Ninguna sesión con esos filtros", "No sessions with those filters"))}</div>`}</div>
+      <th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th><th>${esc(trLT("Objetos", "Targets"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Lugar", "Site"))}</th></tr></thead>
+      <tbody>${filas}</tbody></table>${lista.length ? "" : `<div class="empty" style="display:block">${esc(LN.solo && !q && !nSin ? trLT("Todas las sesiones tienen lugar.", "Every session has a site.") : trLT("Ninguna sesión con esos filtros", "No sessions with those filters"))}</div>`}</div>
     <div class="note">${esc(trLT("Se ven {1} de {2} sesiones.", "Showing {1} of {2} sessions.", nfmt(vis.length), nfmt(lista.length)))}${lista.length > vis.length ? ` <button class="btn small" id="lnMas">${esc(trLT("Ver más", "Show more"))}</button>` : ""}</div>`;
   const b = $("lnBody");
   b.querySelectorAll("[data-ln-solo]").forEach(x => x.onclick = () => { LN.solo = x.dataset.lnSolo === "1"; LN.max = 60; pintarNochesLugar(); });
@@ -4403,7 +4403,7 @@ function pintarNochesLugar(enfocarQ){
     const antes = lugarAplicar(frames.filter(f => f.night === s.dataset.lugNoche && equipoDe(f) === s.dataset.lugEq), s.value);
     if (antes.length) LN.hecho = {antes}; pintarNochesLugar(); });
   if ($("lnAplicar")) $("lnAplicar").onclick = () => {
-    const k = $("lnLugar").value; if (k === "-") return toast(trLT("Elige primero el lugar", "Choose the place first"));
+    const k = $("lnLugar").value; if (k === "-") return toast(trLT("Elige primero el lugar", "Choose the site first"));
     const antes = lugarAplicar(todos.filter(g => LN.marcadas.has(g.k)).flatMap(g => g.fs), k);
     LN.hecho = antes.length ? {antes} : LN.hecho; LN.marcadas = new Set(); pintarNochesLugar(); };
   if ($("lnDeshacer")) $("lnDeshacer").onclick = () => { deshacerSitio(LN.hecho.antes); LN.hecho = null; scheduleSave(); render(); toast(trLT("Cambio deshecho", "Change undone")); pintarNochesLugar(); };
@@ -4617,7 +4617,7 @@ function renderPanel(f){
 function fichaLugarHTML(f){
   const l = lugarDeToma(f);
   if (!l && !f.sitio && !lugaresGuardados().length && !lugaresSinGuardar().length) return "";
-  return `<label for="eLugar">${esc(trLT("Lugar", "Place"))}</label><div><select id="eLugar" data-k="${esc(l ? l.k : "-")}">${l ? "" : `<option value="-" selected disabled>${esc(trLT("Sin lugar", "No place"))}</option>`}${lugarOpcionesHTML(l ? l.k : "", !!f.sitio)}</select>
+  return `<label for="eLugar">${esc(trLT("Lugar", "Site"))}</label><div><select id="eLugar" data-k="${esc(l ? l.k : "-")}">${l ? "" : `<option value="-" selected disabled>${esc(trLT("Sin lugar", "No site"))}</option>`}${lugarOpcionesHTML(l ? l.k : "", !!f.sitio)}</select>
     <div class="note">${esc(l ? (f.sitio ? trLT("puesto a mano", "set by hand") : trLT("según la cabecera", "from the header")) : trLT("La cabecera no trae las coordenadas", "The header carries no coordinates"))}</div></div>`;
 }
 let PUERTO_CAL = null;
@@ -5447,7 +5447,7 @@ function arcSesiones(lista){
         <td>${txtCalNoche(objs.map(([o]) => o), k)}</td></tr>`;
     });
   }
-  return `<div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th>${conLugar ? `<th>${esc(trLT("Lugar", "Place"))}</th>` : ""}<th>${esc(trLT("Proyectos", "Projects"))}</th>
+  return `<div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th>${conLugar ? `<th>${esc(trLT("Lugar", "Site"))}</th>` : ""}<th>${esc(trLT("Proyectos", "Projects"))}</th>
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th></tr></thead>
       <tbody>${filas}</tbody></table>${ks.length ? "" : `<div class="empty" style="display:block">${esc(trLT("Ninguna sesión con esos filtros", "No sessions with those filters"))}</div>`}</div>
     <div class="note" style="margin-top:8px">${esc(trLT("{1} noches. Cada noche, los equipos que usaste y lo que hiciste con cada uno.", "{1} nights. For each night, the setups you used and what you shot with each one.", nfmt(ks.length)))}
@@ -5629,7 +5629,7 @@ function renderArchivo(){
     ${ARC.mes ? `<button class="btn small" id="arcMesQuitar">${esc(arcNombreMes(ARC.mes))} ✕</button>` : ""}
     <select id="arcEquipo">${opt("", trLT("Todos los equipos", "All setups"), ARC.equipo)}${equipos.map(e => opt(e, e, ARC.equipo)).join("")}</select>
     ${(() => { if (!lugaresVarios()) return ""; const ls = lugaresDeLista(frames.filter(f => !f.discarded)); if (ARC.lugar && !ls.some(x => (x.k || PG_SINLUGAR) === ARC.lugar)) ARC.lugar = "";
-      return `<select id="arcLugar">${opt("", trLT("Todos los lugares", "All places"), ARC.lugar)}${ls.map(x => opt(x.k || PG_SINLUGAR, x.k ? x.nombre : trLT("Sin lugar", "No place"), ARC.lugar)).join("")}</select>`; })()}
+      return `<select id="arcLugar">${opt("", trLT("Todos los lugares", "All sites"), ARC.lugar)}${ls.map(x => opt(x.k || PG_SINLUGAR, x.k ? x.nombre : trLT("Sin lugar", "No site"), ARC.lugar)).join("")}</select>`; })()}
     </div>`;
   if (ARC.pestana === "calendario") h += arcCalendario(anios);
   else if (ARC.pestana === "sesiones") h += arcSesiones(lista);
@@ -6521,12 +6521,12 @@ function pgTablaLugares(ls, sel){
     return [bg != null ? esc(numEs(bg, 1)) + " %" : "", l && l.bortle ? `Bortle ${esc(String(l.bortle))}` : "", l && l.sqm ? `SQM ${esc(numEs(+l.sqm, 1))}` : ""].filter(Boolean).join(" · ") || `<span class="note">—</span>`;
   };
   const fila = x => `<tr data-pg-lugar="${esc(x.k || PG_SINLUGAR)}" tabindex="0" class="${sel === (x.k || PG_SINLUGAR) ? "sel" : ""}">
-      <td>${x.k ? `<b class="notr">${esc(x.nombre)}</b>${x.guardado ? "" : `<div class="note">${esc(trLT("sin guardar", "unsaved"))} · <a href="#" data-pg-lugar-guardar="${esc(x.k)}">${esc(trLT("Guardar como lugar", "Save as a place"))}</a></div>`}`
-        : `<b>${esc(trLT("Sin lugar", "No place"))}</b><div class="note">${esc(trLT("las tomas sin coordenadas ni lugar puesto", "frames without coordinates or a place set"))} · <a href="#" data-pg-lugar-asignar="1">${esc(trLT("Asignar", "Assign"))}</a></div>`}</td>
+      <td>${x.k ? `<b class="notr">${esc(x.nombre)}</b>${x.guardado ? "" : `<div class="note">${esc(trLT("sin guardar", "unsaved"))} · <a href="#" data-pg-lugar-guardar="${esc(x.k)}">${esc(trLT("Guardar como lugar", "Save as a site"))}</a></div>`}`
+        : `<b>${esc(trLT("Sin lugar", "No site"))}</b><div class="note">${esc(trLT("las tomas sin coordenadas ni lugar puesto", "frames without coordinates or a site set"))} · <a href="#" data-pg-lugar-asignar="1">${esc(trLT("Asignar", "Assign"))}</a></div>`}</td>
       <td class="num">${nfmt(x.noches.size)}</td><td class="num"><b>${esc(fmtH(x.seg / 3600))}</b></td>
       <td class="num">${nfmt(x.n)}</td><td>${txtCalidad(calResumen(x.cal)) || `<span class="note">${esc(trLT("sin analizar", "not analysed"))}</span>`}</td><td class="notr">${cielo(x)}</td></tr>`;
-  return `<h3 class="arcH" style="margin-top:0">${esc(trLT("Por lugar", "By place"))}<span class="note">${esc(trLT("Pulsa un lugar para ver solo sus tomas", "Click a place to see only its frames"))}</span>${sel ? `<span class="spacer"></span><a href="#" data-pg-lugar-todos="1">${esc(trLT("Ver todos los lugares", "Show all places"))}</a>` : ""}</h3>
-    <div class="tablewrap arcLugW"><table class="arcLug"><thead><tr><th>${esc(trLT("Lugar", "Place"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th>
+  return `<h3 class="arcH" style="margin-top:0">${esc(trLT("Por lugar", "By site"))}<span class="note">${esc(trLT("Pulsa un lugar para ver solo sus tomas", "Click a site to see only its frames"))}</span>${sel ? `<span class="spacer"></span><a href="#" data-pg-lugar-todos="1">${esc(trLT("Ver todos los lugares", "Show all sites"))}</a>` : ""}</h3>
+    <div class="tablewrap arcLugW"><table class="arcLug"><thead><tr><th>${esc(trLT("Lugar", "Site"))}</th><th>${esc(trLT("Noches", "Nights"))}</th><th>${esc(trLT("Horas útiles", "Usable hours"))}</th><th>${esc(trLT("Tomas", "Frames"))}</th>
       <th>${esc(trLT("Calidad", "Quality"))}</th><th title="${esc(trLT("Fondo de cielo mediano de las tomas útiles, y lo que sabes de ese cielo", "Median sky background of the usable frames, and what you know about that sky"))}">${esc(trLT("Cielo", "Sky"))}</th></tr></thead>
       <tbody>${ls.map(fila).join("")}</tbody></table></div>`;
 }
@@ -6547,7 +6547,7 @@ function pgPanelTomas(X){
     </tbody></table></div>
     <div class="arcEquipos"><h4>${esc(trLT("Equipos", "Setups"))}</h4>${[...p.equipos].map(e => { const s = ok.filter(f => equipoDe(f) === e).reduce((x, f) => x + (f.exp || 0), 0);
       return `<div><span>${esc(e)}</span><b>${esc(fmtH(s / 3600))}</b></div>`; }).join("")}
-      ${lugares.some(x => x.k) ? `<h4 class="pgH4b">${esc(trLT("Lugares", "Places"))}</h4>${lugares.map(x => `<div><span class="notr">${esc(x.k ? x.nombre : trLT("Sin lugar", "No place"))}<small class="note"> · ${esc(nNoches(x.noches.size))}</small></span><b>${esc(fmtH(x.seg / 3600))}</b></div>`).join("")}` : ""}</div></div>`;
+      ${lugares.some(x => x.k) ? `<h4 class="pgH4b">${esc(trLT("Lugares", "Sites"))}</h4>${lugares.map(x => `<div><span class="notr">${esc(x.k ? x.nombre : trLT("Sin lugar", "No site"))}<small class="note"> · ${esc(nNoches(x.noches.size))}</small></span><b>${esc(fmtH(x.seg / 3600))}</b></div>`).join("")}` : ""}</div></div>`;
   h += `<div id="objEquipos"></div>`;
   // sesiones: cada noche, con qué equipo, cuánto de cada filtro y cómo salió
   const ses = arcAgruparSesiones(fl), ksS = [...ses.keys()].sort().reverse(), visS = ksS.slice(0, ARC.sesProy), conLugar = lugaresVarios();
@@ -6563,7 +6563,7 @@ function pgPanelTomas(X){
         <td style="white-space:nowrap"><button class="btn small" data-arc-noche="${esc(k)}">${esc(trLT("Ver tomas", "See frames"))}</button> <button class="btn small" data-arc-parp="${esc(k)}" title="${esc(trLT("Pasar las tomas de esta noche una a una", "Go through this night's frames one by one"))}">${esc(trLT("Parpadeo", "Blink"))}</button></td></tr>`; });
   }
   h += `<h3 class="arcH">${esc(trLT("Sesiones", "Sessions"))} <span class="note">${esc(nNoches(ksS.length))}</span><span class="spacer"></span>${pgBtn(trLT("Ver todas las tomas", "See all the frames"), "tomas")}</h3>
-    <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th>${conLugar ? `<th>${esc(trLT("Lugar", "Place"))}</th>` : ""}<th>${esc(trLT("Filtros", "Filters"))}</th>
+    <div class="tablewrap"><table class="arcSes"><thead><tr><th>${esc(trLT("Noche", "Night"))}</th><th>${esc(trLT("Equipo", "Setup"))}</th>${conLugar ? `<th>${esc(trLT("Lugar", "Site"))}</th>` : ""}<th>${esc(trLT("Filtros", "Filters"))}</th>
       <th>${esc(trLT("Tomas", "Frames"))}</th><th>${esc(trLT("Calidad", "Quality"))}</th><th>${esc(trLT("Calibración", "Calibration"))}</th><th></th></tr></thead><tbody>${filasS}</tbody></table></div>
     ${ksS.length > visS.length ? `<div style="margin-top:8px"><button class="btn small" id="arcSesProyMas">${esc(trLT("Ver todas las noches", "Show all nights"))}</button></div>` : ""}`;
   return h;
@@ -6609,12 +6609,12 @@ function pgPanelApilado(X){
     <div class="pgAcc">${cal ? pgBtn(trLT("Qué calibra cada noche", "What calibrates each night"), "cobertura") : ""}${PUERTO_CAL ? `<a class="btn small" href="${esc(urlCalibracion("#falta"))}">${esc(trLT("¿Qué me falta?", "What am I missing?"))}</a>` : ""}${cal && (cal.sin_dark || cal.sin_flat) && ARC.calPend && (ARC.calPend.dirs || ARC.calPend.archivos) ? pgBtn(trLT("Añadir la calibración de tus carpetas", "Add the calibration from your folders"), "calenviar", true) : ""}</div></div>`;
   h += `<div class="pgBloque"><h4>${esc(trLT("Apilados", "Stacks"))}</h4>`;
   if (ap.length){
-    h += `<div class="pgApilados">${ap.slice(0, 6).map((a, i) => `<div class="pgAp"><b>${esc(fechaDia(String(a.fecha).slice(0, 10)))}</b>${a.lugar ? `<span class="lugChip notr" title="${esc(trLT("Solo con las tomas de este lugar", "Only with the frames from this place"))}">${esc(a.lugar.sin ? trLT("sin lugar", "no place") : a.lugar.nombre || nombreLugar(a.lugar))}</span>` : ""}
+    h += `<div class="pgApilados">${ap.slice(0, 6).map((a, i) => `<div class="pgAp"><b>${esc(fechaDia(String(a.fecha).slice(0, 10)))}</b>${a.lugar ? `<span class="lugChip notr" title="${esc(trLT("Solo con las tomas de este lugar", "Only with the frames from this site"))}">${esc(a.lugar.sin ? trLT("sin lugar", "no site") : a.lugar.nombre || nombreLugar(a.lugar))}</span>` : ""}
       <span class="chips">${(a.filtros || []).map(fi => `<span class="fchip notr" style="--c:${COLOR_FILTRO(fi)}">${esc(nomFiltro(fi))}</span>`).join("")}</span>
       <span class="note">${a.tomas ? esc(trLT("{1} tomas · {2}", "{1} frames · {2}", nfmt(a.tomas), fmtH(a.horas || 0))) : ""}${a.ponderado ? " · " + esc(trLT("con pesos", "weighted")) : ""}</span>
       <button class="btn small" data-pg-carpeta="${i}">${esc(trLT("Abrir la carpeta", "Open the folder"))}</button></div>`).join("")}</div>
       ${ap.length > 6 ? `<div class="note">${esc(trLT("{1} apilados en total.", "{1} stacks in total.", nfmt(ap.length)))}</div>` : ""}`;
-    if (est.nuevas) h += `<p class="arcAviso">${esc(trLT("Desde el último apilado hay {1} tomas útiles nuevas.", "Since the latest stack there are {1} new usable frames.", nfmt(est.nuevas)))}${est.nuevasLug && est.nuevasLug.length > 1 ? `<span class="notr"> (${esc(est.nuevasLug.map(([n, c]) => (n || trLT("sin lugar", "no place")) + " " + nfmt(c)).join(" · "))})</span>` : ""}</p>`;
+    if (est.nuevas) h += `<p class="arcAviso">${esc(trLT("Desde el último apilado hay {1} tomas útiles nuevas.", "Since the latest stack there are {1} new usable frames.", nfmt(est.nuevas)))}${est.nuevasLug && est.nuevasLug.length > 1 ? `<span class="notr"> (${esc(est.nuevasLug.map(([n, c]) => (n || trLT("sin lugar", "no site")) + " " + nfmt(c)).join(" · "))})</span>` : ""}</p>`;
   } else h += `<p class="note">${esc(trLT("Aún sin apilar.", "Not stacked yet."))}</p>`;
   h += `<div class="pgAcc">${pgBtn(ap.length ? trLT("Volver a apilar con Siril", "Stack again with Siril") : trLT("Apilar con Siril", "Stack with Siril"), "apilar", !c.na && (!ap.length || !!est.nuevas))}</div></div>`;
   return h;
@@ -6869,8 +6869,8 @@ function stkPintarLugar(){
   const obj = $("stkObj").value, ls = obj ? stkLugaresObjeto(obj) : [];
   if (!ls.some(x => (x.k || PG_SINLUGAR) === STK_LUGAR)) STK_LUGAR = "";
   $("stkFilaLugar").style.display = ls.length ? "" : "none";
-  $("stkLugar").innerHTML = ls.length ? `<option value="">${esc(trLT("Todos los lugares, juntos", "All places, together"))}</option>`
-    + ls.map(x => `<option value="${esc(x.k || PG_SINLUGAR)}" class="notr">${esc(x.k ? x.nombre : trLT("Sin lugar", "No place"))} · ${esc(nNoches(x.noches.size))} · ${esc(fmtH(x.seg / 3600))}</option>`).join("") : "";
+  $("stkLugar").innerHTML = ls.length ? `<option value="">${esc(trLT("Todos los lugares, juntos", "All sites, together"))}</option>`
+    + ls.map(x => `<option value="${esc(x.k || PG_SINLUGAR)}" class="notr">${esc(x.k ? x.nombre : trLT("Sin lugar", "No site"))} · ${esc(nNoches(x.noches.size))} · ${esc(fmtH(x.seg / 3600))}</option>`).join("") : "";
   $("stkLugar").value = STK_LUGAR;
 }
 // las tomas de ese lugar (null: todas) y cómo se apunta el lugar en el apilado
@@ -6916,7 +6916,7 @@ async function stkPlan(){
   const p0 = await r.json();
   if (yo !== STK_SEQ || $("stkObj").value !== obj) return;
   const p = STK_PLAN = p0; p.lugarK = lug;
-  const ex = p.excluidas, exTxt = [ex.otro_lugar&&trLT("{1} de otros lugares", "{1} from other places", nfmt(ex.otro_lugar)), ex.rechazadas&&`${ex.rechazadas} rechazables/sin elegir`, ex.descartadas&&`${ex.descartadas} descartadas`,
+  const ex = p.excluidas, exTxt = [ex.otro_lugar&&trLT("{1} de otros lugares", "{1} from other sites", nfmt(ex.otro_lugar)), ex.rechazadas&&`${ex.rechazadas} rechazables/sin elegir`, ex.descartadas&&`${ex.descartadas} descartadas`,
     ex.fuera&&`${ex.fuera} fuera del apilado (${(p.noches_fuera||[]).map(fechaCorta).join(", ")})`, ex.corte&&`${ex.corte} por tu corte de calidad`, ex.limite&&`${ex.limite} por los límites del proyecto`, ex.sin_archivo&&`${ex.sin_archivo} sin archivo en el disco`, ex.sin_conectar&&`${ex.sin_conectar} en su carpeta original, que ahora no está conectada`, ex.formato&&`${ex.formato} en formato que esta versión de Siril no lee`].filter(Boolean).join(" · ");
   let h = `<div class="stk"><table><thead><tr><th></th><th>Filtro</th><th>Tomas</th><th>Tiempo</th><th>Darks</th><th>Flats</th><th>Avisos</th></tr></thead><tbody>`;
   for (const f of p.filtros){
@@ -7278,10 +7278,10 @@ function formLugarHTML(c, o){
   const pre = o.nuevo && typeof o.nuevo === "object" ? o.nuevo : null, lat = pre ? pre.lat : l ? l.lat : "", lon = pre ? pre.lon : l ? l.lon : "";
   const campo = "padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:inherit";
   return `<div class="plLugar">
-    ${o.sinSelector ? `<h3 class="arcH" style="margin:0 0 6px">${esc(o.nuevo ? trLT("Lugar nuevo", "New place") : trLT("Editar «{1}»", "Edit “{1}”", nombreLugar(l)))}</h3>` : ""}
+    ${o.sinSelector ? `<h3 class="arcH" style="margin:0 0 6px">${esc(o.nuevo || !l ? trLT("Lugar nuevo", "New site") : trLT("Editar «{1}»", "Edit “{1}”", nombreLugar(l)))}</h3>` : ""}
     ${ls.length && !o.sinSelector ? `<div class="plLugares"><span class="note">Lugar:</span> ${selectorLugares(c, "plSel")}
       <button class="btn small plNuevo">＋ Otro lugar</button>${ls.length>1?`<button class="btn small plBorrar">Quitar este lugar</button>`:""}</div>` : ""}
-    <div class="note" style="margin-bottom:6px">${o.nuevo ? esc(trLT("Escribe el nombre y las coordenadas del nuevo lugar y pulsa «Guardar»", "Type the name and coordinates of the new place and press “Save”")) : l ? `Coordenadas: <b class="notr">${(+l.lat).toFixed(3)}, ${(+l.lon).toFixed(3)}</b> · altura mínima ${l.alt_min||30}°` : "Para saber qué se ve cada noche necesito tu lugar de observación. Se guarda solo en tu ordenador. Puedes guardar varios (casa, observatorio, campo…)."}</div>
+    <div class="note" style="margin-bottom:6px">${o.nuevo ? esc(trLT("Escribe el nombre y las coordenadas del nuevo lugar y pulsa «Guardar»", "Type the name and coordinates of the new site and press “Save”")) : l ? `Coordenadas: <b class="notr">${(+l.lat).toFixed(3)}, ${(+l.lon).toFixed(3)}</b> · altura mínima ${l.alt_min||30}°` : "Para saber qué se ve cada noche necesito tu lugar de observación. Se guarda solo en tu ordenador. Puedes guardar varios (casa, observatorio, campo…)."}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <input class="plNombre" placeholder="Nombre, p. ej. Casa u Observatorio" value="${esc(l&&l.nombre||"")}" style="width:220px;${campo}">
       ${t?`<button class="btn small plTomas">Usar el de mis tomas (<span class="notr">${t.lat.toFixed(2)}, ${t.lon.toFixed(2)}</span>)</button>`:""}
@@ -8680,7 +8680,7 @@ function pintarLotes(){
       ${LOTES_CAMPOS.map(([k, t]) => `<label for="lt_${k}">${t}</label><div><input id="lt_${k}" data-k="${k}" list="ltl_${k}" autocomplete="off" placeholder="${esc(tr("sin cambios"))}"><datalist id="ltl_${k}">${opts(k)}</datalist>
         <div class="ahora"><span>Ahora:</span> <span class="notr">${esc(lotesAhora(lista, k))}</span></div></div>`).join("")}
       <label for="lt_eq" id="lt_eqLab" hidden>Equipo del proyecto</label><div id="lt_eqCaja" hidden><select id="lt_eq"></select><div class="ahora" id="lt_eqAhora"></div></div>
-      <label for="lt_lug" id="lt_lugLab" hidden>${esc(trLT("Lugar", "Place"))}</label><div id="lt_lugCaja" hidden><select id="lt_lug"></select><div class="ahora" id="lt_lugAhora"></div></div>
+      <label for="lt_lug" id="lt_lugLab" hidden>${esc(trLT("Lugar", "Site"))}</label><div id="lt_lugCaja" hidden><select id="lt_lug"></select><div class="ahora" id="lt_lugAhora"></div></div>
     </div>
     <div class="note" id="lotesResumen"></div>
     <div id="lotesHecho"></div>
@@ -8732,13 +8732,13 @@ function lotesCambio(){
       lsel.value = [...lsel.options].some(o => o.value === antes) ? antes : "-";
     }
     const g = groupBy(lista, f => { const l = lugarDeToma(f); return l ? l.nombre : ""; });
-    $("lt_lugAhora").innerHTML = `<span>Ahora:</span> <span class="notr">${esc([...g].sort((a, b) => b[1].length - a[1].length).slice(0, 4).map(([n, l]) => (n || trLT("sin lugar", "no place")) + (g.size > 1 ? ` (${l.length})` : "")).join(" · "))}</span>`;
+    $("lt_lugAhora").innerHTML = `<span>Ahora:</span> <span class="notr">${esc([...g].sort((a, b) => b[1].length - a[1].length).slice(0, 4).map(([n, l]) => (n || trLT("sin lugar", "no site")) + (g.size > 1 ? ` (${l.length})` : "")).join(" · "))}</span>`;
   }
   const pedido = lotesPedido(), ks = Object.keys(pedido);
   const cambian = lista.filter(f => ks.some(k => k === "equipo_id" ? (f.equipo_id || "") !== pedido[k] : k === "sitio" ? !lotesYaTieneSitio(f, pedido[k]) : (f[k] || "").trim() !== pedido[k])).length;
   // la frase entera en cada idioma (por trozos no se traduce bien)
   const y = (l, c) => l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + ` ${c} ` + l[l.length - 1];
-  const nom = {object: trL("el objeto", "target"), filter: trL("el filtro", "filter"), tel: trL("el telescopio", "telescope"), cam: trL("la cámara", "camera"), equipo_id: trL("el equipo del proyecto", "project setup"), sitio: trL("el lugar", "place")};
+  const nom = {object: trL("el objeto", "target"), filter: trL("el filtro", "filter"), tel: trL("el telescopio", "telescope"), cam: trL("la cámara", "camera"), equipo_id: trL("el equipo del proyecto", "project setup"), sitio: trL("el lugar", "site")};
   const frase = trLT("Se cambia {1} de {2}{3}.", "Changes the {1} of {2}{3}.", y(ks.map(k => nom[k]), Y_CONJ),
     cambian === 1 ? trL("1 toma", "1 frame") : trLT("{1} tomas", "{1} frames", cambian), cambian < lista.length ? trL(" (las demás ya lo tienen)", " (the others already have it)") : "");
   $("lotesResumen").innerHTML = !ks.length ? "" : !cambian ? `<span>${esc(tr("Las tomas elegidas ya lo tienen así."))}</span>` : `<span class="notr">${esc(frase)}</span>`;
@@ -10695,8 +10695,9 @@ DIC_EN.update({"La base de datos se ha cambiado desde otra ventana o pestaña de
 DIC_EN.update({"Eliminar seleccionadas": "Delete selected", "Las quita de ASTRO. Solo se borran del disco las copias que ASTRO guardó en su carpeta": "Removes them from ASTRO. Only the copies ASTRO kept in its own folder are deleted from disk"})   # 0.28.4
 DIC_EN.update({"Cursos (bonus)": "Courses (bonus)", "Los cursos de astrofotografía de Tomás Moreno, adaptados a tu equipo": "Tomás Moreno's astrophotography courses, adapted to your gear"})   # cursos
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
-DIC_EN.update({"Panel general": "Overview", "Mapa del cielo": "Sky map", "Calendario": "Calendar", "Proyectos": "Projects", "Qué fotografiar": "What to shoot", "Explorar objetos": "Explore targets", "Planificar sesión": "Plan a session", "Mi archivo": "My archive", "Indexar directorios": "Index folders", "Ciencia": "Science", "Configuración": "Settings", "Lugares de observación": "Observing sites", "Umbrales de calidad": "Quality thresholds", "General": "General", "Cómo van tus proyectos y tus noches": "How your projects and your nights are going", "Cómo va cada uno y cuándo te conviene seguir": "How each one is doing and when it's worth carrying on", "Tus proyectos": "Your projects", "Tabla": "Table", "Tarjetas": "Cards", "Abrir": "Open", "Abrir el proyecto": "Open the project", "← Proyectos": "← Projects", "Volver": "Back", "Todavía no tienes proyectos: cada objeto que fotografíes será uno.": "You don't have any projects yet: every target you photograph will become one.", "# toma asignada": "# frame assigned", "# tomas asignadas": "# frames assigned", "Noche a noche, por equipo (#)": "Night by night, by setup (#)", "# válidas · # con avisos · # rechazables": "# valid · # with warnings · # rejected", "última noche:": "latest night:", "ASTRO la recorre entera y se salta darks, flats, bias y vistas previas.": "ASTRO goes through all of it and skips darks, flats, bias and previews.", "Incluir las tomas «con avisos»": "Include the frames “with warnings”", "Al terminar, crear una vista previa revelada": "When it finishes, create a developed preview", "Se quedan donde están. Para apilarlas después, añádelas con «Desde una carpeta del disco».": "They stay where they are. To stack them later, add them with “From a folder on disk”.", "Con los datos de ejemplo no hay imágenes reales que apilar: sus tomas son inventadas. Añade tus propias sesiones para apilar de verdad.": "The example data has no real images to stack: its frames are made up. Add your own sessions to stack for real.", "Conectar la ASIAIR o N.I.N.A.": "Connect the ASIAIR or N.I.N.A.", "Vuelve aquí: la carpeta aparecerá arriba (si no sale, pulsa «Buscar de nuevo»).": "Come back here: the folder will show up above (if it doesn't, press “Search again”).", "Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte; cada toma trae además el suyo en la cabecera, y así puedes separar lo que hiciste en cada sitio.": "Where you shoot from. With the site ASTRO knows when it gets dark, what Moon you have and what is visible above your horizon; each frame also carries its own in the header, so you can tell apart what you did at each place.", "Ventana de inicio…": "Start window…", "Te conviene": "Best for you", "Pon tu equipo y te digo qué montar ›": "Tell me your equipment and I'll tell you what to set up ›", "Ver el plan": "Show the plan", "Ocultar el plan": "Hide the plan"})   # 0.30: textos sueltos nuevos
+DIC_EN.update({"Panel general": "Overview", "Mapa del cielo": "Sky map", "Calendario": "Calendar", "Proyectos": "Projects", "Qué fotografiar": "What to shoot", "Explorar objetos": "Explore targets", "Planificar sesión": "Plan a session", "Mi archivo": "My archive", "Indexar directorios": "Index folders", "Ciencia": "Science", "Configuración": "Settings", "Lugares de observación": "Observing sites", "Umbrales de calidad": "Quality thresholds", "General": "General", "Cómo van tus proyectos y tus noches": "How your projects and your nights are going", "Cómo va cada uno y cuándo te conviene seguir": "How each one is doing and when it's worth carrying on", "Tus proyectos": "Your projects", "Tabla": "Table", "Tarjetas": "Cards", "Abrir": "Open", "Abrir el proyecto": "Open the project", "← Proyectos": "← Projects", "Volver": "Back", "Todavía no tienes proyectos: cada objeto que fotografíes será uno.": "You don't have any projects yet: every target you photograph will become one.", "# toma asignada": "# frame assigned", "# tomas asignadas": "# frames assigned", "Noche a noche, por equipo (#)": "Night by night, by setup (#)", "# válidas · # con avisos · # rechazables": "# valid · # with warnings · # rejected", "última noche:": "latest night:", "ASTRO la recorre entera y se salta darks, flats, bias y vistas previas.": "ASTRO goes through all of it and skips darks, flats, bias and previews.", "Incluir las tomas «con avisos»": "Include the frames “with warnings”", "Al terminar, crear una vista previa revelada": "When it finishes, create a developed preview", "Se quedan donde están. Para apilarlas después, añádelas con «Desde una carpeta del disco».": "They stay where they are. To stack them later, add them with “From a folder on disk”.", "Con los datos de ejemplo no hay imágenes reales que apilar: sus tomas son inventadas. Añade tus propias sesiones para apilar de verdad.": "The example data has no real images to stack: its frames are made up. Add your own sessions to stack for real.", "Conectar la ASIAIR o N.I.N.A.": "Connect the ASIAIR or N.I.N.A.", "Vuelve aquí: la carpeta aparecerá arriba (si no sale, pulsa «Buscar de nuevo»).": "Come back here: the folder will show up above (if it doesn't, press “Search again”).", "Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte. Y reparte tus tomas por sitio: cada una cuenta para el lugar guardado más cercano (a menos de 5 km), según las coordenadas de su cabecera o según el que le pongas tú.": "Where you shoot from. With the site ASTRO knows when it gets dark, what Moon you have and what is visible above your horizon. And it sorts your frames by site: each one counts for the nearest saved site (within 5 km), from the coordinates in its header or from the one you set.", "Ventana de inicio…": "Start window…", "Te conviene": "Best for you", "Pon tu equipo y te digo qué montar ›": "Tell me your equipment and I'll tell you what to set up ›", "Ver el plan": "Show the plan", "Ocultar el plan": "Hide the plan"})   # 0.30: textos sueltos nuevos
 DIC_EN.update({"Al abrir ASTRO, ir a": "When ASTRO opens, go to", "Aspecto": "Appearance", "Avisos por WhatsApp": "WhatsApp alerts", "Carpeta de datos": "Data folder", "Configurar…": "Set up…", "Tu plan": "Your plan"})   # 0.30: General y plan
+DIC_EN.update({"Lugar de cada noche": "Site of each night", "Dónde estabas cada noche. Si la cabecera de tus tomas trae las coordenadas, ASTRO ya las usa; aquí puedes ponerlas cuando faltan (la ASIAIR, por ejemplo, no las escribe) o corregirlas. Con el lugar de cada toma ves las horas de cada sitio y puedes apilar cada lugar por separado.": "Where you were each night. If the header of your frames carries the coordinates, ASTRO already uses them; here you can set them when they are missing (the ASIAIR, for one, doesn't write them) or correct them. With the site of each frame you see the hours of each site and can stack each site separately.", "Solo se pone a las tomas cuya cabecera no trae las coordenadas (la ASIAIR, por ejemplo)": "Only set on the frames whose header carries no coordinates (the ASIAIR, for one)"})   # 0.31: lugares de observación
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
 
@@ -12180,7 +12181,7 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
                 fh.write((_L("Apilado de %s", "Stack of %s") % plan['objeto']) + f" · {marca} · Siril {plan['siril_version']}\n\n")
                 lu = informe.get("lugar")
                 if lu:
-                    fh.write((_L("Solo las tomas del lugar: %s", "Only the frames from the place: %s") % (lu.get("nombre") or (_L("sin lugar", "no place")))) + "\n\n")
+                    fh.write((_L("Solo las tomas del lugar: %s", "Only the frames from the site: %s") % (lu.get("nombre") or (_L("sin lugar", "no site")))) + "\n\n")
                 fu = informe.get("fuera_del_apilado") or {}
                 if fu.get("tomas"):
                     fh.write((_L("Fuera del apilado, a elección tuya: %s tomas de ", "Left out of the stack by you: %s frames from ") % fu['tomas']) +
@@ -18620,7 +18621,7 @@ CAMPOS_TOMA = {   # explicación de los campos de cada toma (va en el LEEME y en
            "ruido": "background noise (16-bit ADU)", "snr": "star SNR (median of the 100 brightest unsaturated stars)",
            "reasons": "reasons for the rating", "discarded": "discarded by hand",
            "fuera": "left out of the stack (for example, from a weak night)", "equipo_id": "project setup it was taken with",
-           "notes": "notes", "sitio": "place set by hand (latitude and longitude); if absent, the place comes from the header coordinates",
+           "notes": "notes", "sitio": "site set by hand (latitude and longitude); if absent, the site comes from the header coordinates",
            "header": "FITS/XISF header", "archivo_en_zip": "where the frame is inside the ZIP (if included)",
            "calibracion": "calibration assigned to it (identifiers from the «calibracion» list)"},
 }
@@ -18932,7 +18933,7 @@ def trabajo_exportar(objeto, opc, extra):
                "bad": _L("Rechazable", "Rejected"), "na": _L("Sin analizar", "Not analysed")}
         cab = (["file", "target", "night", "date_time", "filter", "exposure_s", "gain", "offset", "temperature_c", "bin", "camera",
                 "telescope", "status", "score", "fwhm_px", "elongation", "stars", "trails", "background_pct", "discarded", "left_out_of_stack",
-                "dark", "bias", "flat", "flat_calibrated_with", "setup", "notes", "reasons", "file_in_zip", "place_latitude", "place_longitude"] if idioma_en_uso() != "es" else
+                "dark", "bias", "flat", "flat_calibrated_with", "setup", "notes", "reasons", "file_in_zip", "site_latitude", "site_longitude"] if idioma_en_uso() != "es" else
                ["archivo", "objeto", "noche", "fecha_hora", "filtro", "exposicion_s", "gain", "offset", "temperatura_c", "bin", "camara",
                 "telescopio", "estado", "puntuacion", "fwhm_px", "alargamiento", "estrellas", "trazas", "fondo_pct", "descartada", "fuera_del_apilado",
                 "dark", "bias", "flat", "flat_calibrado_con", "equipo", "notas", "motivos", "archivo_en_zip", "lugar_latitud", "lugar_longitud"])

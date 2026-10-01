@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.31.0",
+  "es": [
+   "**Lugares de observación**: cada toma sabe desde dónde se hizo. ASTRO lee las coordenadas de la cabecera y, cuando no las trae (la ASIAIR, por ejemplo), eliges tú el lugar: noche a noche en **Configuración → Lugares de observación → «Poner el lugar a cada noche…»**, en **«Cambiar las seleccionadas…»**, en **«Añadir sesión»** o en la ficha de cada toma. Cada toma cuenta para el lugar guardado más cercano (a menos de 5 km).",
+   "Si viajas con tu equipo: la página de cada proyecto trae la tabla **«Por lugar»** (noches, horas útiles, tomas, calidad y cielo de cada sitio; púlsalo para ver solo sus tomas), y Mi archivo, la tabla de tomas y el Panel general se pueden filtrar por lugar.",
+   "Al **apilar** eliges **un solo lugar** (o todos juntos): cada apilado anota con qué lugar se hizo, y «desde el último apilado hay tomas nuevas» cuenta por lugar.",
+   "La ventana de **Lugares de observación** se ha rehecho: horas, noches y tomas de cada lugar, los sitios que ASTRO detecta en tus tomas y aún no has guardado (con «Guardar como lugar»), editar sin cambiar desde dónde planificas, y «Planificar aquí». El lugar viaja también en la exportación del proyecto."
+  ],
+  "en": [
+   "**Observing sites**: every frame knows where it was taken from. ASTRO reads the coordinates in the header and, when it doesn't carry them (the ASIAIR, for one), you set the site yourself: night by night in **Settings → Observing sites → «Set the site of each night…»**, in **«Change selected…»**, in **«Add session»** or in each frame's sheet. Each frame counts for the nearest saved site (within 5 km).",
+   "If you travel with your equipment: each project's page has a **«By site»** table (nights, usable hours, frames, quality and sky of each site; click one to see only its frames), and My archive, the frames table and the Overview can be filtered by site.",
+   "When **stacking** you choose **a single site** (or all together): each stack records which site it was made with, and «there are new frames since the last stack» is counted per site.",
+   "The **Observing sites** window has been redone: hours, nights and frames of each site, the places ASTRO detects in your frames that you haven't saved yet (with «Save as a site»), editing without changing where you plan from, and «Plan from here». The site also travels with the project export."
+  ],
+  "fr": [
+   "**Sites d'observation** : chaque pose sait d'où elle a été prise. ASTRO lit les coordonnées de l'en-tête et, quand il n'en contient pas (l'ASIAIR, par exemple), vous indiquez le site vous-même : nuit par nuit dans **Paramètres → Sites d'observation → « Indiquer le site de chaque nuit… »**, dans **« Modifier la sélection… »**, dans **« Ajouter une session »** ou dans la fiche de chaque pose. Chaque pose compte pour le site enregistré le plus proche (à moins de 5 km).",
+   "Si vous voyagez avec votre matériel : la page de chaque projet affiche le tableau **« Par site »** (nuits, heures utiles, poses, qualité et ciel de chaque site ; cliquez sur un site pour ne voir que ses poses), et Mes archives, le tableau des poses et la Vue d'ensemble peuvent se filtrer par site.",
+   "Au moment d'**empiler**, vous choisissez **un seul site** (ou tous ensemble) : chaque empilement note avec quel site il a été fait, et « il y a de nouvelles poses depuis le dernier empilement » se compte par site.",
+   "La fenêtre **Sites d'observation** a été refaite : heures, nuits et poses de chaque site, les endroits qu'ASTRO détecte dans vos poses et que vous n'avez pas encore enregistrés (avec « Enregistrer comme site »), modification sans changer d'où vous planifiez, et « Planifier ici ». Le site voyage aussi avec l'export du projet."
+  ],
+  "de": [
+   "**Beobachtungsorte**: Jede Aufnahme weiß, von wo aus sie entstanden ist. ASTRO liest die Koordinaten aus dem Header und, wenn dieser keine enthält (die ASIAIR zum Beispiel), legst du den Ort selbst fest: Nacht für Nacht unter **Einstellungen → Beobachtungsorte → „Ort für jede Nacht festlegen…“**, in **„Ausgewählte ändern…“**, in **„Sitzung hinzufügen“** oder im Eintrag der jeweiligen Aufnahme. Jede Aufnahme zählt für den nächstgelegenen gespeicherten Ort (im Umkreis von 5 km).",
+   "Wenn du mit deiner Ausrüstung unterwegs bist: Die Projektseite zeigt die Tabelle **„Nach Ort“** (Nächte, nutzbare Stunden, Aufnahmen, Qualität und Himmel jedes Ortes; klicke einen Ort an, um nur seine Aufnahmen zu sehen), und Mein Archiv, die Aufnahmentabelle und die Übersicht lassen sich nach Ort filtern.",
+   "Beim **Stacken** wählst du **nur einen Ort** (oder alle zusammen): Jeder Stack hält fest, mit welchem Ort er entstanden ist, und „Seit dem letzten Stack gibt es neue Aufnahmen“ wird pro Ort gezählt.",
+   "Das Fenster **Beobachtungsorte** wurde neu gestaltet: Stunden, Nächte und Aufnahmen jedes Ortes, die Orte, die ASTRO in deinen Aufnahmen erkennt und die du noch nicht gespeichert hast (mit „Als Ort speichern“), Bearbeiten, ohne zu ändern, von wo aus du planst, und „Hier planen“. Der Ort wandert auch mit dem Projektexport."
+  ],
+  "it": [
+   "**Luoghi di osservazione**: ogni posa sa da dove è stata fatta. ASTRO legge le coordinate dall'intestazione e, quando non le contiene (l'ASIAIR, per esempio), il luogo lo indichi tu: notte per notte in **Impostazioni → Luoghi di osservazione → «Imposta il luogo di ogni notte…»**, in **«Modifica le selezionate…»**, in **«Aggiungi sessione»** o nella scheda di ogni posa. Ogni posa conta per il luogo salvato più vicino (entro 5 km).",
+   "Se viaggi con la tua attrezzatura: la pagina di ogni progetto mostra la tabella **«Per luogo»** (notti, ore utili, pose, qualità e cielo di ogni posto; premi un luogo per vedere solo le sue pose), e Il mio archivio, la tabella delle pose e la Panoramica si possono filtrare per luogo.",
+   "Quando **impili** scegli **un solo luogo** (o tutti insieme): ogni impilamento annota con quale luogo è stato fatto, e «dall'ultimo impilamento ci sono pose nuove» si conta per luogo.",
+   "La finestra **Luoghi di osservazione** è stata rifatta: ore, notti e pose di ogni luogo, i posti che ASTRO rileva nelle tue pose e che non hai ancora salvato (con «Salva come luogo»), modifica senza cambiare da dove pianifichi, e «Pianifica qui». Il luogo viaggia anche con l'esportazione del progetto."
+  ],
+  "pt": [
+   "**Locais de observação**: cada exposição sabe de onde foi feita. O ASTRO lê as coordenadas do cabeçalho e, quando não as traz (a ASIAIR, por exemplo), o local é indicado por si: noite a noite em **Definições → Locais de observação → «Definir o local de cada noite…»**, em **«Alterar as selecionadas…»**, em **«Adicionar sessão»** ou na ficha de cada exposição. Cada exposição conta para o local guardado mais próximo (a menos de 5 km).",
+   "Se viaja com o seu equipamento: a página de cada projeto traz a tabela **«Por local»** (noites, horas úteis, exposições, qualidade e céu de cada sítio; clique num local para ver só as suas exposições), e O meu arquivo, a tabela de exposições e a Visão geral podem filtrar-se por local.",
+   "Ao **empilhar** escolhe **um só local** (ou todos juntos): cada empilhamento regista com que local foi feito, e «há exposições novas desde o último empilhamento» conta-se por local.",
+   "A janela **Locais de observação** foi refeita: horas, noites e exposições de cada local, os sítios que o ASTRO deteta nas suas exposições e que ainda não guardou (com «Guardar como local»), editar sem mudar de onde planeia, e «Planear aqui». O local viaja também com a exportação do projeto."
+  ]
+ },
+ {
   "version": "0.30.0",
   "es": [
    "ASTRO se abre directamente en el Panel general, y la barra lateral se ordena en seis apartados: Panel general (con el Mapa del cielo y el Calendario), Proyectos, Qué fotografiar, Mi archivo, Ciencia y Configuración. La ventana de inicio sigue ahí: Configuración → General.",
