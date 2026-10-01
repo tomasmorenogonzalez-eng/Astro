@@ -1488,6 +1488,61 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
 .pryT tr.pryM td{position:static;box-shadow:none;background:var(--surface)}
 .pryT tr.pryM .pryMas{position:sticky;left:14px;width:max-content;padding:6px 0;justify-content:flex-start}
 @media (max-width:700px){ .pryFil,.pryOrd{width:100%} .pryCtl label{width:100%} .pryCtl select{max-width:none;flex:1} .pryCtl input[type=search]{flex:1 1 100%;width:auto} }
+/* componer canales */
+.compBox{width:min(1240px,100%)!important}
+.compCuerpo{display:grid;grid-template-columns:minmax(340px,430px) minmax(0,1fr);gap:22px;align-items:start}
+.compCtl{display:flex;flex-direction:column;gap:16px;min-width:0}
+.compSec h4{margin:0 0 8px;font-size:13.5px}
+.compSec .note{margin:6px 0 0;line-height:1.45}
+.compPal{display:flex;flex-wrap:wrap;gap:6px}
+.compChip{border:1px solid var(--line2);background:var(--surface);color:var(--text);border-radius:999px;padding:5px 13px;font-weight:700;font-size:13px}
+.compChip:hover:not(:disabled){border-color:var(--accent)}
+.compChip.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.compChip:disabled{opacity:.4;cursor:default}
+.compMat{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,62px) 22px;gap:6px 8px;align-items:center}
+.compMat .compCab{font-size:12px;color:var(--muted);text-align:center;white-space:nowrap}
+.compMat .compCab i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.compFil{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
+.compFil .fchip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compFil small{padding-left:2px}
+.compMat input[type=number]{width:100%;padding:5px 6px;border:1px solid var(--line2);border-radius:7px;background:var(--surface);color:var(--text);text-align:right}
+.compSw{width:20px;height:20px;border-radius:6px;border:1px solid var(--line2);background:var(--surface3)}
+.compFila{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:13.5px} .compFila>span{flex:none;min-width:96px;color:var(--muted)}
+.compFila select,.compFila input[type=text]{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--text)}
+.compFila[hidden]{display:none}
+.compOp{display:flex;align-items:flex-start;gap:8px;margin:7px 0 0;font-size:13.5px;line-height:1.35;cursor:pointer} .compOp input{margin-top:3px;flex:none}
+.compRango{display:flex;align-items:center;gap:10px;margin:10px 0 0;font-size:13.5px} .compRango>span{flex:none;min-width:96px;color:var(--muted)}
+.compRango input{flex:1;min-width:0;accent-color:var(--accent)} .compRango b{flex:none;min-width:44px;text-align:right}
+#compGuardar{border-top:1px solid var(--line);padding-top:12px}
+.compGuardarFila{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.compNom{flex:1 1 170px;min-width:0;display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+#compNombre{width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px}
+.compGuardarFila .btn.primary{flex:none;padding:9px 16px}
+#compEstado:empty,#compGuardadas:empty{display:none}
+.compVer{min-width:0;align-self:stretch}
+.compFijo{position:sticky;top:10px;display:flex;flex-direction:column;gap:10px}
+.compSin .compCuerpo{grid-template-columns:minmax(0,1fr)} .compSin .compVer{display:none}
+#compGuardadas{margin-top:20px;padding-top:14px;border-top:1px solid var(--line)}
+#compGuardadas h4{margin:0 0 4px;font-size:13.5px}
+.compImgBox{position:relative;min-height:280px;border-radius:12px;overflow:hidden;background:#07050d;display:grid;place-items:center}
+.compImgBox img{display:block;width:100%;height:auto;max-height:max(240px,calc(90vh - 330px));object-fit:contain}
+.compImgBox img[hidden]{display:none}
+.compVacio{padding:26px 22px;text-align:center;max-width:420px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.compVacio[hidden]{display:none}
+.compVacio b{font-size:15px;color:#fff} .compVacio p{margin:0;font-size:13.5px;color:#b9b1cf;line-height:1.5}
+.compCarga{position:absolute;inset:0;background:rgba(8,6,16,.62);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:18px;text-align:center;color:#fff;font-size:14px}
+.compCarga[hidden]{display:none}
+.compCarga small{color:#cfc7e4;max-width:340px;line-height:1.45}
+.compCarga .igBarra{width:min(320px,80%);background:rgba(255,255,255,.22)}
+.compCarga .btn{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.45);color:#fff}
+.compCarga .btn:hover{background:rgba(255,255,255,.26)}
+.compCarga.esquina{inset:auto 10px 10px auto;flex-direction:row;padding:6px 8px 6px 12px;border-radius:999px;gap:8px;font-size:13px;background:rgba(8,6,16,.8)}
+.compCarga.esquina small{display:none}
+.compGira{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:compGira .8s linear infinite;flex:none}
+@keyframes compGira{to{transform:rotate(360deg)}}
+.vpBtns.vpAjustes{padding-top:0}
+@media (max-width:900px){ .compCuerpo{grid-template-columns:minmax(0,1fr)} .compVer,.compFijo{display:contents} .compImgBox{order:-3;min-height:200px} .compImgBox img{max-height:46vh} #compEstado{order:-2} .compCtl{order:-1} }
+@media (max-width:520px){ .compMat{grid-template-columns:minmax(0,1fr) repeat(3,50px) 20px;gap:6px 5px} .compFila>span,.compRango>span{min-width:78px} }
 </style>
 </head>
 <body>
@@ -6646,6 +6701,11 @@ function pgPanelProcesado(X){
   else izq += (vista.length ? `<div id="objVista">${galeriaHTML(vista)}</div>` : `<p class="note">${esc(trLT("Este apilado aún no tiene vista previa.", "This stack doesn't have a preview yet."))}</p>`) +
     `<div class="pgAcc">${pgBtn(vista.length ? trLT("Rehacer la vista previa", "Redo the preview") : trLT("Crear la vista previa", "Create the preview"), "vista", !vista.length)}<button class="btn small" data-pg-carpeta="0">${esc(trLT("Abrir la carpeta", "Open the folder"))}</button></div>`;
   izq += `</div>`;
+  const comps = u ? (u.composiciones || []) : [];
+  if (u && (u.filtros || []).length >= 2) izq += `<div class="pgBloque"><h4>${esc(trLT("Componer canales", "Compose channels"))}</h4>
+    <p class="note">${esc(trLT("Mezcla los filtros del último apilado en una imagen de color (RGB, LRGB, paletas de banda estrecha como la SHO o tus propias mezclas), con Siril.", "Blend the filters of the latest stack into a colour image (RGB, LRGB, narrowband palettes such as SHO, or your own mixes), with Siril."))}</p>
+    ${comps.length ? `<div id="objComp">${galeriaHTML(comps)}</div>` : ""}
+    <div class="pgAcc">${pgBtn(trLT("Componer canales…", "Compose channels…"), "componer", !comps.length && !!vista.length)}</div></div>`;
   let der = `<div class="pgBloque"><h4>${esc(trLT("Resultado final", "Final result"))}</h4>`;
   if (tif) der += `<div class="pgArchivo"><span class="pgIco">${esc((tif.split(".").pop() || "").slice(0, 4).toUpperCase())}</span>
       <span class="pgArchN"><b class="notr" title="${esc(tif)}">${esc(pgNombreArchivo(tif))}</b>${existe === false ? `<small class="arcMal">${esc(trLT("No encuentro el archivo: ¿está el disco conectado?", "I can't find the file: is the drive connected?"))}</small>` : `<small class="notr" title="${esc(pgCarpetaDe(tif))}">${esc(pgCarpetaDe(tif))}</small>`}</span>
@@ -6663,7 +6723,7 @@ function pgPanelProcesado(X){
   const ficha = pgFichaTxt(X);
   if (ficha) der += `<details class="pgDet" data-pgd="ficha"${pgAbierto("ficha", false) ? " open" : ""}><summary>${esc(trLT("Ficha técnica para compartir", "Technical sheet to share"))}</summary>
     <pre class="pgFicha notr" id="pgFichaTxt">${esc(ficha)}</pre><button class="btn small" id="pgFichaCopiar">${esc(trLT("Copiar", "Copy"))}</button></details>`;
-  return `<div class="pgDos">${izq}<div>${der}</div></div>`;
+  return `<div class="pgDos"><div>${izq}</div><div>${der}</div></div>`;
 }
 function pgMas(X){
   const o = OBJETIVOS[X.obj] || {};
@@ -6720,6 +6780,7 @@ function pgEnlazar(el, X){
   if (PG.paso === "tomas") pintarFichas(obj);
   if (PG.paso === "calidad") enlazarEvolucion(obj);
   if (PG.paso === "procesado" && X.ap[0] && (X.ap[0].vista || []).length && $("objVista")) activarGaleria($("objVista"), X.ap[0].vista);
+  if (PG.paso === "procesado" && X.ap[0] && (X.ap[0].composiciones || []).length && $("objComp")) activarGaleria($("objComp"), X.ap[0].composiciones);
 }
 // lo que se escribe en la página no se pierde si llega un repintado de fondo: se repinta al salir del campo
 (() => { const v = $("vistaProyecto"); if (v) v.addEventListener("focusout", () => { if (PG.pend) setTimeout(() => { if (PG.pend) renderProyecto(); }, 400); }); })();
@@ -6747,6 +6808,7 @@ function arcAccion(a, obj){
     return fetch("/api/apilado/vista", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({carpeta:u.carpeta})})
       .then(async r => { if (!r.ok) return toast(await r.text()); delete ARC.apilados[obj]; stkOpen(); });
   }
+  if (a === "componer") return abrirComposicion(obj);
   if (a === "apilar"){ STK_PREF = obj; if (PG.lugar && PG.obj === obj) STK_LUGAR_PREF = PG.lugar; return stkOpen(); }
   if (a === "noches") return abrirNoches();
   if (a === "retomar") return arcPonerEstado(obj, "");
@@ -6901,7 +6963,8 @@ async function stkOpen(){
   const e = await (await fetch("/api/apilado/estado")).json();
   $("stkSiril").innerHTML = e.siril ? `<span class="dot ok"></span>Siril ${esc(e.siril_version||"")} encontrado.` :
     `<div class="status bad" style="display:block">No encuentro Siril. Descárgalo gratis de <b>siril.org</b>, instálalo, ábrelo una vez y vuelve aquí.</div>`;
-  if (e.activo || e.estado){ stkRunView(); stkPoll(); } else { $("stkElegir").style.display=""; $("stkRun").style.display="none"; stkPlan(); }
+  // una composición de canales ya terminada (o cancelada) se ve en su propia ventana, no aquí: se abre directamente el formulario de apilar
+  if (e.activo || (e.estado && e.tipo !== "composicion")){ stkRunView(); stkPoll(); } else { $("stkElegir").style.display=""; $("stkRun").style.display="none"; stkPlan(); }
 }
 let STK_SEQ = 0;
 async function stkPlan(){
@@ -6961,7 +7024,7 @@ async function stkPoll(){
     h += `<h3>${esc(e.texto)}</h3><div class="note">Paso ${e.paso} de ${e.pasos} · ${esc(e.sub||"")}</div><div class="bar"><i style="width:${Math.min(100,pct)}%"></i></div>
       <div class="note">Puedes cerrar esta ventana y seguir usando el programa: el apilado continúa. No cierres la ventana de Terminal ni desconectes el disco.</div>`;
   } else if (e.estado==="ok"){
-    h += `<div class="status ok">${e.tipo==="vista" ? "✓ Vista previa creada" : "✓ Apilado terminado"}</div>`;
+    h += `<div class="status ok">${e.tipo==="vista" ? "✓ Vista previa creada" : e.tipo==="composicion" ? "✓ Composición creada" : "✓ Apilado terminado"}</div>`;
   } else if (e.estado){
     h += `<div class="status bad">${e.estado==="cancelado"?"Cancelado":"<span>Error:</span> <span>"+esc(e.error)+"</span>"}</div>`;
   }
@@ -6972,7 +7035,7 @@ async function stkPoll(){
   if (vp) h += `<div class="etapa proc"><h3><span class="num">2</span>${esc(trLT("Procesado automático: vista previa", "Automatic processing: preview"))}</h3>
     <div class="note">${esc(trLT("Un primer revelado hecho por ASTRO para ver cómo va: recorta los bordes, quita el gradiente, equilibra el color y estira. No sustituye tu procesado: para la versión final, parte de los masters de arriba o del TIFF de 16 bits («Abrir en…»).", "A first development done by ASTRO to see how it's going: it crops the edges, removes the gradient, balances the colour and stretches. It doesn't replace your own processing: for the final version, start from the masters above or from the 16-bit TIFF (“Open in…”)."))}</div>` + galeriaHTML(vp) + `</div>`;
   h += `<details ${e.activo||vp?"":"open"}><summary>Registro de Siril</summary><div class="stklog notr" id="stkLog">${e.log.map(esc).join("\n")}</div></details>`;
-  const pideVista = !e.activo && e.estado==="ok" && e.tipo!=="vista" && !vp && e.carpeta_rel;
+  const pideVista = !e.activo && e.estado==="ok" && e.tipo!=="vista" && e.tipo!=="composicion" && !vp && e.carpeta_rel;
   h += `<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px">${e.activo?'<button class="btn danger" id="stkCancel">Cancelar</button>':'<button class="btn" id="stkNew">Nuevo apilado</button>'}${pideVista?'<button class="btn" id="stkHacerVista">Crear vista previa</button>':""}${e.carpeta?'<button class="btn primary" id="stkOpenDir">Abrir carpeta de resultados</button>':""}</div>`;
   $("stkRun").innerHTML = h; const lg=$("stkLog"); if (lg) lg.scrollTop = lg.scrollHeight;
   if (vp) activarGaleria($("stkRun"), vp);
@@ -6989,13 +7052,14 @@ async function stkPoll(){
 let EDITORES = null, STK_PREF = null;
 async function listaEditores(){ if (EDITORES) return EDITORES; try { EDITORES = await (await fetch("/api/editores")).json(); } catch(_){ EDITORES = []; } return EDITORES; }
 const NOMBRE_VP = {LRGB:"LRGB · luminancia y color", RGB:"RGB · color natural", SHO:"SHO · paleta Hubble", HOO:"HOO · bicolor"};
-function galeriaHTML(lista){
+function galeriaHTML(lista, conAjustes){
   const t = Date.now();
   const tarjeta = ([x,i]) => {
-    const et = NOMBRE_VP[x.nombre], nom = et ? esc(et) : `<span class="notr">${esc(nomFiltro((x.filtros||[])[0] || x.nombre))}</span> <span class="note">· ${x.tipo==="mono"?"blanco y negro":"color"}</span>`;
+    const et = NOMBRE_VP[x.nombre], comp = x.tipo === "composicion",
+      nom = comp ? `<span class="notr">${esc(x.nombre)}</span> <span class="note notr">· ${esc((x.filtros||[]).map(nomFiltro).join(" "))}</span>` : et ? esc(et) : `<span class="notr">${esc(nomFiltro((x.filtros||[])[0] || x.nombre))}</span> <span class="note">· ${x.tipo==="mono"?"blanco y negro":"color"}</span>`;
     return `<div class="vpCard"><a href="#" class="vpVer" data-i="${i}" title="Ver a tamaño completo"><img src="/api/apilado/imagen?rel=${encodeURIComponent(x.mini||x.jpg)}&t=${t}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></a>
-      <div class="vpNom">${nom}</div>
-      <div class="vpBtns"><button class="btn small vpVer" data-i="${i}">Ver</button><select class="vpAbrir" data-i="${i}" title="Abre el TIFF de 16 bits para seguir editando"><option value="">Abrir en…</option></select></div></div>`;
+      <div class="vpNom"${comp ? ` title="${esc(x.nombre)}"` : ""}>${nom}</div>
+      <div class="vpBtns"><button class="btn small vpVer" data-i="${i}">Ver</button><select class="vpAbrir" data-i="${i}" title="Abre el TIFF de 16 bits para seguir editando"><option value="">Abrir en…</option></select></div>${conAjustes && comp && x.receta ? `<div class="vpBtns vpAjustes"><button class="btn small" data-comp-usar="${i}">${esc(trLT("Usar estos ajustes", "Use these settings"))}</button></div>` : ""}</div>`;
   };
   const todas = lista.map((x,i)=>[x,i]), princ = todas.filter(([x])=>x.tipo!=="mono"), mono = todas.filter(([x])=>x.tipo==="mono");
   if (!princ.length || !mono.length) return `<div class="vpGal">${todas.map(tarjeta).join("")}</div>`;
@@ -7013,6 +7077,309 @@ async function activarGaleria(raiz, lista){
       toast(r.ok ? "Abriendo…" : await r.text());
     };
   });
+}
+/* ============ Componer canales: RGB, LRGB, banda estrecha y mezclas a mano, con Siril ============ */
+// Con los masters en blanco y negro del último apilado se elige cuánto aporta cada filtro al rojo, al verde y al azul
+// (o se parte de una paleta) y Siril hace la imagen. La vista rápida se rehace sola al tocar cualquier ajuste.
+const COMP_PALETAS = [
+  {id:"LRGB", n:"LRGB", req:["L","R","G","B"], capas:{R:[1,0,0], G:[0,1,0], B:[0,0,1]}, lum:"L", igualar:false, ref:"", verde:true, satu:0.5},
+  {id:"RGB", n:"RGB", req:["R","G","B"], capas:{R:[1,0,0], G:[0,1,0], B:[0,0,1]}, lum:"", igualar:false, ref:"", verde:true, satu:0.3},
+  {id:"SHO", n:"SHO", req:["S","H","O"], capas:{S:[1,0,0], H:[0,1,0], O:[0,0,1]}, lum:"", igualar:true, ref:"H", verde:true, satu:0.3},
+  {id:"HOO", n:"HOO", req:["H","O"], capas:{H:[1,0,0], O:[0,1,1]}, lum:"", igualar:true, ref:"H", verde:false, satu:0.3},
+  {id:"HSO", n:"HSO", req:["H","S","O"], capas:{H:[1,0,0], S:[0,1,0], O:[0,0,1]}, lum:"", igualar:true, ref:"H", verde:true, satu:0.3},
+  {id:"HaRGB", n:"Ha+RGB", req:["H","R","G","B"], capas:{R:[1,0,0], H:[0.5,0,0], G:[0,1,0], B:[0,0,1]}, lum:"", igualar:true, ref:"R", verde:true, satu:0.3},
+];
+const compDescripcion = id => ({
+  LRGB: trLT("Color con luminancia: el detalle sale del filtro L y el color, de R, G y B.", "Colour with luminance: the detail comes from the L filter and the colour from R, G and B."),
+  RGB: trLT("Color natural con los tres filtros de color.", "Natural colour from the three colour filters."),
+  SHO: trLT("Paleta Hubble: S al rojo, H al verde y O al azul.", "Hubble palette: S to red, H to green and O to blue."),
+  HOO: trLT("Bicolor: H al rojo y O al verde y al azul.", "Bicolour: H to red and O to green and blue."),
+  HSO: trLT("Banda estrecha: H al rojo, S al verde y O al azul.", "Narrowband: H to red, S to green and O to blue."),
+  HaRGB: trLT("Color natural con el rojo reforzado por el Ha.", "Natural colour with the red boosted by Ha."),
+  mano: trLT("Tú eliges cuánto aporta cada filtro a cada canal.", "You choose how much each filter contributes to each channel."),
+})[id] || "";
+const COMP = {obj:"", carpeta:"", canales:[], R:null, guardadas:[], siril:true, job:null, td:null, tp:null, sucio:false, vivo:false, hayVista:false, err:""};
+const compCol = k => ["#d64545", "#2f9a57", "#3f73d6"][k];
+const compCanalTxt = k => [trLT("Rojo", "Red"), trLT("Verde", "Green"), trLT("Azul", "Blue")][k];
+const compTam = b => b >= 1e9 ? numEs(b / 1e9, 1) + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB";
+const compPaleta = id => COMP_PALETAS.find(p => p.id === id);
+const compClave = k => (COMP.canales.find(c => c.clave === k) || {}).filtro || "";
+const compEnUso = () => COMP.canales.filter(c => (COMP.R.pesos[c.filtro] || []).some(v => v > 0));
+const compNombreDefecto = () => (compPaleta(COMP.R.paleta) || {}).n || trLT("Mezcla a mano", "Custom mix");
+const compVisible = () => !!$("compBox") && $("compBox").classList.contains("show");
+
+function compRecetaBase(){
+  const pesos = {}; COMP.canales.forEach(c => pesos[c.filtro] = [0, 0, 0]);
+  return {pesos, lum:"", igualar:false, ref:"", fondo:true, verde:false, equilibrar:true, satu:0.3, brillo:0.18, paleta:"mano", lineal:false, nombre:""};
+}
+function compAplicarPaleta(id){
+  const R = COMP.R, p = compPaleta(id);
+  R.paleta = p ? id : "mano";
+  if (!p) return;
+  COMP.canales.forEach(c => R.pesos[c.filtro] = [0, 0, 0]);
+  for (const [k, w] of Object.entries(p.capas)){ const f = compClave(k); if (f) R.pesos[f] = w.slice(); }
+  R.lum = p.lum ? compClave(p.lum) : "";
+  R.igualar = p.igualar; R.ref = p.ref ? compClave(p.ref) : "";
+  R.verde = p.verde; R.satu = p.satu;
+}
+function compPaletaInicial(){
+  const p = COMP_PALETAS.find(x => x.req.every(k => compClave(k)));
+  if (p) return compAplicarPaleta(p.id);
+  const R = COMP.R, cs = COMP.canales;          // sin ninguna paleta posible: los primeros filtros, al rojo, al verde y al azul
+  if (cs.length === 1) R.pesos[cs[0].filtro] = [1, 1, 1];
+  else if (cs.length === 2){ R.pesos[cs[0].filtro] = [1, 0, 0]; R.pesos[cs[1].filtro] = [0, 1, 1]; }
+  else cs.slice(0, 3).forEach((c, i) => R.pesos[c.filtro][i] = 1);
+  R.paleta = "mano";
+}
+function compReceta(){
+  const R = COMP.R, p = compPaleta(R.paleta);
+  return {capas: COMP.canales.map(c => ({filtro: c.filtro, w: (R.pesos[c.filtro] || [0, 0, 0]).slice()})).filter(x => x.w.some(v => v > 0)),
+    lum: R.lum, igualar: R.igualar, ref: R.ref, fondo: R.fondo, verde: R.verde, equilibrar: R.equilibrar, satu: R.satu, brillo: R.brillo, lineal: R.lineal, paleta: p ? p.n : ""};
+}
+
+function compCrearModal(){
+  if ($("compBox")) return;
+  const d = document.createElement("div"); d.className = "modal"; d.id = "compBox";
+  d.innerHTML = `<div class="box compBox"><div class="indCab"><h2 id="compTit"></h2><span class="spacer"></span><button class="btn small" id="compCerrar">${esc(trLT("Cerrar", "Close"))}</button></div>
+    <div class="compCuerpo"><div class="compCtl" id="compCtl"></div>
+    <div class="compVer"><div class="compFijo"><div class="compImgBox"><img id="compImg" alt="" hidden><div class="compVacio" id="compVacio"></div><div class="compCarga" id="compCarga" hidden></div></div>
+    <div id="compEstado"></div><div class="compSec" id="compGuardar"></div></div></div></div>
+    <div id="compGuardadas"></div></div>`;
+  document.body.appendChild(d);
+  $("compCerrar").onclick = compCerrar;
+  d.addEventListener("click", ev => { if (ev.target === d) compCerrar(); });
+  $("compImg").onerror = () => { COMP.hayVista = false; $("compImg").hidden = true; compPintarVacio(); };
+}
+function compCerrar(){
+  $("compBox").classList.remove("show");
+  clearTimeout(COMP.td);
+  // una vista rápida a medias se cancela (libera Siril); la imagen final sigue haciéndose y se avisa al terminar
+  if (COMP.job && COMP.job.modo === "rapida") fetch("/api/apilado/cancelar", {method:"POST"}).catch(() => {});
+}
+
+async function abrirComposicion(obj){
+  if (EJEMPLO_ASTRO) return toast(trLT("En los datos de ejemplo no hay imágenes reales que componer: esto funciona con tus propios apilados.", "The example data has no real images to compose: this works with your own stacks."));
+  compCrearModal();
+  let ap = ARC.apilados[obj];
+  if (!ap){ try { ap = ARC.apilados[obj] = (await (await fetch("/api/apilado/lista?objeto=" + encodeURIComponent(obj))).json()) || []; } catch(_){ ap = []; } }
+  const u = ap[0];
+  if (!u) return toast(trLT("Aún no hay ningún apilado de {1}.", "There's no stack of {1} yet.", obj));
+  if (COMP.carpeta !== u.carpeta){ Object.assign(COMP, {carpeta: u.carpeta, canales: [], R: null, hayVista: false, vivo: false, err: "", sucio: false, guardadas: []}); $("compImg").hidden = true; $("compGuardar").innerHTML = ""; compPintarCarga(null); }
+  COMP.obj = obj;
+  $("compTit").innerHTML = esc(trLT("Componer canales · {1} · {2}", "Compose channels · {1} · {2}", "\u0001", "\u0002")).replace("\u0001", `<span class="notr">${esc(obj)}</span>`).replace("\u0002", esc(fechaApilado(u.fecha)));
+  $("compBox").classList.add("show");
+  if (!COMP.R){ $("compCtl").innerHTML = `<div class="note">${esc(trLT("Mirando los masters…", "Looking at the masters…"))}</div>`; compPintarVacio(); }
+  let d; try { d = await (await api("/api/composicion/info?carpeta=" + encodeURIComponent(u.carpeta))).json(); }
+  catch(e){ $("compCtl").innerHTML = `<div class="status bad">${esc(tr(String(e.message || e)))}</div>`; $("compGuardar").innerHTML = ""; return; }
+  COMP.siril = !!d.siril; COMP.guardadas = d.composiciones || [];
+  COMP.canales = (d.canales || []).slice().sort((a, b) => ordenFiltros(a.filtro, b.filtro));
+  COMP.tam = COMP.canales.length ? Math.max(...COMP.canales.map(c => c.ancho * c.alto)) * 12 : 0;      // el FITS lineal: 3 canales de 32 bits
+  $("compBox").classList.toggle("compSin", !COMP.canales.length);
+  if (!COMP.canales.length){
+    $("compGuardar").innerHTML = "";
+    $("compCtl").innerHTML = `<div class="status warn" style="display:block">${esc(trLT("Este apilado no tiene masters en blanco y negro que componer. Los masters de una cámara en color ya traen su color.", "This stack has no black-and-white masters to compose. The masters from a colour camera already have their colour."))}</div>`;
+    compPintarGuardadas(); compPintarVacio(); return;
+  }
+  if (!COMP.R){ COMP.R = compRecetaBase(); compPaletaInicial(); }
+  compPintarControles(); compPintarGuardadas(); compPintarEstado();
+  if (COMP.hayVista) compMostrar(Date.now()); else compPintarVacio();
+  if (d.listo && !COMP.hayVista && COMP.siril){ COMP.vivo = true; compVista(); }       // las capas ya están preparadas: la vista sale en un segundo
+}
+
+function compControlesHTML(){
+  const R = COMP.R, cs = COMP.canales;
+  const chips = COMP_PALETAS.map(p => { const f = p.req.filter(k => !compClave(k));
+    return `<button type="button" class="compChip${R.paleta === p.id ? " on" : ""}" data-comp-pal="${p.id}"${f.length ? ` disabled title="${esc(trLT("Faltan: {1}", "Missing: {1}", f.join(", ")))}"` : ""}>${esc(p.n)}</button>`; }).join("")
+    + `<button type="button" class="compChip${R.paleta === "mano" ? " on" : ""}" data-comp-pal="mano">${esc(trLT("A mano", "Custom"))}</button>`;
+  const cab = [0, 1, 2].map(k => `<span class="compCab"><i style="background:${compCol(k)}"></i>${esc(compCanalTxt(k))}</span>`).join("");
+  const filas = cs.map(c => `<span class="compFil"><span class="fchip notr" style="--c:${COLOR_FILTRO(c.filtro)}" title="${esc(c.filtro)}">${esc(nomFiltro(c.filtro))}</span>${c.horas ? `<small class="note">${esc(fmtH(c.horas))}</small>` : ""}</span>`
+    + [0, 1, 2].map(k => `<input type="number" min="0" max="100" step="5" inputmode="numeric" value="${Math.round(((R.pesos[c.filtro] || [])[k] || 0) * 100)}" data-comp-w="${esc(c.filtro)}" data-k="${k}" aria-label="${esc(nomFiltro(c.filtro) + " → " + compCanalTxt(k))}">`).join("")
+    + `<span class="compSw" data-comp-sw="${esc(c.filtro)}"></span>`).join("");
+  return `<div class="compSec"><h4>${esc(trLT("Paleta", "Palette"))}</h4><div class="compPal">${chips}</div><p class="note" id="compPalDesc">${esc(compDescripcion(R.paleta))}</p></div>
+    <div class="compSec"><h4>${esc(trLT("Qué filtro va a cada canal", "Which filter goes to each channel"))}</h4>
+      <div class="compMat"><span></span>${cab}<span></span>${filas}</div>
+      <p class="note">${esc(trLT("El porcentaje es cuánto aporta cada filtro a ese canal de color. Si a un canal le llegan varios filtros que suman más del 100 %, se hace la media según sus porcentajes.", "The percentage is how much each filter contributes to that colour channel. If several filters feed a channel and add up to more than 100 %, they are averaged according to their percentages."))}</p>
+      <label class="compFila"><span>${esc(trLT("Luminancia", "Luminance"))}</span><select id="compLum"><option value="">${esc(trLT("Ninguna", "None"))}</option>${cs.map(c => `<option value="${esc(c.filtro)}"${R.lum === c.filtro ? " selected" : ""}>${esc(nomFiltro(c.filtro))}</option>`).join("")}</select></label></div>
+    <div class="compSec"><h4>${esc(trLT("Ajustes", "Settings"))}</h4>
+      <label class="compOp"><input type="checkbox" id="compFondo"${R.fondo ? " checked" : ""}> <span>${esc(trLT("Quitar el gradiente del fondo", "Remove the background gradient"))}</span></label>
+      <label class="compOp"><input type="checkbox" id="compIgualar"${R.igualar ? " checked" : ""}> <span>${esc(trLT("Igualar el brillo de los filtros", "Match the brightness of the filters"))}</span></label>
+      <label class="compFila" id="compRefFila"${R.igualar ? "" : " hidden"}><span>${esc(trLT("Tomar como referencia", "Use as reference"))}</span><select id="compRef"></select></label>
+      <label class="compOp" title="${esc(trLT("Cada canal se estira por separado y el fondo queda neutro. Desmárcalo para estirar los tres igual y conservar la proporción real entre ellos.", "Each channel is stretched on its own and the background ends up neutral. Untick it to stretch the three the same way and keep their real proportion."))}"><input type="checkbox" id="compEq"${R.equilibrar ? " checked" : ""}> <span>${esc(trLT("Equilibrar el color al estirar", "Balance the colour when stretching"))}</span></label>
+      <label class="compOp" title="${esc(trLT("Útil cuando la imagen sale con verde de más (típico del RGB y del SHO); no lo uses en un bicolor HOO.", "Useful when the image has too much green (typical of RGB and SHO); don't use it on an HOO bicolour."))}"><input type="checkbox" id="compVerde"${R.verde ? " checked" : ""}> <span>${esc(trLT("Quitar el verde sobrante", "Remove the excess green"))}</span></label>
+      <label class="compRango"><span>${esc(trLT("Saturación", "Saturation"))}</span><input type="range" id="compSatu" min="0" max="100" step="5" value="${Math.round(R.satu * 100)}"><b id="compSatuV">${Math.round(R.satu * 100)} %</b></label>
+      <label class="compRango"><span>${esc(trLT("Brillo del fondo", "Background brightness"))}</span><input type="range" id="compBrillo" min="8" max="35" step="1" value="${Math.round(R.brillo * 100)}"><b id="compBrilloV">${Math.round(R.brillo * 100)} %</b></label></div>`;
+}
+function compGuardarHTML(){
+  const R = COMP.R;
+  return `<h4>${esc(trLT("Guardar", "Save"))}</h4>
+    <div class="compGuardarFila"><label class="compNom"><span>${esc(trLT("Nombre", "Name"))}</span><input type="text" id="compNombre" maxlength="60" value="${esc(R.nombre)}" placeholder="${esc(compNombreDefecto())}"></label><button class="btn primary" id="compFinal">${esc(trLT("Crear la imagen final", "Create the final image"))}</button></div>
+    <label class="compOp"><input type="checkbox" id="compLineal"${R.lineal ? " checked" : ""}> <span>${esc(trLT("Guardar también el FITS lineal, para seguir procesando (unos {1})", "Also save the linear FITS, to keep processing (about {1})", compTam(COMP.tam)))}</span></label>
+    <p class="note">${esc(trLT("La imagen final se hace con el tamaño completo de los masters y puede tardar de unos segundos a un par de minutos. Queda en la carpeta del apilado, dentro de «Composiciones»: un TIFF de 16 bits y un JPG.", "The final image is made at the full size of the masters and can take from a few seconds to a couple of minutes. It's saved in the stack's folder, inside “Composiciones”: a 16-bit TIFF and a JPG."))}</p>`;
+}
+function compPintarControles(){
+  $("compCtl").innerHTML = compControlesHTML(); $("compGuardar").innerHTML = compGuardarHTML();
+  compEnlazar(); compSwatches(); compRefOpciones(); compBotones();
+}
+function compSwatches(){
+  document.querySelectorAll("#compCtl [data-comp-sw]").forEach(s => {
+    const w = COMP.R.pesos[s.dataset.compSw] || [0, 0, 0], m = Math.max(...w);
+    s.style.background = m > 0 ? `rgb(${w.map(v => Math.round(255 * v / m)).join(",")})` : "";
+  });
+}
+function compRefOpciones(){
+  const s = $("compRef"); if (!s) return;
+  const uso = compEnUso(), R = COMP.R;
+  if (R.ref && !uso.some(c => c.filtro === R.ref)) R.ref = "";
+  s.innerHTML = `<option value="">${esc(trLT("Automática", "Automatic"))}</option>` + uso.map(c => `<option value="${esc(c.filtro)}"${R.ref === c.filtro ? " selected" : ""}>${esc(nomFiltro(c.filtro))}</option>`).join("");
+}
+function compMarcarPaleta(){
+  document.querySelectorAll("#compCtl [data-comp-pal]").forEach(b => b.classList.toggle("on", b.dataset.compPal === COMP.R.paleta));
+  const d = $("compPalDesc"); if (d) d.textContent = compDescripcion(COMP.R.paleta);
+  const n = $("compNombre"); if (n) n.placeholder = compNombreDefecto();
+}
+function compBotones(){
+  const f = $("compFinal"); if (!f) return;
+  f.disabled = !COMP.siril || !!COMP.job || !compEnUso().length;
+}
+function compEnlazar(){
+  const c = $("compCtl"), R = COMP.R;
+  c.querySelectorAll("[data-comp-pal]").forEach(b => b.onclick = () => {
+    if (b.dataset.compPal === "mano") R.paleta = "mano"; else compAplicarPaleta(b.dataset.compPal);
+    compPintarControles(); compCambio(true); });
+  c.querySelectorAll("[data-comp-w]").forEach(i => {
+    i.oninput = () => {
+      let v = parseFloat(String(i.value).replace(",", ".")); if (!isFinite(v)) return;
+      v = Math.min(100, Math.max(0, v));
+      (R.pesos[i.dataset.compW] = R.pesos[i.dataset.compW] || [0, 0, 0])[+i.dataset.k] = v / 100;
+      R.paleta = "mano"; compMarcarPaleta(); compSwatches(); compRefOpciones(); compBotones(); compCambio(); };
+    i.onkeydown = ev => { if (ev.key === "Enter"){ ev.preventDefault(); i.blur(); } };
+  });
+  $("compLum").onchange = ev => { R.lum = ev.target.value; R.paleta = "mano"; compMarcarPaleta(); compCambio(); };
+  $("compFondo").onchange = ev => { R.fondo = ev.target.checked; compCambio(); };
+  $("compIgualar").onchange = ev => { R.igualar = ev.target.checked; $("compRefFila").hidden = !R.igualar; compCambio(); };
+  $("compRef").onchange = ev => { R.ref = ev.target.value; compCambio(); };
+  $("compEq").onchange = ev => { R.equilibrar = ev.target.checked; compCambio(); };
+  $("compVerde").onchange = ev => { R.verde = ev.target.checked; compCambio(); };
+  $("compSatu").oninput = ev => { R.satu = +ev.target.value / 100; $("compSatuV").textContent = ev.target.value + " %"; compCambio(); };
+  $("compBrillo").oninput = ev => { R.brillo = +ev.target.value / 100; $("compBrilloV").textContent = ev.target.value + " %"; compCambio(); };
+  $("compNombre").oninput = ev => { R.nombre = ev.target.value; };
+  $("compNombre").onkeydown = ev => { if (ev.key === "Enter"){ ev.preventDefault(); $("compFinal").click(); } };
+  $("compLineal").onchange = ev => { R.lineal = ev.target.checked; };
+  $("compFinal").onclick = () => compLanzar("final");
+}
+
+/* la vista rápida: se rehace sola, medio segundo después del último cambio */
+function compCambio(ya){
+  COMP.sucio = true; COMP.vivo = true; clearTimeout(COMP.td);
+  if (compVisible()) COMP.td = setTimeout(compVista, ya ? 80 : 500);
+}
+function compVista(){
+  if (!compVisible() || !COMP.R || !COMP.siril) return;
+  if (COMP.job){ compPintarEstado(); return; }
+  if (!compEnUso().length){ COMP.err = trLT("Elige al menos un filtro y a qué canal va.", "Choose at least one filter and which channel it goes to."); compPintarEstado(); return; }
+  COMP.vivo = true; compLanzar("rapida");
+}
+function compPintarVacio(){
+  const v = $("compVacio"); if (!v) return;
+  v.hidden = COMP.hayVista;
+  if (COMP.hayVista) return;
+  v.innerHTML = COMP.R && COMP.siril ? `<b>${esc(trLT("Vista previa", "Preview"))}</b><p>${esc(trLT("La primera vez, ASTRO alinea los filtros entre sí (de unos segundos a un minuto, según su tamaño); después, cada ajuste se ve en un momento.", "The first time, ASTRO aligns the filters with each other (from a few seconds to a minute, depending on their size); after that, each change shows up in a moment."))}</p><button class="btn primary" id="compVer">${esc(trLT("Ver la vista previa", "Show the preview"))}</button>` : "";
+  if ($("compVer")) $("compVer").onclick = compVista;
+}
+function compMostrar(t){
+  const im = $("compImg"); COMP.hayVista = true;
+  im.src = "/api/composicion/vista?carpeta=" + encodeURIComponent(COMP.carpeta) + "&t=" + t;
+  im.hidden = false; compPintarVacio();
+}
+function compPintarEstado(){
+  const el = $("compEstado"); if (!el) return;
+  el.innerHTML = !COMP.siril ? `<div class="status bad" style="display:block">${esc(trLT("No encuentro Siril. Descárgalo gratis de siril.org, instálalo, ábrelo una vez y vuelve aquí.", "I can't find Siril. Download it free from siril.org, install it, open it once and come back here."))}</div>`
+    : COMP.err ? `<div class="status bad" style="display:block">${esc(COMP.err)}</div>`
+    : COMP.job && COMP.job.carpeta !== COMP.carpeta ? `<p class="note">${esc(trLT("Se está haciendo otra composición ({1}): espera a que termine.", "Another composition is being made ({1}): wait for it to finish.", COMP.job.obj))}</p>`
+    : COMP.hayVista ? `<p class="note">${esc(trLT("Vista rápida, reducida. La imagen final se hace con el tamaño completo.", "Quick preview, scaled down. The final image is made at full size."))}</p>` : "";
+}
+function compPintarCarga(e, job){
+  const el = $("compCarga"); if (!el) return;
+  if (!e){ el.hidden = true; el.innerHTML = ""; compPintarVacio(); return; }
+  const final = job.modo === "final", esquina = !final && COMP.hayVista, primera = !final && e.paso === 1 && !esquina;
+  const pct = final && e.pasos ? Math.min(100, Math.round(100 * (Math.max(1, e.paso) - 0.5) / e.pasos)) : 0;
+  el.className = "compCarga" + (esquina ? " esquina" : ""); el.hidden = false;
+  const vac = $("compVacio"); if (vac) vac.hidden = true;
+  el.innerHTML = `<span class="compGira"></span><span>${esc(tr(e.texto || "") || trLT("Componiendo…", "Composing…"))}</span>${final ? `<div class="igBarra"><i style="width:${pct}%"></i></div>` : ""}${primera ? `<small>${esc(trLT("Solo la primera vez: después, cada cambio se ve en un momento.", "Only the first time: after that, every change shows up in a moment."))}</small>` : ""}<button class="btn small" id="compParar">${esc(trLT("Cancelar", "Cancel"))}</button>`;
+  $("compParar").onclick = () => fetch("/api/apilado/cancelar", {method:"POST"}).catch(() => {});
+}
+
+/* un trabajo de Siril: se pide, se vigila y, al terminar, se muestra */
+async function compLanzar(modo){
+  if (COMP.job) return toast(trLT("Hay una composición en marcha: espera a que termine.", "A composition is in progress: wait for it to finish."));
+  const R = COMP.R, job = {modo, token: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), obj: COMP.obj, carpeta: COMP.carpeta, nombre: (R.nombre || "").trim() || compNombreDefecto()};
+  COMP.job = job; COMP.err = ""; COMP.sucio = false; compBotones(); compPintarEstado();
+  compPintarCarga({texto: "Empezando…", paso: 0, pasos: 1}, job);
+  try {
+    await api("/api/composicion/iniciar", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({carpeta: job.carpeta, receta: compReceta(), modo, nombre: job.nombre, token: job.token})});
+  } catch(e){
+    COMP.job = null; compPintarCarga(null); compBotones();
+    COMP.err = tr(String(e.message || e)); compPintarEstado(); return;
+  }
+  compEsperar(job);
+}
+async function compEsperar(job){
+  clearTimeout(COMP.tp);
+  if (COMP.job !== job) return;
+  let e; try { e = await (await fetch("/api/apilado/estado")).json(); } catch(_){ COMP.tp = setTimeout(() => compEsperar(job), 2500); return; }
+  if (COMP.job !== job) return;
+  if (e.activo && e.tipo === "composicion" && e.token === job.token){
+    if (compVisible() && job.carpeta === COMP.carpeta) compPintarCarga(e, job);
+    COMP.tp = setTimeout(() => compEsperar(job), job.modo === "rapida" ? 350 : 1200);
+    return;
+  }
+  COMP.job = null;
+  compPintarCarga(null);
+  if (!compVisible() && e.tipo === "composicion" && e.token === job.token && e.estado === "error") toast(tr(e.error || ""));
+  const nuestro = e.tipo === "composicion" && e.token === job.token;
+  if (nuestro && e.estado === "ok"){
+    if (job.modo === "rapida"){ if (compVisible() && job.carpeta === COMP.carpeta) compMostrar((e.composicion || {}).t || Date.now()); }
+    else compGuardada(job, (e.composicion || {}).entrada);
+  } else if (nuestro && e.estado === "error"){
+    COMP.err = e.error_codigo === "alinear"
+      ? trLT("Siril no ha podido alinear {1} con los demás filtros. Prueba sin ese filtro.", "Siril couldn't align {1} with the other filters. Try without it.", (e.error_datos || []).map(nomFiltro).join(", "))
+      : tr(e.error || "");
+  } else if (!nuestro && job.modo === "final") compGuardada(job, null);
+  if (compVisible()){
+    compPintarEstado(); compBotones();
+    if (COMP.sucio && COMP.vivo && job.modo === "rapida" && !COMP.err) compVista();
+  }
+}
+async function compGuardada(job, entrada){
+  toast(trLT("Composición guardada: {1}", "Composition saved: {1}", (entrada && entrada.nombre) || job.nombre));
+  try { ARC.apilados[job.obj] = (await (await fetch("/api/apilado/lista?objeto=" + encodeURIComponent(job.obj))).json()) || []; } catch(_){ delete ARC.apilados[job.obj]; }
+  if (compVisible() && job.carpeta === COMP.carpeta){
+    try { COMP.guardadas = (await (await api("/api/composicion/info?carpeta=" + encodeURIComponent(job.carpeta))).json()).composiciones || []; } catch(_){}
+    compPintarGuardadas();
+    const g = $("compGuardadas"); if (g && g.scrollIntoView) g.scrollIntoView({block:"nearest", behavior:"smooth"});
+  }
+  if (VISTA_ACTUAL === "proyecto" && ARC.proyecto === job.obj) renderProyecto(true);
+}
+
+/* las composiciones guardadas de este apilado */
+function compPintarGuardadas(){
+  const el = $("compGuardadas"); if (!el) return;
+  const g = COMP.guardadas;
+  el.innerHTML = g.length ? `<h4>${esc(trLT("Composiciones guardadas", "Saved compositions"))}</h4>` + galeriaHTML(g, true) : "";
+  if (!g.length) return;
+  activarGaleria(el, g);
+  el.querySelectorAll("[data-comp-usar]").forEach(b => b.onclick = () => compUsar(g[+b.dataset.compUsar]));
+}
+function compUsar(x){
+  const r = (x && x.receta) || {}, R = COMP.R; if (!R) return;
+  const pesos = {}; COMP.canales.forEach(c => pesos[c.filtro] = [0, 0, 0]);
+  (r.capas || []).forEach(l => { if (pesos[l.filtro]) pesos[l.filtro] = [0, 1, 2].map(k => Math.min(1, Math.max(0, +(l.w || [])[k] || 0))); });
+  const p = COMP_PALETAS.find(q => q.n === r.paleta);
+  Object.assign(R, {pesos, lum: COMP.canales.some(c => c.filtro === r.lum) ? r.lum : "", igualar: !!r.igualar, ref: r.ref || "", fondo: r.fondo !== false, verde: !!r.verde,
+    equilibrar: r.equilibrar !== false, satu: Math.min(1, Math.max(0, +r.satu || 0)), brillo: Math.min(0.35, Math.max(0.08, +r.brillo || 0.18)), paleta: p ? p.id : "mano", lineal: !!r.lineal, nombre: x.nombre || ""});
+  compPintarControles(); compCambio(true);
+  toast(trLT("Ajustes recuperados: {1}", "Settings restored: {1}", x.nombre || ""));
 }
 function fechaApilado(s){ const [d,t] = String(s||"").split("_"); return fechaCorta(d) + " " + (d||"").slice(0,4) + (t && t.length>=4 ? ", " + t.slice(0,2) + ":" + t.slice(2,4) : ""); }
 let VISTA_OBJ = null;
@@ -10698,6 +11065,7 @@ DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta
 DIC_EN.update({"Panel general": "Overview", "Mapa del cielo": "Sky map", "Calendario": "Calendar", "Proyectos": "Projects", "Qué fotografiar": "What to shoot", "Explorar objetos": "Explore targets", "Planificar sesión": "Plan a session", "Mi archivo": "My archive", "Indexar directorios": "Index folders", "Ciencia": "Science", "Configuración": "Settings", "Lugares de observación": "Observing sites", "Umbrales de calidad": "Quality thresholds", "General": "General", "Cómo van tus proyectos y tus noches": "How your projects and your nights are going", "Cómo va cada uno y cuándo te conviene seguir": "How each one is doing and when it's worth carrying on", "Tus proyectos": "Your projects", "Tabla": "Table", "Tarjetas": "Cards", "Abrir": "Open", "Abrir el proyecto": "Open the project", "← Proyectos": "← Projects", "Volver": "Back", "Todavía no tienes proyectos: cada objeto que fotografíes será uno.": "You don't have any projects yet: every target you photograph will become one.", "# toma asignada": "# frame assigned", "# tomas asignadas": "# frames assigned", "Noche a noche, por equipo (#)": "Night by night, by setup (#)", "# válidas · # con avisos · # rechazables": "# valid · # with warnings · # rejected", "última noche:": "latest night:", "ASTRO la recorre entera y se salta darks, flats, bias y vistas previas.": "ASTRO goes through all of it and skips darks, flats, bias and previews.", "Incluir las tomas «con avisos»": "Include the frames “with warnings”", "Al terminar, crear una vista previa revelada": "When it finishes, create a developed preview", "Se quedan donde están. Para apilarlas después, añádelas con «Desde una carpeta del disco».": "They stay where they are. To stack them later, add them with “From a folder on disk”.", "Con los datos de ejemplo no hay imágenes reales que apilar: sus tomas son inventadas. Añade tus propias sesiones para apilar de verdad.": "The example data has no real images to stack: its frames are made up. Add your own sessions to stack for real.", "Conectar la ASIAIR o N.I.N.A.": "Connect the ASIAIR or N.I.N.A.", "Vuelve aquí: la carpeta aparecerá arriba (si no sale, pulsa «Buscar de nuevo»).": "Come back here: the folder will show up above (if it doesn't, press “Search again”).", "Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte. Y reparte tus tomas por sitio: cada una cuenta para el lugar guardado más cercano (a menos de 5 km), según las coordenadas de su cabecera o según el que le pongas tú.": "Where you shoot from. With the site ASTRO knows when it gets dark, what Moon you have and what is visible above your horizon. And it sorts your frames by site: each one counts for the nearest saved site (within 5 km), from the coordinates in its header or from the one you set.", "Ventana de inicio…": "Start window…", "Te conviene": "Best for you", "Pon tu equipo y te digo qué montar ›": "Tell me your equipment and I'll tell you what to set up ›", "Ver el plan": "Show the plan", "Ocultar el plan": "Hide the plan"})   # 0.30: textos sueltos nuevos
 DIC_EN.update({"Al abrir ASTRO, ir a": "When ASTRO opens, go to", "Aspecto": "Appearance", "Avisos por WhatsApp": "WhatsApp alerts", "Carpeta de datos": "Data folder", "Configurar…": "Set up…", "Tu plan": "Your plan"})   # 0.30: General y plan
 DIC_EN.update({"Lugar de cada noche": "Site of each night", "Dónde estabas cada noche. Si la cabecera de tus tomas trae las coordenadas, ASTRO ya las usa; aquí puedes ponerlas cuando faltan (la ASIAIR, por ejemplo, no las escribe) o corregirlas. Con el lugar de cada toma ves las horas de cada sitio y puedes apilar cada lugar por separado.": "Where you were each night. If the header of your frames carries the coordinates, ASTRO already uses them; here you can set them when they are missing (the ASIAIR, for one, doesn't write them) or correct them. With the site of each frame you see the hours of each site and can stack each site separately.", "Solo se pone a las tomas cuya cabecera no trae las coordenadas (la ASIAIR, por ejemplo)": "Only set on the frames whose header carries no coordinates (the ASIAIR, for one)"})   # 0.31: lugares de observación
+DIC_EN.update({"Siril no ha podido alinear algún filtro con los demás.": "Siril couldn't align one of the filters with the others.", "No se ha podido crear la imagen.": "The image couldn't be created.", "En ese apilado no hay masters en blanco y negro que componer.": "That stack has no black-and-white masters to compose.", "Componiendo": "Composing", "Recortando al área común": "Cropping to the common area", "Componiendo la vista rápida": "Composing the quick preview", "Componiendo y estirando": "Composing and stretching", "✓ Composición creada": "✓ Composition created", "Ya hay un trabajo de Siril en marcha. Espera a que termine.": "A Siril job is already running. Wait for it to finish.", "Elige al menos un filtro y a qué canal va.": "Choose at least one filter and which channel it goes to."})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
 
@@ -10768,7 +11136,8 @@ def elegir_trabajo(necesita, muestra=None):
     return TRABAJO_DIR, False, libre_datos
 
 JOB = {"activo": False, "estado": "", "tipo": "", "paso": 0, "pasos": 0, "texto": "", "sub": "", "log": [],
-       "resultados": [], "vista": [], "avisos": [], "error": "", "carpeta": "", "cancelar": False, "inicio": None, "fin": None}
+       "resultados": [], "vista": [], "avisos": [], "error": "", "carpeta": "", "cancelar": False, "inicio": None, "fin": None,
+       "error_codigo": "", "error_datos": [], "token": "", "composicion": None}
 _PROC = {"p": None}
 _JOB_LOCK = threading.Lock()
 _JOB_RESERVA = {"on": False}
@@ -12662,7 +13031,8 @@ def apilados_de(objeto):
             fi = [f for f in (inf.get("filtros") or []) if isinstance(f, dict)]
             out.append({"carpeta": rel_apil(c), "fecha": d, "filtros": [f for f, _ in lst], "vista": leer_vista(c),
                         "tomas": sum(int(f.get("tomas") or 0) for f in fi), "horas": round(sum(float(f.get("exposicion_h") or 0) for f in fi), 2),
-                        "ponderado": any(f.get("ponderado") for f in fi), "lugar": inf.get("lugar") if isinstance(inf.get("lugar"), dict) else None})
+                        "ponderado": any(f.get("ponderado") for f in fi), "lugar": inf.get("lugar") if isinstance(inf.get("lugar"), dict) else None,
+                        "composiciones": leer_composiciones(c)})
     return out
 
 
@@ -12740,6 +13110,408 @@ def _iniciar_vista(carpeta_rel):
                resultados=[], vista=[], avisos=[], error="", carpeta=carpeta, cancelar=False,
                inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
     _hilo_job(trabajo_vista, carpeta, inf.get("objeto") or "")
+
+
+# ═════════════════ COMPONER CANALES: LRGB, RGB, BANDA ESTRECHA Y MEZCLAS A MANO ═════════════════
+# Con los masters en blanco y negro de un apilado, se elige cuánto aporta cada filtro al rojo, al verde y al azul (o se parte
+# de una paleta: RGB, LRGB, SHO, HOO, HSO, Ha+RGB) y ASTRO lo hace con Siril: alinea los filtros entre sí y los recorta al área
+# común, quita el gradiente del fondo, iguala sus brillos, los mezcla (pm y rgbcomp), estira y lo guarda en
+# <apilado>/Composiciones/: un TIFF de 16 bits y un JPG ya estirados y el FITS lineal para seguir procesando.
+# La «vista rápida» hace lo mismo con unas capas reducidas que se guardan en la caché, así que cada cambio tarda segundos.
+COMP_DIR = "Composiciones"
+COMP_LADO = 900               # lado mayor de la vista rápida
+COMP_MAX_CAPAS = 8
+COMP_VERSION = 1              # cambia si cambia lo que se guarda en la caché
+COMP_FONDO = (0.08, 0.35)     # brillo del fondo al estirar (0–1)
+
+
+class ErrorComposicion(RuntimeError):
+    """Un fallo que la página cuenta con sus palabras: el código dice qué pasó y los datos, a quién."""
+    def __init__(self, texto, codigo="", datos=None):
+        super().__init__(texto)
+        self.codigo, self.datos = codigo, list(datos or [])
+
+
+def _comp_num(v, defecto=0.0):
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return defecto
+    return x if math.isfinite(x) else defecto
+
+
+_COMP_CLAVES = ("L", "R", "G", "B", "H", "O", "S")
+_COMP_PALABRAS = (("H", (" ha ", " halpha ", " h alpha ", " hα ")), ("O", (" oiii ", " o3 ", " o iii ", " oxygen ")),
+                  ("S", (" sii ", " s2 ", " s ii ", " sulfur ", " sulphur ")), ("L", (" lum ", " luminance ", " luminosity ")),
+                  ("R", (" red ", " rojo ")), ("G", (" green ", " verde ")), ("B", (" blue ", " azul ")))
+
+
+def _comp_clave(filtro):
+    """Cómo reconoce la página un filtro para elegir paleta (L R G B H O S): por la clave del apilado o, si el nombre es más
+    largo («Baader H-alpha 3.5nm»), por lo que dice con claridad. Si dice dos cosas («L-eXtreme Ha+OIII»), no se adivina."""
+    c = nfiltro(filtro)
+    if c in _COMP_CLAVES:
+        return c
+    t = " " + re.sub(r"[^a-z0-9α]+", " ", str(filtro or "").lower()).strip() + " "
+    hay = [k for k, ps in _COMP_PALABRAS if any(p in t for p in ps)]
+    return hay[0] if len(hay) == 1 else c
+
+
+def _comp_canales(carpeta):
+    """Los masters en blanco y negro de un apilado que se pueden componer, en el orden de la lista de filtros."""
+    inf, lst = masters_apilado(carpeta)
+    sin_flats = _filtros_sin_flats(inf)
+    por_filtro = {str(f.get("filtro")): f for f in inf.get("filtros") or [] if isinstance(f, dict)}
+    out = []
+    for filtro, ruta in lst:
+        h = cabecera_fits(ruta)
+        w, hh = _entero(h, "NAXIS1"), _entero(h, "NAXIS2")
+        if w <= 0 or hh <= 0 or (_entero(h, "NAXIS") == 3 and _entero(h, "NAXIS3", 1) == 3):
+            continue                    # sin imagen de verdad, o un master en color, que ya trae su color
+        f = por_filtro.get(filtro) or {}
+        out.append({"filtro": filtro, "clave": _comp_clave(filtro), "ruta": ruta, "ancho": w, "alto": hh,
+                    "horas": round(_comp_num(f.get("exposicion_h")), 2), "tomas": int(_comp_num(f.get("tomas"))),
+                    "sin_flats": filtro in sin_flats})
+    return out
+
+
+def _comp_fuentes(carpeta, canales):
+    """De dónde parte cada filtro: de su master o, si los filtros no tienen el mismo tamaño (equipos distintos), de la copia
+    que el apilado dejó ya llevada a la misma escala y encuadre."""
+    masters = {c["filtro"]: c["ruta"] for c in canales}
+    if len({(c["ancho"], c["alto"]) for c in canales}) <= 1:
+        return masters
+    obj = os.path.basename(os.path.dirname(carpeta))
+    ali = {}
+    for c in canales:
+        r = os.path.join(carpeta, "alineados", f"{obj}_{seguro(c['filtro'])}_alineado.fit")
+        if not os.path.isfile(r):
+            return masters
+        ali[c["filtro"]] = r
+    return ali
+
+
+def _comp_receta(d, canales):
+    """La receta que llega de la página, comprobada: qué filtros van a qué canales y los ajustes."""
+    d = d if isinstance(d, dict) else {}
+    nombres = [c["filtro"] for c in canales]
+    capas = []
+    for x in (d.get("capas") or [])[:COMP_MAX_CAPAS * 2]:
+        if not isinstance(x, dict) or x.get("filtro") not in nombres or any(c["filtro"] == x["filtro"] for c in capas):
+            continue
+        w = (list(x.get("w") or []) + [0, 0, 0])[:3]
+        w = [min(1.0, max(0.0, _comp_num(v))) for v in w]
+        if sum(w) > 0.001:
+            capas.append({"filtro": x["filtro"], "w": w})
+    if not capas:
+        raise ErrorComposicion("Elige al menos un filtro y a qué canal va.", "sin_capas")
+    capas = capas[:COMP_MAX_CAPAS]
+    lum = d.get("lum") if d.get("lum") in nombres else ""
+    ref = d.get("ref") if d.get("ref") in [c["filtro"] for c in capas] else ""
+    return {"capas": capas, "lum": lum, "igualar": bool(d.get("igualar")), "ref": ref,
+            "fondo": d.get("fondo") is not False, "verde": bool(d.get("verde")), "equilibrar": d.get("equilibrar") is not False,
+            "lineal": bool(d.get("lineal")),
+            "satu": round(min(1.0, max(0.0, _comp_num(d.get("satu"), 0.3))), 2),
+            "brillo": round(min(COMP_FONDO[1], max(COMP_FONDO[0], _comp_num(d.get("brillo"), 0.18))), 3),
+            "paleta": str(d.get("paleta") or "")[:24]}
+
+
+def _comp_referencia(capas):
+    """El filtro al que se igualan los demás cuando no se elige: el que más aporta al verde y, si hay empate, el que más aporta."""
+    return max(capas, key=lambda c: (c["w"][1], sum(c["w"])))["filtro"]
+
+
+def _comp_lineas(R, idx, sin_flats, modo, base="comp"):
+    """Las órdenes de Siril que, desde las capas c_<n>.fit ya alineadas y recortadas de la carpeta de trabajo, hacen la composición.
+    modo «rapida»: solo q_vista.jpg · modo «final»: o_<base>.tif y .jpg, m_<base>.jpg (miniatura) y <base>_lineal.fit."""
+    capas = R["capas"]
+    usadas = [c["filtro"] for c in capas] + ([R["lum"]] if R["lum"] and R["lum"] not in [c["filtro"] for c in capas] else [])
+    nom = {f: f"c_{idx[f]}" for f in usadas}
+    L = ["requires 1.2.0", "set32bits"]
+    if R["fondo"]:         # el gradiente del fondo: un plano o, si el filtro se apiló sin flats, un polinomio de grado 2
+        for f in usadas:
+            L += [f"load {nom[f]}", "subsky 2" if f in sin_flats else "subsky 1", f"save p_{idx[f]}"]
+            nom[f] = f"p_{idx[f]}"
+    lum = nom[R["lum"]] if R["lum"] else ""
+    nomc = {c["filtro"]: nom[c["filtro"]] for c in capas}
+    if R["igualar"] and len(capas) >= 2:
+        ref = R["ref"] or _comp_referencia(capas)
+        for c in capas:
+            f = c["filtro"]
+            if f != ref:
+                L += [f"load {nom[f]}", f"linear_match {nom[ref]} 0 0.92", f"save m_{idx[f]}"]
+                nomc[f] = f"m_{idx[f]}"
+    canal = []
+    for k, c in enumerate("RGB"):
+        aportes = [(x["w"][k], nomc[x["filtro"]]) for x in capas if x["w"][k] > 0.0005]
+        if len(aportes) == 1 and abs(aportes[0][0] - 1.0) < 0.0005:
+            canal.append(aportes[0][1])         # un solo filtro, entero: no hace falta mezclar
+            continue
+        if aportes:
+            suma = sum(w for w, _ in aportes)
+            e = " + ".join(f"${n}$ * {w:.4f}" for w, n in aportes)
+            expr = f"({e}) / {suma:.4f}" if suma > 1.0005 else e
+        else:
+            expr = f"${nomc[capas[0]['filtro']]}$ * 0"          # un canal sin nada: negro
+        L += [f'pm "{expr}"', f"save k_{c}"]
+        canal.append(f"k_{c}")
+    L.append(f"rgbcomp {canal[0]} {canal[1]} {canal[2]} -out=k_rgb")
+    fin = "k_rgb"
+    if lum:
+        L.append(f"rgbcomp -lum={lum} k_rgb -out=k_lrgb")
+        fin = "k_lrgb"
+    L.append(f"load {fin}")
+    if modo == "final" and R.get("lineal"):
+        L.append(f"save {base}_lineal")
+    L.append("autostretch " + ("" if R["equilibrar"] else "-linked ") + f"-2.8 {R['brillo']:.3f}")
+    if R["verde"]:
+        L.append("rmgreen")
+    if R["satu"] > 0.001:
+        L.append(f"satu {R['satu']:.2f}")
+    if modo == "rapida":
+        L.append("savejpg q_vista 88")
+    else:
+        L += [f"savetif o_{base} -deflate", f"savejpg o_{base} 90"]
+    return L
+
+
+def _comp_preparar(siril, W, fuentes, destino, lado=None, paso_recorte=None):
+    """Alinea entre sí los filtros (fuentes: [(n, ruta)]), los recorta al área común, igual que la vista previa, y deja
+    destino/c_<n>.fit; con «lado», reducidos para que su lado mayor mida eso. Devuelve {n: ruta} de los que se alinearon."""
+    src, seq = os.path.join(W, "src"), os.path.join(W, "seq")
+    shutil.rmtree(src, ignore_errors=True)
+    shutil.rmtree(seq, ignore_errors=True)
+    os.makedirs(src)
+    os.makedirs(destino, exist_ok=True)
+    for pos, (n, ruta) in enumerate(fuentes, 1):
+        enlace(ruta, os.path.join(src, f"{pos:02d}_{n}.fit"))
+    if len(fuentes) >= 2:
+        JOB["texto"] = "Alineando los filtros entre sí"
+        correr_siril(siril, "\n".join(["requires 1.2.0", "set32bits", f"cd {q(src)}", f"link m {qo('-out=', seq)}",
+                                       f"cd {q(seq)}", "register m -2pass", "seqapplyreg m -framing=min"]) + "\n", "comp_alinear")
+        reg = {n: os.path.join(seq, f"r_m_{pos:05d}.fit") for pos, (n, _) in enumerate(fuentes, 1)}
+        reg = {n: r for n, r in reg.items() if os.path.isfile(r)}
+    else:
+        reg = {fuentes[0][0]: fuentes[0][1]}
+    if not reg:
+        return {}
+    h = cabecera_fits(next(iter(reg.values())))
+    dims = (_entero(h, "NAXIS1"), _entero(h, "NAXIS2"))
+    x, y, w, hh = _recorte(dims, 0.015)
+    f = min(1.0, lado / float(max(w, hh))) if lado else 1.0
+    L = ["requires 1.2.0", "set32bits"]
+    salida = {}
+    for n, r in reg.items():
+        dst = os.path.join(destino, f"c_{n}")
+        L += [f"load {q(r)}", f"crop {x} {y} {w} {hh}"] + (lineas_resample(f, " -interp=area") if f < 0.999 else []) + [f"save {q(dst)}"]
+        salida[n] = dst + ".fit"
+    JOB["texto"] = "Recortando al área común"
+    if paso_recorte:
+        JOB["paso"] = paso_recorte
+    correr_siril(siril, "\n".join(L) + "\n", "comp_recortar")
+    shutil.rmtree(seq, ignore_errors=True)
+    return {n: r for n, r in salida.items() if os.path.isfile(r)}
+
+
+def _comp_cache_dir(carpeta):
+    base = carpeta_trabajo_interna() or TRABAJO_DIR
+    clave = hashlib.sha1(os.path.normcase(os.path.abspath(carpeta)).encode("utf-8", "replace")).hexdigest()[:12]
+    return os.path.join(base, "comp_" + clave)
+
+
+def _comp_firma(fuentes):
+    partes = [COMP_VERSION, COMP_LADO]
+    for f in sorted(fuentes):
+        try:
+            st = os.stat(fuentes[f])
+            partes.append([f, fuentes[f], st.st_size, st.st_mtime_ns])
+        except OSError:
+            partes.append([f, fuentes[f], 0, 0])
+    return hashlib.sha1(json.dumps(partes, default=str).encode("utf-8")).hexdigest()
+
+
+def _comp_nombre_libre(destino, base):
+    n, cand = 1, base
+    while any(os.path.exists(os.path.join(destino, cand + e)) for e in (".tif", ".jpg", "_lineal.fit")):
+        n += 1
+        cand = f"{base}_{n}"
+    return cand
+
+
+def leer_composiciones(carpeta):
+    """Las composiciones guardadas de un apilado, la más reciente primero."""
+    try:
+        with open(os.path.join(carpeta, COMP_DIR, "composiciones.json"), encoding="utf-8") as fh:
+            lst = json.load(fh).get("composiciones") or []
+    except Exception:
+        return []
+    return [x for x in reversed(lst) if isinstance(x, dict) and x.get("jpg") and os.path.isfile(os.path.join(APIL_ROOT, x["jpg"]))]
+
+
+def _comp_cache_lista(carpeta, canales):
+    """¿Están ya preparadas las capas reducidas de la vista rápida? (Entonces cada vista tarda menos de un segundo.)"""
+    cache = _comp_cache_dir(carpeta)
+    try:
+        with open(os.path.join(cache, "firma.json"), encoding="utf-8") as fh:
+            previo = json.load(fh)
+        listos = [int(n) for n in previo.get("listos") or []]
+        return bool(listos) and previo.get("firma") == _comp_firma(_comp_fuentes(carpeta, canales)) \
+            and all(os.path.isfile(os.path.join(cache, f"c_{n}.fit")) for n in listos)
+    except Exception:
+        return False
+
+
+def info_composicion(carpeta_rel):
+    carpeta = dentro_apil(carpeta_rel)
+    if not carpeta or not os.path.isdir(carpeta):
+        raise RuntimeError("No encuentro esa carpeta de apilado.")
+    inf, _ = masters_apilado(carpeta)
+    siril, ver = buscar_siril()
+    canales = _comp_canales(carpeta)
+    return {"carpeta": rel_apil(carpeta), "objeto": inf.get("objeto") or "", "fecha": os.path.basename(carpeta),
+            "canales": [{k: v for k, v in c.items() if k != "ruta"} for c in canales],
+            "composiciones": leer_composiciones(carpeta), "siril": bool(siril), "listo": _comp_cache_lista(carpeta, canales)}
+
+
+def vista_rapida_composicion(carpeta_rel):
+    """La ruta del JPG de la última vista rápida de un apilado (o None)."""
+    carpeta = dentro_apil(carpeta_rel)
+    if not carpeta or not os.path.isdir(carpeta):
+        return None
+    r = os.path.join(_comp_cache_dir(carpeta), "q_vista.jpg")
+    return r if os.path.isfile(r) else None
+
+
+def trabajo_composicion(carpeta, receta, modo, nombre, token):
+    marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    W = os.path.join(TRABAJO_DIR, "comp_" + marca)
+    os.makedirs(W, exist_ok=True)
+    rapida = modo == "rapida"
+    JOB.update(_w=W, carpeta=carpeta, pasos=2 if rapida else 3, paso=1, texto="Componiendo", token=token, composicion={"modo": modo})
+    try:
+        siril, _ = buscar_siril()
+        if not siril:
+            raise RuntimeError("No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.")
+        canales = _comp_canales(carpeta)
+        R = _comp_receta(receta, canales)
+        idx = {c["filtro"]: i for i, c in enumerate(canales, 1)}
+        sin_flats = {c["filtro"] for c in canales if c["sin_flats"]}
+        fuentes = _comp_fuentes(carpeta, canales)
+        usados = [c["filtro"] for c in R["capas"]] + ([R["lum"]] if R["lum"] and R["lum"] not in [c["filtro"] for c in R["capas"]] else [])
+        cache = _comp_cache_dir(carpeta)
+        os.makedirs(cache, exist_ok=True)
+        try:
+            os.utime(cache)
+        except OSError:
+            pass
+        destino = os.path.join(carpeta, COMP_DIR)
+        log_dir = cache if rapida else destino
+        os.makedirs(log_dir, exist_ok=True)
+        JOB["_logf"] = open(os.path.join(log_dir, "registro_siril.txt"), "w", encoding="utf-8")
+        if rapida:
+            firma = _comp_firma(fuentes)
+            try:
+                with open(os.path.join(cache, "firma.json"), encoding="utf-8") as fh:
+                    previo = json.load(fh)
+            except Exception:
+                previo = {}
+            listos = previo.get("listos") if previo.get("firma") == firma else None
+            listos = [int(n) for n in listos] if isinstance(listos, list) else None
+            if listos is None or any(not os.path.isfile(os.path.join(cache, f"c_{n}.fit")) for n in listos):
+                for n in range(1, len(canales) + 8):
+                    try:
+                        os.remove(os.path.join(cache, f"c_{n}.fit"))
+                    except OSError:
+                        pass
+                JOB["paso"] = 1
+                hechas = _comp_preparar(siril, W, [(idx[c["filtro"]], fuentes[c["filtro"]]) for c in canales], cache, COMP_LADO)
+                listos = sorted(hechas)
+                with open(os.path.join(cache, "firma.json"), "w", encoding="utf-8") as fh:
+                    json.dump({"firma": firma, "listos": listos}, fh)
+            JOB["paso"] = 2
+            faltan = [f for f in usados if idx[f] not in listos]
+            if faltan:
+                raise ErrorComposicion("Siril no ha podido alinear algún filtro con los demás.", "alinear", faltan)
+            JOB["texto"] = "Componiendo la vista rápida"
+            L = ["requires 1.2.0", "set32bits", f"cd {q(cache)}"] + _comp_lineas(R, idx, sin_flats, "rapida")[2:]
+            correr_siril(siril, "\n".join(L) + "\n", "comp_rapida")
+            JOB["composicion"] = {"modo": "rapida", "t": int(time.time() * 1000)}
+        else:
+            capas_dir = os.path.join(W, "capas")
+            JOB["paso"] = 1
+            hechas = _comp_preparar(siril, W, [(idx[f], fuentes[f]) for f in sorted(usados, key=lambda f: idx[f])], capas_dir, None, 2)
+            faltan = [f for f in usados if idx[f] not in hechas]
+            if faltan:
+                raise ErrorComposicion("Siril no ha podido alinear algún filtro con los demás.", "alinear", faltan)
+            JOB["paso"] = 3
+            JOB["texto"] = "Componiendo y estirando"
+            L = ["requires 1.2.0", "set32bits", f"cd {q(capas_dir)}"] + _comp_lineas(R, idx, sin_flats, "final")[2:]
+            ancho = _entero(cabecera_fits(os.path.join(capas_dir, f"c_{idx[usados[0]]}.fit")), "NAXIS1")
+            f = min(1.0, 1200.0 / ancho) if ancho else 1.0
+            if f < 0.999:
+                L += lineas_resample(f)
+            L.append("savejpg m_comp 85")
+            correr_siril(siril, "\n".join(L) + "\n", "comp_final")
+            os.makedirs(os.path.join(destino, MINI_DIR), exist_ok=True)
+            obj = os.path.basename(os.path.dirname(carpeta))
+            nombre_vis = (str(nombre or "").strip() or R["paleta"] or "Composición")[:60]
+            base = _comp_nombre_libre(destino, f"{obj}_{seguro(nombre_vis)}")
+            entrada = {"nombre": nombre_vis, "archivo": base, "creada": _dt.datetime.now().isoformat(timespec="seconds"),
+                       "receta": R, "filtros": usados, "tipo": "composicion"}
+            for ext, origen, dst, k in (("tif", "o_comp.tif", base + ".tif", "tif"), ("jpg", "o_comp.jpg", base + ".jpg", "jpg"),
+                                        ("fit", "comp_lineal.fit", base + "_lineal.fit", "fit"), ("mini", "m_comp.jpg", os.path.join(MINI_DIR, base + ".jpg"), "mini")):
+                o = os.path.join(capas_dir, origen)
+                if os.path.isfile(o):
+                    d2 = os.path.join(destino, dst)
+                    shutil.move(o, d2)
+                    entrada[k] = rel_apil(d2)
+            if "jpg" not in entrada:
+                raise RuntimeError("No se ha podido crear la imagen.")
+            entrada.setdefault("mini", entrada["jpg"])
+            ruta = os.path.join(destino, "composiciones.json")
+            try:
+                with open(ruta, encoding="utf-8") as fh:
+                    lst = json.load(fh).get("composiciones") or []
+            except Exception:
+                lst = []
+            lst.append(entrada)
+            with open(ruta, "w", encoding="utf-8") as fh:
+                json.dump({"composiciones": lst}, fh, ensure_ascii=False, indent=1)
+            JOB["composicion"] = {"modo": "final", "entrada": entrada}
+        JOB["texto"] = "Terminado"
+        JOB["estado"] = "ok"
+    except Exception as e:
+        JOB["estado"] = "cancelado" if str(e) == "Cancelado" else "error"
+        JOB["error"] = str(e)
+        JOB["error_codigo"] = getattr(e, "codigo", "")
+        JOB["error_datos"] = getattr(e, "datos", [])
+    finally:
+        try:
+            JOB["_logf"].close()
+        except Exception:
+            pass
+        JOB["_logf"] = None
+        shutil.rmtree(W, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["fin"] = _dt.datetime.now().isoformat(timespec="seconds")
+
+
+def iniciar_composicion(carpeta_rel, receta, modo, nombre, token):
+    _reservar_job("Ya hay un trabajo de Siril en marcha. Espera a que termine.")
+    try:
+        carpeta = dentro_apil(carpeta_rel)
+        if not carpeta or not os.path.isdir(carpeta):
+            raise RuntimeError("No encuentro esa carpeta de apilado.")
+        canales = _comp_canales(carpeta)
+        if not canales:
+            raise RuntimeError("En ese apilado no hay masters en blanco y negro que componer.")
+        _comp_receta(receta, canales)          # si la receta no vale, se dice antes de empezar
+        JOB.update(activo=True, estado="en marcha", tipo="composicion", paso=0, pasos=1, texto="Empezando…", sub="", log=[],
+                   resultados=[], vista=[], avisos=[], error="", error_codigo="", error_datos=[], carpeta=carpeta, cancelar=False,
+                   composicion=None, token=str(token or "")[:40], inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
+        _hilo_job(trabajo_composicion, carpeta, receta, "rapida" if modo == "rapida" else "final", nombre, str(token or "")[:40])
+    finally:
+        _JOB_RESERVA["on"] = False
 
 
 # ─── «Abrir en…»: programas de edición instalados ───
@@ -19566,6 +20338,17 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(d, ensure_ascii=False))
         if p.path == "/api/apilado/lista":
             return self._send(200, json.dumps(apilados_de(q.get("objeto", [""])[0]), ensure_ascii=False))
+        if p.path == "/api/composicion/info":
+            try:
+                return self._send(200, json.dumps(info_composicion(q.get("carpeta", [""])[0]), ensure_ascii=False))
+            except RuntimeError as e:
+                return self._send(400, str(e), "text/plain; charset=utf-8")
+        if p.path == "/api/composicion/vista":
+            r = vista_rapida_composicion(q.get("carpeta", [""])[0])
+            if r:
+                with open(r, "rb") as f:
+                    return self._send(200, f.read(), "image/jpeg")
+            return self._send(404, "no encontrado", "text/plain; charset=utf-8")
         if p.path == "/api/editores":
             return self._send(200, json.dumps([{"id": e["id"], "nombre": e["nombre"]} for e in editores()], ensure_ascii=False))
         if p.path == "/api/proyecto/estado":
@@ -20022,6 +20805,14 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/apilado/vista":
                 d = json.loads(self._body() or b"{}")
                 iniciar_vista(d.get("carpeta", ""))
+                return self._send(200, '{"ok":true}')
+            if p.path == "/api/composicion/iniciar":
+                d = json.loads(self._body() or b"{}")
+                try:
+                    iniciar_composicion(str(d.get("carpeta") or ""), d.get("receta"), "rapida" if d.get("modo") == "rapida" else "final",
+                                        str(d.get("nombre") or ""), str(d.get("token") or ""))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/abrir_con":
                 d = json.loads(self._body() or b"{}")
