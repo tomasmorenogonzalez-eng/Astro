@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.32.0",
+  "es": [
+   "**Configura tu ASTRO**: en **Configuración → Configura tu ASTRO** arrastras a un lienzo solo las piezas que usas (hay 22: Explorar objetos, En directo, Seguir en el móvil, Lugares de observación, Apilar con Siril, Componer canales, Ciencia…) o empiezas con un atajo como **«Noche de captura»**, «Procesado», «Ciencia» o «Viajero». Si una pieza necesita otra, ASTRO la añade y te lo dice.",
+   "Al pulsar **«Crear mi ASTRO»**, el menú y el panel se quedan solo con eso. Eliges si **guardarlo para las próximas veces** o usarlo **solo en esta sesión**, y arriba ves qué ASTRO estás usando, con **«Cambiar piezas»** y **«Volver al ASTRO completo»**: nada se borra, solo se esconde."
+  ],
+  "en": [
+   "**Set up your ASTRO**: in **Settings → Set up your ASTRO** you drag onto a canvas only the pieces you use (there are 22: Explore targets, Live, Follow on your phone, Observing sites, Stack with Siril, Compose channels, Science…) or start from a shortcut such as **«Imaging night»**, «Processing», «Science» or «Traveller». If a piece needs another one, ASTRO adds it and tells you.",
+   "When you press **«Create my ASTRO»**, the menu and the overview keep only that. You choose whether to **save it for next time** or use it **only in this session**, and at the top you see which ASTRO you're using, with **«Change pieces»** and **«Back to the full ASTRO»**: nothing is deleted, only hidden."
+  ],
+  "fr": [
+   "**Configurez votre ASTRO** : dans **Paramètres → Configurez votre ASTRO**, vous faites glisser sur un canevas seulement les pièces que vous utilisez (il y en a 22 : Explorer les objets, En direct, Suivre sur le mobile, Sites d'observation, Empiler avec Siril, Composer les canaux, Science…) ou vous partez d'un raccourci comme **« Nuit de capture »**, « Traitement », « Science » ou « Voyageur ». Si une pièce en demande une autre, ASTRO l'ajoute et vous le dit.",
+   "En appuyant sur **« Créer mon ASTRO »**, le menu et le tableau de bord ne gardent que cela. Vous choisissez de **l'enregistrer pour les prochaines fois** ou de l'utiliser **seulement pour cette session**, et en haut vous voyez quel ASTRO vous utilisez, avec **« Changer les pièces »** et **« Revenir à l'ASTRO complet »** : rien n'est effacé, c'est seulement masqué."
+  ],
+  "de": [
+   "**Stell dein ASTRO zusammen**: Unter **Einstellungen → Stell dein ASTRO zusammen** ziehst du nur die Bausteine, die du nutzt, auf eine Fläche (es gibt 22: Objekte erkunden, Live, Auf dem Handy verfolgen, Beobachtungsorte, Mit Siril stapeln, Kanäle zusammensetzen, Wissenschaft …) oder beginnst mit einer Vorlage wie **„Aufnahmenacht“**, „Bearbeitung“, „Wissenschaft“ oder „Reisend“. Braucht ein Baustein einen anderen, fügt ASTRO ihn hinzu und sagt es dir.",
+   "Mit **„Mein ASTRO erstellen“** zeigen Menü und Übersicht nur noch das. Du wählst, ob du es **für die nächsten Male speicherst** oder **nur in dieser Sitzung** nutzt, und oben siehst du, welches ASTRO du verwendest, mit **„Bausteine ändern“** und **„Zurück zum vollständigen ASTRO“**: Nichts wird gelöscht, nur ausgeblendet."
+  ],
+  "it": [
+   "**Configura il tuo ASTRO**: in **Impostazioni → Configura il tuo ASTRO** trascini su una tela solo i pezzi che usi (sono 22: Esplora oggetti, In diretta, Segui sul cellulare, Luoghi di osservazione, Impila con Siril, Componi canali, Scienza…) o parti da una scorciatoia come **«Notte di ripresa»**, «Elaborazione», «Scienza» o «Viaggiatore». Se un pezzo ne richiede un altro, ASTRO lo aggiunge e te lo dice.",
+   "Premendo **«Crea il mio ASTRO»**, il menu e il pannello restano solo con quello. Scegli se **salvarlo per le prossime volte** o usarlo **solo in questa sessione**, e in alto vedi quale ASTRO stai usando, con **«Cambia i pezzi»** e **«Torna all'ASTRO completo»**: non si cancella nulla, si nasconde soltanto."
+  ],
+  "pt": [
+   "**Configure o seu ASTRO**: em **Definições → Configure o seu ASTRO** arrasta para uma tela só as peças que usa (há 22: Explorar objetos, Em direto, Seguir no telemóvel, Locais de observação, Empilhar com o Siril, Compor canais, Ciência…) ou começa com um atalho como **«Noite de captação»**, «Processamento», «Ciência» ou «Viajante». Se uma peça precisa de outra, o ASTRO acrescenta-a e diz-lho.",
+   "Ao carregar em **«Criar o meu ASTRO»**, o menu e o painel ficam só com isso. Escolhe se o **guarda para as próximas vezes** ou o usa **só nesta sessão**, e em cima vê que ASTRO está a usar, com **«Mudar as peças»** e **«Voltar ao ASTRO completo»**: nada se apaga, só se esconde."
+  ]
+ },
+ {
   "version": "0.31.1",
   "es": [
    "**Botones más claros**: arriba, **«＋ Añadir tomas»** (de cualquier objeto: cada toma va a su proyecto según su cabecera) y **«＋ Nuevo proyecto»**, para crear un proyecto antes de tener tomas: eliges el objeto (del catálogo o escrito a mano) y las horas que quieres reunir.",
