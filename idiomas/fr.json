@@ -614,6 +614,8 @@
 "Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, y apila.": "Logiciel gratuit d'astrophotographie : vérifie la qualité des lights, organise la bibliothèque de darks, flats et bias, et empile.",
 "Programa creado por": "Logiciel créé par",
 "Colaboradores especiales:": "Collaborateurs spéciaux :",
+"Cambiar el telescopio o la cámara de estas tomas…": "Changer le télescope ou la caméra de ces poses…",
+"Si la cabecera no trae el telescopio o lo trae mal, ponlo tú: eliges entre los de «Mi equipo» o escribes otro": "Si l'en-tête n'indique pas le télescope ou l'indique mal, renseignez-le : choisissez parmi ceux de « Mon équipement » ou saisissez-en un autre",
 "Programa gratuito (freeware). Todos los derechos reservados. Se ofrece «tal cual», sin garantía: haz copia de seguridad de tus datos.": "Logiciel gratuit (freeware). Tous droits réservés. Fourni « tel quel », sans garantie : sauvegardez vos données.",
 "con": "avec",
 "· # tomas": "· # poses",

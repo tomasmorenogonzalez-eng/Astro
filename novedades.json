@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.33.4",
+  "es": [
+   "**El equipo de tus tomas, a tu gusto**: en la ficha de cada equipo de un proyecto, **«Cambiar el telescopio o la cámara de estas tomas…»** te deja ponerlos tú cuando la cabecera no los trae o los trae mal. En los desplegables salen primero los telescopios, objetivos y cámaras de **«Mi equipo»**.",
+   "**Monturas que se hacían pasar por telescopios**: si la cabecera trae en el telescopio el nombre de la montura (EQMOD, SynScan, OnStep…), ASTRO ya no lo toma por tu telescopio.",
+   "**Botones morados en el aspecto Día**: con el ordenador en modo oscuro, el texto de los botones principales salía en negro sobre morado. Ahora se lee en blanco."
+  ],
+  "en": [
+   "**Your frames' equipment, your way**: in each setup's sheet of a project, **«Change the telescope or camera of these frames…»** lets you set them yourself when the header lacks them or has them wrong. The drop-downs list the telescopes, lenses and cameras from **«My equipment»** first.",
+   "**Mounts posing as telescopes**: if the header gives the mount's name as the telescope (EQMOD, SynScan, OnStep…), ASTRO no longer takes it for your telescope.",
+   "**Purple buttons in the Day look**: with the computer in dark mode, the text of the main buttons came out black on purple. It is now white."
+  ],
+  "fr": [
+   "**L'équipement de vos poses, à votre façon** : dans la fiche de chaque équipement d'un projet, **« Changer le télescope ou la caméra de ces poses… »** vous permet de les renseigner quand l'en-tête ne les indique pas ou les indique mal. Les listes proposent d'abord les télescopes, objectifs et caméras de **« Mon équipement »**.",
+   "**Des montures prises pour des télescopes** : si l'en-tête donne le nom de la monture à la place du télescope (EQMOD, SynScan, OnStep…), ASTRO ne le prend plus pour votre télescope.",
+   "**Boutons violets en mode Jour** : avec l'ordinateur en mode sombre, le texte des boutons principaux apparaissait en noir sur violet. Il est maintenant blanc."
+  ],
+  "de": [
+   "**Die Ausrüstung deiner Aufnahmen, wie du willst**: Im Blatt jedes Setups eines Projekts kannst du mit **„Teleskop oder Kamera dieser Aufnahmen ändern…“** selbst eintragen, was im Header fehlt oder falsch ist. Die Auswahllisten zeigen zuerst die Teleskope, Objektive und Kameras aus **„Meine Ausrüstung“**.",
+   "**Montierungen, die sich als Teleskop ausgaben**: Steht im Header als Teleskop der Name der Montierung (EQMOD, SynScan, OnStep…), hält ASTRO ihn nicht mehr für dein Teleskop.",
+   "**Violette Knöpfe im Tag-Look**: Im Dunkelmodus des Computers war die Schrift der Hauptknöpfe schwarz auf Violett. Jetzt ist sie weiß."
+  ],
+  "it": [
+   "**L'attrezzatura delle tue pose, come vuoi tu**: nella scheda di ogni configurazione di un progetto, **«Cambia il telescopio o la camera di queste pose…»** ti permette di indicarli quando l'intestazione non li riporta o li riporta male. Negli elenchi compaiono per primi i telescopi, gli obiettivi e le camere di **«La mia attrezzatura»**.",
+   "**Montature scambiate per telescopi**: se l'intestazione riporta come telescopio il nome della montatura (EQMOD, SynScan, OnStep…), ASTRO non lo prende più per il tuo telescopio.",
+   "**Pulsanti viola nell'aspetto Giorno**: con il computer in modalità scura, il testo dei pulsanti principali appariva nero su viola. Ora è bianco."
+  ],
+  "pt": [
+   "**O equipamento das suas exposições, à sua maneira**: na ficha de cada equipamento de um projeto, **«Alterar o telescópio ou a câmara destas exposições…»** permite indicá-los quando o cabeçalho não os traz ou os traz mal. Nas listas aparecem primeiro os telescópios, objetivas e câmaras de **«O meu equipamento»**.",
+   "**Montagens que se faziam passar por telescópios**: se o cabeçalho trouxer como telescópio o nome da montagem (EQMOD, SynScan, OnStep…), o ASTRO já não o toma pelo seu telescópio.",
+   "**Botões roxos no aspeto Dia**: com o computador em modo escuro, o texto dos botões principais aparecia a preto sobre roxo. Agora é branco."
+  ]
+ },
+ {
   "version": "0.33.3",
   "es": [
    "**El motor es ASTRO**: el apilado, los masters, la composición de canales y la astrometría de tus proyectos se llaman ahora ASTRO («Apilar con ASTRO», «Resolver con ASTRO»). Por dentro sigue trabajando con Siril, que tienes que tener instalado; en **Ciencia** se sigue citando Siril para la trazabilidad de las medidas.",
