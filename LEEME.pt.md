@@ -6,7 +6,7 @@ O ASTRO revê as suas fotos de céu profundo e diz quais valem: mede as estrelas
 
 Funciona em **Mac** e **Windows**, com exposições da **ASIAIR**, do **N.I.N.A.** ou de qualquer programa que guarde em FITS ou XISF.
 
-**Autor:** Tomás Moreno González. Membro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) e Agrupación Astronómica de Miguelturra (C.Real).
+**Autores:** Raúl Hussein Galindo e Tomás Moreno González.
 
 Disponível em **espanhol**, **inglês**, **francês**, **alemão**, **italiano** e **português**: escolhe-se no ecrã de boas-vindas e pode ser alterado a qualquer momento com o botão 🌐 da barra da esquerda. Nessa mesma barra, em baixo, escolhe-se o aspeto: **Dia** (claro), **Noite** (escuro) ou **Vermelho** (tudo a vermelho, para usar junto ao telescópio sem perder a adaptação à escuridão).
 

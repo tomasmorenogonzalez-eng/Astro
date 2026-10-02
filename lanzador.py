@@ -3,8 +3,7 @@
 ASTRO — control de calidad de lights y biblioteca de calibración.
 Lanzador de la aplicación para Mac, Windows y Linux.
 
-Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
-y Agrupación Astronómica de Miguelturra (C.Real).
+Autores: Raúl Hussein Galindo y Tomás Moreno González.
 
 La primera vez pregunta dónde guardar los datos. Después arranca los dos
 programas (Control de lights, Biblioteca de calibración y Ciencia) dentro de la propia
@@ -98,7 +97,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 APP = "ASTRO"
-AUTORIA = "Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real)."
+AUTORIA = "Raúl Hussein Galindo y Tomás Moreno González."
 ES_MAC, ES_WIN = sys.platform == "darwin", sys.platform.startswith("win")
 PROGRAMAS = (("lights", "programa-lights.py", 8775), ("calibracion", "programa-calibracion.py", 8765),
              ("ciencia", "programa-ciencia.py", 8785))
@@ -275,12 +274,12 @@ except Exception:
 
 VIOLETA, VIOLETA2, FONDO, TEXTO, GRIS = "#5B2C87", "#8E5BC2", "#F5F4F7", "#19141F", "#665E72"
 
-AUTOR = {"es": "Tomás Moreno González · Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real)",
-         "en": "Tomás Moreno González · Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real)",
-         'fr': "Tomás Moreno González · Membre d'Astrocitas, de l'Asociación Astronómica Azarquiel (Piedrabuena, C.Real) et de l'Agrupación Astronómica de Miguelturra (C.Real)",
-         'de': 'Tomás Moreno González · Mitglied von Astrocitas, der Asociación Astronómica Azarquiel (Piedrabuena, C.Real) und der Agrupación Astronómica de Miguelturra (C.Real)',
-         'it': "Tomás Moreno González · Membro di Astrocitas, dell'Asociación Astronómica Azarquiel (Piedrabuena, C.Real) e dell'Agrupación Astronómica de Miguelturra (C.Real)",
-         'pt': 'Tomás Moreno González · Membro de Astrocitas, da Asociación Astronómica Azarquiel (Piedrabuena, C.Real) e da Agrupación Astronómica de Miguelturra (C.Real)'}
+AUTOR = {"es": "Raúl Hussein Galindo y Tomás Moreno González",
+         "en": "Raúl Hussein Galindo and Tomás Moreno González",
+         'fr': "Raúl Hussein Galindo et Tomás Moreno González",
+         'de': 'Raúl Hussein Galindo und Tomás Moreno González',
+         'it': "Raúl Hussein Galindo e Tomás Moreno González",
+         'pt': 'Raúl Hussein Galindo e Tomás Moreno González'}
 TXT = {
     "es": {"lema": "lights y calibración", "bienvenido": "¡Bienvenido!", "titulo_bienv": "Bienvenido a ASTRO",
            "intro": "ASTRO revisa la calidad de tus lights (estrellas, trazas de satélites, nubes…), organiza tu biblioteca de darks, flats y bias, y apila con Siril.\n\nElige la carpeta donde guardará tus fotos y sus datos. Puede estar en un disco externo. Si ya usabas ASTRO, elige la carpeta que contiene «Lights».",
@@ -591,7 +590,7 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
     pie = tk.Frame(w, bg="#FFFFFF", highlightthickness=1, highlightbackground="#E8E4ED"); pie.pack(fill="x", side="bottom")
     # en las ventanas grandes, los escudos de las tres asociaciones a la derecha del nombre (los que estén en «imagenes»)
     # el anagrama de Astrocitas va debajo del nombre, como enlace al canal; a la derecha, los escudos de las asociaciones
-    escudos = [im for im in (_imagen(n) for n in ("escudo-azarquiel.png", "escudo-miguelturra.png")) if im is not None] if grande else []
+    escudos = [im for im in (_imagen(n) for n in ("escudo-observatorio.png",)) if im is not None] if grande else []
     if escudos:
         fila = tk.Frame(pie, bg="#FFFFFF"); fila.pack(side="right", padx=(4, 18), pady=5)
         for im in escudos:
@@ -1677,7 +1676,7 @@ def _selector_idioma_html():
 def _autor_html():
     hay = lambda n: os.path.exists(os.path.join(recursos(), "imagenes", "web", n)) or os.path.exists(os.path.join(recursos(), "imagenes", n))
     # el anagrama de Astrocitas va debajo del nombre, como enlace al canal; a la derecha, los escudos de las asociaciones
-    esc = "".join('<img src="/img/%s" alt="">' % n for n in ("escudo-azarquiel.png", "escudo-miguelturra.png") if hay(n))
+    esc = "".join('<img src="/img/%s" alt="">' % n for n in ("escudo-observatorio.png",) if hay(n))
     ana = '<img src="/img/escudo-astrocitas.png" alt="">' if hay("escudo-astrocitas.png") else ""
     enlace = '<a class="astrocitas" href="%s" target="_blank" rel="noopener" title="%s">%s<span>%s</span></a>' % (
         _h(ASTROCITAS_URL), _h(T("astrocitas_yt")), ana, _h(T("astrocitas_yt")))

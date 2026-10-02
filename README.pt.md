@@ -82,12 +82,11 @@ Se vai testá-lo, dê uma vista de olhos ao **[guia para testadores](GUIA-BETA.p
 
 ## Quem está por trás
 
-O ASTRO foi criado por **Tomás Moreno González**, astrofotógrafo e divulgador, membro de **Astrocitas**, da **Asociación Astronómica Azarquiel (Piedrabuena, C.Real)** e da **Agrupación Astronómica de Miguelturra (C.Real)**.
+O ASTRO foi criado por **Raúl Hussein Galindo** e **Tomás Moreno González**.
 
 <p align="center">
   <img src="imagenes/web/escudo-astrocitas.png" height="80" alt="Astrocitas">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-azarquiel.png" height="118" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-miguelturra.png" height="80" alt="Agrupación Astronómica de Miguelturra (C.Real)">
+  <img src="imagenes/web/escudo-observatorio.png" height="90" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
 </p>
 
 Nasceu de uma necessidade muito concreta: passar menos tempo a rever fotos e mais tempo a olhar para o céu.

@@ -6,7 +6,7 @@ ASTRO examine vos photos du ciel profond et vous dit lesquelles sont bonnes : i
 
 Il fonctionne sur **Mac** et **Windows**, avec des poses de l'**ASIAIR**, de **N.I.N.A.** ou de n'importe quel logiciel qui enregistre en FITS ou XISF.
 
-**Auteur :** Tomás Moreno González. Membre d'Astrocitas, de l'Asociación Astronómica Azarquiel (Piedrabuena, C.Real) et de l'Agrupación Astronómica de Miguelturra (C.Real).
+**Auteurs :** Raúl Hussein Galindo et Tomás Moreno González.
 
 Disponible en **espagnol**, **anglais**, **français**, **allemand**, **italien** et **portugais** : la langue se choisit à l'écran de bienvenue et se change à tout moment avec le bouton 🌐 de la barre de gauche. Dans cette même barre, en bas, vous choisissez le thème : **Jour** (clair), **Nuit** (sombre) ou **Rouge** (tout en rouge, pour l'utiliser près du télescope sans perdre l'adaptation à l'obscurité).
 

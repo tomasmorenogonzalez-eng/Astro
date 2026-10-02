@@ -6,7 +6,7 @@ ASTRO prüft deine Deep-Sky-Bilder und sagt dir, welche brauchbar sind: Es misst
 
 Es läuft auf **Mac** und **Windows**, mit Aufnahmen der **ASIAIR**, aus **N.I.N.A.** oder aus jedem Programm, das in FITS oder XISF speichert.
 
-**Autor:** Tomás Moreno González. Mitglied von Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) und Agrupación Astronómica de Miguelturra (C.Real).
+**Autoren:** Raúl Hussein Galindo und Tomás Moreno González.
 
 Verfügbar auf **Spanisch**, **Englisch**, **Französisch**, **Deutsch**, **Italienisch** und **Portugiesisch**: Die Sprache wählst du bei der Begrüßung und kannst sie jederzeit mit dem Knopf 🌐 in der linken Leiste ändern. In derselben Leiste wählst du unten das Design: **Tag** (hell), **Nacht** (dunkel) oder **Rot** (alles in Rot, für den Einsatz am Teleskop, ohne die Dunkeladaption zu verlieren).
 

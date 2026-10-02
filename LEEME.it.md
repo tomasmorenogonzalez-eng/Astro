@@ -6,7 +6,7 @@ ASTRO controlla le tue foto del cielo profondo e ti dice quali sono buone: misur
 
 Funziona su **Mac** e **Windows**, con pose dell'**ASIAIR**, di **N.I.N.A.** o di qualsiasi programma che salvi in FITS o XISF.
 
-**Autore:** Tomás Moreno González. Membro di Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) e Agrupación Astronómica de Miguelturra (C.Real).
+**Autori:** Raúl Hussein Galindo e Tomás Moreno González.
 
 Disponibile in **spagnolo**, **inglese**, **francese**, **tedesco**, **italiano** e **portoghese**: si sceglie nella schermata di benvenuto e si cambia in qualsiasi momento con il pulsante 🌐 della barra a sinistra. In quella stessa barra, in basso, scegli l'aspetto: **Giorno** (chiaro), **Notte** (scuro) o **Rosso** (tutto in rosso, per usarlo accanto al telescopio senza perdere l'adattamento al buio).
 

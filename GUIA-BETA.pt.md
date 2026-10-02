@@ -68,4 +68,4 @@ Tudo serve: falhas, frases pouco claras, ideias e também aquilo de que gosta.
 ## Duração
 A beta vai durar cerca de **3 meses**. Todas as melhorias chegam automaticamente ao abrir o ASTRO.
 
-*Tomás Moreno González · Membro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) e Agrupación Astronómica de Miguelturra (C.Real)*
+*Raúl Hussein Galindo e Tomás Moreno González*

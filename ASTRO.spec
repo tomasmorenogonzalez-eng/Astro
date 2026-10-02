@@ -55,7 +55,7 @@ if sys.platform == "darwin":
             "CFBundleName": "ASTRO", "CFBundleDisplayName": "ASTRO",
             "CFBundleShortVersionString": VERSION_MAC, "CFBundleVersion": VERSION_MAC,
             "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "11.0",
-            "NSHumanReadableCopyright": "Tomás Moreno González · Astrocitas · Asociación Astronómica Azarquiel (Piedrabuena, C.Real) · Agrupación Astronómica de Miguelturra (C.Real)",
+            "NSHumanReadableCopyright": "Raúl Hussein Galindo · Tomás Moreno González",
         },
     )
 else:

@@ -82,12 +82,11 @@ Si vas a probarlo, echa un vistazo a la **[guía para probadores](GUIA-BETA.md)*
 
 ## Quién está detrás
 
-ASTRO lo ha creado **Tomás Moreno González**, astrofotógrafo y divulgador, miembro de **Astrocitas**, la **Asociación Astronómica Azarquiel (Piedrabuena, C.Real)** y la **Agrupación Astronómica de Miguelturra (C.Real)**.
+ASTRO lo han creado **Raúl Hussein Galindo** y **Tomás Moreno González**.
 
 <p align="center">
   <img src="imagenes/web/escudo-astrocitas.png" height="80" alt="Astrocitas">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-azarquiel.png" height="118" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-miguelturra.png" height="80" alt="Agrupación Astronómica de Miguelturra (C.Real)">
+  <img src="imagenes/web/escudo-observatorio.png" height="90" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
 </p>
 
 Nació de una necesidad muy concreta: pasar menos tiempo revisando fotos y más tiempo mirando el cielo.
@@ -114,4 +113,4 @@ ASTRO is free. If you find it useful, you can help it keep growing with a donati
 
 It's a beta: if something doesn't work, use **More options → Report a problem or suggestion** inside the app.
 
-*Made by Tomás Moreno González, member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real).*
+*Made by Raúl Hussein Galindo and Tomás Moreno González.*

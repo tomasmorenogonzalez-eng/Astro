@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-# ASTRO · Autor: Tomás Moreno González. Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real)
-# y Agrupación Astronómica de Miguelturra (C.Real).
+# ASTRO · Autores: Raúl Hussein Galindo y Tomás Moreno González.
 #
 # CIENCIA: medir con las fotos. Lo común a todos los bloques (leer FITS sin librerías, saber adónde apunta cada
 # píxel, consultar Gaia, fotometría de apertura, el reloj astronómico) y el primer bloque: magnitud límite y
@@ -7539,7 +7538,7 @@ DIC_EN = {
     "La regla de oro: medir sobre datos lineales, calibrados y con la hora exacta": "The golden rule: measure on linear, calibrated data with the exact time",
     "Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.": "No stretching, deconvolution or noise reduction (BlurXTerminator, NoiseXTerminator…) before measuring: they change the brightness of each star differently. The same frames serve both purposes: the calibrated, linear copy goes to the measurement and the processed one to the picture. ASTRO always measures on the original frames, calibrated with your library.",
     "Programa creado por": "Created by",
-    "Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real).": "Member of Astrocitas, the Asociación Astronómica Azarquiel (Piedrabuena, C.Real) and the Agrupación Astronómica de Miguelturra (C.Real).",
+    "Miembro de Astrocitas y Asociación Astronómica Azarquiel (Piedrabuena, C.Real).": "Member of Astrocitas and the Asociación Astronómica Azarquiel (Piedrabuena, C.Real).",
     "Medir el cielo": "Measure the sky",
     "Elige qué medir. ASTRO calibra cada toma con tu biblioteca, la resuelve con Siril, la compara con las estrellas de Gaia y calcula el brillo del fondo, la magnitud límite, el tamaño de las estrellas y la transparencia.": "Choose what to measure. ASTRO calibrates each frame with your library, plate-solves it with Siril, compares it with the Gaia stars and computes the background brightness, the limiting magnitude, the star size and the transparency.",
     "Tomas de ASTRO": "ASTRO frames",
@@ -8532,7 +8531,7 @@ th{background:var(--surface);font-weight:700}
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
       <h3 class="seccion">Los siete bloques</h3>
       <div class="bloques" id="bloques"></div>
-      <div class="autor"><span>Programa creado por</span> <b>Tomás Moreno González</b> · <span>Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real).</span><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Agrupación Astronómica de Miguelturra (C.Real)" title="Agrupación Astronómica de Miguelturra (C.Real)" onerror="this.remove()"></div></div>
+      <div class="autor"><span>Programa creado por</span> <b>Raúl Hussein Galindo · Tomás Moreno González</b><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div></div>
     </section>
 
     <section id="vistaBloque" style="display:none">
@@ -10432,8 +10431,8 @@ function acercaDe(){
     <span class="logo" style="width:64px;height:64px;border-radius:18px"><svg viewBox="0 0 24 24" style="width:32px;height:32px"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z"/></svg></span>
     <h2>ASTRO</h2><div class="note">${tr("Ciencia: medir con tus fotos")} · ${tr("versión")} <span class="notr">${VERSION_ACTUAL}</span></div>
     <p>${tr("Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila con Siril y mide con tus fotos.")}</p>
-    <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;width:100%"><div class="note">${tr("Programa creado por")}</div><b style="font-size:16px">Tomás Moreno González</b>
-      <div style="font-size:13.5px">${tr("Miembro de Astrocitas, Asociación Astronómica Azarquiel (Piedrabuena, C.Real) y Agrupación Astronómica de Miguelturra (C.Real).")}</div><div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img class="alto" src="/img/escudo-azarquiel.png" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" title="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)" onerror="this.remove()"><img src="/img/escudo-miguelturra.png" alt="Agrupación Astronómica de Miguelturra (C.Real)" title="Agrupación Astronómica de Miguelturra (C.Real)" onerror="this.remove()"></div></div>
+    <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;width:100%"><div class="note">${tr("Programa creado por")}</div><b style="font-size:16px">Raúl Hussein Galindo · Tomás Moreno González</b>
+      <div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div></div>
     ${bloqueDonar()}
     <button class="btn primary" onclick="this.closest('.modal').remove()">${tr("Cerrar")}</button></div>`;
   d.onclick = e => { if (e.target === d) d.remove(); };

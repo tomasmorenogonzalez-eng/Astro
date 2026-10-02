@@ -82,12 +82,11 @@ Si vous comptez le tester, jetez un œil au **[guide pour les testeurs](GUIA-BET
 
 ## Qui est derrière
 
-ASTRO a été créé par **Tomás Moreno González**, astrophotographe et vulgarisateur, membre d'**Astrocitas**, de l'**Asociación Astronómica Azarquiel (Piedrabuena, C.Real)** et de l'**Agrupación Astronómica de Miguelturra (C.Real)**.
+ASTRO a été créé par **Raúl Hussein Galindo** et **Tomás Moreno González**.
 
 <p align="center">
   <img src="imagenes/web/escudo-astrocitas.png" height="80" alt="Astrocitas">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-azarquiel.png" height="118" alt="Asociación Astronómica Azarquiel (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
-  <img src="imagenes/web/escudo-miguelturra.png" height="80" alt="Agrupación Astronómica de Miguelturra (C.Real)">
+  <img src="imagenes/web/escudo-observatorio.png" height="90" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
 </p>
 
 Il est né d'un besoin très concret : passer moins de temps à trier des photos et plus de temps à regarder le ciel.
