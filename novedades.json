@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.0",
+  "es": [
+   "**Unir masters de varios equipos** (en **Más opciones**): eliges una carpeta con masters FITS o XISF de un mismo objeto y filtro, aunque sean de compañeros y estén hechos con otros programas, y ASTRO los une en uno con el **encuadre y la escala del de campo más grande** (o del que elijas). Los alinea aunque tengan escalas, giros o campos distintos; si a uno le falta la escala, la mide.",
+   "Donde se solapan, cada master **pesa según su ruido** (o igual, o a mano); donde solo llega uno, se usa solo ese. El brillo y el fondo de todos se igualan a los de la referencia y los bordes se funden **sin costuras**. Al **apilar** un proyecto con varios equipos, la nueva casilla **«Con varios equipos, conservar el campo más grande»** hace lo mismo."
+  ],
+  "en": [
+   "**Merge masters from several setups** (in **More options**): choose a folder with FITS or XISF masters of the same target and filter, even from friends and made with other programs, and ASTRO merges them into one with the **framing and scale of the widest field** (or the one you choose). It aligns them despite different scales, rotations or fields; if one has no scale, it measures it.",
+   "Where they overlap, each master is **weighted by its noise** (or equally, or by hand); where only one reaches, only that one is used. Their brightness and background are matched to the reference and the edges are blended **without seams**. When **stacking** a multi-setup project, the new **«With several setups, keep the widest field»** box does the same."
+  ],
+  "fr": [
+   "**Fusionner des masters de plusieurs équipements** (dans **Plus d'options**) : choisissez un dossier de masters FITS ou XISF d'un même objet et d'un même filtre, même venant d'amis et faits avec d'autres logiciels, et ASTRO les fusionne en un seul avec le **cadrage et l'échelle du champ le plus large** (ou de celui que vous choisissez). Il les aligne malgré des échelles, des rotations ou des champs différents ; s'il manque l'échelle d'un master, il la mesure.",
+   "Là où ils se recouvrent, chaque master **pèse selon son bruit** (ou pareil, ou à la main) ; là où un seul arrive, lui seul est utilisé. Leur luminosité et leur fond sont ajustés sur la référence et les bords sont fondus **sans raccords**. En **empilant** un projet à plusieurs équipements, la nouvelle case **« Avec plusieurs équipements, garder le champ le plus large »** fait de même."
+  ],
+  "de": [
+   "**Master mehrerer Ausrüstungen vereinen** (unter **Weitere Optionen**): Wähle einen Ordner mit FITS- oder XISF-Mastern desselben Objekts und Filters, auch von Freunden und aus anderen Programmen, und ASTRO vereint sie zu einem im **Ausschnitt und Maßstab des größten Feldes** (oder des gewählten). Es richtet sie trotz unterschiedlicher Maßstäbe, Drehungen oder Felder aus; fehlt einem der Maßstab, misst es ihn.",
+   "Wo sie sich überlappen, **zählt jeder Master nach seinem Rauschen** (oder gleich, oder von Hand); wo nur einer hinreicht, nur dieser. Helligkeit und Hintergrund werden an die Referenz angeglichen und die Ränder **nahtlos** überblendet. Beim **Stacken** eines Projekts mit mehreren Ausrüstungen macht das neue Kästchen **„Bei mehreren Ausrüstungen das größte Feld behalten“** dasselbe."
+  ],
+  "it": [
+   "**Unire master di più strumenti** (in **Altre opzioni**): scegli una cartella con master FITS o XISF dello stesso oggetto e filtro, anche di amici e fatti con altri programmi, e ASTRO li unisce in uno con **l'inquadratura e la scala del campo più ampio** (o di quello che scegli). Li allinea anche con scale, rotazioni o campi diversi; se a uno manca la scala, la misura.",
+   "Dove si sovrappongono, ogni master **pesa secondo il suo rumore** (o uguale, o a mano); dove arriva uno solo, si usa solo quello. Luminosità e fondo vengono uguagliati al riferimento e i bordi si fondono **senza giunture**. **Impilando** un progetto con più strumenti, la nuova casella **«Con più strumenti, mantieni il campo più ampio»** fa lo stesso."
+  ],
+  "pt": [
+   "**Juntar masters de vários equipamentos** (em **Mais opções**): escolhe uma pasta com masters FITS ou XISF do mesmo objeto e filtro, mesmo que sejam de colegas e feitos com outros programas, e o ASTRO junta-os num só com o **enquadramento e a escala do campo maior** (ou do que escolher). Alinha-os mesmo com escalas, rotações ou campos diferentes; se faltar a escala a um, mede-a.",
+   "Onde se sobrepõem, cada master **pesa segundo o seu ruído** (ou igual, ou à mão); onde só chega um, usa-se apenas esse. O brilho e o fundo são igualados aos da referência e as bordas fundem-se **sem emendas**. Ao **empilhar** um projeto com vários equipamentos, a nova caixa **«Com vários equipamentos, manter o campo maior»** faz o mesmo."
+  ]
+ },
+ {
   "version": "0.32.0",
   "es": [
    "**Configura tu ASTRO**: en **Configuración → Configura tu ASTRO** arrastras a un lienzo solo las piezas que usas (hay 22: Explorar objetos, En directo, Seguir en el móvil, Lugares de observación, Apilar con Siril, Componer canales, Ciencia…) o empiezas con un atajo como **«Noche de captura»**, «Procesado», «Ciencia» o «Viajero». Si una pieza necesita otra, ASTRO la añade y te lo dice.",

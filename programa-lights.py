@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.01.4"
+VERSION_PROG = "2026.10.02.1"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1675,6 +1675,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
           <button id="btnImpProy">Importar un proyecto…</button>
           <button id="btnVariosMenu">Proyecto con varios equipos…</button>
           <button id="btnGrupoMenu">Unirme a un proyecto en grupo…</button>
+          <button id="btnUnirMenu" title="Junta masters de un mismo objeto hechos con distintos telescopios, tuyos o de compañeros, con el encuadre del de campo más grande">Unir masters de varios equipos…</button>
           <hr>
           <button id="btnFinder">Abrir la carpeta en el Finder</button>
           <hr>
@@ -1824,6 +1825,14 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="igTitulo">¿Sigo con este filtro?</h2><button class="btn small" id="igCerrar">Cerrar</button></div>
   <div id="igCuerpo" style="display:flex;flex-direction:column;gap:10px"></div>
 </div></div>
+<div class="modal" id="unirBox"><div class="box" style="width:min(1100px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Unir masters de varios equipos</h2><button class="btn small" id="unirCerrar">Cerrar</button></div>
+  <p class="varIntro">Junta en una sola imagen los masters de un mismo objeto y filtro hechos con distintos telescopios o cámaras, tuyos o de compañeros. El resultado tiene el encuadre y la escala del master que elijas como referencia (de entrada, el de campo más grande). Donde se solapan, cada master pesa según su ruido; donde solo llega uno, se usa solo ese. El brillo y el fondo de todos se igualan a los de la referencia y los bordes se funden sin costuras.</p>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="unirElegir">Elegir la carpeta de los masters…</button><span class="note notr" id="unirRuta"></span></div>
+  <div id="unirCuerpo" style="display:flex;flex-direction:column;gap:12px"></div>
+  <div id="unirProg"></div>
+  <div id="unirRes" style="display:flex;flex-direction:column;gap:10px"></div>
+</div></div>
 <div class="modal" id="regBox"><div class="box" style="width:min(1060px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Registros de la ASIAIR</h2><button class="btn small" id="regCerrar">Cerrar</button></div>
   <div id="regCuerpo" style="display:flex;flex-direction:column;gap:12px"></div>
@@ -1932,6 +1941,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
     <div class="stkOpc">
       <label title="Incluir también las tomas «con avisos» (las «rechazables» y descartadas nunca se usan)"><input type="checkbox" id="stkWarn" checked> Incluir las tomas «con avisos»</label><a href="#" id="stkCriterio">Ajustar el criterio de calidad…</a>
       <label title="Siril pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas."><input type="checkbox" id="stkPesos" checked> Dar más peso a las tomas con mejor señal</label>
+      <label title="Si el objeto tiene tomas de varios telescopios o cámaras: el resultado tiene el encuadre del de campo más grande (donde solo llega él, solo él) en vez de recortarse a la zona común"><input type="checkbox" id="stkCampo"> Con varios equipos, conservar el campo más grande</label>
       <label title="Al terminar, crear una vista previa ya revelada (fondo sin gradiente, color equilibrado y estirada) en JPG y en TIFF de 16 bits"><input type="checkbox" id="stkVista" checked> Al terminar, crear una vista previa revelada</label>
     </div>
     <div id="stkPlan" style="margin-top:10px"></div>
@@ -7080,7 +7090,7 @@ async function stkOpen(){
   $("stkSiril").innerHTML = e.siril ? `<span class="dot ok"></span>Siril ${esc(e.siril_version||"")} encontrado.` :
     `<div class="status bad" style="display:block">No encuentro Siril. Descárgalo gratis de <b>siril.org</b>, instálalo, ábrelo una vez y vuelve aquí.</div>`;
   // una composición de canales ya terminada (o cancelada) se ve en su propia ventana, no aquí: se abre directamente el formulario de apilar
-  if (e.activo || (e.estado && e.tipo !== "composicion")){ stkRunView(); stkPoll(); } else { $("stkElegir").style.display=""; $("stkRun").style.display="none"; stkPlan(); }
+  if (e.activo || (e.estado && !["composicion", "unir"].includes(e.tipo))){ stkRunView(); stkPoll(); } else { $("stkElegir").style.display=""; $("stkRun").style.display="none"; stkPlan(); }
 }
 let STK_SEQ = 0;
 async function stkPlan(){
@@ -7124,7 +7134,7 @@ $("stkGo").onclick = async ()=>{
   if (!STK_PLAN || STK_PLAN.objeto !== $("stkObj").value || STK_PLAN.lugarK !== STK_LUGAR){ stkPlan(); return toast("Espera a que termine de preparar el apilado de este objeto"); }
   const faltan = STK_PLAN.filtros.filter(f=>fs.includes(f.filtro) && f.avisos.length);
   if (faltan.length && !_co_crudo(tr("Hay avisos en: "+faltan.map(f=>nomFiltro(f.filtro)).join(", "))+"\n\n"+faltan.map(f=>nomFiltro(f.filtro)+": "+f.avisos.map(a=>tr(a)).join("; ")).join("\n")+"\n\n"+tr("¿Apilar de todas formas?"))) return;
-  const ids = stkIds(STK_PLAN.objeto), cuerpo = {objeto:STK_PLAN.objeto,filtros:fs,avisos:$("stkWarn").checked,vista:$("stkVista").checked,pesos:$("stkPesos").checked};
+  const ids = stkIds(STK_PLAN.objeto), cuerpo = {objeto:STK_PLAN.objeto,filtros:fs,avisos:$("stkWarn").checked,vista:$("stkVista").checked,pesos:$("stkPesos").checked,encuadre:$("stkCampo").checked?"grande":"pequeno"};
   if (ids){ cuerpo.ids = ids; cuerpo.lugar = stkLugarInfo(STK_PLAN.objeto); }
   const r = await fetch("/api/apilado/iniciar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cuerpo)});
   if (!r.ok) return alert(await r.text());
@@ -10812,6 +10822,124 @@ async function vigilarIntegracion(recienEmpezado){
   }
 }
 $("igCerrar").onclick = () => { $("igBox").classList.remove("show"); clearTimeout(INTEG.t); };
+/* ============ Unir masters de varios equipos ============ */
+const UN = {carpeta: "", masters: [], t: null};
+const unCampo = m => m.campo ? m.campo[0] * m.campo[1] : 0;
+function unAbrir(){
+  $("menuLista").classList.remove("show");
+  $("unirBox").classList.add("show");
+  if (UN.carpeta) unPintar(); else { $("unirCuerpo").innerHTML = ""; $("unirRuta").textContent = ""; }
+  unVigilar(true);
+}
+async function unCargar(cuerpo){
+  $("unirCuerpo").innerHTML = `<div class="note">${esc(trLT("Leyendo los masters…", "Reading the masters…"))}</div>`;
+  let d;
+  try {
+    const r = await fetch("/api/unir/carpeta", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(cuerpo)});
+    if (!r.ok) throw new Error(await r.text());
+    d = await r.json();
+  } catch(e){ $("unirCuerpo").innerHTML = `<ul class="reasons"><li class="bad">${esc(String(e.message || e))}</li></ul>`; return; }
+  if (!d.carpeta){ $("unirCuerpo").innerHTML = d.fallo ? `<div class="note">${esc(trLT("No se ha podido abrir la ventana para elegir la carpeta.", "The folder window could not be opened."))}</div>` : ""; return; }
+  UN.carpeta = d.carpeta; UN.masters = d.masters || []; UN.siril = d.siril; UN.sirilVer = d.siril_version || "";
+  const buenos = UN.masters.filter(m => !m.error && (m.canales || 1) === 1);
+  UN.ref = buenos.length ? buenos.reduce((a, b) => unCampo(b) > unCampo(a) ? b : a).nombre : "";
+  UN.usar = new Set(buenos.map(m => m.nombre)); UN.pesos = {};
+  unPintar();
+}
+function unPintar(){
+  $("unirRuta").textContent = UN.carpeta;
+  const el = $("unirCuerpo");
+  if (!UN.masters.length){ el.innerHTML = `<div class="note">${esc(trLT("En esa carpeta no hay masters FITS ni XISF.", "There are no FITS or XISF masters in that folder."))}</div>`; return; }
+  const modo = UN.modo || "ruido", grande = UN.masters.filter(m => !m.error).reduce((a, b) => unCampo(b) > unCampo(a) ? b : a, {});
+  const fmtCampo = m => m.campo ? `${numEs(m.campo[0], 2)}° × ${numEs(m.campo[1], 2)}°` : `<span class="note">${esc(trLT("se mide al alinear", "measured when aligning"))}</span>`;
+  const filas = UN.masters.map((m, i) => {
+    const malo = m.error || (m.canales || 1) > 1 || m.aviso === "comprimido";
+    const motivo = m.error ? m.error : (m.canales || 1) > 1 ? trLT("en color: por ahora solo blanco y negro", "colour: only mono for now") : m.aviso === "comprimido" ? trLT("XISF comprimido", "compressed XISF") : "";
+    return `<tr${malo ? ' class="disc"' : ""}>
+      <td class="chk"><input type="checkbox" class="unUsar" data-i="${i}" ${!malo && UN.usar.has(m.nombre) ? "checked" : ""} ${malo ? "disabled" : ""}></td>
+      <td class="notr" style="white-space:normal;overflow-wrap:anywhere">${esc(m.nombre)}${motivo ? `<div class="note">${esc(motivo)}</div>` : ""}</td>
+      <td class="num notr">${m.w ? m.w + " × " + m.h : ""}</td>
+      <td class="num">${m.escala ? numEs(m.escala, 2) + "″" : "—"}</td>
+      <td>${fmtCampo(m)}${m === grande ? ` <span class="tagEq">${esc(trLT("el más grande", "largest"))}</span>` : ""}</td>
+      <td class="notr">${esc(m.filtro || "")}</td>
+      <td><input type="radio" name="unRef" class="unRef" data-i="${i}" ${UN.ref === m.nombre ? "checked" : ""} ${malo ? "disabled" : ""}></td>
+      ${modo === "mano" ? `<td><input type="number" min="0" step="0.1" class="unPeso" data-i="${i}" value="${UN.pesos[m.nombre] ?? 1}" style="width:70px"></td>` : ""}
+    </tr>`;
+  }).join("");
+  const filtros = [...new Set(UN.masters.filter(m => UN.usar.has(m.nombre)).map(m => m.filtro_c || "").filter(Boolean))];
+  el.innerHTML = `
+    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th class="chk"></th><th>${esc(trLT("Master", "Master"))}</th><th>${esc(trLT("Píxeles", "Pixels"))}</th><th>${esc(trLT("Escala", "Scale"))}</th><th>${esc(trLT("Campo", "Field"))}</th><th>${esc(trLT("Filtro", "Filter"))}</th><th title="${esc(trLT("El resultado tiene el encuadre y la escala de este master", "The result has this master's framing and scale"))}">${esc(trLT("Encuadre", "Framing"))}</th>${modo === "mano" ? `<th>${esc(trLT("Peso", "Weight"))}</th>` : ""}</tr></thead><tbody>${filas}</tbody></table></div>
+    ${filtros.length > 1 ? `<div class="note">${esc(trLT("Ojo: los masters dicen filtros distintos (", "Note: the masters show different filters ("))}<span class="notr">${esc(filtros.join(", "))}</span>${esc(trLT("). Únelos solo si son del mismo filtro.", "). Only merge them if they are the same filter."))}</div>` : ""}
+    <div class="varFila">
+      <label>${esc(trLT("Peso de cada master donde se solapan", "Weight of each master where they overlap"))}
+        <select id="unModo">
+          <option value="ruido" ${modo === "ruido" ? "selected" : ""}>${esc(trLT("Según su ruido (recomendado)", "By its noise (recommended)"))}</option>
+          <option value="igual" ${modo === "igual" ? "selected" : ""}>${esc(trLT("Igual para todos", "The same for all"))}</option>
+          <option value="mano" ${modo === "mano" ? "selected" : ""}>${esc(trLT("A mano", "By hand"))}</option>
+        </select></label>
+      <button class="btn primary" id="unGo" ${UN.siril ? "" : "disabled"}>${esc(trLT("Unir", "Merge"))}</button>
+    </div>
+    ${UN.siril ? "" : `<div class="status bad" style="display:block">${esc(trLT("No encuentro Siril. Descárgalo gratis de siril.org, instálalo y vuelve aquí.", "Siril not found. Download it free from siril.org, install it and come back."))}</div>`}
+    <div class="note">${esc(trLT("Con el peso según el ruido, un master con la mitad de señal/ruido que otro cuenta la cuarta parte. Si a un master le falta la escala (focal y tamaño de píxel), ASTRO la mide al alinearlo.", "With noise weighting, a master with half the signal-to-noise of another counts a quarter. If a master has no scale (focal length and pixel size), ASTRO measures it while aligning."))}</div>`;
+  el.querySelectorAll(".unUsar").forEach(c => c.onchange = () => { const m = UN.masters[+c.dataset.i]; c.checked ? UN.usar.add(m.nombre) : UN.usar.delete(m.nombre); unPintar(); });
+  el.querySelectorAll(".unRef").forEach(c => c.onchange = () => { UN.ref = UN.masters[+c.dataset.i].nombre; UN.usar.add(UN.ref); unPintar(); });
+  el.querySelectorAll(".unPeso").forEach(c => c.oninput = () => { UN.pesos[UN.masters[+c.dataset.i].nombre] = +c.value; });
+  $("unModo").onchange = () => { UN.modo = $("unModo").value; unPintar(); };
+  $("unGo").onclick = unIniciar;
+}
+async function unIniciar(){
+  const archivos = UN.masters.filter(m => UN.usar.has(m.nombre)).map(m => m.nombre);
+  if (archivos.length < 2) return toast(trLT("Elige al menos dos masters", "Choose at least two masters"));
+  if (!archivos.includes(UN.ref)) return toast(trLT("Elige el master que da el encuadre", "Choose the master that sets the framing"));
+  const pesos = {}; archivos.forEach(n => pesos[n] = UN.pesos[n] ?? 1);
+  const r = await fetch("/api/unir/iniciar", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({carpeta: UN.carpeta, archivos, ref: UN.ref, peso: UN.modo || "ruido", pesos})});
+  if (!r.ok) return toast(await r.text());
+  $("unirRes").innerHTML = "";
+  unVigilar(true);
+}
+async function unVigilar(recien){
+  clearTimeout(UN.t);
+  let e; try { e = await (await fetch("/api/apilado/estado")).json(); } catch(_){ UN.t = setTimeout(unVigilar, 3000); return; }
+  const p = $("unirProg"); if (!p || !$("unirBox").classList.contains("show")) return;
+  if (e.tipo !== "unir"){ p.innerHTML = e.activo ? `<div class="note">${esc(tr("Hay otro apilado en marcha: espera a que termine."))}</div>` : ""; if (e.activo) UN.t = setTimeout(unVigilar, 4000); return; }
+  if (e.activo){
+    const pct = e.pasos ? Math.round(100 * e.paso / e.pasos) : 0;
+    const m = /^(Preparando|Alineando) (.+)$/.exec(e.texto || ""), txt = m ? trLT(m[1], m[1] === "Preparando" ? "Preparing" : "Aligning") + " " + m[2] : tr(e.texto || "");
+    p.innerHTML = `<div class="igBarra"><i style="width:${pct}%"></i></div><div class="note">${esc(txt)} ${e.sub ? `<span class="notr">${esc(e.sub)}</span>` : ""}</div><button class="btn small" id="unCancelar">${esc(trLT("Cancelar", "Cancel"))}</button>`;
+    $("unCancelar").onclick = () => fetch("/api/apilado/cancelar", {method:"POST"});
+    if ($("unGo")) $("unGo").disabled = true;
+    UN.t = setTimeout(unVigilar, 2000);
+    return;
+  }
+  if ($("unGo")) $("unGo").disabled = !UN.siril;
+  if (e.estado === "error" || e.estado === "cancelado"){
+    p.innerHTML = `<ul class="reasons"><li class="bad">${esc(e.estado === "cancelado" ? tr("Cancelado") : tr(e.error || ""))}</li></ul>`;
+    return;
+  }
+  if (e.estado === "ok" && e.unir){
+    p.innerHTML = "";
+    const inf = e.unir.informe || {}, t = Date.now();
+    const filas = (inf.masters || []).map(m => `<tr${m.usada ? "" : ' class="disc"'}><td class="notr" style="white-space:normal;overflow-wrap:anywhere">${esc(m.nombre)}${m.nombre === inf.referencia ? ` <span class="tagEq">${esc(trLT("encuadre", "framing"))}</span>` : ""}</td>
+      <td>${m.usada ? `<span class="dot ok"></span>${esc(trLT("Sí", "Yes"))}` : `<span class="dot bad"></span>${esc(tr(m.motivo || ""))}`}</td>
+      <td class="num">${m.usada ? numEs(m.peso, 1) + " %" : ""}</td><td class="num">${m.usada ? m.cobertura + " %" : ""}</td>
+      <td class="num">${m.escala ? numEs(m.escala, 2) + "″" : ""}</td><td class="num">${m.usada && m.giro ? numEs(m.giro, 1) + "°" : ""}</td></tr>`).join("");
+    $("unirRes").innerHTML = `
+      <h3>${esc(trLT("Hecho", "Done"))}: <span class="notr">${esc(e.unir.archivo)}</span></h3>
+      ${e.unir.vista ? `<img src="/api/unir/vista?t=${t}" alt="" style="width:100%;border-radius:10px;background:#000">` : ""}
+      <div class="tablewrap"><table style="min-width:640px"><thead><tr><th>${esc(trLT("Master", "Master"))}</th><th>${esc(trLT("Usado", "Used"))}</th>
+        <th title="${esc(trLT("Lo que aporta donde se solapan todos", "What it contributes where they all overlap"))}">${esc(trLT("Peso", "Weight"))}</th>
+        <th title="${esc(trLT("Parte del encuadre final que cubre", "Share of the final framing it covers"))}">${esc(trLT("Cubre", "Covers"))}</th>
+        <th>${esc(trLT("Escala", "Scale"))}</th><th>${esc(trLT("Giro", "Rotation"))}</th></tr></thead><tbody>${filas}</tbody></table></div>
+      <div class="note">${esc(trLT("La vista previa está estirada solo para verla; el master unido es lineal, listo para procesar. En la carpeta tienes también el informe.", "The preview is stretched only for viewing; the merged master is linear, ready to process. The report is in the folder too."))}</div>
+      <div><button class="btn" id="unAbrirCarpeta">${esc(trLT("Abrir la carpeta", "Open the folder"))}</button></div>`;
+    $("unAbrirCarpeta").onclick = () => fetch("/api/unir/abrir", {method:"POST"});
+  }
+}
+$("btnUnirMenu").onclick = unAbrir;
+$("unirElegir").onclick = () => unCargar({elegir: true});
+$("unirCerrar").onclick = () => { $("unirBox").classList.remove("show"); clearTimeout(UN.t); };
+
 
 /* ============ Registros de la ASIAIR (Autorun y guiado de PHD2) ============ */
 const REG = {tomas:{}, datos:null};
@@ -11276,7 +11404,7 @@ const MI_PIEZAS = [
   {id:"proyectos", fam:"pro", i:"proyectos", sec:"proyectos", dep:["tomas"], n:["Proyectos", "Projects"], d:["Estados, horas que faltan y en qué paso vas", "Status, hours left and which step you're on"], css:["[data-g=\"proyectos\"]", "#btnNuevoPry", "[data-mi=\"proyectos\"]"]},
   {id:"apilar", fam:"pro", i:"apilar", sec:"proyectos", dep:["proyectos"], n:["Apilar con Siril", "Stack with Siril"], d:["Calibra, alinea y apila; te enseña el resultado revelado", "Calibrates, aligns and stacks; shows you the developed result"], css:["#btnStack", "[data-arc-acc=\"apilar\"]", "[data-pn-apilar]"]},
   {id:"componer", fam:"pro", i:"componer", sec:"proyectos", dep:["apilar"], n:["Componer canales", "Compose channels"], d:["LRGB, SHO, HOO o tu mezcla, con vista previa", "LRGB, SHO, HOO or your own mix, with a preview"], css:["[data-arc-acc=\"componer\"]"]},
-  {id:"varios", fam:"pro", i:"grupo", sec:"proyectos", dep:["proyectos"], n:["Proyectos en grupo y varios equipos", "Group and multi-setup projects"], d:["Un objeto con varios telescopios, tuyos o de compañeros", "One target with several telescopes, yours or your friends'"], css:["#btnVarios", "#btnVariosMenu", "#btnGrupoMenu"]},
+  {id:"varios", fam:"pro", i:"grupo", sec:"proyectos", dep:["proyectos"], n:["Proyectos en grupo y varios equipos", "Group and multi-setup projects"], d:["Un objeto con varios telescopios, tuyos o de compañeros", "One target with several telescopes, yours or your friends'"], css:["#btnVarios", "#btnVariosMenu", "#btnGrupoMenu", "#btnUnirMenu"]},
   {id:"resumen", fam:"pro", i:"resumen", sec:"proyectos", dep:["tomas"], n:["Resumen de la noche", "Night summary"], d:["Qué salió anoche, listo para WhatsApp", "What you got last night, ready for WhatsApp"], css:["#btnResumen", "#dirResumen"]},
   {id:"ciencia", fam:"cie", i:"ciencia", sec:"ciencia", dep:["tomas"], n:["Ciencia", "Science"], d:["Variables, exoplanetas, asteroides, cúmulos y espectros", "Variables, exoplanets, asteroids, clusters and spectra"], css:["#grpCiencia"]},
   {id:"archivo", fam:"arc", i:"archivo", sec:"archivo", dep:["tomas"], n:["Indexar directorios", "Index folders"], d:["Tus proyectos de todos los años, leídos de tus discos", "Your projects from every year, read from your drives"], css:["[data-vista=\"archivo\"]"]},
@@ -11451,6 +11579,7 @@ DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta
 DIC_EN.update({"Panel general": "Overview", "Mapa del cielo": "Sky map", "Calendario": "Calendar", "Proyectos": "Projects", "Qué fotografiar": "What to shoot", "Explorar objetos": "Explore targets", "Planificar sesión": "Plan a session", "Mi archivo": "My archive", "Indexar directorios": "Index folders", "Ciencia": "Science", "Configuración": "Settings", "Lugares de observación": "Observing sites", "Umbrales de calidad": "Quality thresholds", "General": "General", "Cómo van tus proyectos y tus noches": "How your projects and your nights are going", "Cómo va cada uno y cuándo te conviene seguir": "How each one is doing and when it's worth carrying on", "Tus proyectos": "Your projects", "Tabla": "Table", "Tarjetas": "Cards", "Abrir": "Open", "Abrir el proyecto": "Open the project", "← Proyectos": "← Projects", "Volver": "Back", "Todavía no tienes proyectos: cada objeto que fotografíes será uno.": "You don't have any projects yet: every target you photograph will become one.", "# toma asignada": "# frame assigned", "# tomas asignadas": "# frames assigned", "Noche a noche, por equipo (#)": "Night by night, by setup (#)", "# válidas · # con avisos · # rechazables": "# valid · # with warnings · # rejected", "última noche:": "latest night:", "ASTRO la recorre entera y se salta darks, flats, bias y vistas previas.": "ASTRO goes through all of it and skips darks, flats, bias and previews.", "Incluir las tomas «con avisos»": "Include the frames “with warnings”", "Al terminar, crear una vista previa revelada": "When it finishes, create a developed preview", "Se quedan donde están. Para apilarlas después, añádelas con «Desde una carpeta del disco».": "They stay where they are. To stack them later, add them with “From a folder on disk”.", "Con los datos de ejemplo no hay imágenes reales que apilar: sus tomas son inventadas. Añade tus propias sesiones para apilar de verdad.": "The example data has no real images to stack: its frames are made up. Add your own sessions to stack for real.", "Conectar la ASIAIR o N.I.N.A.": "Connect the ASIAIR or N.I.N.A.", "Vuelve aquí: la carpeta aparecerá arriba (si no sale, pulsa «Buscar de nuevo»).": "Come back here: the folder will show up above (if it doesn't, press “Search again”).", "Desde dónde fotografías. Con el lugar ASTRO sabe cuándo oscurece, qué Luna tienes y qué se ve por encima de tu horizonte. Y reparte tus tomas por sitio: cada una cuenta para el lugar guardado más cercano (a menos de 5 km), según las coordenadas de su cabecera o según el que le pongas tú.": "Where you shoot from. With the site ASTRO knows when it gets dark, what Moon you have and what is visible above your horizon. And it sorts your frames by site: each one counts for the nearest saved site (within 5 km), from the coordinates in its header or from the one you set.", "Ventana de inicio…": "Start window…", "Te conviene": "Best for you", "Pon tu equipo y te digo qué montar ›": "Tell me your equipment and I'll tell you what to set up ›", "Ver el plan": "Show the plan", "Ocultar el plan": "Hide the plan"})   # 0.30: textos sueltos nuevos
 DIC_EN.update({"Al abrir ASTRO, ir a": "When ASTRO opens, go to", "Aspecto": "Appearance", "Avisos por WhatsApp": "WhatsApp alerts", "Carpeta de datos": "Data folder", "Configurar…": "Set up…", "Tu plan": "Your plan"})   # 0.30: General y plan
 DIC_EN.update({"Lugar de cada noche": "Site of each night", "Dónde estabas cada noche. Si la cabecera de tus tomas trae las coordenadas, ASTRO ya las usa; aquí puedes ponerlas cuando faltan (la ASIAIR, por ejemplo, no las escribe) o corregirlas. Con el lugar de cada toma ves las horas de cada sitio y puedes apilar cada lugar por separado.": "Where you were each night. If the header of your frames carries the coordinates, ASTRO already uses them; here you can set them when they are missing (the ASIAIR, for one, doesn't write them) or correct them. With the site of each frame you see the hours of each site and can stack each site separately.", "Solo se pone a las tomas cuya cabecera no trae las coordenadas (la ASIAIR, por ejemplo)": "Only set on the frames whose header carries no coordinates (the ASIAIR, for one)"})   # 0.31: lugares de observación
+DIC_EN.update({"Unir masters de varios equipos": "Merge masters from several setups", "Unir masters de varios equipos…": "Merge masters from several setups…", "Junta masters de un mismo objeto hechos con distintos telescopios, tuyos o de compañeros, con el encuadre del de campo más grande": "Combines masters of the same target taken with different telescopes, yours or your friends', with the framing of the widest field", "Junta en una sola imagen los masters de un mismo objeto y filtro hechos con distintos telescopios o cámaras, tuyos o de compañeros. El resultado tiene el encuadre y la escala del master que elijas como referencia (de entrada, el de campo más grande). Donde se solapan, cada master pesa según su ruido; donde solo llega uno, se usa solo ese. El brillo y el fondo de todos se igualan a los de la referencia y los bordes se funden sin costuras.": "Combines into a single image the masters of the same target and filter taken with different telescopes or cameras, yours or your friends'. The result has the framing and scale of the master you choose as reference (by default, the widest field). Where they overlap, each master is weighted by its noise; where only one reaches, only that one is used. The brightness and background of all of them are matched to the reference and the edges are blended without seams.", "Elegir la carpeta de los masters…": "Choose the masters folder…", "Con varios equipos, conservar el campo más grande": "With several setups, keep the widest field", "Si el objeto tiene tomas de varios telescopios o cámaras: el resultado tiene el encuadre del de campo más grande (donde solo llega él, solo él) en vez de recortarse a la zona común": "If the target has frames from several telescopes or cameras: the result has the framing of the widest field (where only it reaches, only it) instead of being cropped to the common area", "Leyendo los masters…": "Reading the masters…", "No se ha podido abrir la ventana para elegir la carpeta.": "The folder window could not be opened.", "En esa carpeta no hay masters FITS ni XISF.": "There are no FITS or XISF masters in that folder.", "se mide al alinear": "measured when aligning", "en color: por ahora solo blanco y negro": "colour: only mono for now", "XISF comprimido": "compressed XISF", "el más grande": "largest", "Master": "Master", "El resultado tiene el encuadre y la escala de este master": "The result has this master's framing and scale", "Encuadre": "Framing", "Peso": "Weight", "Ojo: los masters dicen filtros distintos (": "Note: the masters show different filters (", "). Únelos solo si son del mismo filtro.": "). Only merge them if they are the same filter.", "Peso de cada master donde se solapan": "Weight of each master where they overlap", "Según su ruido (recomendado)": "By its noise (recommended)", "Igual para todos": "The same for all", "A mano": "By hand", "Unir": "Merge", "No encuentro Siril. Descárgalo gratis de siril.org, instálalo y vuelve aquí.": "Siril not found. Download it free from siril.org, install it and come back.", "Con el peso según el ruido, un master con la mitad de señal/ruido que otro cuenta la cuarta parte. Si a un master le falta la escala (focal y tamaño de píxel), ASTRO la mide al alinearlo.": "With noise weighting, a master with half the signal-to-noise of another counts a quarter. If a master has no scale (focal length and pixel size), ASTRO measures it while aligning.", "Elige al menos dos masters": "Choose at least two masters", "Elige el master que da el encuadre": "Choose the master that sets the framing", "encuadre": "framing", "Hecho": "Done", "Usado": "Used", "Lo que aporta donde se solapan todos": "What it contributes where they all overlap", "Parte del encuadre final que cubre": "Share of the final framing it covers", "Cubre": "Covers", "Giro": "Rotation", "La vista previa está estirada solo para verla; el master unido es lineal, listo para procesar. En la carpeta tienes también el informe.": "The preview is stretched only for viewing; the merged master is linear, ready to process. The report is in the folder too.", "Preparando": "Preparing", "Alineando": "Aligning", "Llevando cada imagen a la escala de la referencia": "Bringing each image to the reference scale", "Llevando todas al encuadre de la referencia": "Bringing them all to the reference framing", "Igualando brillo y fondo": "Matching brightness and background", "Uniendo": "Merging", "Preparando la vista previa": "Preparing the preview", "no se ha podido alinear con la referencia": "could not be aligned with the reference", "no se ha podido alinear con la referencia (falta la escala: focal y tamaño de píxel)": "could not be aligned with the reference (scale missing: focal length and pixel size)", "apenas cubre el encuadre de la referencia": "barely covers the reference framing", "Siril no ha podido alinear ninguna imagen con la referencia.": "Siril couldn't align any image with the reference.", "Siril no ha podido llevar las imágenes al encuadre de la referencia.": "Siril couldn't bring the images to the reference framing.", "La imagen de referencia tiene que tener peso: es la única que cubre todo el encuadre.": "The reference image must have some weight: it is the only one covering the whole framing.", "Elige al menos dos masters.": "Choose at least two masters.", "La imagen de referencia tiene que estar entre las elegidas.": "The reference image must be among the chosen ones.", "No encuentro esa carpeta.": "I can't find that folder."})   # 0.33: unir masters de varios equipos
 DIC_EN.update({"Siril no ha podido alinear algún filtro con los demás.": "Siril couldn't align one of the filters with the others.", "No se ha podido crear la imagen.": "The image couldn't be created.", "En ese apilado no hay masters en blanco y negro que componer.": "That stack has no black-and-white masters to compose.", "Componiendo": "Composing", "Recortando al área común": "Cropping to the common area", "Componiendo la vista rápida": "Composing the quick preview", "Componiendo y estirando": "Composing and stretching", "✓ Composición creada": "✓ Composition created", "Ya hay un trabajo de Siril en marcha. Espera a que termine.": "A Siril job is already running. Wait for it to finish.", "Elige al menos un filtro y a qué canal va.": "Choose at least one filter and which channel it goes to."})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
@@ -12738,12 +12867,23 @@ def alinear_a_referencia(siril, W, nombre, items, giros=None):
     return ref, out, seq
 
 
-def combinar_equipos(siril, W, F, hechos, destino, ver):
-    """Une los apilados de varios equipos de un mismo filtro en uno, a la escala y el encuadre del de campo más pequeño,
-    dando a cada uno más o menos peso según su ruido. Devuelve (índice de la referencia, índices usados,
-    {índice: giro en grados respecto a la referencia})."""
-    items = [{"ruta": h[1], "escala": h[0].get("escala"), "w": h[0].get("w"), "h": h[0].get("h"), "centro": h[0].get("centro")}
-             for h in hechos]
+def combinar_equipos(siril, W, F, hechos, destino, ver, encuadre="pequeno"):
+    """Une los apilados de varios equipos de un mismo filtro en uno, dando a cada uno más o menos peso según su ruido.
+    encuadre="pequeno": a la escala y el encuadre del de campo más pequeño (solo la zona común).
+    encuadre="grande": a la escala y el encuadre del de campo más grande; donde solo llega él, solo él.
+    Devuelve (índice de la referencia, índices usados, {índice: giro en grados respecto a la referencia})."""
+    items = [{"ruta": h[1], "escala": h[0].get("escala"), "w": h[0].get("w"), "h": h[0].get("h"), "centro": h[0].get("centro"),
+              "nombre": h[0].get("nombre") or str(i + 1)} for i, h in enumerate(hechos)]
+    if encuadre == "grande" and all(it.get("escala") and it.get("w") and it.get("h") for it in items):
+        ref = max(range(len(items)), key=lambda i: items[i]["w"] * items[i]["h"] * items[i]["escala"] ** 2)
+        Wg = os.path.join(W, "grande_" + F)
+        os.makedirs(Wg, exist_ok=True)
+        try:
+            res = unir_en_marco(siril, Wg, items, ref, destino, "ruido")
+        finally:
+            shutil.rmtree(Wg, ignore_errors=True)
+        usados = [i for i, r in enumerate(res) if r.get("usada")]
+        return ref, usados, {i: r.get("giro") for i, r in enumerate(res) if r.get("usada") and i != ref and r.get("giro") is not None}
     giros = {}
     ref, out, seq = alinear_a_referencia(siril, W, "equipos_" + F, items, giros)
     if len(out) < 2:
@@ -12754,6 +12894,614 @@ def combinar_equipos(siril, W, F, hechos, destino, ver):
     shutil.rmtree(seq, ignore_errors=True); shutil.rmtree(os.path.join(W, "src_equipos_" + F), ignore_errors=True)
     return ref, sorted(out), {i: round(((g[0] + 180) % 360) - 180, 1) for i, g in giros.items() if i != ref and i in out}
 
+
+# ─── Unir masters de varios equipos en el encuadre del de campo más grande ───
+# Siril alinea bien una imagen de campo pequeño contra un recorte del campo grande del tamaño de la pequeña (con todo el
+# campo grande, sus estrellas más brillantes caen fuera de la pequeña y la alineación falla). Se alinea cada una contra
+# su recorte, se pasa la transformación al marco completo de la referencia y Siril la aplica a todas a la vez. Después
+# cada imagen se lleva al brillo y al fondo de la referencia y se suman pesando por su ruido, cada píxel solo con las
+# imágenes que lo cubren y fundiendo los bordes para que no se vean costuras. Todo con Siril y Python sin librerías.
+
+def _fits_datos(ruta):
+    """(cabecera, desplazamiento de los datos) de un FITS."""
+    h, n = {}, 0
+    with open(ruta, "rb") as f:
+        while n < 2880 * 200:
+            b = f.read(2880)
+            if len(b) < 2880:
+                raise ValueError("FITS incompleto")
+            n += 2880
+            for i in range(0, 2880, 80):
+                c = b[i:i + 80].decode("latin-1")
+                k = c[:8].strip()
+                if k == "END":
+                    return h, n
+                if c[8:10] == "= ":
+                    v = c[10:].strip()
+                    h[k] = v[1:max(1, v.find("'", 1))].strip() if v.startswith("'") else v.split("/")[0].strip()
+    raise ValueError("FITS sin END")
+
+
+def _muestras_fits(ruta, paso=4):
+    """La imagen (FITS de 32 bits en coma flotante, una capa) leída un píxel de cada paso×paso: (ancho, alto, filas)."""
+    import array
+    h, off = _fits_datos(ruta)
+    w, alto, bp = int(h["NAXIS1"]), int(h["NAXIS2"]), int(h["BITPIX"])
+    if bp != -32:
+        raise ValueError("se esperaba un FITS de 32 bits")
+    filas = []
+    with open(ruta, "rb") as f:
+        for y in range(0, alto, paso):
+            f.seek(off + y * w * 4)
+            a = array.array("f")
+            a.frombytes(f.read(w * 4))
+            if sys.byteorder == "little":
+                a.byteswap()
+            filas.append(a[::paso])
+    return w, alto, filas
+
+
+def _med(v):
+    v = sorted(v)
+    n = len(v)
+    return 0.0 if not n else (v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2)
+
+
+def _ruido_muestras(filas, umbral=-1e30):
+    """Ruido del fondo: dispersión robusta de la diferencia entre píxeles vecinos de la muestra (que no le afectan
+    los degradados ni casi las estrellas)."""
+    d = [abs(r[i] - r[i + 1]) for r in filas for i in range(0, len(r) - 1, 2) if r[i] > umbral and r[i + 1] > umbral]
+    return _med(d) / 0.6745 / 2 ** 0.5
+
+
+def _tarjeta_fits(k, v):
+    if isinstance(v, bool):
+        s = ("T" if v else "F").rjust(20)
+    elif isinstance(v, int):
+        s = str(v).rjust(20)
+    elif isinstance(v, float):
+        s = ("%.10G" % v).rjust(20)
+    else:
+        s = "'%-8s'" % str(v).replace("'", "''")[:66]
+    return ("%-8s= %s" % (k[:8], s))[:80].ljust(80)
+
+
+def _escribir_fits32(ruta, w, h, valores, extra=None):
+    import array
+    t = [_tarjeta_fits("SIMPLE", True), _tarjeta_fits("BITPIX", -32), _tarjeta_fits("NAXIS", 2),
+         _tarjeta_fits("NAXIS1", w), _tarjeta_fits("NAXIS2", h)] + [_tarjeta_fits(k, v) for k, v in (extra or {}).items()]
+    cab = ("".join(t) + "END".ljust(80)).encode("ascii", "replace")
+    cab += b" " * (-len(cab) % 2880)
+    a = array.array("f", valores)
+    if sys.byteorder == "little":
+        a.byteswap()
+    b = a.tobytes()
+    with open(ruta, "wb") as f:
+        f.write(cab + b + b"\0" * (-len(b) % 2880))
+
+
+def leer_xisf_cab(ruta):
+    """Lo que hace falta de un XISF (formato de PixInsight): geometría, formato, dónde están los datos y sus claves."""
+    import struct, html as _html
+    with open(ruta, "rb") as fh:
+        c = fh.read(16)
+        if c[:8] != b"XISF0100":
+            raise ValueError("no es un XISF")
+        x = fh.read(struct.unpack("<I", c[8:12])[0]).decode("utf-8", "replace")
+    m = re.search(r"<Image\b([^>]*)>", x)
+    if not m:
+        raise ValueError("el XISF no tiene imagen")
+    at = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+    w, h, ncan = (int(v) for v in at["geometry"].split(":")[:3])
+    loc = at.get("location", "").split(":")
+    if loc[0] != "attachment":
+        raise ValueError("XISF con la imagen dentro del XML: no se puede leer")
+    kw = {}
+    for k, v in re.findall(r'<FITSKeyword name="([^"]+)" value="([^"]*)"', x):
+        v = _html.unescape(v).strip()
+        kw.setdefault(k, v[1:-1].strip() if v.startswith("'") and v.endswith("'") and len(v) > 1 else v)
+    props = {k: _html.unescape(v) for k, v in re.findall(r'<Property id="([^"]+)"[^>]*\bvalue="([^"]*)"', x)}
+    return {"w": w, "h": h, "canales": ncan, "formato": at.get("sampleFormat", "Float32"), "pos": int(loc[1]),
+            "comprimido": bool(at.get("compression")), "orden": at.get("byteOrder", "little"), "kw": kw, "props": props}
+
+
+def xisf_a_fits(src, dst):
+    """Copia un XISF sin comprimir a FITS de 32 bits (Siril 1.2 no lee XISF). El XISF guarda las filas de arriba
+    abajo y el FITS de abajo arriba: se escriben al revés para que se vea igual. Solo el primer canal."""
+    import array
+    c = leer_xisf_cab(src)
+    if c["comprimido"]:
+        raise ValueError("XISF comprimido: guárdalo sin compresión en PixInsight o como FITS")
+    tipos = {"Float32": ("f", 4), "Float64": ("d", 8), "UInt16": ("H", 2), "UInt8": ("B", 1), "UInt32": ("I", 4)}
+    if c["formato"] not in tipos:
+        raise ValueError("formato de XISF no admitido: " + c["formato"])
+    tc, nb = tipos[c["formato"]]
+    esc = {"UInt16": 65535.0, "UInt8": 255.0, "UInt32": 4294967295.0}.get(c["formato"])
+    w, h = c["w"], c["h"]
+    kw, p = c["kw"], c["props"]
+    extra = {}
+    for k in ("OBJECT", "FILTER", "TELESCOP", "INSTRUME", "EXPTIME", "DATE-OBS"):
+        if kw.get(k) not in (None, ""):
+            extra[k] = num(kw[k]) if k == "EXPTIME" and num(kw[k]) is not None else kw[k]
+    focal = num(kw.get("FOCALLEN")) or ((num(p.get("Instrument:Telescope:FocalLength")) or 0) * 1000) or None
+    pix = num(kw.get("XPIXSZ")) or num(p.get("Instrument:Sensor:XPixelSize"))
+    ra = num(kw.get("RA")) if num(kw.get("RA")) is not None else num(p.get("Observation:Center:RA"))
+    de = num(kw.get("DEC")) if num(kw.get("DEC")) is not None else num(p.get("Observation:Center:Dec"))
+    if focal:
+        extra["FOCALLEN"] = float(focal)
+    if pix:
+        extra["XPIXSZ"] = extra["YPIXSZ"] = float(pix)
+    if ra is not None and de is not None:
+        extra["RA"], extra["DEC"] = float(ra), float(de)
+    t = [_tarjeta_fits("SIMPLE", True), _tarjeta_fits("BITPIX", -32), _tarjeta_fits("NAXIS", 2),
+         _tarjeta_fits("NAXIS1", w), _tarjeta_fits("NAXIS2", h)] + [_tarjeta_fits(k, v) for k, v in extra.items()]
+    cab = ("".join(t) + "END".ljust(80)).encode("ascii", "replace")
+    cab += b" " * (-len(cab) % 2880)
+    fila = w * nb
+    grande = c["orden"] == "big"
+    with open(src, "rb") as fi, open(dst, "wb") as fo:
+        fo.write(cab)
+        total = 0
+        for y in range(h - 1, -1, -1):
+            fi.seek(c["pos"] + y * fila)
+            a = array.array(tc)
+            a.frombytes(fi.read(fila))
+            if (sys.byteorder == "little") == grande:
+                a.byteswap()
+            if tc != "f":
+                a = array.array("f", (v / esc for v in a) if esc else a)
+            if sys.byteorder == "little":
+                a.byteswap()
+            b = a.tobytes()
+            fo.write(b)
+            total += len(b)
+        fo.write(b"\0" * (-total % 2880))
+
+
+def ficha_master(ruta):
+    """Lo que ASTRO sabe de un master para unirlo: tamaño, escala (″/px), centro, filtro, objeto."""
+    ext = os.path.splitext(ruta)[1].lower()
+    if ext == ".xisf":
+        c = leer_xisf_cab(ruta)
+        kw, p = c["kw"], c["props"]
+        w, h, canales = c["w"], c["h"], c["canales"]
+        focal = num(kw.get("FOCALLEN")) or ((num(p.get("Instrument:Telescope:FocalLength")) or 0) * 1000) or None
+        pix = num(kw.get("XPIXSZ")) or num(p.get("Instrument:Sensor:XPixelSize"))
+        ra = num(kw.get("RA")) if num(kw.get("RA")) is not None else num(p.get("Observation:Center:RA"))
+        de = num(kw.get("DEC")) if num(kw.get("DEC")) is not None else num(p.get("Observation:Center:Dec"))
+        filtro, objeto = kw.get("FILTER") or p.get("Instrument:Filter:Name") or "", kw.get("OBJECT") or ""
+        aviso = "comprimido" if c["comprimido"] else ""
+        cd = None
+    else:
+        hd = cabecera_fits(ruta)
+        w, h, canales = int(num(hd.get("NAXIS1")) or 0), int(num(hd.get("NAXIS2")) or 0), int(num(hd.get("NAXIS3")) or 1)
+        focal, pix = num(hd.get("FOCALLEN")), num(hd.get("XPIXSZ") or hd.get("PIXSIZE1"))
+        ra = num(hd.get("RA"))
+        de = num(hd.get("DEC"))
+        filtro, objeto, aviso = hd.get("FILTER") or "", hd.get("OBJECT") or "", ""
+        cd = _wcs_de_cabecera(hd)
+        if hd.get("BITPIX") not in (None, "-32", "16", "-64", "32", "8"):
+            aviso = "formato"
+    escala = None
+    if cd:
+        escala = math.sqrt(abs(cd["cd"][0][0] * cd["cd"][1][1] - cd["cd"][0][1] * cd["cd"][1][0])) * 3600
+        if ra is None or de is None:
+            ra, de = cd["crval1"], cd["crval2"]
+    elif focal and focal > 10 and pix and pix > 0.5:
+        escala = 206.265 * pix / focal
+    return {"nombre": os.path.basename(ruta), "w": w, "h": h, "canales": canales, "escala": round(escala, 4) if escala else None,
+            "focal": focal, "pixel": pix, "centro": [ra, de] if ra is not None and de is not None else None,
+            "filtro": str(filtro).strip(), "objeto": str(objeto).strip(), "aviso": aviso,
+            "campo": [round(w * escala / 3600, 3), round(h * escala / 3600, 3)] if escala else None}
+
+
+def _siril_dims(ruta):
+    h, _ = _fits_datos(ruta)
+    return int(h["NAXIS1"]), int(h["NAXIS2"])
+
+
+def _registro_par(siril, W, ref_fit, mov_fit, caja, etq):
+    """Alinea mov contra el recorte caja=(x0, y0, ancho, alto) de la referencia. Devuelve la homografía (9 valores) que
+    lleva mov a ese recorte, o None."""
+    x0, y0, cw, ch = caja
+    P = os.path.join(W, "par")
+    shutil.rmtree(P, ignore_errors=True)
+    os.makedirs(os.path.join(P, "s")); os.makedirs(os.path.join(P, "q"))
+    enlace(mov_fit, os.path.join(P, "s", "2.fit"))
+    try:
+        correr_siril(siril, "\n".join(["requires 1.2.0", "set32bits", f"load {q(ref_fit)}", f"crop {x0} {y0} {cw} {ch}",
+                                       f"save {q(os.path.join(P, 's', '1'))}", f"cd {q(os.path.join(P, 's'))}",
+                                       f"link p {qo('-out=', os.path.join(P, 'q'))}", f"cd {q(os.path.join(P, 'q'))}",
+                                       "setref p 1", "register p"]) + "\n", f"alinear_{etq}")
+    except RuntimeError as e:
+        if str(e) == "Cancelado":
+            raise
+        return None
+    try:
+        with open(os.path.join(P, "q", "p_.seq"), encoding="utf-8", errors="replace") as fh:
+            rl = [l for l in fh.read().splitlines() if re.match(r"^R\d*\s", l) and " H " in l]
+        H = [float(v) for v in rl[1].split(" H ", 1)[1].split()[:9]] if len(rl) > 1 else []
+    except Exception:
+        H = []
+    finally:
+        shutil.rmtree(P, ignore_errors=True)
+    if len(H) == 9 and any(H) and all(math.isfinite(v) for v in H):
+        return H
+    return None
+
+
+def _cajas(RW, RH, w, h, escala_conocida):
+    """Recortes de la referencia que se prueban, del más ajustado al más holgado."""
+    if escala_conocida:
+        L = []
+        for f in (1.15, 1.4):
+            L += [(w * f, h * f), (h * f, w * f)]
+        d = math.hypot(w, h) * 1.1
+        L += [(d, d), (RW, RH)]
+    else:                       # escala desconocida: fracciones del campo de la referencia con la forma de la imagen
+        r = h / w if w else 1
+        L = [(RW * f, RW * f * r) for f in (0.45, 0.35, 0.55, 0.28, 0.7, 0.85, 1.0)]
+    out, vistos = [], set()
+    for cw, ch in L:
+        cw, ch = int(min(RW, cw)), int(min(RH, ch))
+        if cw < 64 or ch < 64 or (cw, ch) in vistos:
+            continue
+        vistos.add((cw, ch))
+        out.append(((RW - cw) // 2, (RH - ch) // 2, cw, ch))
+    return out
+
+
+def _mul3(A, B):
+    return [sum(A[3 * i + k] * B[3 * k + j] for k in range(3)) for i in range(3) for j in range(3)]
+
+
+def _resolver_lineal(A, b):
+    n = len(b)
+    M = [fila[:] + [b[i]] for i, fila in enumerate(A)]
+    for c in range(n):
+        p = max(range(c, n), key=lambda r: abs(M[r][c]))
+        M[c], M[p] = M[p], M[c]
+        if abs(M[c][c]) < 1e-30:
+            return [0.0] * n
+        for r in range(n):
+            if r != c:
+                f = M[r][c] / M[c][c]
+                for j in range(c, n + 1):
+                    M[r][j] -= f * M[c][j]
+    return [M[i][n] / M[i][i] for i in range(n)]
+
+
+def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=None):
+    """Une varias imágenes (masters de un mismo filtro) en el encuadre y la escala de items[ref].
+    items: [{"ruta" (FITS de 32 bits), "escala" (″/px o None), "nombre"}].
+    Devuelve la lista de resultados por imagen: {usada, motivo, escala, giro, cobertura, ruido, peso}."""
+    n = len(items)
+    R = items[ref]
+    src = os.path.join(W, "u_src")
+    shutil.rmtree(src, ignore_errors=True)
+    os.makedirs(src)
+    orden = [ref] + [i for i in range(n) if i != ref]
+    res = {i: {"nombre": items[i].get("nombre", ""), "usada": False, "motivo": "", "escala": items[i].get("escala")} for i in range(n)}
+    # 1) todas a la escala de la referencia (las de escala desconocida, tal cual: se mide al alinear)
+    L = ["requires 1.2.0", "set32bits"]
+    for k, i in enumerate(orden, 1):
+        dst = os.path.join(src, f"{k:02d}")
+        it = items[i]
+        f = (it["escala"] / R["escala"]) if it.get("escala") and R.get("escala") else 1.0
+        if i == ref or abs(f - 1) < 0.02:
+            enlace(it["ruta"], dst + ".fit")
+        else:
+            L += [f"load {q(it['ruta'])}"] + lineas_resample(f) + [f"save {q(dst)}"]
+    if len(L) > 2:
+        JOB["texto"] = "Llevando cada imagen a la escala de la referencia"
+        correr_siril(siril, "\n".join(L) + "\n", "unir_escala")
+    ref_fit = os.path.join(src, "01.fit")
+    RW, RH = _siril_dims(ref_fit)
+    # 2) cada una contra su recorte de la referencia
+    Hs = {1: [1, 0, 0, 0, 1, 0, 0, 0, 1]}
+    for k, i in enumerate(orden[1:], 2):
+        JOB["texto"] = "Alineando " + res[i]["nombre"]
+        mov = os.path.join(src, f"{k:02d}.fit")
+        conocida = bool(items[i].get("escala") and R.get("escala"))
+        H = None
+        for _ in range(2):
+            w, h = _siril_dims(mov)
+            for caja in _cajas(RW, RH, w, h, conocida):
+                H = _registro_par(siril, W, ref_fit, mov, caja, f"{k:02d}")
+                if H:
+                    H = _mul3([1, 0, caja[0], 0, 1, caja[1], 0, 0, 1], H)
+                    break
+            if not H or conocida:
+                break
+            # escala desconocida: se mide, se reduce la imagen a la escala de la referencia y se vuelve a alinear
+            s = math.hypot(H[0], H[3])
+            res[i]["escala"] = round(R["escala"] * s, 4) if R.get("escala") else None
+            if abs(s - 1) < 0.02:
+                break
+            nuevo = os.path.join(src, f"{k:02d}b")
+            correr_siril(siril, "\n".join(["requires 1.2.0", "set32bits", f"load {q(mov)}"] + lineas_resample(s) +
+                                          [f"save {q(nuevo)}"]) + "\n", f"unir_escala_{k:02d}")
+            os.replace(nuevo + ".fit", mov)
+            conocida, H = True, None
+        if H:
+            Hs[k] = H
+            res[i]["giro"] = round(((math.degrees(math.atan2(H[3], H[0])) + 180) % 360) - 180, 1)
+        else:
+            res[i]["motivo"] = "no se ha podido alinear con la referencia" + ("" if conocida else " (falta la escala: focal y tamaño de píxel)")
+            _log("⚠ " + res[i]["nombre"] + ": " + res[i]["motivo"])
+    if len(Hs) < 2:
+        raise RuntimeError("Siril no ha podido alinear ninguna imagen con la referencia.")
+    # 3) Siril aplica todas las transformaciones en el marco completo de la referencia
+    JOB["texto"] = "Llevando todas al encuadre de la referencia"
+    S = os.path.join(W, "u_seq")
+    shutil.rmtree(S, ignore_errors=True)
+    os.makedirs(S)
+    usados = sorted(Hs)
+    for j, k in enumerate(usados, 1):
+        enlace(os.path.join(src, f"{k:02d}.fit"), os.path.join(S, f"m_{j:05d}.fit"))
+    lineas = ["#Siril sequence file. Contains list of images, selection, registration data and statistics",
+              "#S 'sequence_name' start_index nb_images nb_selected fixed_len reference_image version variable_size fz_flag",
+              f"S 'm_' 1 {len(usados)} {len(usados)} 5 0 4 1 0", "L 1"]
+    lineas += [f"I {j} 1 %d,%d" % _siril_dims(os.path.join(S, f"m_{j:05d}.fit")) for j in range(1, len(usados) + 1)]
+    lineas += ["R0 0 0 0 0 0 0 H " + " ".join("%.10g" % v for v in Hs[k]) for k in usados]
+    with open(os.path.join(S, "m_.seq"), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lineas) + "\n")
+    correr_siril(siril, "\n".join(["requires 1.2.0", "set32bits", f"cd {q(S)}", "seqapplyreg m -framing=current"]) + "\n", "unir_aplicar")
+    regs = {}
+    for j, k in enumerate(usados, 1):
+        r = os.path.join(S, f"r_m_{j:05d}.fit")
+        if os.path.isfile(r):
+            regs[k] = r
+    if 1 not in regs or len(regs) < 2:
+        raise RuntimeError("Siril no ha podido llevar las imágenes al encuadre de la referencia.")
+    # 4) brillo, fondo y peso de cada una respecto a la referencia, y la mezcla
+    JOB["texto"] = "Igualando brillo y fondo"
+    PASO, B, RAMPA = 4, 8, 12          # muestras cada 4 px, bloques de 32 px, bordes fundidos en 12 bloques (≈ 380 px)
+    _, _, RF = _muestras_fits(regs[1], PASO)
+    nby, nbx = math.ceil(len(RF) / B), math.ceil(len(RF[0]) / B)
+    sig0 = _ruido_muestras(RF)
+    partes = []
+    for k in sorted(regs):
+        i = orden[k - 1]
+        if k == 1:
+            res[i].update(usada=True, cobertura=100, ruido=sig0, giro=0.0)
+            partes.append({"k": 1, "i": i, "peso": 1 / max(sig0, 1e-12) ** 2})
+            continue
+        if JOB["cancelar"]:
+            raise RuntimeError("Cancelado")
+        _, _, F = _muestras_fits(regs[k], PASO)
+        v = [x for r in F for x in r if x != 0]
+        if len(v) < 1000:
+            res[i]["motivo"] = "apenas cubre el encuadre de la referencia"
+            continue
+        umbral = _med(v) - 8 * _ruido_muestras(F, 0)
+        par = [(F[a][b], RF[a][b]) for a in range(len(F)) for b in range(len(F[a])) if F[a][b] > umbral]
+        mk, m0, sk = _med([p[0] for p in par]), _med([p[1] for p in par]), _ruido_muestras(F, umbral)
+        brill = [(p[0] - mk) / (p[1] - m0) for p in par if p[1] - m0 > 25 * sig0 and p[0] - mk > 0]
+        esc = _med(brill) if len(brill) > 50 else 1.0
+        if not (esc > 0 and math.isfinite(esc)):
+            esc = 1.0
+        # diferencia de fondo con la referencia, por bloques, ajustada con un polinomio (el degradado de cada equipo)
+        D = [[None] * nbx for _ in range(nby)]
+        dentro = [[False] * nbx for _ in range(nby)]
+        for by in range(nby):
+            for bx in range(nbx):
+                vals, cuenta = [], 0
+                for a in range(by * B, min(len(F), by * B + B)):
+                    fa, ra = F[a], RF[a]
+                    for b in range(bx * B, min(len(fa), bx * B + B)):
+                        cuenta += 1
+                        if fa[b] > umbral:
+                            vals.append((fa[b] - mk) / esc + m0 - ra[b])
+                dentro[by][bx] = cuenta > 0 and len(vals) == cuenta
+                if cuenta and len(vals) >= 0.8 * cuenta:
+                    D[by][bx] = _med(vals)
+        pts = [(bx / nbx - .5, by / nby - .5, D[by][bx]) for by in range(nby) for bx in range(nbx) if D[by][bx] is not None]
+        cob = len(pts) / float(nbx * nby)
+        term = (lambda x, y: [1, x, y, x * x, x * y, y * y]) if cob > 0.15 else (lambda x, y: [1, x, y])
+        nt = len(term(0, 0))
+        coef = [0.0] * nt
+        for _ in range(3):
+            if len(pts) < 3 * nt:
+                break
+            A = [[0.0] * nt for _ in range(nt)]
+            bb = [0.0] * nt
+            for x, y, d in pts:
+                t = term(x, y)
+                for a in range(nt):
+                    bb[a] += t[a] * d
+                    for b in range(nt):
+                        A[a][b] += t[a] * t[b]
+            coef = _resolver_lineal(A, bb)
+            resid = [d - sum(c * t for c, t in zip(coef, term(x, y))) for x, y, d in pts]
+            s = _med([abs(r) for r in resid]) * 1.4826 + 1e-12
+            pts = [p for p, r in zip(pts, resid) if abs(r) < 3 * s]
+        # distancia al borde de la imagen (en bloques), para fundir
+        INF = 10 ** 9
+        dist = [[INF if dentro[y][x] else 0 for x in range(nbx)] for y in range(nby)]
+        for y in range(nby):
+            for x in range(nbx):
+                if dist[y][x]:
+                    dist[y][x] = min(dist[y][x], dist[y - 1][x] + 1 if y else 1, dist[y][x - 1] + 1 if x else 1)
+        for y in range(nby - 1, -1, -1):
+            for x in range(nbx - 1, -1, -1):
+                if dist[y][x]:
+                    dist[y][x] = min(dist[y][x], dist[y + 1][x] + 1 if y < nby - 1 else 1, dist[y][x + 1] + 1 if x < nbx - 1 else 1)
+        corr = [sum(c * t for c, t in zip(coef, term(x / nbx - .5, y / nby - .5))) for y in range(nby) for x in range(nbx)]
+        fund = [min(1.0, dist[y][x] / float(RAMPA)) ** 2 for y in range(nby) for x in range(nbx)]
+        _escribir_fits32(os.path.join(S, f"cg_{k}.fit"), nbx, nby, corr)
+        _escribir_fits32(os.path.join(S, f"fe_{k}.fit"), nbx, nby, fund)
+        res[i].update(usada=True, cobertura=round(100 * cob), ruido=sk / esc, brillo=round(esc, 4))
+        partes.append({"k": k, "i": i, "umbral": umbral, "mk": mk, "m0": m0, "esc": esc, "peso": (esc / max(sk, 1e-12)) ** 2})
+    for p in partes:
+        if modo_peso == "igual":
+            p["peso"] = 1.0
+        elif modo_peso == "mano":
+            p["peso"] = max(0.0, num((pesos_mano or {}).get(items[p["i"]].get("nombre"))) or 0.0)
+    total = sum(p["peso"] for p in partes)
+    if total <= 0 or not partes or partes[0]["k"] != 1 or partes[0]["peso"] <= 0:
+        raise RuntimeError("La imagen de referencia tiene que tener peso: es la única que cubre todo el encuadre.")
+    for p in partes:
+        res[p["i"]]["peso"] = round(100 * p["peso"] / total, 1)
+    JOB["texto"] = "Uniendo"
+    L = ["requires 1.2.0", "set32bits", f"cd {q(S)}"]
+    for p in partes:
+        if p["k"] == 1:
+            continue
+        for base in (f"cg_{p['k']}", f"fe_{p['k']}"):
+            L += [f"load {base}", "resample 4", "resample 4", "resample 2", f"crop 0 0 {RW} {RH}", f"save {base}"]
+    for p in partes:
+        ww, r = "%.9g" % (p["peso"] / total), f"r_m_{usados.index(p['k']) + 1:05d}"
+        if p["k"] == 1:
+            L += [f'pm "{ww} * ${r}$"', "save acN", f'pm "{ww} + 0 * ${r}$"', "save acD"]
+            continue
+        cond = f"${r}$ > {p['umbral']:.9g}"
+        L += [f'pm "iif({cond}, {ww} * $fe_{p["k"]}$ * ((${r}$ - {p["mk"]:.9g}) / {p["esc"]:.9g} + {p["m0"]:.9g} - $cg_{p["k"]}$), 0)"', "save tN",
+              f'pm "iif({cond}, {ww} * $fe_{p["k"]}$, 0)"', "save tD", 'pm "$acN$ + $tN$"', "save acN", 'pm "$acD$ + $tD$"', "save acD"]
+    L += ['pm "$acN$ / $acD$"', f"save {q(destino)}"]
+    correr_siril(siril, "\n".join(L) + "\n", "unir_mezcla")
+    shutil.rmtree(S, ignore_errors=True)
+    shutil.rmtree(src, ignore_errors=True)
+    return [res[i] for i in range(n)]
+
+# ─── Herramienta «Unir masters»: masters sueltos de una carpeta (de varios equipos o compañeros) ───
+EXT_MASTER = (".fit", ".fits", ".fts", ".xisf")
+UNIR = {"ultimo": None}
+
+
+def filtro_suelto(s):
+    """El filtro de un master de otro programa: «Baader Ha NarrowBand 6.5 nm» también es H."""
+    f = nfiltro(s)
+    if f in ("H", "O", "S", "L", "R", "G", "B", "SIN_FILTRO"):
+        return f
+    t = str(s or "").lower()
+    for pat, n in ((r"\b(ha|h-?alpha|halpha)\b", "H"), (r"\b(oiii|o3|o-iii)\b", "O"), (r"\b(sii|s2|s-ii)\b", "S"),
+                   (r"\b(lum|luminance)\b", "L")):
+        if re.search(pat, t):
+            return n
+    return f
+
+
+def masters_de_carpeta(carpeta):
+    """Los masters (FITS o XISF) que hay en la carpeta, sin entrar en subcarpetas, con su ficha."""
+    if not carpeta or not os.path.isdir(carpeta):
+        raise RuntimeError("No encuentro esa carpeta.")
+    out = []
+    for n in sorted(os.listdir(carpeta), key=lambda x: x.lower()):
+        ruta = os.path.join(carpeta, n)
+        if n.startswith(".") or not n.lower().endswith(EXT_MASTER) or not os.path.isfile(ruta):
+            continue
+        try:
+            fi = ficha_master(ruta)
+        except Exception as e:
+            fi = {"nombre": n, "error": str(e)[:160]}
+        fi["bytes"] = os.path.getsize(ruta)
+        fi["filtro_c"] = filtro_suelto(fi.get("filtro")) if fi.get("filtro") else ""
+        out.append(fi)
+    return out
+
+
+def iniciar_unir(carpeta, nombres, ref_nombre, modo_peso, pesos):
+    _reservar_job("Ya hay un trabajo de Siril en marcha. Espera a que termine.")
+    try:
+        siril, ver = buscar_siril()
+        if not siril:
+            raise RuntimeError("No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.")
+        fichas = {f["nombre"]: f for f in masters_de_carpeta(carpeta)}
+        nombres = [n for n in nombres if n in fichas and not fichas[n].get("error")]
+        if len(nombres) < 2:
+            raise RuntimeError("Elige al menos dos masters.")
+        malos = [n for n in nombres if (fichas[n].get("canales") or 1) > 1]
+        if malos:
+            raise RuntimeError("Por ahora solo se unen masters en blanco y negro (un filtro): " + ", ".join(malos))
+        malos = [n for n in nombres if fichas[n].get("aviso") == "comprimido"]
+        if malos:
+            raise RuntimeError("Estos XISF están comprimidos; guárdalos sin compresión en PixInsight o como FITS: " + ", ".join(malos))
+        if ref_nombre not in nombres:
+            raise RuntimeError("La imagen de referencia tiene que estar entre las elegidas.")
+        JOB.update(activo=True, estado="en marcha", tipo="unir", paso=0, pasos=3 + len(nombres), texto="Empezando…", sub="", log=[],
+                   resultados=[], vista=[], avisos=[], error="", carpeta="", cancelar=False, unir=None,
+                   inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
+        _hilo_job(trabajo_unir, siril, carpeta, [fichas[n] for n in nombres], ref_nombre,
+                  modo_peso if modo_peso in ("ruido", "igual", "mano") else "ruido", pesos if isinstance(pesos, dict) else {})
+    finally:
+        _JOB_RESERVA["on"] = False
+
+
+def trabajo_unir(siril, carpeta, fichas, ref_nombre, modo_peso, pesos):
+    marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    OUT = os.path.join(carpeta, "ASTRO unido " + marca)
+    W = os.path.join(OUT, "_trabajo")
+    os.makedirs(W, exist_ok=True)
+    JOB.update(_w=W, carpeta=OUT)
+    JOB["_logf"] = open(os.path.join(OUT, "registro_siril.txt"), "w", encoding="utf-8")
+    try:
+        items = []
+        for k, fi in enumerate(fichas, 1):
+            JOB["paso"] = k
+            JOB["texto"] = "Preparando " + fi["nombre"]
+            src = os.path.join(carpeta, fi["nombre"])
+            dst = os.path.join(W, "e%02d.fit" % k)
+            if fi["nombre"].lower().endswith(".xisf"):
+                xisf_a_fits(src, dst)
+            else:
+                enlace(src, dst)
+            items.append({"ruta": dst, "escala": fi.get("escala"), "nombre": fi["nombre"]})
+            if JOB["cancelar"]:
+                raise RuntimeError("Cancelado")
+        ref = [f["nombre"] for f in fichas].index(ref_nombre)
+        filtros = sorted({filtro_suelto(f.get("filtro")) for f in fichas if f.get("filtro")})
+        objeto = next((f.get("objeto") for f in fichas if f.get("objeto")), "")
+        base = seguro("unido_" + (filtros[0] if len(filtros) == 1 else "masters"))[:60]
+        destino = os.path.join(OUT, base)
+        JOB["paso"] = len(fichas) + 1
+        res = unir_en_marco(siril, W, items, ref, destino, modo_peso, pesos)
+        JOB["paso"] = len(fichas) + 2
+        JOB["texto"] = "Preparando la vista previa"
+        jpg = os.path.join(OUT, "vista_previa")
+        try:
+            correr_siril(siril, "\n".join(["requires 1.2.0", f"load {q(destino + '.fit')}", "autostretch", "resample 0.5",
+                                           f"savejpg {q(jpg)} 88"]) + "\n", "unir_vista")
+        except RuntimeError as e:
+            if str(e) == "Cancelado":
+                raise
+        R = fichas[ref]
+        informe = {"fecha": marca, "objeto": objeto, "filtros": filtros, "referencia": ref_nombre, "peso": modo_peso,
+                   "escala": R.get("escala"), "campo": R.get("campo"), "archivo": base + ".fit", "masters": res}
+        with open(os.path.join(OUT, "informe.json"), "w", encoding="utf-8") as fh:
+            json.dump(informe, fh, ensure_ascii=False, indent=1)
+        lin = ["ASTRO · Masters unidos", "=" * 40, "", "Fecha: " + marca, "Objeto: " + (objeto or "—"),
+               "Filtro: " + (", ".join(filtros) or "—"), "Encuadre y escala de: " + ref_nombre +
+               ((" (%.3f″/px, %.2f° × %.2f°)" % (R["escala"], R["campo"][0], R["campo"][1])) if R.get("escala") and R.get("campo") else ""),
+               "Peso: " + {"ruido": "según el ruido de cada master", "igual": "igual para todos", "mano": "a mano"}[modo_peso], "",
+               "Cada píxel se hace solo con los masters que lo cubren; los bordes de cada uno se funden con los demás.",
+               "El brillo y el fondo de cada master se igualan a los de la referencia.", ""]
+        for r in res:
+            if r.get("usada"):
+                lin.append("· %s: peso %s %%, cubre el %s %% del encuadre%s%s" % (
+                    r["nombre"], r.get("peso"), r.get("cobertura"),
+                    (", %.3f″/px" % r["escala"]) if r.get("escala") else "", (", girado %s°" % r["giro"]) if r.get("giro") else ""))
+            else:
+                lin.append("· %s: NO se ha usado (%s)" % (r["nombre"], r.get("motivo") or "?"))
+        with open(os.path.join(OUT, "informe.txt"), "w", encoding="utf-8") as fh:
+            fh.write("\n".join(lin) + "\n")
+        UNIR["ultimo"] = {"carpeta": OUT, "jpg": jpg + ".jpg" if os.path.isfile(jpg + ".jpg") else ""}
+        JOB["unir"] = {"carpeta": OUT, "archivo": base + ".fit", "vista": bool(UNIR["ultimo"]["jpg"]), "informe": informe}
+        JOB["paso"] = JOB["pasos"]
+        JOB["texto"] = "Terminado"
+        JOB["estado"] = "ok"
+    except Exception as e:
+        JOB["estado"] = "cancelado" if str(e) == "Cancelado" else "error"
+        JOB["error"] = str(e)
+    finally:
+        try:
+            JOB["_logf"].close()
+        except Exception:
+            pass
+        JOB["_logf"] = None
+        shutil.rmtree(W, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["fin"] = _dt.datetime.now().isoformat(timespec="seconds")
 
 def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
     siril = plan["siril"]
@@ -12852,10 +13600,11 @@ def trabajo_apilado(plan, filtros_elegidos, vista=True, pesos=True):
               JOB["texto"] = f"{_etq_filtro(f['filtro'])}: combinando {len(hechos)} equipos"
               destino = os.path.join(OUT, f"{obj}_{F}_master")
               try:
-                  ref, usados, giros = combinar_equipos(siril, W, F, hechos, destino, plan.get("siril_version"))
+                  ref, usados, giros = combinar_equipos(siril, W, F, hechos, destino, plan.get("siril_version"), plan.get("encuadre") or "pequeno")
                   re_ = hechos[ref][0]
                   final = (destino + ".fit", re_.get("escala"), (re_.get("w"), re_.get("h")), re_.get("centro"))
                   combinado = {"referencia": re_["nombre"], "escala": re_.get("escala"), "equipos": [hechos[i][0]["nombre"] for i in usados],
+                               "encuadre": plan.get("encuadre") or "pequeno",
                                "archivo": os.path.basename(destino) + ".fit",
                                "giros": {hechos[i][0]["nombre"]: g for i, g in giros.items()}}
                   JOB["resultados"].append({"filtro": f["filtro"], "equipo": "combinado", "archivo": os.path.relpath(destino + ".fit", DISCO).replace(os.sep, "/"),
@@ -19669,17 +20418,18 @@ def lugar_limpio(d):
     return out if (out["nombre"] or "lat" in out or out.get("sin")) else None
 
 
-def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True, ids=None, lugar=None):
+def iniciar_apilado(objeto, filtros, avisos_ok, vista=True, pesos=True, ids=None, lugar=None, encuadre="pequeno"):
     _reservar_job("Ya hay un apilado en marcha.")
     try:
-        _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos, ids, lugar)
+        _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos, ids, lugar, encuadre)
     finally:
         _JOB_RESERVA["on"] = False
 
 
-def _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos, ids=None, lugar=None):
+def _iniciar_apilado(objeto, filtros, avisos_ok, vista, pesos, ids=None, lugar=None, encuadre="pequeno"):
     plan = planificar(objeto, avisos_ok, True, ids)
     plan["lugar"] = lugar_limpio(lugar) if ids is not None else None
+    plan["encuadre"] = "grande" if encuadre == "grande" else "pequeno"
     if not plan["siril"]:
         raise RuntimeError("No encuentro Siril. Instálalo desde siril.org (en Aplicaciones) y vuelve a intentarlo.")
     if not plan["bits"]:
@@ -20741,6 +21491,12 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps([{"id": e["id"], "nombre": e["nombre"]} for e in editores()], ensure_ascii=False))
         if p.path == "/api/proyecto/estado":
             return self._send(200, json.dumps({k: v for k, v in PROY.items() if k != "cancelar"}, ensure_ascii=False, default=str))
+        if p.path == "/api/unir/vista":
+            u = UNIR.get("ultimo") or {}
+            if u.get("jpg") and os.path.isfile(u["jpg"]):
+                with open(u["jpg"], "rb") as fh:
+                    return self._send(200, fh.read(), "image/jpeg")
+            return self._send(404, "no hay vista", "text/plain; charset=utf-8")
         if p.path == "/api/apilado/estado":
             siril, ver = buscar_siril()
             return self._send(200, json.dumps(dict(estado_publico(), siril=siril, siril_version=ver), default=str))
@@ -20886,13 +21642,39 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/apilado/iniciar":
                 d = json.loads(self._body() or b"{}")
                 iniciar_apilado(d.get("objeto", ""), d.get("filtros") or [], bool(d.get("avisos", True)), bool(d.get("vista", True)),
-                                bool(d.get("pesos", True)), d.get("ids") if isinstance(d.get("ids"), list) else None, d.get("lugar"))
+                                bool(d.get("pesos", True)), d.get("ids") if isinstance(d.get("ids"), list) else None, d.get("lugar"),
+                                "grande" if d.get("encuadre") == "grande" else "pequeno")
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/apilado/cancelar":
                 JOB["cancelar"] = True
                 if _PROC.get("p"):
                     try: _PROC["p"].terminate()
                     except Exception: pass
+                return self._send(200, '{"ok":true}')
+            if p.path == "/api/unir/carpeta":
+                d = json.loads(self._body() or b"{}")
+                carpeta, fallo = (elegir_carpeta(_L("Elige la carpeta con los masters que quieres unir", "Choose the folder with the masters to merge"), True)
+                                  if d.get("elegir") else (str(d.get("carpeta") or ""), False))
+                if not carpeta:
+                    return self._send(200, json.dumps({"carpeta": "", "fallo": fallo}))
+                try:
+                    lst = masters_de_carpeta(carpeta)
+                except RuntimeError as e:
+                    return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+                siril, ver = buscar_siril()
+                return self._send(200, json.dumps({"carpeta": carpeta, "masters": lst, "siril": bool(siril), "siril_version": ver}, default=str))
+            if p.path == "/api/unir/iniciar":
+                d = json.loads(self._body() or b"{}")
+                try:
+                    iniciar_unir(str(d.get("carpeta") or ""), [str(x) for x in (d.get("archivos") or [])], str(d.get("ref") or ""),
+                                 str(d.get("peso") or "ruido"), d.get("pesos") or {})
+                except RuntimeError as e:
+                    return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+                return self._send(200, '{"ok":true}')
+            if p.path == "/api/unir/abrir":
+                u = UNIR.get("ultimo") or {}
+                if u.get("carpeta") and os.path.isdir(u["carpeta"]):
+                    abrir_sistema(u["carpeta"])
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/apilado/abrir":
                 d = json.loads(self._body() or b"{}")
