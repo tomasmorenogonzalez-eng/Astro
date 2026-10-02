@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.5",
+  "es": [
+   "**Acerca de ASTRO**: una página nueva con la versión, los autores y colaboradores, la licencia, los catálogos y servicios que ASTRO consulta (Gaia, AAVSO, ExoClock, Open-Meteo…) y los programas y bibliotecas de terceros que incluye, con su licencia. La tienes al pie de la ventana de inicio y junto a «Ventana de inicio…»."
+  ],
+  "en": [
+   "**About ASTRO**: a new page with the version, the authors and contributors, the licence, the catalogues and services ASTRO queries (Gaia, AAVSO, ExoClock, Open-Meteo…) and the third-party software and libraries it includes, with their licences. You'll find it at the foot of the start window and next to «Start window…»."
+  ],
+  "fr": [
+   "**À propos d'ASTRO** : une nouvelle page avec la version, les auteurs et collaborateurs, la licence, les catalogues et services qu'ASTRO consulte (Gaia, AAVSO, ExoClock, Open-Meteo…) et les logiciels et bibliothèques tiers qu'il inclut, avec leur licence. Elle se trouve au pied de la fenêtre d'accueil et à côté de « Fenêtre d'accueil… »."
+  ],
+  "de": [
+   "**Über ASTRO**: eine neue Seite mit Version, Autoren und Mitwirkenden, Lizenz, den Katalogen und Diensten, die ASTRO abfragt (Gaia, AAVSO, ExoClock, Open-Meteo…), sowie der enthaltenen Software und den Bibliotheken Dritter mit ihren Lizenzen. Du findest sie am Fuß des Startfensters und neben „Startfenster…“."
+  ],
+  "it": [
+   "**Informazioni su ASTRO**: una nuova pagina con la versione, gli autori e i collaboratori, la licenza, i cataloghi e i servizi che ASTRO consulta (Gaia, AAVSO, ExoClock, Open-Meteo…) e i programmi e le librerie di terze parti che include, con le loro licenze. La trovi in fondo alla finestra iniziale e accanto a «Finestra iniziale…»."
+  ],
+  "pt": [
+   "**Acerca do ASTRO**: uma página nova com a versão, os autores e colaboradores, a licença, os catálogos e serviços que o ASTRO consulta (Gaia, AAVSO, ExoClock, Open-Meteo…) e os programas e bibliotecas de terceiros que inclui, com as respetivas licenças. Encontra-a no rodapé da janela inicial e junto a «Janela inicial…»."
+  ]
+ },
+ {
   "version": "0.33.4",
   "es": [
    "**El equipo de tus tomas, a tu gusto**: en la ficha de cada equipo de un proyecto, **«Cambiar el telescopio o la cámara de estas tomas…»** te deja ponerlos tú cuando la cabecera no los trae o los trae mal. En los desplegables salen primero los telescopios, objetivos y cámaras de **«Mi equipo»**.",
