@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.1"
+VERSION_PROG = "2026.10.03.2"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2509,14 +2509,20 @@ async function _ingest(files, opts){
   const indexar = r => { if (r.origen) porRuta.add(r.origen); if (r.desde) porRuta.add(r.desde);
     const k = r.name + "|" + r.size; if (!porNT.has(k)) porNT.set(k, []); porNT.get(k).push(r); };
   frames.forEach(indexar);
+  // mientras se termina una toma, las siguientes ya se están leyendo y midiendo (solo las que seguro no están ya)
+  const pre = new Map(); let ultGuardado = Date.now();
+  const adelantar = desde => { for (let j = desde; j < files.length && pre.size < POOL.n; j++){ const g = files[j];
+    if (pre.has(g) || (g.ruta && porRuta.has(g.ruta)) || porNT.has(g.name + "|" + g.size)) continue;
+    const pr = analyzeFile(g, batch); pr.catch(() => {}); pre.set(g, pr); } };
   for (const f of files){
     if (opts.parar && opts.parar()) break;
+    adelantar(n);
     n++; bar.style.width = Math.round(100*n/files.length)+"%"; if (opts.progreso) opts.progreso(n, files.length);
     const mismos = porNT.get(f.name + "|" + f.size) || [];
     if ((f.ruta && porRuta.has(f.ruta)) || (mismos.length && mismaToma(mismos, await fechaRapida(f)))){
-      res.dup++; if (f.ruta) res.hechas.push(f.ruta); addLog(`${f.name}: ya estaba en la base de datos`, "warn"); continue; }
+      pre.delete(f); res.dup++; if (f.ruta) res.hechas.push(f.ruta); addLog(`${f.name}: ya estaba en la base de datos`, "warn"); continue; }
     let rec;
-    try { rec = await analyzeFile(f, batch); }
+    try { const pr = pre.get(f); pre.delete(f); rec = await (pr || analyzeFile(f, batch)); }
     catch(e){ res.bad++; if (f.ruta && !e.transporte) res.fallidas.push(f.ruta); addLog(`${f.name}: no se pudo procesar (${e.message||e})`, "bad"); console.error(e); continue; }
     if (batch.lugar && !lugarCoordsToma(rec)){ const si = sitioDeClave(batch.lugar); if (si) rec.sitio = {lat: si.lat, lon: si.lon}; }       // solo si la cabecera no trae el lugar
     if (eqp){ rec.object = eqp.obj; rec.equipo_id = eqp.s.id; if (!rec.tel) rec.tel = eqp.s.tel || ""; if (!rec.cam) rec.cam = eqp.s.cam || ""; }
@@ -2530,10 +2536,11 @@ async function _ingest(files, opts){
       const cp = f.copiar === undefined ? copy : !!f.copiar;
       if (cp){ if (f.ruta) await copiarDesdeDisco(f, rec); else await copyIntoLibrary(f, rec); }
       else if (f.ruta) rec.origen = f.ruta;       // sin copiar: ASTRO recuerda dónde está para poder apilarla
-      frames.push(rec); indexar(rec); nuevas.push(rec); res.added++; scheduleSave(); if (f.ruta) res.hechas.push(f.ruta);
+      frames.push(rec); indexar(rec); nuevas.push(rec); res.added++; dirty = true;
+      if (Date.now() - ultGuardado > 20000){ ultGuardado = Date.now(); scheduleSave(); }      // (al acabar se guarda siempre)
+      if (f.ruta) res.hechas.push(f.ruta);
       addLog(`${f.name}: FWHM ${rec.fwhm?rec.fwhm.toFixed(2):"?"} px · alarg. ${rec.ecc?rec.ecc.toFixed(2):"?"} · ${rec.starCount??"?"} estrellas · ${rec.trailCount||0} trazas`, rec.status==="bad"?"bad":rec.status==="warn"?"warn":"ok");
     } catch(e){ res.bad++; addLog(`${f.name}: no se pudo guardar (${e.message||e})`, "bad"); console.error(e); }
-    await new Promise(r => setTimeout(r, 0));
   }
   evaluateAll(); conciliarProyectos();
   if (nuevas.length){      // las tomas nuevas pasan por los límites de su proyecto, si los tiene
@@ -2772,8 +2779,13 @@ async function analyzeFile(file, batch){
     object:"", cam:"", tel:"", filter:"", exp:null, temp:null, gain:null, offset:null, bin:"", dateObs:"", night:"", w:null, h:null, notes:batch.note||"", header:{},
     fwhm:null, ecc:null, eccCenter:null, eccCorners:null, coherence:null, starCount:null, satStars:null, trailCount:null, trailLen:null, trails:[], bgPct:null, gradient:null,
     ruido:null, snr:null, score:null, status:"na", reasons:[] };
-  let parsed;
-  if (EXT_FITS.test(file.name)) parsed = await parseFITS(file); else { rec.format="xisf"; parsed = await parseXISF(file); }
+  let parsed, a = null, hilo = null;
+  const fits = EXT_FITS.test(file.name);
+  if (fits && !POOL.roto && window.Worker){ try { hilo = await analizarEnHilo(file, batch.cam); } catch(e){ hilo = null; POOL.roto = true; console.warn("análisis en hilos", e); } }
+  if (hilo){
+    if (hilo.error){ const er = new Error(hilo.error); if (hilo.transporte) er.transporte = true; throw er; }
+    parsed = {header: hilo.header, w: hilo.w, h: hilo.h, sampler: null}; a = hilo.a;
+  } else if (fits) parsed = await parseFITS(file); else { rec.format="xisf"; parsed = await parseXISF(file); }
   Object.assign(rec, extractMeta(parsed.header));
   rec.header = trimHeader(parsed.header); rec.w = parsed.w; rec.h = parsed.h;
   if (!rec.object) rec.object = batch.obj; if (!rec.cam) rec.cam = batch.cam; if (!rec.tel) rec.tel = batch.tel;
@@ -2781,13 +2793,66 @@ async function analyzeFile(file, batch){
   rec.night = nightOf(rec.dateObs);
   if (parsed.sampler){
     parsed.bayer = !!(parsed.header.BAYERPAT || parsed.header.COLORTYP || /MC\b/i.test(rec.cam));
-    const a = analyzeLight(parsed);
+    a = analyzeLight(parsed);
+  }
+  if (a){
     Object.assign(rec, { fwhm:a.fwhm, ecc:a.ecc, eccCenter:a.eccCenter, eccCorners:a.eccCorners, coherence:a.coherence, starCount:a.starCount, satStars:a.satStars,
       trailCount:a.trailCount, trailLen:a.trailLen, trails:a.trails, bgPct:a.bgPct, gradient:a.gradient, ruido:a.ruido, snr:a.snr, estrellas:a.estrellas });
     if (!batch.sinMiniatura) try { rec.thumb = await makeThumb(rec, a); } catch(e){ console.warn("miniatura", e); }
   }
   evaluate(rec, null);
   return rec;
+}
+/* ---- Análisis en paralelo: cada toma FITS se lee y se mide en un hilo aparte (varias a la vez, sin parar la ventana).
+        Los hilos no se frenan con la ventana en segundo plano. Las XISF se miden en la ventana (necesitan DOMParser). ---- */
+const POOL = {n: Math.max(2, Math.min(4, (navigator.hardwareConcurrency || 4) - 1)), libres: [], cola: [], creados: 0, roto: false, url: null};
+async function _hiloAnalisis(m){
+  try {
+    const file = m.file || { name: m.name, size: m.size, slice(a, b){ a = Math.max(0, a || 0); b = Math.min(m.size, b === undefined ? m.size : b);
+      return { arrayBuffer: async () => {
+        if (b <= a) return new ArrayBuffer(0);
+        let r, buf;
+        try { r = await fetch(m.url, {headers: {Range: "bytes=" + a + "-" + (b - 1)}}); if (!r.ok) throw new Error((await r.text()) || r.statusText); buf = await r.arrayBuffer(); }
+        catch(err){ err.transporte = true; throw err; }
+        return r.status === 206 ? buf : buf.slice(a, b); } }; } };
+    const p = await parseFITS(file);
+    let a = null;
+    if (p.sampler){
+      p.bayer = !!(p.header.BAYERPAT || p.header.COLORTYP || /MC\b/i.test(canonCam(String(p.header.INSTRUME || p.header.CAMERA || "")) || m.cam || ""));
+      a = analyzeLight(p);
+    }
+    postMessage({header: p.header, w: p.w, h: p.h, a}, a ? [a.img.buffer, a.satMask.buffer] : []);
+  } catch(err){ postMessage({error: String((err && err.message) || err), transporte: !!(err && err.transporte)}); }
+}
+function poolHilo(){
+  if (!POOL.url){
+    const src = "const CAM_ALIASES = " + JSON.stringify(CAM_ALIASES.map(([re, n]) => [re.source, re.flags, n])) + ".map(([s, f, n]) => [new RegExp(s, f), n]);"
+      + [parseFITS, canonCam, analyzeLight, _hiloAnalisis].map(f => String.fromCharCode(10) + f.toString()).join("") + String.fromCharCode(10) + "onmessage = e => _hiloAnalisis(e.data);";
+    POOL.url = URL.createObjectURL(new Blob([src], {type: "text/javascript"}));
+  }
+  const w = new Worker(POOL.url);
+  w.onmessage = e => { const t = w._t; w._t = null; POOL.libres.push(w); if (t) t.res(e.data); poolSeguir(); };
+  w.onerror = e => { const t = w._t; w._t = null; POOL.roto = true; try { w.terminate(); } catch(_){} if (t) t.rej(new Error("hilo")); const c = POOL.cola.splice(0); c.forEach(x => x.rej(new Error("hilo"))); };
+  POOL.creados++; return w;
+}
+function poolSeguir(){
+  while (POOL.cola.length){
+    let w = POOL.libres.pop(); if (!w && POOL.creados < POOL.n) w = poolHilo(); if (!w) return;
+    const t = POOL.cola.shift(); w._t = t; w.postMessage(t.msg);
+  }
+}
+function analizarEnHilo(file, cam){
+  return new Promise((res, rej) => {
+    const disco = typeof file.url === "string";
+    const t = {msg: disco ? {url: new URL(file.url, location.href).href, name: file.name, size: file.size, cam} : {file, name: file.name, size: file.size, cam}, res, rej};
+    POOL.cola.push(t);
+    try { poolSeguir(); } catch(e){ const i = POOL.cola.indexOf(t); if (i >= 0) POOL.cola.splice(i, 1); rej(e); }
+  });
+}
+// varias a la vez: fn(x) sobre cada elemento, con n en marcha como mucho
+async function enParalelo(lista, n, fn){
+  let i = 0; const uno = async () => { while (i < lista.length){ const x = lista[i++]; await fn(x); } };
+  await Promise.all(Array.from({length: Math.max(1, Math.min(n, lista.length))}, uno));
 }
 function uid(){ return "l"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 // noche de una toma: la fecha (en la hora de este ordenador) de la tarde en que empezó. DATE-OBS va en UTC: antes se
@@ -3697,8 +3762,8 @@ async function remedirTomas(lista){
   pintarIndicadores();
   const pintarProy = () => { if (VISTA_ACTUAL === "proyecto") renderProyecto(); };
   let ultimo = Date.now();
-  for (const f of lista){
-    if (IND.remedir.parar) break;
+  await enParalelo(lista, POOL.n, async f => {
+    if (IND.remedir.parar) return;
     try {
       const file = f.path ? new ArchivoDisco({url:"/file?path=" + encodeURIComponent(f.path), nombre:f.name, size:f.size, mtime:0})
                           : new ArchivoDisco({ruta:f.origen, nombre:f.name, size:f.size, mtime:Date.parse(f.dateObs) || 0});
@@ -3708,8 +3773,7 @@ async function remedirTomas(lista){
       IND.remedir.hechas++;
     } catch(e){ IND.remedir.errores++; }
     if (Date.now() - ultimo > 1200){ ultimo = Date.now(); pintarIndicadores(); if (IND.remedir.hechas % 20 === 0) pintarProy(); }
-    await esperar(0);
-  }
+  });
   const x = IND.remedir; IND.remedir = null;
   evaluateAll(); await saveDb(); render(); pintarIndicadores();
   toast(x.errores ? trLT("{1} tomas medidas · {2} no se han podido leer (¿está conectado el disco?)", "{1} frames measured · {2} could not be read (is the disk connected?)", x.hechas, x.errores)
@@ -5859,6 +5923,8 @@ function renderArchivo(){
   else if (ARC.pestana === "sesiones") h += arcSesiones(lista);
   else if (ARC.pestana === "equipos") h += arcEquiposVista(lista);
   else {
+    ARC.lotePend = ps.filter(x => x.sinAnalizar > 0 && !(ARC.analizando && ARC.analizando.obj === x.obj)).map(x => ({obj: x.obj, n: x.sinAnalizar}));
+    h += `<div id="arcLote" style="margin:8px 0"></div>`;
     h += `<div class="arcEstados"><button class="${ARC.estado ? "" : "on"}" data-arc-est="">${esc(trLT("Todos", "All"))} <b>${nfmt(todos.length)}</b></button>${ORDEN_ESTADOS.filter(k => porEstado.get(k))
       .map(k => `<button class="${ARC.estado === k ? "on" : ""}" data-arc-est="${k}"><i class="dotE e-${k}"></i>${esc(textoEstado(k))} <b>${nfmt(porEstado.get(k))}</b></button>`).join("")}
       <span class="spacer"></span><label class="note"><input type="checkbox" id="arcPend" ${ARC.pendientes ? "checked" : ""}> ${esc(trLT("Con tomas sin analizar", "With frames not analysed"))}</label><select id="arcOrden2">${opt("horas", trLT("Más horas primero", "Most hours first"), ARC.orden)}${opt("ultima", trLT("Última noche", "Latest night"), ARC.orden)}${opt("objetivo", trLT("Más cerca del objetivo", "Closest to the goal"), ARC.orden)}${opt("pendientes", trLT("Más por analizar", "Most to analyse"), ARC.orden)}${opt("nombre", trLT("Nombre", "Name"), ARC.orden)}</select></div>`;
@@ -6471,7 +6537,7 @@ function arcCalendario(anios){
     </tbody></table></div><div class="note" style="margin-top:8px">${esc(trLT("Cada casilla: noches con tomas útiles y horas. Pulsa una para ver los proyectos de ese mes.", "Each cell: nights with usable frames and hours. Click one to see that month's projects."))}</div>`;
 }
 function arcEnlazar(){
-  const el = $("vistaArchivo");
+  const el = $("vistaArchivo"); arcLotePintar();
   el.querySelectorAll("[data-arc-proy]").forEach(tr_ => { tr_.onclick = () => abrirProyecto(tr_.dataset.arcProy); tr_.onkeydown = ev => { if (ev.key === "Enter") abrirProyecto(tr_.dataset.arcProy); }; });
   el.querySelectorAll("[data-arc-pest]").forEach(b => b.onclick = () => { ARC.pestana = b.dataset.arcPest; renderArchivo(); });
   el.querySelectorAll("[data-arc-est]").forEach(b => b.onclick = () => { ARC.estado = b.dataset.arcEst; renderArchivo(); });
@@ -6813,6 +6879,8 @@ function pgPanelAnalizar(X){
   if (an) return `<div class="arcBarraProg"><i style="width:${Math.round(100 * (an.hechas + an.errores) / Math.max(1, an.total))}%"></i></div>
     <p>${esc(trLT("Analizando {1} de {2}", "Analysing {1} of {2}", nfmt(an.hechas + an.errores), nfmt(an.total)))}${an.hechas > 3 ? " · " + esc(trLT("quedan unos {1}", "about {1} left", duracion((Date.now() - an.t0) / 1000 / (an.hechas + an.errores) * (an.total - an.hechas - an.errores)))) : ""}${an.errores ? " · " + esc(trLT("{1} no se han podido leer", "{1} could not be read", nfmt(an.errores))) : ""}</p>
     <div class="pgAcc">${pgBtn(trLT("Parar", "Stop"), "parar")}</div>`;
+  if (c.na && (ARC.cola || []).includes(X.obj)) return `<div class="arcBarraProg"><i style="width:${pc}%"></i></div>
+    <p>${esc(trLT("En cola: se analizará cuando acaben los anteriores (puesto {1}).", "Queued: it will be analysed when the previous ones finish (position {1}).", ARC.cola.indexOf(X.obj) + 1))}</p>`;
   if (c.na) return `<div class="arcBarraProg"><i style="width:${pc}%"></i></div>
     <p>${esc(trLT("{1} de {2} tomas analizadas. ASTRO mide estrellas, trazas, nubes y enfoque en segundo plano, leyendo cada toma de su carpeta.", "{1} of {2} frames analysed. ASTRO measures stars, trails, clouds and focus in the background, reading each frame from its folder.", nfmt(analizadas), nfmt(fl.length)))}</p>
     <div class="pgAcc">${pgBtn(trLT("Analizar las {1} que faltan", "Analyse the {1} remaining", nfmt(c.na)), "analizar", true)}</div>`;
@@ -6970,7 +7038,7 @@ function pgEnlazar(el, X){
 
 function arcAccion(a, obj){
   if (a === "analizar") return analizarProyecto(obj);
-  if (a === "parar"){ ARC.parar = true; return; }
+  if (a === "parar"){ ARC.parar = true; return; }       // para el análisis en marcha y vacía la cola
   if (a === "tomas"){ filters.object = new Set([obj]); mostrarVista("tomas"); render(); return; }
   if (a === "criterio") return abrirCriterio(obj);
   if (a === "historial"){ ARC.histTodo = obj; return renderProyecto(true); }
@@ -7059,32 +7127,81 @@ function pintarCobertura(){
   $("cobFalta").onchange = e => { COB.falta = e.target.checked; pintarCobertura(); };
   if ($("cobEnviar")) $("cobEnviar").onclick = () => { $("cobBox").classList.remove("show"); arcEnviarCalibracion(); };
 }
-async function analizarProyecto(obj){
-  if (ARC.analizando) return toast(trLT("Ya se está analizando otro proyecto", "Another project is being analysed"));
+// Los análisis van en cola, uno detrás de otro (el primero que se pide, el primero que se hace), y siguen aunque se
+// cambie de apartado o la ventana quede en segundo plano
+function analizarProyecto(obj){ return analizarVarios([obj]); }
+function analizarVarios(objs){
+  ARC.cola = ARC.cola || [];
+  const nuevos = objs.filter(o => o && !ARC.cola.includes(o) && !(ARC.analizando && ARC.analizando.obj === o));
+  if (!nuevos.length) return;
+  ARC.cola.push(...nuevos);
+  if (ARC.colaActiva){
+    toast(nuevos.length === 1 ? trLT("{1} queda en cola: se analizará cuando acaben los anteriores", "{1} is queued: it will be analysed when the previous ones finish", nuevos[0])
+      : trLT("{1} proyectos puestos en cola", "{1} projects queued", nfmt(nuevos.length)));
+    if (VISTA_ACTUAL === "proyecto") renderProyecto(); else arcLotePintar();
+    return;
+  }
+  return colaAnalisis();
+}
+async function colaAnalisis(){
+  if (ARC.colaActiva) return;
+  ARC.colaActiva = true; ARC.parar = false;
+  const tot = {hechas: 0, errores: 0, fuera: 0, proyectos: 0};
+  try {
+    while (ARC.cola.length && !ARC.parar){
+      const x = await analizarUno(ARC.cola.shift());
+      if (x){ tot.hechas += x.hechas; tot.errores += x.errores; tot.fuera += x.fuera; tot.proyectos++; }
+    }
+  } finally { ARC.colaActiva = false; ARC.analizando = null; ARC.cola = []; }
+  render();
+  if (!tot.proyectos) return;
+  const cuantas = tot.proyectos > 1 ? trLT("{1} tomas analizadas en {2} proyectos", "{1} frames analysed in {2} projects", nfmt(tot.hechas), nfmt(tot.proyectos)) : trLT("{1} tomas analizadas", "{1} frames analysed", nfmt(tot.hechas));
+  toast((tot.errores ? trLT("{1} tomas analizadas · {2} no se han podido leer (¿está conectado el disco?)", "{1} frames analysed · {2} could not be read (is the disk connected?)", nfmt(tot.hechas), nfmt(tot.errores)) : cuantas)
+    + (tot.fuera ? " · " + trLT("{1} fuera del apilado por los límites del proyecto", "{1} left out of the stack by the project limits", tot.fuera) : ""));
+}
+async function analizarUno(obj){
   const lista = frames.filter(f => (f.object || "").trim() === obj && f.status === "na" && !f.discarded && f.origen);
-  if (!lista.length) return;
-  ARC.analizando = {obj, total:lista.length, hechas:0, errores:0, t0:Date.now()}; ARC.parar = false; renderProyecto();
+  if (!lista.length) return null;
+  const an = ARC.analizando = {obj, total:lista.length, hechas:0, errores:0, t0:Date.now()};
+  const pintar = () => { if (VISTA_ACTUAL === "proyecto") renderProyecto(); else arcLotePintar(); };
+  pintar();
   const vacio = {obj:"", tel:"", cam:"", note:""};
   let ultimo = Date.now();
-  for (const f of lista){
-    if (ARC.parar) break;
+  await enParalelo(lista, POOL.n, async f => {
+    if (ARC.parar) return;
     try {
       const file = new ArchivoDisco({ruta:f.origen, nombre:f.name, size:f.size, mtime:Date.parse(f.dateObs) || 0});
       const r = await analyzeFile(file, vacio);
       for (const k of CAMPOS_MEDIDA.concat("thumb")) f[k] = r[k];
       if (!f.w) f.w = r.w; if (!f.h) f.h = r.h;
       delete f.indice; delete f.errorAnalisis; f.analizada = new Date().toISOString().slice(0, 10);
-      ARC.analizando.hechas++;
-    } catch(e){ ARC.analizando.errores++; f.errorAnalisis = String(e.message || e).slice(0, 160); }
-    if (Date.now() - ultimo > 1500){ ultimo = Date.now(); if (VISTA_ACTUAL === "proyecto") renderProyecto(); }
-    if ((ARC.analizando.hechas + ARC.analizando.errores) % 40 === 0){ evaluateAll(); scheduleSave(); }
-    await esperar(0);
-  }
-  const x = ARC.analizando; ARC.analizando = null;
-  if (x.hechas) registrarHistorial(obj, "analisis", {n: x.hechas, errores: x.errores});
-  evaluateAll(); const nl = limitesNuevas(lista.filter(f => f.starCount != null)); await saveDb(); render();
-  toast((x.errores ? trLT("{1} tomas analizadas · {2} no se han podido leer (¿está conectado el disco?)", "{1} frames analysed · {2} could not be read (is the disk connected?)", nfmt(x.hechas), nfmt(x.errores))
-                   : trLT("{1} tomas analizadas", "{1} frames analysed", nfmt(x.hechas))) + (nl ? " · " + trLT("{1} fuera del apilado por los límites del proyecto", "{1} left out of the stack by the project limits", nl) : ""));
+      an.hechas++;
+    } catch(e){ an.errores++; f.errorAnalisis = String(e.message || e).slice(0, 160); }
+    if (Date.now() - ultimo > 1500){ ultimo = Date.now(); pintar(); }
+    if ((an.hechas + an.errores) % 60 === 0){ evaluateAll(); scheduleSave(); }
+  });
+  ARC.analizando = null;
+  if (an.hechas) registrarHistorial(obj, "analisis", {n: an.hechas, errores: an.errores});
+  evaluateAll(); an.fuera = limitesNuevas(lista.filter(f => f.starCount != null)) || 0; await saveDb(); pintar();
+  return an;
+}
+// en el Archivo: analizar de una vez los proyectos de la lista que tienen tomas pendientes, y cómo va la cola
+function arcLoteHTML(){
+  const an = ARC.analizando, cola = ARC.cola || [];
+  if (ARC.colaActiva && an) return `<div class="arcBarraProg"><i style="width:${Math.round(100 * (an.hechas + an.errores) / Math.max(1, an.total))}%"></i></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="notr" style="flex:1">${esc(trLT("Analizando {1} · {2} de {3} tomas", "Analysing {1} · {2} of {3} frames", an.obj, nfmt(an.hechas + an.errores), nfmt(an.total)))}${cola.length ? esc(" · " + (cola.length === 1 ? trLT("1 proyecto en cola", "1 project queued") : trLT("{1} proyectos en cola", "{1} projects queued", nfmt(cola.length)))) : ""}</span>
+    <button class="btn small" data-arc-lote-parar>${esc(trLT("Parar", "Stop"))}</button></div>`;
+  const pend = (ARC.lotePend || []).filter(x => !cola.includes(x.obj));
+  if (!pend.length) return "";
+  const n = pend.reduce((t, x) => t + x.n, 0);
+  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn small primary" data-arc-lote>${esc(pend.length === 1 ? trLT("Analizar las {1} tomas pendientes de 1 proyecto", "Analyse the {1} pending frames of 1 project", nfmt(n)) : trLT("Analizar las {1} tomas pendientes de {2} proyectos", "Analyse the {1} pending frames of {2} projects", nfmt(n), nfmt(pend.length)))}</button>
+    <span class="note">${esc(trLT("Se analizan en cola, uno detrás de otro. Para elegir un conjunto, acótalo antes con el buscador o los estados.", "They are analysed in a queue, one after another. To pick a set, narrow the list first with the search box or the statuses."))}</span></div>`;
+}
+function arcLotePintar(){
+  const el = $("arcLote"); if (!el) return;
+  el.innerHTML = arcLoteHTML();
+  const b = el.querySelector("[data-arc-lote]"); if (b) b.onclick = () => { analizarVarios((ARC.lotePend || []).map(x => x.obj)); arcLotePintar(); };
+  const p = el.querySelector("[data-arc-lote-parar]"); if (p) p.onclick = () => { ARC.parar = true; p.disabled = true; };
 }
 
 /* ============ Apilado con Siril ============ */

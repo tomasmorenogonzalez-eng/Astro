@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.33.8",
+  "es": [
+   "**Analizar es mucho más rápido.** ASTRO lee y mide varias tomas a la vez, en segundo plano, sin parar la ventana, y ya no guarda toda la base de datos tras cada toma al añadir.",
+   "**Analizar varios proyectos de una vez.** En el Archivo, un botón analiza todas las tomas pendientes de los proyectos de la lista (acótala con el buscador o los estados para elegir un conjunto).",
+   "**Los análisis van en cola**, uno detrás de otro por orden de petición: puedes pedir varios proyectos y seguir trabajando; continúan aunque cambies de apartado o la ventana quede en segundo plano. Sugerencias de Raúl Hussein."
+  ],
+  "en": [
+   "**Analysing is much faster.** ASTRO reads and measures several frames at once, in the background, without freezing the window, and no longer saves the whole database after every frame when adding.",
+   "**Analyse several projects in one go.** In the Archive, one button analyses all pending frames of the listed projects (narrow the list with the search box or the statuses to pick a set).",
+   "**Analyses are queued**, one after another in the order requested: you can ask for several projects and keep working; they carry on even if you switch section or the window goes to the background. Suggested by Raúl Hussein."
+  ],
+  "fr": [
+   "**L'analyse est bien plus rapide.** ASTRO lit et mesure plusieurs poses à la fois, en arrière-plan, sans bloquer la fenêtre, et n'enregistre plus toute la base après chaque pose lors de l'ajout.",
+   "**Analyser plusieurs projets d'un coup.** Dans l'Archive, un bouton analyse toutes les poses en attente des projets de la liste (restreins-la avec la recherche ou les états pour choisir un ensemble).",
+   "**Les analyses passent en file d'attente**, l'une après l'autre dans l'ordre demandé : tu peux en demander plusieurs et continuer à travailler ; elles se poursuivent même si tu changes de section ou si la fenêtre passe en arrière-plan. Suggestions de Raúl Hussein."
+  ],
+  "de": [
+   "**Das Analysieren ist viel schneller.** ASTRO liest und misst mehrere Aufnahmen gleichzeitig im Hintergrund, ohne das Fenster zu blockieren, und speichert beim Hinzufügen nicht mehr nach jeder Aufnahme die ganze Datenbank.",
+   "**Mehrere Projekte auf einmal analysieren.** Im Archiv analysiert eine Schaltfläche alle ausstehenden Aufnahmen der aufgelisteten Projekte (grenze die Liste mit der Suche oder den Status ein, um eine Auswahl zu treffen).",
+   "**Analysen laufen in einer Warteschlange**, nacheinander in der angeforderten Reihenfolge: Du kannst mehrere Projekte anfordern und weiterarbeiten; sie laufen weiter, auch wenn du den Bereich wechselst oder das Fenster im Hintergrund ist. Vorschläge von Raúl Hussein."
+  ],
+  "it": [
+   "**L'analisi è molto più veloce.** ASTRO legge e misura più pose alla volta, in background, senza bloccare la finestra, e non salva più l'intero database dopo ogni posa durante l'aggiunta.",
+   "**Analizzare più progetti in una volta.** Nell'Archivio, un pulsante analizza tutte le pose in sospeso dei progetti in elenco (restringilo con la ricerca o gli stati per scegliere un insieme).",
+   "**Le analisi vanno in coda**, una dopo l'altra nell'ordine richiesto: puoi chiederne diverse e continuare a lavorare; proseguono anche se cambi sezione o la finestra va in background. Suggerimenti di Raúl Hussein."
+  ],
+  "pt": [
+   "**Analisar é muito mais rápido.** O ASTRO lê e mede várias exposições de uma vez, em segundo plano, sem bloquear a janela, e já não guarda toda a base de dados após cada exposição ao adicionar.",
+   "**Analisar vários projetos de uma vez.** No Arquivo, um botão analisa todas as exposições pendentes dos projetos da lista (restringe-a com a pesquisa ou os estados para escolher um conjunto).",
+   "**As análises vão em fila**, uma a seguir à outra pela ordem pedida: podes pedir vários projetos e continuar a trabalhar; continuam mesmo que mudes de secção ou a janela fique em segundo plano. Sugestões de Raúl Hussein."
+  ]
+ },
+ {
   "version": "0.33.7",
   "es": [
    "**Equipos sin rueda portafiltros.** Si las tomas que añades no traen el filtro en la cabecera, ASTRO te pregunta en ese momento qué filtro llevabas, con un desplegable de los que ya has usado, y recuerda el último para ese telescopio y esa cámara.",
