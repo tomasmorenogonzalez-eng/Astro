@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.6",
+  "es": [
+   "**Las trazas de satélites ya no rechazan una toma.** El rechazo de píxeles del apilado las elimina, así que una toma con trazas sigue siendo válida, con su nota. El rojo queda para lo que de verdad degrada la imagen: guiado, enfoque, nubes, fondo o poca señal.",
+   "Solo llevan **aviso** las trazas cuando hay menos de 15 tomas de ese filtro (el rechazo no llega) o cuando son larguísimas. Si prefieres lo de antes, en **Criterio de calidad** puedes marcar «Rechazar también las tomas con muchas trazas»."
+  ],
+  "en": [
+   "**Satellite trails no longer reject a frame.** The stack's pixel rejection removes them, so a frame with trails stays valid, with a note. Red is kept for what really degrades the image: guiding, focus, clouds, background or low signal.",
+   "Trails only get a **warning** when there are fewer than 15 frames of that filter (rejection can't cope) or when they are extremely long. If you prefer the old behaviour, in **Quality criteria** you can tick «Also reject frames with many trails»."
+  ],
+  "fr": [
+   "**Les traînées de satellites ne font plus rejeter une pose.** Le rejet de pixels à l'empilement les élimine : une pose avec des traînées reste donc valide, avec une note. Le rouge est réservé à ce qui dégrade vraiment l'image : guidage, mise au point, nuages, fond ou signal faible.",
+   "Les traînées ne donnent un **avertissement** que s'il y a moins de 15 poses de ce filtre (le rejet ne suffit pas) ou si elles sont très longues. Si vous préférez l'ancien comportement, cochez dans **Critère de qualité** « Rejeter aussi les poses comportant de nombreuses traînées »."
+  ],
+  "de": [
+   "**Satellitenspuren führen nicht mehr zur Ablehnung einer Aufnahme.** Die Pixelablehnung beim Stacken entfernt sie, also bleibt eine Aufnahme mit Spuren gültig, mit Hinweis. Rot bleibt dem vorbehalten, was das Bild wirklich verschlechtert: Guiding, Fokus, Wolken, Hintergrund oder schwaches Signal.",
+   "Eine **Warnung** gibt es nur, wenn von diesem Filter weniger als 15 Aufnahmen vorhanden sind (die Ablehnung reicht dann nicht) oder die Spuren extrem lang sind. Wer das alte Verhalten möchte, kann in den **Qualitätskriterien** „Auch Aufnahmen mit vielen Spuren ablehnen“ ankreuzen."
+  ],
+  "it": [
+   "**Le scie dei satelliti non fanno più scartare una posa.** Lo scarto dei pixel dell'impilamento le elimina, quindi una posa con scie resta valida, con la sua nota. Il rosso resta per ciò che degrada davvero l'immagine: guida, messa a fuoco, nuvole, fondo o poco segnale.",
+   "Le scie danno solo un **avviso** quando ci sono meno di 15 pose di quel filtro (lo scarto non basta) o quando sono lunghissime. Se preferisci il comportamento di prima, in **Criterio di qualità** puoi spuntare «Scarta anche le pose con molte scie»."
+  ],
+  "pt": [
+   "**Os rastos de satélites já não rejeitam uma exposição.** A rejeição de píxeis do empilhamento elimina-os, por isso uma exposição com rastos continua válida, com a sua nota. O vermelho fica para o que realmente degrada a imagem: guiagem, focagem, nuvens, fundo ou pouco sinal.",
+   "Os rastos só dão **aviso** quando há menos de 15 exposições desse filtro (a rejeição não chega) ou quando são muito longos. Se preferir o comportamento anterior, em **Critério de qualidade** pode marcar «Rejeitar também as exposições com muitos rastos»."
+  ]
+ },
+ {
   "version": "0.33.5",
   "es": [
    "**Acerca de ASTRO**: una página nueva con la versión, los autores y colaboradores, la licencia, los catálogos y servicios que ASTRO consulta (Gaia, AAVSO, ExoClock, Open-Meteo…) y los programas y bibliotecas de terceros que incluye, con su licencia. La tienes al pie de la ventana de inicio y junto a «Ventana de inicio…»."
