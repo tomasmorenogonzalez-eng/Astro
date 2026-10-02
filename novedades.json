@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.7",
+  "es": [
+   "**Equipos sin rueda portafiltros.** Si las tomas que añades no traen el filtro en la cabecera, ASTRO te pregunta en ese momento qué filtro llevabas, con un desplegable de los que ya has usado, y recuerda el último para ese telescopio y esa cámara.",
+   "Si ese equipo no lleva filtro, pulsa «No llevaba filtro» y no se vuelve a preguntar. El botón de cada equipo de un proyecto dice ahora «Cambiar el telescopio, la cámara o el filtro de estas tomas…»."
+  ],
+  "en": [
+   "**Setups without a filter wheel.** If the frames you add have no filter in their header, ASTRO asks you right then which filter you used, with a drop-down of those you have already used, and remembers the last one for that telescope and camera.",
+   "If that setup uses no filter, press «No filter was used» and it won't ask again. The button on each setup of a project now reads «Change the telescope, camera or filter of these frames…»."
+  ],
+  "fr": [
+   "**Équipements sans roue à filtres.** Si les poses que tu ajoutes n'ont pas de filtre dans leur en-tête, ASTRO te demande à ce moment-là quel filtre tu utilisais, avec une liste de ceux déjà utilisés, et retient le dernier pour ce télescope et cette caméra.",
+   "Si cet équipement n'a pas de filtre, clique sur « Pas de filtre » et la question ne sera plus posée. Le bouton de chaque équipement d'un projet indique désormais « Changer le télescope, la caméra ou le filtre de ces poses… »."
+  ],
+  "de": [
+   "**Ausrüstungen ohne Filterrad.** Wenn die hinzugefügten Aufnahmen keinen Filter im Header haben, fragt ASTRO in diesem Moment, welchen Filter du benutzt hast, mit einer Auswahlliste der bereits verwendeten, und merkt sich den letzten für dieses Teleskop und diese Kamera.",
+   "Wenn diese Ausrüstung keinen Filter hat, klicke auf „Kein Filter verwendet“ und es wird nicht mehr gefragt. Die Schaltfläche bei jeder Ausrüstung eines Projekts heißt jetzt „Teleskop, Kamera oder Filter dieser Aufnahmen ändern…“."
+  ],
+  "it": [
+   "**Attrezzature senza ruota portafiltri.** Se le pose che aggiungi non hanno il filtro nell'intestazione, ASTRO ti chiede in quel momento che filtro usavi, con un elenco di quelli già usati, e ricorda l'ultimo per quel telescopio e quella camera.",
+   "Se quell'attrezzatura non ha filtro, premi «Nessun filtro» e non verrà più chiesto. Il pulsante di ogni attrezzatura di un progetto ora dice «Cambia il telescopio, la camera o il filtro di queste pose…»."
+  ],
+  "pt": [
+   "**Equipamentos sem roda de filtros.** Se as exposições que adicionas não trazem o filtro no cabeçalho, o ASTRO pergunta-te nesse momento que filtro usavas, com uma lista dos que já usaste, e lembra o último para esse telescópio e essa câmara.",
+   "Se esse equipamento não tem filtro, carrega em «Não tinha filtro» e não se volta a perguntar. O botão de cada equipamento de um projeto diz agora «Alterar o telescópio, a câmara ou o filtro destas exposições…»."
+  ]
+ },
+ {
   "version": "0.33.6",
   "es": [
    "**Las trazas de satélites ya no rechazan una toma.** El rechazo de píxeles del apilado las elimina, así que una toma con trazas sigue siendo válida, con su nota. El rojo queda para lo que de verdad degrada la imagen: guiado, enfoque, nubes, fondo o poca señal.",
