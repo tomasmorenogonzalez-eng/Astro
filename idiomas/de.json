@@ -3636,7 +3636,11 @@
 "La imagen de referencia tiene que tener peso: es la única que cubre todo el encuadre.": "Das Referenzbild braucht ein Gewicht: Es ist das einzige, das den ganzen Ausschnitt abdeckt.",
 "Elige al menos dos masters.": "Wähle mindestens zwei Master.",
 "La imagen de referencia tiene que estar entre las elegidas.": "Das Referenzbild muss unter den gewählten sein.",
-"No encuentro esa carpeta.": "Ich finde diesen Ordner nicht."
+"No encuentro esa carpeta.": "Ich finde diesen Ordner nicht.",
+"Escala del resultado": "Maßstab des Ergebnisses",
+"La de la referencia": "Die der Referenz",
+"como": "wie",
+"Con la escala de un master de focal larga, el resultado conserva su detalle aunque tenga el campo de la referencia (el archivo es más grande)": "Mit dem Maßstab eines Masters mit langer Brennweite behält das Ergebnis dessen Details und hat trotzdem das Feld der Referenz (die Datei wird größer)"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "Sein Maßstab ({1}″/px) ist {2}-mal so groß wie der von {3}: Beim Kombinieren wird es vergrößert und liefert vor allem schwaches, ausgedehntes Signal, aber keine Details. Am meisten bringt es bei schwachem Schmalband (OIII, SII) oder bei der Farbe.",

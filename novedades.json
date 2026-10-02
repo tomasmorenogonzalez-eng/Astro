@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.1",
+  "es": [
+   "**Unir masters**: nueva opción **«Escala del resultado»**. Con la escala de tu master más nítido, el resultado tiene el campo de la referencia pero conserva el detalle de los equipos de focal larga (antes todo se reducía a la escala del de campo más grande y las estrellas salían más gordas)."
+  ],
+  "en": [
+   "**Merge masters**: new **«Scale of the result»** option. With the scale of your sharpest master, the result has the reference's field but keeps the detail of the long-focal-length setups (before, everything was reduced to the widest field's scale and stars came out fatter)."
+  ],
+  "fr": [
+   "**Fusionner des masters** : nouvelle option **« Échelle du résultat »**. Avec l'échelle de votre master le plus net, le résultat a le champ de la référence mais garde le détail des équipements à longue focale (avant, tout était réduit à l'échelle du champ le plus large et les étoiles sortaient plus grosses)."
+  ],
+  "de": [
+   "**Master vereinen**: neue Option **„Maßstab des Ergebnisses“**. Mit dem Maßstab deines schärfsten Masters hat das Ergebnis das Feld der Referenz, behält aber die Details der Ausrüstungen mit langer Brennweite (vorher wurde alles auf den Maßstab des größten Feldes verkleinert und die Sterne wurden dicker)."
+  ],
+  "it": [
+   "**Unire master**: nuova opzione **«Scala del risultato»**. Con la scala del tuo master più nitido, il risultato ha il campo del riferimento ma conserva il dettaglio degli strumenti a focale lunga (prima tutto veniva ridotto alla scala del campo più ampio e le stelle uscivano più grosse)."
+  ],
+  "pt": [
+   "**Juntar masters**: nova opção **«Escala do resultado»**. Com a escala do seu master mais nítido, o resultado tem o campo da referência mas conserva o detalhe dos equipamentos de focal longa (antes tudo era reduzido à escala do campo maior e as estrelas saíam mais gordas)."
+  ]
+ },
+ {
   "version": "0.33.0",
   "es": [
    "**Unir masters de varios equipos** (en **Más opciones**): eliges una carpeta con masters FITS o XISF de un mismo objeto y filtro, aunque sean de compañeros y estén hechos con otros programas, y ASTRO los une en uno con el **encuadre y la escala del de campo más grande** (o del que elijas). Los alinea aunque tengan escalas, giros o campos distintos; si a uno le falta la escala, la mide.",

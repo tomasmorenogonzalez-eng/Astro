@@ -3636,7 +3636,11 @@
 "La imagen de referencia tiene que tener peso: es la única que cubre todo el encuadre.": "A imagem de referência tem de ter peso: é a única que cobre todo o enquadramento.",
 "Elige al menos dos masters.": "Escolha pelo menos dois masters.",
 "La imagen de referencia tiene que estar entre las elegidas.": "A imagem de referência tem de estar entre as escolhidas.",
-"No encuentro esa carpeta.": "Não encontro essa pasta."
+"No encuentro esa carpeta.": "Não encontro essa pasta.",
+"Escala del resultado": "Escala do resultado",
+"La de la referencia": "A da referência",
+"como": "como",
+"Con la escala de un master de focal larga, el resultado conserva su detalle aunque tenga el campo de la referencia (el archivo es más grande)": "Com a escala de um master de focal longa, o resultado conserva o seu detalhe mesmo tendo o campo da referência (o ficheiro é maior)"
 },
 "patrones": {
 "^Su\\ escala\\ \\(([-+]?\\d+(?:[.,]\\d+)?)″\\/px\\)\\ es\\ ([-+]?\\d+(?:[.,]\\d+)?)\\ veces\\ la\\ de\\ (.+?):\\ al\\ combinar\\ se\\ amplía\\ y\\ aporta\\ sobre\\ todo\\ señal\\ débil\\ y\\ extensa,\\ no\\ detalle\\.\\ Rinde\\ más\\ en\\ banda\\ estrecha\\ débil\\ \\(OIII,\\ SII\\)\\ o\\ en\\ el\\ color\\.$": "A sua escala ({1}″/px) é {2} vezes a de {3}: ao combinar, é ampliada e contribui sobretudo com sinal ténue e extenso, não com detalhe. Rende mais em banda estreita ténue (OIII, SII) ou na cor.",

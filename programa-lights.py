@@ -5,7 +5,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.02.1"
+VERSION_PROG = "2026.10.02.2"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -10846,6 +10846,14 @@ async function unCargar(cuerpo){
   UN.usar = new Set(buenos.map(m => m.nombre)); UN.pesos = {};
   unPintar();
 }
+function unEscalas(){
+  const ref = UN.masters.find(m => m.nombre === UN.ref) || {}, re = ref.escala || 0;
+  const finas = UN.masters.filter(m => UN.usar.has(m.nombre) && m.escala && re && m.escala < re / 1.02 && m.nombre !== UN.ref).sort((a, b) => b.escala - a.escala);
+  if (UN.escala && !finas.some(m => Math.abs(m.escala - UN.escala) < 1e-6)) UN.escala = 0;
+  const lado = e => re ? Math.round(ref.w * re / e) + " × " + Math.round(ref.h * re / e) : "";
+  return `<option value="0">${esc(trLT("La de la referencia", "The reference's"))}${re ? " · " + numEs(re, 2) + "″" : ""}</option>` +
+    finas.map(m => `<option value="${m.escala}" ${UN.escala === m.escala ? "selected" : ""}>${numEs(m.escala, 2)}″ · ${esc(trLT("como", "like"))} ${esc(m.nombre.replace(/\.(xisf|fits?|fts)$/i, ""))} (${lado(m.escala)} px)</option>`).join("");
+}
 function unPintar(){
   $("unirRuta").textContent = UN.carpeta;
   const el = $("unirCuerpo");
@@ -10877,6 +10885,8 @@ function unPintar(){
           <option value="igual" ${modo === "igual" ? "selected" : ""}>${esc(trLT("Igual para todos", "The same for all"))}</option>
           <option value="mano" ${modo === "mano" ? "selected" : ""}>${esc(trLT("A mano", "By hand"))}</option>
         </select></label>
+      <label title="${esc(trLT("Con la escala de un master de focal larga, el resultado conserva su detalle aunque tenga el campo de la referencia (el archivo es más grande)", "With the scale of a long-focal-length master, the result keeps its detail while having the reference's field (the file is larger)"))}">${esc(trLT("Escala del resultado", "Scale of the result"))}
+        <select id="unEscala">${unEscalas()}</select></label>
       <button class="btn primary" id="unGo" ${UN.siril ? "" : "disabled"}>${esc(trLT("Unir", "Merge"))}</button>
     </div>
     ${UN.siril ? "" : `<div class="status bad" style="display:block">${esc(trLT("No encuentro Siril. Descárgalo gratis de siril.org, instálalo y vuelve aquí.", "Siril not found. Download it free from siril.org, install it and come back."))}</div>`}
@@ -10885,6 +10895,7 @@ function unPintar(){
   el.querySelectorAll(".unRef").forEach(c => c.onchange = () => { UN.ref = UN.masters[+c.dataset.i].nombre; UN.usar.add(UN.ref); unPintar(); });
   el.querySelectorAll(".unPeso").forEach(c => c.oninput = () => { UN.pesos[UN.masters[+c.dataset.i].nombre] = +c.value; });
   $("unModo").onchange = () => { UN.modo = $("unModo").value; unPintar(); };
+  $("unEscala").onchange = () => { UN.escala = +$("unEscala").value || 0; unPintar(); };
   $("unGo").onclick = unIniciar;
 }
 async function unIniciar(){
@@ -10893,7 +10904,7 @@ async function unIniciar(){
   if (!archivos.includes(UN.ref)) return toast(trLT("Elige el master que da el encuadre", "Choose the master that sets the framing"));
   const pesos = {}; archivos.forEach(n => pesos[n] = UN.pesos[n] ?? 1);
   const r = await fetch("/api/unir/iniciar", {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({carpeta: UN.carpeta, archivos, ref: UN.ref, peso: UN.modo || "ruido", pesos})});
+    body: JSON.stringify({carpeta: UN.carpeta, archivos, ref: UN.ref, peso: UN.modo || "ruido", pesos, escala: UN.escala || null})});
   if (!r.ok) return toast(await r.text());
   $("unirRes").innerHTML = "";
   unVigilar(true);
@@ -13171,8 +13182,10 @@ def _resolver_lineal(A, b):
     return [M[i][n] / M[i][i] for i in range(n)]
 
 
-def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=None):
+def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=None, escala_salida=None):
     """Une varias imágenes (masters de un mismo filtro) en el encuadre y la escala de items[ref].
+    escala_salida (″/px): si es más fina que la de la referencia, la referencia se amplía antes a esa escala, para
+    que el resultado tenga su campo pero conserve el detalle de los equipos de focal larga.
     items: [{"ruta" (FITS de 32 bits), "escala" (″/px o None), "nombre"}].
     Devuelve la lista de resultados por imagen: {usada, motivo, escala, giro, cobertura, ruido, peso}."""
     n = len(items)
@@ -13184,11 +13197,14 @@ def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=N
     res = {i: {"nombre": items[i].get("nombre", ""), "usada": False, "motivo": "", "escala": items[i].get("escala")} for i in range(n)}
     # 1) todas a la escala de la referencia (las de escala desconocida, tal cual: se mide al alinear)
     L = ["requires 1.2.0", "set32bits"]
+    esc_ref = R.get("escala")
+    if escala_salida and esc_ref and escala_salida < esc_ref / 1.02:
+        esc_ref = escala_salida
     for k, i in enumerate(orden, 1):
         dst = os.path.join(src, f"{k:02d}")
         it = items[i]
-        f = (it["escala"] / R["escala"]) if it.get("escala") and R.get("escala") else 1.0
-        if i == ref or abs(f - 1) < 0.02:
+        f = (it["escala"] / esc_ref) if it.get("escala") and esc_ref else 1.0
+        if abs(f - 1) < 0.02:
             enlace(it["ruta"], dst + ".fit")
         else:
             L += [f"load {q(it['ruta'])}"] + lineas_resample(f) + [f"save {q(dst)}"]
@@ -13215,7 +13231,7 @@ def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=N
                 break
             # escala desconocida: se mide, se reduce la imagen a la escala de la referencia y se vuelve a alinear
             s = math.hypot(H[0], H[3])
-            res[i]["escala"] = round(R["escala"] * s, 4) if R.get("escala") else None
+            res[i]["escala"] = round(esc_ref * s, 4) if esc_ref else None
             if abs(s - 1) < 0.02:
                 break
             nuevo = os.path.join(src, f"{k:02d}b")
@@ -13401,7 +13417,7 @@ def masters_de_carpeta(carpeta):
     return out
 
 
-def iniciar_unir(carpeta, nombres, ref_nombre, modo_peso, pesos):
+def iniciar_unir(carpeta, nombres, ref_nombre, modo_peso, pesos, escala=None):
     _reservar_job("Ya hay un trabajo de Siril en marcha. Espera a que termine.")
     try:
         siril, ver = buscar_siril()
@@ -13423,12 +13439,13 @@ def iniciar_unir(carpeta, nombres, ref_nombre, modo_peso, pesos):
                    resultados=[], vista=[], avisos=[], error="", carpeta="", cancelar=False, unir=None,
                    inicio=_dt.datetime.now().isoformat(timespec="seconds"), fin=None)
         _hilo_job(trabajo_unir, siril, carpeta, [fichas[n] for n in nombres], ref_nombre,
-                  modo_peso if modo_peso in ("ruido", "igual", "mano") else "ruido", pesos if isinstance(pesos, dict) else {})
+                  modo_peso if modo_peso in ("ruido", "igual", "mano") else "ruido", pesos if isinstance(pesos, dict) else {},
+                  escala if escala and 0.1 < escala < 30 else None)
     finally:
         _JOB_RESERVA["on"] = False
 
 
-def trabajo_unir(siril, carpeta, fichas, ref_nombre, modo_peso, pesos):
+def trabajo_unir(siril, carpeta, fichas, ref_nombre, modo_peso, pesos, escala=None):
     marca = _dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     OUT = os.path.join(carpeta, "ASTRO unido " + marca)
     W = os.path.join(OUT, "_trabajo")
@@ -13455,7 +13472,7 @@ def trabajo_unir(siril, carpeta, fichas, ref_nombre, modo_peso, pesos):
         base = seguro("unido_" + (filtros[0] if len(filtros) == 1 else "masters"))[:60]
         destino = os.path.join(OUT, base)
         JOB["paso"] = len(fichas) + 1
-        res = unir_en_marco(siril, W, items, ref, destino, modo_peso, pesos)
+        res = unir_en_marco(siril, W, items, ref, destino, modo_peso, pesos, escala)
         JOB["paso"] = len(fichas) + 2
         JOB["texto"] = "Preparando la vista previa"
         jpg = os.path.join(OUT, "vista_previa")
@@ -13466,13 +13483,15 @@ def trabajo_unir(siril, carpeta, fichas, ref_nombre, modo_peso, pesos):
             if str(e) == "Cancelado":
                 raise
         R = fichas[ref]
+        esc_fin = escala if escala and R.get("escala") and escala < R["escala"] / 1.02 else R.get("escala")
         informe = {"fecha": marca, "objeto": objeto, "filtros": filtros, "referencia": ref_nombre, "peso": modo_peso,
-                   "escala": R.get("escala"), "campo": R.get("campo"), "archivo": base + ".fit", "masters": res}
+                   "escala": esc_fin, "campo": R.get("campo"), "archivo": base + ".fit", "masters": res}
         with open(os.path.join(OUT, "informe.json"), "w", encoding="utf-8") as fh:
             json.dump(informe, fh, ensure_ascii=False, indent=1)
         lin = ["ASTRO · Masters unidos", "=" * 40, "", "Fecha: " + marca, "Objeto: " + (objeto or "—"),
                "Filtro: " + (", ".join(filtros) or "—"), "Encuadre y escala de: " + ref_nombre +
-               ((" (%.3f″/px, %.2f° × %.2f°)" % (R["escala"], R["campo"][0], R["campo"][1])) if R.get("escala") and R.get("campo") else ""),
+               ((" (%.2f° × %.2f°)" % (R["campo"][0], R["campo"][1])) if R.get("campo") else ""),
+               "Escala del resultado: " + (("%.3f″/px" % esc_fin) if esc_fin else "la de la referencia"),
                "Peso: " + {"ruido": "según el ruido de cada master", "igual": "igual para todos", "mano": "a mano"}[modo_peso], "",
                "Cada píxel se hace solo con los masters que lo cubren; los bordes de cada uno se funden con los demás.",
                "El brillo y el fondo de cada master se igualan a los de la referencia.", ""]
@@ -21667,7 +21686,7 @@ class H(BaseHTTPRequestHandler):
                 d = json.loads(self._body() or b"{}")
                 try:
                     iniciar_unir(str(d.get("carpeta") or ""), [str(x) for x in (d.get("archivos") or [])], str(d.get("ref") or ""),
-                                 str(d.get("peso") or "ruido"), d.get("pesos") or {})
+                                 str(d.get("peso") or "ruido"), d.get("pesos") or {}, num(d.get("escala")))
                 except RuntimeError as e:
                     return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
                 return self._send(200, '{"ok":true}')
