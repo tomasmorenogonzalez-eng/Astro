@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.2",
+  "es": [
+   "**Autoría**: ASTRO lo firman ahora **Raúl Hussein Galindo y Tomás Moreno González**, con los escudos de Astrocitas y del Observatorio Astronómico Valle del Bullaque (Piedrabuena)."
+  ],
+  "en": [
+   "**Authors**: ASTRO is now signed by **Raúl Hussein Galindo and Tomás Moreno González**, with the emblems of Astrocitas and the Observatorio Astronómico Valle del Bullaque (Piedrabuena)."
+  ],
+  "fr": [
+   "**Auteurs** : ASTRO est désormais signé par **Raúl Hussein Galindo et Tomás Moreno González**, avec les emblèmes d'Astrocitas et de l'Observatorio Astronómico Valle del Bullaque (Piedrabuena)."
+  ],
+  "de": [
+   "**Autoren**: ASTRO stammt jetzt von **Raúl Hussein Galindo und Tomás Moreno González**, mit den Wappen von Astrocitas und des Observatorio Astronómico Valle del Bullaque (Piedrabuena)."
+  ],
+  "it": [
+   "**Autori**: ASTRO è ora firmato da **Raúl Hussein Galindo e Tomás Moreno González**, con gli stemmi di Astrocitas e dell'Observatorio Astronómico Valle del Bullaque (Piedrabuena)."
+  ],
+  "pt": [
+   "**Autores**: o ASTRO é agora assinado por **Raúl Hussein Galindo e Tomás Moreno González**, com os emblemas de Astrocitas e do Observatorio Astronómico Valle del Bullaque (Piedrabuena)."
+  ]
+ },
+ {
   "version": "0.33.1",
   "es": [
    "**Unir masters**: nueva opción **«Escala del resultado»**. Con la escala de tu master más nítido, el resultado tiene el campo de la referencia pero conserva el detalle de los equipos de focal larga (antes todo se reducía a la escala del de campo más grande y las estrellas salían más gordas)."
