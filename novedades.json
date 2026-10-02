@@ -1,5 +1,38 @@
 [
  {
+  "version": "0.33.3",
+  "es": [
+   "**El motor es ASTRO**: el apilado, los masters, la composición de canales y la astrometría de tus proyectos se llaman ahora ASTRO («Apilar con ASTRO», «Resolver con ASTRO»). Por dentro sigue trabajando con Siril, que tienes que tener instalado; en **Ciencia** se sigue citando Siril para la trazabilidad de las medidas.",
+   "**Licencia y aviso legal**: ASTRO es un programa gratuito (*freeware*) con todos los derechos reservados. La primera vez que lo abras tras actualizar te pedirá leer y aceptar la licencia. Recuerda: haz siempre copia de seguridad de tus fotos.",
+   "**Colaboradores especiales**: Francisco López y Carlos Oltra, en los créditos."
+  ],
+  "en": [
+   "**The engine is ASTRO**: stacking, masters, channel composition and your projects' astrometry are now called ASTRO («Stack with ASTRO», «Solve with ASTRO»). Under the hood it still works with Siril, which you need to have installed; **Science** still cites Siril for the traceability of measurements.",
+   "**Licence and legal notice**: ASTRO is free-of-charge software (freeware), all rights reserved. The first time you open it after updating, it will ask you to read and accept the licence. Remember: always back up your images.",
+   "**Special contributors**: Francisco López and Carlos Oltra, in the credits."
+  ],
+  "fr": [
+   "**Le moteur, c'est ASTRO** : l'empilement, les masters, la composition des canaux et l'astrométrie de vos projets s'appellent désormais ASTRO (« Empiler avec ASTRO », « Résoudre avec ASTRO »). En coulisses, il travaille toujours avec Siril, qui doit être installé ; **Science** continue de citer Siril pour la traçabilité des mesures.",
+   "**Licence et mentions légales** : ASTRO est un logiciel gratuit (freeware), tous droits réservés. À la première ouverture après la mise à jour, il vous demandera de lire et d'accepter la licence. N'oubliez pas : sauvegardez toujours vos photos.",
+   "**Collaborateurs spéciaux** : Francisco López et Carlos Oltra, dans les crédits."
+  ],
+  "de": [
+   "**Der Motor heißt ASTRO**: Stacken, Master, Kanalkomposition und die Astrometrie deiner Projekte heißen jetzt ASTRO („Mit ASTRO stacken“, „Mit ASTRO lösen“). Im Hintergrund arbeitet weiterhin Siril, das installiert sein muss; in **Wissenschaft** wird Siril für die Rückverfolgbarkeit der Messungen weiterhin genannt.",
+   "**Lizenz und rechtliche Hinweise**: ASTRO ist kostenlose Software (Freeware), alle Rechte vorbehalten. Beim ersten Öffnen nach dem Update bittet es dich, die Lizenz zu lesen und zu akzeptieren. Denk daran: Sichere immer deine Fotos.",
+   "**Besondere Mitwirkende**: Francisco López und Carlos Oltra, in den Credits."
+  ],
+  "it": [
+   "**Il motore è ASTRO**: l'impilamento, i master, la composizione dei canali e l'astrometria dei tuoi progetti ora si chiamano ASTRO («Impila con ASTRO», «Risolvi con ASTRO»). Dietro le quinte lavora sempre con Siril, che deve essere installato; in **Scienza** si continua a citare Siril per la tracciabilità delle misure.",
+   "**Licenza e note legali**: ASTRO è software gratuito (freeware), tutti i diritti riservati. Alla prima apertura dopo l'aggiornamento ti chiederà di leggere e accettare la licenza. Ricorda: fai sempre una copia di sicurezza delle tue foto.",
+   "**Collaboratori speciali**: Francisco López e Carlos Oltra, nei crediti."
+  ],
+  "pt": [
+   "**O motor é o ASTRO**: o empilhamento, os masters, a composição de canais e a astrometria dos seus projetos passam a chamar-se ASTRO («Empilhar com o ASTRO», «Resolver com o ASTRO»). Por dentro continua a trabalhar com o Siril, que tem de estar instalado; em **Ciência** continua a citar-se o Siril para a rastreabilidade das medições.",
+   "**Licença e aviso legal**: o ASTRO é software gratuito (freeware), com todos os direitos reservados. Na primeira abertura após a atualização, pedirá que leia e aceite a licença. Lembre-se: faça sempre cópia de segurança das suas fotografias.",
+   "**Colaboradores especiais**: Francisco López e Carlos Oltra, nos créditos."
+  ]
+ },
+ {
   "version": "0.33.2",
   "es": [
    "**Autoría**: ASTRO lo firman ahora **Raúl Hussein Galindo y Tomás Moreno González**, con los escudos de Astrocitas y del Observatorio Astronómico Valle del Bullaque (Piedrabuena)."

@@ -7,7 +7,7 @@ import os, sys
 import re
 VERSION = open("version.txt").read().strip() if os.path.exists("version.txt") else "0.0"
 VERSION_MAC = ".".join(re.findall(r"\d+", VERSION)[:3]) or "1.0"     # el Mac solo admite números
-extras = [(f, ".") for f in ("version.txt", "repo.txt", "contacto.txt", "donar.txt", "cursos.txt") if os.path.exists(f)]
+extras = [(f, ".") for f in ("version.txt", "repo.txt", "contacto.txt", "donar.txt", "cursos.txt", "LICENCIA.md", "LICENSE.md") if os.path.exists(f)]
 
 # Los programas van como datos (se ejecutan dentro de la aplicación), así que el empaquetador no ve lo que importan:
 # se leen sus «import» y se añaden todos, para que ninguno falte en la aplicación.
@@ -55,7 +55,7 @@ if sys.platform == "darwin":
             "CFBundleName": "ASTRO", "CFBundleDisplayName": "ASTRO",
             "CFBundleShortVersionString": VERSION_MAC, "CFBundleVersion": VERSION_MAC,
             "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "11.0",
-            "NSHumanReadableCopyright": "Raúl Hussein Galindo · Tomás Moreno González",
+            "NSHumanReadableCopyright": "© 2026 Raúl Hussein Galindo · Tomás Moreno González. Todos los derechos reservados.",
         },
     )
 else:

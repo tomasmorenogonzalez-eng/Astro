@@ -24,7 +24,7 @@ O ASTRO faz esse trabalho por si. É gratuito, funciona em **Mac** e em **Window
 
 **Dá conta das suas sessões sozinho.** Indique-lhe uma vez em que pastas a ASIAIR, o N.I.N.A. ou o seu programa de captura guardam as fotos, e o ASTRO revê-as ao abrir e a cada dez minutos: as exposições novas são analisadas e arrumadas automaticamente, sem arrastar nada.
 
-**Põe ordem em anos de fotografias.** **O meu arquivo → Indexar pastas** indexa as suas pastas de todos os anos lendo só os cabeçalhos, sem copiar nada, e mostra-lhe cada projeto com as suas horas por filtro e por temporada, o seu estado, as suas sessões e os equipamentos usados. Dentro de cada um, analisa-o, depura-o, empilha-o e processa-o passo a passo. Os darks e flats que encontrar nas suas pastas passam com um clique para a biblioteca de calibração, vê que dark e que flat cabe a cada noite, e avisa se numa temporada a câmara estava rodada ou o enquadramento deslocado. Se um objeto tiver dois nomes (M31, Andrómeda), reconhece-o pelas coordenadas e propõe juntá-los. **Resolve com o Siril** a melhor exposição de cada noite e leva a astrometria às outras pelas estrelas (centro, ângulo e escala reais), guarda o **histórico** de cada projeto (noites, empilhamentos, limites, mudanças de calibração e de estado) e desenha-os todos num **mapa do céu** com o seu campo.
+**Põe ordem em anos de fotografias.** **O meu arquivo → Indexar pastas** indexa as suas pastas de todos os anos lendo só os cabeçalhos, sem copiar nada, e mostra-lhe cada projeto com as suas horas por filtro e por temporada, o seu estado, as suas sessões e os equipamentos usados. Dentro de cada um, analisa-o, depura-o, empilha-o e processa-o passo a passo. Os darks e flats que encontrar nas suas pastas passam com um clique para a biblioteca de calibração, vê que dark e que flat cabe a cada noite, e avisa se numa temporada a câmara estava rodada ou o enquadramento deslocado. Se um objeto tiver dois nomes (M31, Andrómeda), reconhece-o pelas coordenadas e propõe juntá-los. **Resolve** a melhor exposição de cada noite e leva a astrometria às outras pelas estrelas (centro, ângulo e escala reais), guarda o **histórico** de cada projeto (noites, empilhamentos, limites, mudanças de calibração e de estado) e desenha-os todos num **mapa do céu** com o seu campo.
 
 **Sabe como vão os seus projetos.** O ASTRO abre-se numa **Visão geral** com o que lhe interessa: os seus projetos em curso, quantas horas úteis tem e quantas lhe faltam (e a quantas noites do seu ritmo equivale), e **as suas noites** por ano e mês —em noites ou em horas, por local, equipamento ou objeto— para ver se está a melhorar e que épocas do ano lhe rendem mais. Cada projeto tem o seu **estado** (Novo, Em curso, Capturado, Processado ou Arquivado), procura-se por nome, categoria, equipamento ou ano, e vê-se em cartões ou numa tabela com as horas de cada filtro. Ao abri-lo, a sua página responde a **«Preciso de mais horas?»** com o objetivo editável ali mesmo, leva-o de **Exposições** a **Analisar**, **Qualidade**, **Empilhamento** e **Processamento**, e neste último regista a **imagem final** (TIF, PNG ou JPG) e onde a partilhou (Instagram, AstroBin, X…).
 
@@ -88,6 +88,10 @@ O ASTRO foi criado por **Raúl Hussein Galindo** e **Tomás Moreno González**.
   <img src="imagenes/web/escudo-astrocitas.png" height="80" alt="Astrocitas">&nbsp;&nbsp;&nbsp;
   <img src="imagenes/web/escudo-observatorio.png" height="90" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)">&nbsp;&nbsp;&nbsp;
 </p>
+
+**Colaboradores especiais:** Francisco López e Carlos Oltra.
+
+O ASTRO é software gratuito (*freeware*), com todos os direitos reservados: veja a **[licença e o aviso legal](LICENSE.md)**.
 
 Nasceu de uma necessidade muito concreta: passar menos tempo a rever fotos e mais tempo a olhar para o céu.
 

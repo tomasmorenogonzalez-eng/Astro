@@ -280,10 +280,11 @@ AUTOR = {"es": "Raúl Hussein Galindo y Tomás Moreno González",
          'de': 'Raúl Hussein Galindo und Tomás Moreno González',
          'it': "Raúl Hussein Galindo e Tomás Moreno González",
          'pt': 'Raúl Hussein Galindo e Tomás Moreno González'}
+COLABORADORES = {"es": "Colaboradores especiales: Francisco López y Carlos Oltra", "en": "Special contributors: Francisco López and Carlos Oltra", "fr": "Collaborateurs spéciaux : Francisco López et Carlos Oltra", "de": "Besondere Mitwirkende: Francisco López und Carlos Oltra", "it": "Collaboratori speciali: Francisco López e Carlos Oltra", "pt": "Colaboradores especiais: Francisco López e Carlos Oltra"}
 TXT = {
     "es": {"lema": "lights y calibración", "bienvenido": "¡Bienvenido!", "titulo_bienv": "Bienvenido a ASTRO",
-           "intro": "ASTRO revisa la calidad de tus lights (estrellas, trazas de satélites, nubes…), organiza tu biblioteca de darks, flats y bias, y apila con Siril.\n\nElige la carpeta donde guardará tus fotos y sus datos. Puede estar en un disco externo. Si ya usabas ASTRO, elige la carpeta que contiene «Lights».",
-           "otra": "Elegir otra carpeta…", "empezar": "Empezar", "idioma": "Idioma:", "carpeta_titulo": "Carpeta de datos de ASTRO",
+           "intro": "ASTRO revisa la calidad de tus lights (estrellas, trazas de satélites, nubes…), organiza tu biblioteca de darks, flats y bias, y apila.\n\nElige la carpeta donde guardará tus fotos y sus datos. Puede estar en un disco externo. Si ya usabas ASTRO, elige la carpeta que contiene «Lights».",
+           "otra": "Elegir otra carpeta…", "empezar": "Empezar", "acepto": "He leído y acepto la licencia de uso y el aviso legal.", "ver_licencia": "Leer la licencia", "falta_acepto": "Para continuar, marca la casilla de aceptación.", "titulo_licencia": "Licencia de uso y aviso legal", "bienv_licencia": "Antes de seguir, lee y acepta la licencia de uso.", "idioma": "Idioma:", "carpeta_titulo": "Carpeta de datos de ASTRO",
            "no_encuentro": "No encuentro tu carpeta de datos:\n%s", "no_usar": "No se puede usar esa carpeta:\n%s",
            "marcha": "ASTRO está en marcha", "marcha_txt": "Elige por dónde empezar; se abre en el navegador. Deja esta ventana abierta (o minimizada) mientras uses ASTRO.",
            "lights": "Control de lights", "biblio": "Biblioteca de calibración", "datos_en": "Carpeta de datos:  ", "cambiar": "Cambiar carpeta de datos…",
@@ -293,7 +294,7 @@ TXT = {
            "t_varios": "Varios equipos", "d_varios": "Un objeto con varios telescopios o cámaras, tuyos o de compañeros.",
            "t_noches": "Próximas noches", "d_noches": "Luna, nubes y qué fotografiar con tu equipo.",
            "t_directo": "Sesión en directo", "d_directo": "Revisa cada toma mientras capturas y avisa si algo falla.",
-           "t_apilar": "Apilar con Siril", "d_apilar": "De tus tomas buenas a la imagen final, ya calibrada.",
+           "t_apilar": "Apilar con ASTRO", "d_apilar": "De tus tomas buenas a la imagen final, ya calibrada.",
            "t_calib": "Calibración", "d_calib": "Darks, flats y bias: qué tienes y qué te falta.",
            "t_ciencia": "Ciencia", "d_ciencia": "Mide con tus fotos: cielo, variables, exoplanetas, asteroides…",
            "ciencia": "Ciencia",
@@ -303,8 +304,8 @@ TXT = {
            "actualizando": "Actualizando ASTRO a la versión %s…",
            "beta": "Versión de prueba (beta). Si algo falla o echas en falta alguna función, usa «Informar de un problema o sugerencia» en «Más opciones». ¡Gracias por probar ASTRO!"},
     "en": {"lema": "lights and calibration", "bienvenido": "Welcome!", "titulo_bienv": "Welcome to ASTRO",
-           "intro": "ASTRO checks the quality of your light frames (stars, satellite trails, clouds…), organises your library of darks, flats and bias, and stacks them with Siril.\n\nChoose the folder where it will keep your images and their data. It can be on an external disk. If you've used ASTRO before, choose the folder that contains “Lights”.",
-           "otra": "Choose another folder…", "empezar": "Start", "idioma": "Language:", "carpeta_titulo": "ASTRO data folder",
+           "intro": "ASTRO checks the quality of your light frames (stars, satellite trails, clouds…), organises your library of darks, flats and bias, and stacks them.\n\nChoose the folder where it will keep your images and their data. It can be on an external disk. If you've used ASTRO before, choose the folder that contains “Lights”.",
+           "otra": "Choose another folder…", "empezar": "Start", "acepto": "I have read and accept the licence and legal notice.", "ver_licencia": "Read the licence", "falta_acepto": "To continue, tick the acceptance box.", "titulo_licencia": "Licence and legal notice", "bienv_licencia": "Before continuing, please read and accept the licence.", "idioma": "Language:", "carpeta_titulo": "ASTRO data folder",
            "no_encuentro": "I can't find your data folder:\n%s", "no_usar": "That folder can't be used:\n%s",
            "marcha": "ASTRO is running", "marcha_txt": "Choose where to start; it opens in your browser. Keep this window open (or minimised) while you use ASTRO.",
            "lights": "Light frames", "biblio": "Calibration library", "datos_en": "Data folder:  ", "cambiar": "Change data folder…",
@@ -314,7 +315,7 @@ TXT = {
            "t_varios": "Multiple setups", "d_varios": "One target shot with several telescopes or cameras, yours or friends'.",
            "t_noches": "Upcoming nights", "d_noches": "Moon, clouds and what to shoot with your equipment.",
            "t_directo": "Live session", "d_directo": "Checks each frame as you capture and warns you of problems.",
-           "t_apilar": "Stack with Siril", "d_apilar": "From your good frames to a calibrated final image.",
+           "t_apilar": "Stack with ASTRO", "d_apilar": "From your good frames to a calibrated final image.",
            "t_calib": "Calibration library", "d_calib": "Darks, flats and bias: what you have and what's missing.",
            "t_ciencia": "Science", "d_ciencia": "Measure with your images: sky, variables, exoplanets, asteroids…",
            "ciencia": "Science",
@@ -323,10 +324,10 @@ TXT = {
            "no_arranca": "Could not start: %s.\nSee the log in:\n%s", "por": "Created by",
            "actualizando": "Updating ASTRO to version %s…",
            "beta": "Test version (beta). If something goes wrong or you miss a feature, use “Report a problem or suggestion” in “More options”. Thanks for testing ASTRO!"},
-    'fr': {'lema': 'lights et calibration', 'bienvenido': 'Bienvenue\xa0!', 'titulo_bienv': 'Bienvenue dans ASTRO', 'intro': 'ASTRO contrôle la qualité de vos lights (étoiles, traînées de satellites, nuages…), organise votre bibliothèque de darks, flats et bias, et empile avec Siril.\n\nChoisissez le dossier où il enregistrera vos photos et leurs données. Il peut se trouver sur un disque externe. Si vous utilisiez déjà ASTRO, choisissez le dossier qui contient «\xa0Lights\xa0».', 'otra': 'Choisir un autre dossier…', 'empezar': 'Commencer', 'idioma': 'Langue\xa0:', 'carpeta_titulo': "Dossier de données d'ASTRO", 'no_encuentro': 'Je ne trouve pas votre dossier de données\xa0:\n%s', 'no_usar': 'Ce dossier ne peut pas être utilisé\xa0:\n%s', 'marcha': 'ASTRO est lancé', 'marcha_txt': "Choisissez par où commencer\xa0; cela s'ouvre dans le navigateur. Laissez cette fenêtre ouverte (ou réduite) tant que vous utilisez ASTRO.", 'lights': 'Contrôle des lights', 'biblio': 'Bibliothèque de calibration', 'datos_en': 'Dossier de données\xa0:  ', 'cambiar': 'Changer de dossier de données…', 'lema_largo': 'Contrôlez, organisez, empilez et mesurez vos photos du ciel', 't_anadir': 'Ajouter des poses', 'd_anadir': 'Depuis la carte ou un dossier\xa0; ASTRO contrôle chaque pose.', 't_objetos': 'Projets', 'd_objetos': 'Heures utiles, qualité de chaque nuit et ce qui vous manque.', 't_varios': 'Plusieurs équipements', 'd_varios': "Un objet avec plusieurs télescopes ou caméras, les vôtres ou ceux d'amis.", 't_noches': 'Prochaines nuits', 'd_noches': 'Lune, nuages et quoi photographier avec votre équipement.', 't_directo': 'Session en direct', 'd_directo': 'Contrôle chaque pose pendant la capture et vous prévient en cas de souci.', 't_apilar': 'Empiler avec Siril', 'd_apilar': "De vos bonnes poses à l'image finale, déjà calibrée.", 't_calib': 'Calibration', 'd_calib': 'Darks, flats et bias\xa0: ce que vous avez et ce qui vous manque.', 't_ciencia': 'Science', 'd_ciencia': 'Mesurez avec vos photos\xa0: ciel, variables, exoplanètes, astéroïdes…', 'ciencia': 'Science', 'salir': 'Quitter', 'cerrar_q': 'Fermer ASTRO\xa0?', 'nueva_carpeta': "Nouveau dossier de données d'ASTRO", 'reiniciar_q': "ASTRO va redémarrer avec\xa0:\n%s\n\n(Les données de l'ancien dossier ne sont pas déplacées.)", 'no_arranca': 'Impossible de démarrer\xa0: %s.\nConsultez le journal dans\xa0:\n%s', 'por': 'Créé par', 'actualizando': "Mise à jour d'ASTRO vers la version %s…", 'beta': "Version d'essai (bêta). Si quelque chose ne marche pas ou s'il vous manque une fonction, utilisez «\xa0Signaler un problème ou faire une suggestion\xa0» dans «\xa0Plus d'options\xa0». Merci d'essayer ASTRO\xa0!"},
-    'de': {'lema': 'Lights und Kalibrierung', 'bienvenido': 'Willkommen!', 'titulo_bienv': 'Willkommen bei ASTRO', 'intro': 'ASTRO prüft die Qualität deiner Lights (Sterne, Satellitenspuren, Wolken…), ordnet deine Bibliothek aus Darks, Flats und Bias und stackt mit Siril.\n\nWähle den Ordner, in dem es deine Fotos und ihre Daten speichert. Er darf auf einer externen Festplatte liegen. Wenn du ASTRO schon benutzt hast, wähle den Ordner, der „Lights“ enthält.', 'otra': 'Anderen Ordner wählen…', 'empezar': 'Starten', 'idioma': 'Sprache:', 'carpeta_titulo': 'Datenordner von ASTRO', 'no_encuentro': 'Ich finde deinen Datenordner nicht:\n%s', 'no_usar': 'Dieser Ordner kann nicht verwendet werden:\n%s', 'marcha': 'ASTRO läuft', 'marcha_txt': 'Wähle, womit du anfangen willst; es öffnet sich im Browser. Lass dieses Fenster offen (oder minimiert), solange du ASTRO benutzt.', 'lights': 'Lights-Kontrolle', 'biblio': 'Kalibrierbibliothek', 'datos_en': 'Datenordner:  ', 'cambiar': 'Datenordner ändern…', 'lema_largo': 'Prüfe, ordne, stacke und vermiss deine Himmelsfotos', 't_anadir': 'Aufnahmen hinzufügen', 'd_anadir': 'Von der Speicherkarte oder aus einem Ordner; ASTRO prüft jede Aufnahme.', 't_objetos': 'Projekte', 'd_objetos': 'Nutzbare Stunden, Qualität jeder Nacht und was dir noch fehlt.', 't_varios': 'Mehrere Setups', 'd_varios': 'Ein Objekt mit mehreren Teleskopen oder Kameras, auch von Sternfreunden.', 't_noches': 'Kommende Nächte', 'd_noches': 'Mond, Wolken und was du mit deiner Ausrüstung fotografieren kannst.', 't_directo': 'Live-Sitzung', 'd_directo': 'Prüft jede Aufnahme live und warnt dich, wenn etwas schiefgeht.', 't_apilar': 'Mit Siril stacken', 'd_apilar': 'Von deinen guten Aufnahmen zum fertigen, kalibrierten Bild.', 't_calib': 'Kalibrierung', 'd_calib': 'Darks, Flats und Bias: was du hast und was dir fehlt.', 't_ciencia': 'Wissenschaft', 'd_ciencia': 'Miss mit deinen Fotos: Himmel, Veränderliche, Exoplaneten, Asteroiden…', 'ciencia': 'Wissenschaft', 'salir': 'Beenden', 'cerrar_q': 'ASTRO beenden?', 'nueva_carpeta': 'Neuer Datenordner für ASTRO', 'reiniciar_q': 'ASTRO startet neu mit:\n%s\n\n(Die Daten im bisherigen Ordner werden nicht verschoben.)', 'no_arranca': 'Start fehlgeschlagen: %s.\nSieh dir das Protokoll an:\n%s', 'por': 'Erstellt von', 'actualizando': 'ASTRO wird auf Version %s aktualisiert…', 'beta': 'Testversion (Beta). Wenn etwas nicht funktioniert oder dir eine Funktion fehlt, nutze „Problem oder Vorschlag melden“ unter „Weitere Optionen“. Danke, dass du ASTRO testest!'},
-    'it': {'lema': 'light e calibrazione', 'bienvenido': 'Benvenuto!', 'titulo_bienv': 'Benvenuto in ASTRO', 'intro': 'ASTRO controlla la qualità dei tuoi light (stelle, scie di satelliti, nuvole…), organizza la tua libreria di dark, flat e bias e impila con Siril.\n\nScegli la cartella in cui salverà le tue foto e i loro dati. Può essere su un disco esterno. Se usavi già ASTRO, scegli la cartella che contiene «Lights».', 'otra': "Scegli un'altra cartella…", 'empezar': 'Inizia', 'idioma': 'Lingua:', 'carpeta_titulo': 'Cartella dei dati di ASTRO', 'no_encuentro': 'Non trovo la tua cartella dei dati:\n%s', 'no_usar': 'Non si può usare questa cartella:\n%s', 'marcha': 'ASTRO è in funzione', 'marcha_txt': 'Scegli da dove cominciare; si apre nel browser. Lascia aperta questa finestra (o ridotta a icona) mentre usi ASTRO.', 'lights': 'Controllo dei light', 'biblio': 'Libreria di calibrazione', 'datos_en': 'Cartella dei dati:  ', 'cambiar': 'Cambia cartella dei dati…', 'lema_largo': 'Controlla, organizza, impila e misura le tue foto del cielo', 't_anadir': 'Aggiungi pose', 'd_anadir': 'Dalla scheda di memoria o da una cartella; ASTRO controlla ogni posa.', 't_objetos': 'Progetti', 'd_objetos': 'Ore utili, qualità di ogni notte e ciò che ti manca.', 't_varios': 'Più configurazioni', 'd_varios': 'Un oggetto con più telescopi o camere, tuoi o di amici.', 't_noches': 'Prossime notti', 'd_noches': 'Luna, nuvole e cosa fotografare con la tua attrezzatura.', 't_directo': 'Sessione in diretta', 'd_directo': 'Controlla ogni posa mentre acquisisci e ti avvisa se qualcosa va storto.', 't_apilar': 'Impila con Siril', 'd_apilar': "Dalle tue pose buone all'immagine finale, già calibrata.", 't_calib': 'Calibrazione', 'd_calib': 'Dark, flat e bias: cosa hai e cosa ti manca.', 't_ciencia': 'Scienza', 'd_ciencia': 'Misura con le tue foto: cielo, variabili, esopianeti, asteroidi…', 'ciencia': 'Scienza', 'salir': 'Esci', 'cerrar_q': 'Chiudere ASTRO?', 'nueva_carpeta': 'Nuova cartella dei dati di ASTRO', 'reiniciar_q': 'ASTRO si riavvierà usando:\n%s\n\n(I dati della cartella precedente non vengono spostati.)', 'no_arranca': 'Impossibile avviare: %s.\nGuarda il registro in:\n%s', 'por': 'Creato da', 'actualizando': 'Aggiornamento di ASTRO alla versione %s…', 'beta': 'Versione di prova (beta). Se qualcosa non funziona o ti manca una funzione, usa «Segnala un problema o un suggerimento» in «Altre opzioni». Grazie per provare ASTRO!'},
-    'pt': {'lema': 'lights e calibração', 'bienvenido': 'Bem-vindo!', 'titulo_bienv': 'Bem-vindo ao ASTRO', 'intro': 'O ASTRO verifica a qualidade das suas lights (estrelas, rastos de satélites, nuvens…), organiza a sua biblioteca de darks, flats e bias e empilha com o Siril.\n\nEscolha a pasta onde vai guardar as suas fotografias e os respetivos dados. Pode estar num disco externo. Se já usava o ASTRO, escolha a pasta que contém «Lights».', 'otra': 'Escolher outra pasta…', 'empezar': 'Começar', 'idioma': 'Idioma:', 'carpeta_titulo': 'Pasta de dados do ASTRO', 'no_encuentro': 'Não encontro a sua pasta de dados:\n%s', 'no_usar': 'Não é possível usar essa pasta:\n%s', 'marcha': 'O ASTRO está a funcionar', 'marcha_txt': 'Escolha por onde começar; abre-se no navegador. Deixe esta janela aberta (ou minimizada) enquanto usar o ASTRO.', 'lights': 'Controlo de lights', 'biblio': 'Biblioteca de calibração', 'datos_en': 'Pasta de dados:  ', 'cambiar': 'Alterar pasta de dados…', 'lema_largo': 'Verifique, organize, empilhe e meça as suas fotografias do céu', 't_anadir': 'Adicionar exposições', 'd_anadir': 'Do cartão ou de uma pasta; o ASTRO verifica cada exposição.', 't_objetos': 'Projetos', 'd_objetos': 'Horas úteis, qualidade de cada noite e o que lhe falta.', 't_varios': 'Vários equipamentos', 'd_varios': 'Um objeto com vários telescópios ou câmaras, seus ou de colegas.', 't_noches': 'Próximas noites', 'd_noches': 'Lua, nuvens e o que fotografar com o seu equipamento.', 't_directo': 'Sessão em direto', 'd_directo': 'Verifica cada exposição durante a captura e avisa se algo correr mal.', 't_apilar': 'Empilhar com o Siril', 'd_apilar': 'Das suas boas exposições à imagem final, já calibrada.', 't_calib': 'Calibração', 'd_calib': 'Darks, flats e bias: o que tem e o que lhe falta.', 't_ciencia': 'Ciência', 'd_ciencia': 'Meça com as suas fotografias: céu, variáveis, exoplanetas, asteroides…', 'ciencia': 'Ciência', 'salir': 'Sair', 'cerrar_q': 'Fechar o ASTRO?', 'nueva_carpeta': 'Nova pasta de dados do ASTRO', 'reiniciar_q': 'O ASTRO vai reiniciar com:\n%s\n\n(Os dados da pasta anterior não são movidos.)', 'no_arranca': 'Não foi possível arrancar: %s.\nConsulte o registo em:\n%s', 'por': 'Criado por', 'actualizando': 'A atualizar o ASTRO para a versão %s…', 'beta': 'Versão de teste (beta). Se algo falhar ou sentir falta de alguma função, use «Comunicar um problema ou sugestão» em «Mais opções». Obrigado por experimentar o ASTRO!'},
+    'fr': {'lema': 'lights et calibration', 'bienvenido': 'Bienvenue\xa0!', 'titulo_bienv': 'Bienvenue dans ASTRO', 'intro': 'ASTRO contrôle la qualité de vos lights (étoiles, traînées de satellites, nuages…), organise votre bibliothèque de darks, flats et bias, et empile.\n\nChoisissez le dossier où il enregistrera vos photos et leurs données. Il peut se trouver sur un disque externe. Si vous utilisiez déjà ASTRO, choisissez le dossier qui contient «\xa0Lights\xa0».', 'otra': 'Choisir un autre dossier…', 'empezar': 'Commencer', 'acepto': "J'ai lu et j'accepte la licence d'utilisation et les mentions légales.", 'ver_licencia': 'Lire la licence', 'falta_acepto': "Pour continuer, cochez la case d'acceptation.", 'titulo_licencia': 'Licence et mentions légales', 'bienv_licencia': "Avant de continuer, lisez et acceptez la licence d'utilisation.", 'idioma': 'Langue\xa0:', 'carpeta_titulo': "Dossier de données d'ASTRO", 'no_encuentro': 'Je ne trouve pas votre dossier de données\xa0:\n%s', 'no_usar': 'Ce dossier ne peut pas être utilisé\xa0:\n%s', 'marcha': 'ASTRO est lancé', 'marcha_txt': "Choisissez par où commencer\xa0; cela s'ouvre dans le navigateur. Laissez cette fenêtre ouverte (ou réduite) tant que vous utilisez ASTRO.", 'lights': 'Contrôle des lights', 'biblio': 'Bibliothèque de calibration', 'datos_en': 'Dossier de données\xa0:  ', 'cambiar': 'Changer de dossier de données…', 'lema_largo': 'Contrôlez, organisez, empilez et mesurez vos photos du ciel', 't_anadir': 'Ajouter des poses', 'd_anadir': 'Depuis la carte ou un dossier\xa0; ASTRO contrôle chaque pose.', 't_objetos': 'Projets', 'd_objetos': 'Heures utiles, qualité de chaque nuit et ce qui vous manque.', 't_varios': 'Plusieurs équipements', 'd_varios': "Un objet avec plusieurs télescopes ou caméras, les vôtres ou ceux d'amis.", 't_noches': 'Prochaines nuits', 'd_noches': 'Lune, nuages et quoi photographier avec votre équipement.', 't_directo': 'Session en direct', 'd_directo': 'Contrôle chaque pose pendant la capture et vous prévient en cas de souci.', 't_apilar': 'Empiler avec ASTRO', 'd_apilar': "De vos bonnes poses à l'image finale, déjà calibrée.", 't_calib': 'Calibration', 'd_calib': 'Darks, flats et bias\xa0: ce que vous avez et ce qui vous manque.', 't_ciencia': 'Science', 'd_ciencia': 'Mesurez avec vos photos\xa0: ciel, variables, exoplanètes, astéroïdes…', 'ciencia': 'Science', 'salir': 'Quitter', 'cerrar_q': 'Fermer ASTRO\xa0?', 'nueva_carpeta': "Nouveau dossier de données d'ASTRO", 'reiniciar_q': "ASTRO va redémarrer avec\xa0:\n%s\n\n(Les données de l'ancien dossier ne sont pas déplacées.)", 'no_arranca': 'Impossible de démarrer\xa0: %s.\nConsultez le journal dans\xa0:\n%s', 'por': 'Créé par', 'actualizando': "Mise à jour d'ASTRO vers la version %s…", 'beta': "Version d'essai (bêta). Si quelque chose ne marche pas ou s'il vous manque une fonction, utilisez «\xa0Signaler un problème ou faire une suggestion\xa0» dans «\xa0Plus d'options\xa0». Merci d'essayer ASTRO\xa0!"},
+    'de': {'lema': 'Lights und Kalibrierung', 'bienvenido': 'Willkommen!', 'titulo_bienv': 'Willkommen bei ASTRO', 'intro': 'ASTRO prüft die Qualität deiner Lights (Sterne, Satellitenspuren, Wolken…), ordnet deine Bibliothek aus Darks, Flats und Bias und stackt.\n\nWähle den Ordner, in dem es deine Fotos und ihre Daten speichert. Er darf auf einer externen Festplatte liegen. Wenn du ASTRO schon benutzt hast, wähle den Ordner, der „Lights“ enthält.', 'otra': 'Anderen Ordner wählen…', 'empezar': 'Starten', 'acepto': 'Ich habe die Lizenz und die rechtlichen Hinweise gelesen und akzeptiere sie.', 'ver_licencia': 'Lizenz lesen', 'falta_acepto': 'Zum Fortfahren bitte das Kästchen ankreuzen.', 'titulo_licencia': 'Lizenz und rechtliche Hinweise', 'bienv_licencia': 'Bitte lies und akzeptiere zuerst die Lizenz.', 'idioma': 'Sprache:', 'carpeta_titulo': 'Datenordner von ASTRO', 'no_encuentro': 'Ich finde deinen Datenordner nicht:\n%s', 'no_usar': 'Dieser Ordner kann nicht verwendet werden:\n%s', 'marcha': 'ASTRO läuft', 'marcha_txt': 'Wähle, womit du anfangen willst; es öffnet sich im Browser. Lass dieses Fenster offen (oder minimiert), solange du ASTRO benutzt.', 'lights': 'Lights-Kontrolle', 'biblio': 'Kalibrierbibliothek', 'datos_en': 'Datenordner:  ', 'cambiar': 'Datenordner ändern…', 'lema_largo': 'Prüfe, ordne, stacke und vermiss deine Himmelsfotos', 't_anadir': 'Aufnahmen hinzufügen', 'd_anadir': 'Von der Speicherkarte oder aus einem Ordner; ASTRO prüft jede Aufnahme.', 't_objetos': 'Projekte', 'd_objetos': 'Nutzbare Stunden, Qualität jeder Nacht und was dir noch fehlt.', 't_varios': 'Mehrere Setups', 'd_varios': 'Ein Objekt mit mehreren Teleskopen oder Kameras, auch von Sternfreunden.', 't_noches': 'Kommende Nächte', 'd_noches': 'Mond, Wolken und was du mit deiner Ausrüstung fotografieren kannst.', 't_directo': 'Live-Sitzung', 'd_directo': 'Prüft jede Aufnahme live und warnt dich, wenn etwas schiefgeht.', 't_apilar': 'Mit ASTRO stacken', 'd_apilar': 'Von deinen guten Aufnahmen zum fertigen, kalibrierten Bild.', 't_calib': 'Kalibrierung', 'd_calib': 'Darks, Flats und Bias: was du hast und was dir fehlt.', 't_ciencia': 'Wissenschaft', 'd_ciencia': 'Miss mit deinen Fotos: Himmel, Veränderliche, Exoplaneten, Asteroiden…', 'ciencia': 'Wissenschaft', 'salir': 'Beenden', 'cerrar_q': 'ASTRO beenden?', 'nueva_carpeta': 'Neuer Datenordner für ASTRO', 'reiniciar_q': 'ASTRO startet neu mit:\n%s\n\n(Die Daten im bisherigen Ordner werden nicht verschoben.)', 'no_arranca': 'Start fehlgeschlagen: %s.\nSieh dir das Protokoll an:\n%s', 'por': 'Erstellt von', 'actualizando': 'ASTRO wird auf Version %s aktualisiert…', 'beta': 'Testversion (Beta). Wenn etwas nicht funktioniert oder dir eine Funktion fehlt, nutze „Problem oder Vorschlag melden“ unter „Weitere Optionen“. Danke, dass du ASTRO testest!'},
+    'it': {'lema': 'light e calibrazione', 'bienvenido': 'Benvenuto!', 'titulo_bienv': 'Benvenuto in ASTRO', 'intro': 'ASTRO controlla la qualità dei tuoi light (stelle, scie di satelliti, nuvole…), organizza la tua libreria di dark, flat e bias e impila.\n\nScegli la cartella in cui salverà le tue foto e i loro dati. Può essere su un disco esterno. Se usavi già ASTRO, scegli la cartella che contiene «Lights».', 'otra': "Scegli un'altra cartella…", 'empezar': 'Inizia', 'acepto': "Ho letto e accetto la licenza d'uso e le note legali.", 'ver_licencia': 'Leggi la licenza', 'falta_acepto': 'Per continuare, spunta la casella di accettazione.', 'titulo_licencia': 'Licenza e note legali', 'bienv_licencia': "Prima di continuare, leggi e accetta la licenza d'uso.", 'idioma': 'Lingua:', 'carpeta_titulo': 'Cartella dei dati di ASTRO', 'no_encuentro': 'Non trovo la tua cartella dei dati:\n%s', 'no_usar': 'Non si può usare questa cartella:\n%s', 'marcha': 'ASTRO è in funzione', 'marcha_txt': 'Scegli da dove cominciare; si apre nel browser. Lascia aperta questa finestra (o ridotta a icona) mentre usi ASTRO.', 'lights': 'Controllo dei light', 'biblio': 'Libreria di calibrazione', 'datos_en': 'Cartella dei dati:  ', 'cambiar': 'Cambia cartella dei dati…', 'lema_largo': 'Controlla, organizza, impila e misura le tue foto del cielo', 't_anadir': 'Aggiungi pose', 'd_anadir': 'Dalla scheda di memoria o da una cartella; ASTRO controlla ogni posa.', 't_objetos': 'Progetti', 'd_objetos': 'Ore utili, qualità di ogni notte e ciò che ti manca.', 't_varios': 'Più configurazioni', 'd_varios': 'Un oggetto con più telescopi o camere, tuoi o di amici.', 't_noches': 'Prossime notti', 'd_noches': 'Luna, nuvole e cosa fotografare con la tua attrezzatura.', 't_directo': 'Sessione in diretta', 'd_directo': 'Controlla ogni posa mentre acquisisci e ti avvisa se qualcosa va storto.', 't_apilar': 'Impila con ASTRO', 'd_apilar': "Dalle tue pose buone all'immagine finale, già calibrata.", 't_calib': 'Calibrazione', 'd_calib': 'Dark, flat e bias: cosa hai e cosa ti manca.', 't_ciencia': 'Scienza', 'd_ciencia': 'Misura con le tue foto: cielo, variabili, esopianeti, asteroidi…', 'ciencia': 'Scienza', 'salir': 'Esci', 'cerrar_q': 'Chiudere ASTRO?', 'nueva_carpeta': 'Nuova cartella dei dati di ASTRO', 'reiniciar_q': 'ASTRO si riavvierà usando:\n%s\n\n(I dati della cartella precedente non vengono spostati.)', 'no_arranca': 'Impossibile avviare: %s.\nGuarda il registro in:\n%s', 'por': 'Creato da', 'actualizando': 'Aggiornamento di ASTRO alla versione %s…', 'beta': 'Versione di prova (beta). Se qualcosa non funziona o ti manca una funzione, usa «Segnala un problema o un suggerimento» in «Altre opzioni». Grazie per provare ASTRO!'},
+    'pt': {'lema': 'lights e calibração', 'bienvenido': 'Bem-vindo!', 'titulo_bienv': 'Bem-vindo ao ASTRO', 'intro': 'O ASTRO verifica a qualidade das suas lights (estrelas, rastos de satélites, nuvens…), organiza a sua biblioteca de darks, flats e bias e empilha.\n\nEscolha a pasta onde vai guardar as suas fotografias e os respetivos dados. Pode estar num disco externo. Se já usava o ASTRO, escolha a pasta que contém «Lights».', 'otra': 'Escolher outra pasta…', 'empezar': 'Começar', 'acepto': 'Li e aceito a licença de utilização e o aviso legal.', 'ver_licencia': 'Ler a licença', 'falta_acepto': 'Para continuar, marque a caixa de aceitação.', 'titulo_licencia': 'Licença e aviso legal', 'bienv_licencia': 'Antes de continuar, leia e aceite a licença de utilização.', 'idioma': 'Idioma:', 'carpeta_titulo': 'Pasta de dados do ASTRO', 'no_encuentro': 'Não encontro a sua pasta de dados:\n%s', 'no_usar': 'Não é possível usar essa pasta:\n%s', 'marcha': 'O ASTRO está a funcionar', 'marcha_txt': 'Escolha por onde começar; abre-se no navegador. Deixe esta janela aberta (ou minimizada) enquanto usar o ASTRO.', 'lights': 'Controlo de lights', 'biblio': 'Biblioteca de calibração', 'datos_en': 'Pasta de dados:  ', 'cambiar': 'Alterar pasta de dados…', 'lema_largo': 'Verifique, organize, empilhe e meça as suas fotografias do céu', 't_anadir': 'Adicionar exposições', 'd_anadir': 'Do cartão ou de uma pasta; o ASTRO verifica cada exposição.', 't_objetos': 'Projetos', 'd_objetos': 'Horas úteis, qualidade de cada noite e o que lhe falta.', 't_varios': 'Vários equipamentos', 'd_varios': 'Um objeto com vários telescópios ou câmaras, seus ou de colegas.', 't_noches': 'Próximas noites', 'd_noches': 'Lua, nuvens e o que fotografar com o seu equipamento.', 't_directo': 'Sessão em direto', 'd_directo': 'Verifica cada exposição durante a captura e avisa se algo correr mal.', 't_apilar': 'Empilhar com o ASTRO', 'd_apilar': 'Das suas boas exposições à imagem final, já calibrada.', 't_calib': 'Calibração', 'd_calib': 'Darks, flats e bias: o que tem e o que lhe falta.', 't_ciencia': 'Ciência', 'd_ciencia': 'Meça com as suas fotografias: céu, variáveis, exoplanetas, asteroides…', 'ciencia': 'Ciência', 'salir': 'Sair', 'cerrar_q': 'Fechar o ASTRO?', 'nueva_carpeta': 'Nova pasta de dados do ASTRO', 'reiniciar_q': 'O ASTRO vai reiniciar com:\n%s\n\n(Os dados da pasta anterior não são movidos.)', 'no_arranca': 'Não foi possível arrancar: %s.\nConsulte o registo em:\n%s', 'por': 'Criado por', 'actualizando': 'A atualizar o ASTRO para a versão %s…', 'beta': 'Versão de teste (beta). Se algo falhar ou sentir falta de alguma função, use «Comunicar um problema ou sugestão» em «Mais opções». Obrigado por experimentar o ASTRO!'},
 }
 
 
@@ -601,9 +602,11 @@ def _ventana(titulo, ancho=560, alto=380, grande=False):
         tk.Label(quien, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 40 - ancho_esc,
                  justify="left", anchor="w").pack(anchor="w")
         _enlace_astrocitas(quien, w).pack(anchor="w", pady=(5, 0))
+        tk.Label(quien, text=COLABORADORES[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 9)).pack(anchor="w", pady=(4, 0))
     else:
         tk.Label(pie, text=AUTOR[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 10), wraplength=ancho - 30, justify="center").pack(padx=12, pady=(7, 0))
-        _enlace_astrocitas(pie, w).pack(pady=(3, 7))
+        _enlace_astrocitas(pie, w).pack(pady=(3, 2))
+        tk.Label(pie, text=COLABORADORES[IDIOMA["v"]], bg="#FFFFFF", fg=GRIS, font=("Helvetica", 9)).pack(pady=(0, 7))
     cuerpo = tk.Frame(w, bg=FONDO); cuerpo.pack(fill="both", expand=True, padx=28 if grande else 24, pady=(18, 22))
     return w, cuerpo
 
@@ -991,6 +994,39 @@ def comprobar_actualizacion():
     w.after(150, refrescar)
     w.mainloop()
 
+LICENCIA_FECHA = "2026-10-02"          # fecha de la licencia en vigor: si cambia, se vuelve a pedir la aceptación
+
+
+def licencia_aceptada():
+    return leer_config().get("licencia") == LICENCIA_FECHA
+
+
+def aceptar_licencia():
+    c = leer_config(); c["licencia"] = LICENCIA_FECHA; guardar_config(c)
+
+
+def texto_licencia():
+    """La licencia que acompaña al programa: en español, o la traducción al inglés en los demás idiomas."""
+    for n in (("LICENCIA.md",) if IDIOMA["v"] == "es" else ("LICENSE.md", "LICENCIA.md")):
+        try:
+            with open(os.path.join(recursos(), n), "r", encoding="utf-8") as fh:
+                t = fh.read()
+            # texto llano: sin las marcas de Markdown
+            t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
+            return re.sub(r"(?m)^(#+|>) ?", "", t).replace("**", "").replace("*", "")
+        except OSError:
+            pass
+    return "https://github.com/tomasmorenogonzalez-eng/Astro/blob/main/LICENCIA.md"
+
+
+def ventana_licencia(padre):
+    v = tk.Toplevel(padre); v.title(T("titulo_licencia")); v.geometry("720x560")
+    sb = tk.Scrollbar(v); sb.pack(side="right", fill="y")
+    t = tk.Text(v, wrap="word", font=("Helvetica", 12), padx=14, pady=12, yscrollcommand=sb.set)
+    t.insert("1.0", texto_licencia()); t.config(state="disabled"); t.pack(fill="both", expand=True)
+    sb.config(command=t.yview)
+
+
 def bienvenida(mensaje=None):
     """Primera vez (o carpeta no encontrada): elegir dónde guardar los datos."""
     propuesta = leer_config().get("datos") or carpeta_por_defecto()
@@ -998,7 +1034,7 @@ def bienvenida(mensaje=None):
         print("Carpeta de datos:", propuesta)
         return propuesta
     elegido = {"ruta": None}
-    w, c = _ventana(T("titulo_bienv"), 760, 460, grande=True)
+    w, c = _ventana(T("titulo_bienv"), 760, 530, grande=True)
     BIENVENIDA["vista"] = True
 
     def poner_idioma(i):
@@ -1021,13 +1057,29 @@ def bienvenida(mensaje=None):
         if r:
             var.set(normalizar_datos(r))
 
+    def aceptada():
+        if not acepta.get():
+            falta.config(text=T("falta_acepto"))
+            return False
+        aceptar_licencia()
+        return True
+
     def usar():
-        elegido["ruta"] = var.get(); w.destroy()
+        if aceptada():
+            elegido["ruta"] = var.get(); w.destroy()
 
     def ejemplo():
-        elegido["ruta"] = EJEMPLO; w.destroy()
+        if aceptada():
+            elegido["ruta"] = EJEMPLO; w.destroy()
 
-    bot = tk.Frame(c, bg=FONDO); bot.pack(fill="x", pady=(18, 0))
+    # la licencia: sin marcar la casilla no se puede empezar
+    acepta = tk.BooleanVar(value=False)
+    fl = tk.Frame(c, bg=FONDO); fl.pack(fill="x", pady=(12, 0))
+    tk.Checkbutton(fl, text=T("acepto"), variable=acepta, bg=FONDO, fg=TEXTO, activebackground=FONDO, selectcolor="#FFFFFF",
+                   font=("Helvetica", 12), anchor="w", command=lambda: falta.config(text="")).pack(side="left")
+    _enlace(fl, T("ver_licencia"), lambda: ventana_licencia(w)).pack(side="left", padx=(8, 0))
+    falta = tk.Label(c, text="", bg=FONDO, fg="#BA3A2E", font=("Helvetica", 11), anchor="w"); falta.pack(fill="x")
+    bot = tk.Frame(c, bg=FONDO); bot.pack(fill="x", pady=(8, 0))
     _boton(bot, T("otra"), otra).pack(side="left")
     _boton(bot, T("empezar"), usar, principal=True).pack(side="right")
     ej = tk.Frame(c, bg=FONDO); ej.pack(fill="x", pady=(16, 0))
@@ -1187,7 +1239,7 @@ def _no_escribible(d):
 
 def carpeta_datos():
     c = leer_config()
-    if c.get("ejemplo"):
+    if c.get("ejemplo") and licencia_aceptada():
         d = _datos_ejemplo()
         if d:
             return d
@@ -1196,7 +1248,7 @@ def carpeta_datos():
     # una carpeta de ASTRO (la de los datos de ejemplo se borra entera cada vez que se vuelven a ver) no vale
     if datos and not err and _es_carpeta_interna(datos):
         err = T("no_usar") % T("carpeta_interna")
-    if datos and os.path.isdir(datos) and not err:
+    if datos and os.path.isdir(datos) and not err and licencia_aceptada():
         return datos
     while True:
         if err:
@@ -1204,7 +1256,7 @@ def carpeta_datos():
         elif datos and not os.path.isdir(datos):   # p. ej. disco externo desconectado
             datos = bienvenida(T("no_encuentro") % datos)
         else:
-            datos = bienvenida()
+            datos = bienvenida(T("bienv_licencia") if datos else None)
         if datos != EJEMPLO:
             if _es_carpeta_interna(normalizar_datos(datos)):
                 err = T("no_usar") % T("carpeta_interna")
@@ -1680,8 +1732,8 @@ def _autor_html():
     ana = '<img src="/img/escudo-astrocitas.png" alt="">' if hay("escudo-astrocitas.png") else ""
     enlace = '<a class="astrocitas" href="%s" target="_blank" rel="noopener" title="%s">%s<span>%s</span></a>' % (
         _h(ASTROCITAS_URL), _h(T("astrocitas_yt")), ana, _h(T("astrocitas_yt")))
-    return '<footer class="autor"><span class="quien"><span>%s</span>%s</span><span class="escudos">%s</span></footer>' % (
-        _h(AUTOR[IDIOMA["v"]]), enlace, esc)
+    return '<footer class="autor"><span class="quien"><span>%s</span>%s</span><span class="escudos">%s</span><span class="colab" style="flex-basis:100%%">%s</span></footer>' % (
+        _h(AUTOR[IDIOMA["v"]]), enlace, esc, _h(COLABORADORES[IDIOMA["v"]]))
 
 
 def pagina_espera():
@@ -1711,17 +1763,23 @@ def pagina_bienvenida():
     cuerpo = ('<main class="cuerpo" style="max-width:820px">%s%s<h2 style="margin:18px 0 6px;font-size:26px">%s</h2>'
               '<p class="nota" style="font-size:15px;white-space:pre-line">%s</p>'
               '<div class="ruta" id="ruta">%s</div><div id="rutaErr" class="nota" style="color:#BA3A2E;margin-top:6px"></div>'
+              '<label class="fila" style="margin-top:16px;gap:8px;font-size:14.5px;cursor:pointer"><input type="checkbox" id="acepto" style="width:18px;height:18px"><span>%s</span></label>'
+              '<p class="nota" style="margin-top:6px"><button class="enl" id="verLic">%s</button></p>'
+              '<pre id="lic" style="display:none;white-space:pre-wrap;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px;font:13px/1.5 inherit;margin-top:8px">%s</pre>'
               '<div class="fila" style="margin-top:16px"><button class="btn" id="otra">%s</button><span class="spacer"></span>'
               '<button class="btn prim" id="empezar">%s</button></div>%s</main>%s') % (
         _selector_idioma_html(), beta, _h(ESTADO_APP.get("mensaje") or T("bienvenido")), _h(T("intro")), _h(propuesta),
-        _h(T("otra")), _h(T("empezar")),
+        _h(T("acepto")), _h(T("ver_licencia")), _h(texto_licencia()), _h(T("otra")), _h(T("empezar")),
         ('<p class="nota" style="margin-top:22px">%s <button class="enl" id="ejemplo">%s</button></p>' % (_h(T("ejemplo_bienv")), _h(T("ejemplo_ver"))))
         if hay_ejemplo else "", _autor_html())
     js = r"""
 $("otra").onclick = async () => { const r = await post("/api/bienvenida", {accion:"elegir", actual:$("ruta").textContent}); if (r.ruta){ $("ruta").textContent = r.ruta; $("rutaErr").textContent = ""; } };
-$("empezar").onclick = async () => { const r = await post("/api/bienvenida", {accion:"usar", ruta:$("ruta").textContent});
+$("empezar").onclick = async () => { const r = await post("/api/bienvenida", {accion:"usar", ruta:$("ruta").textContent, acepto:$("acepto").checked});
   if (r.error){ $("rutaErr").textContent = r.error; return; } location.replace("/espera"); };
-if ($("ejemplo")) $("ejemplo").onclick = async () => { await post("/api/bienvenida", {accion:"ejemplo"}); location.replace("/espera"); };"""
+if ($("ejemplo")) $("ejemplo").onclick = async () => { const r = await post("/api/bienvenida", {accion:"ejemplo", acepto:$("acepto").checked});
+  if (r.error){ $("rutaErr").textContent = r.error; return; } location.replace("/espera"); };
+$("verLic").onclick = () => { const l = $("lic"); l.style.display = l.style.display === "none" ? "block" : "none"; };
+$("acepto").onchange = () => { $("rutaErr").textContent = ""; };"""
     return _pagina(T("titulo_bienv"), cuerpo, js)
 
 
@@ -1916,6 +1974,8 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
             if acc == "elegir":
                 r = _dlg_carpeta(T("carpeta_titulo"), os.path.dirname(d.get("actual") or "") or os.path.expanduser("~"))
                 return self._json({"ruta": normalizar_datos(r) if r else ""})
+            if acc in ("usar", "ejemplo") and not d.get("acepto"):
+                return self._json({"error": T("falta_acepto")})
             if acc == "usar":
                 ruta, err = _validar_carpeta(d.get("ruta"))
                 if err:
@@ -1925,6 +1985,7 @@ class _PaginasApp(http.server.BaseHTTPRequestHandler):
                 VENTANA_APP["eleccion"] = EJEMPLO
             else:
                 return self._json({"ok": False})
+            aceptar_licencia()
             ESTADO_APP["fase"] = "arrancando"
             VENTANA_APP["evento"].set()
             return self._json({"ok": True})
@@ -2035,16 +2096,17 @@ def _pedir_bienvenida(mensaje=None):
 
 def carpeta_datos_app():
     c = leer_config()
-    if c.get("ejemplo"):
+    if c.get("ejemplo") and licencia_aceptada():
         d = _datos_ejemplo()
         if d:
             return d
     datos = c.get("datos")
     err = _no_escribible(datos) if datos and os.path.isdir(datos) else ""
-    if datos and os.path.isdir(datos) and not err:
+    if datos and os.path.isdir(datos) and not err and licencia_aceptada():
         return datos
     while True:
-        eleccion = _pedir_bienvenida(T("no_encuentro") % datos if datos and not os.path.isdir(datos) else (err or None))
+        eleccion = _pedir_bienvenida(T("no_encuentro") % datos if datos and not os.path.isdir(datos)
+                                     else (err or (T("bienv_licencia") if datos else None)))
         err = ""
         if eleccion != EJEMPLO:
             break

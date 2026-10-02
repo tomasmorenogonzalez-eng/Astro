@@ -7538,6 +7538,8 @@ DIC_EN = {
     "La regla de oro: medir sobre datos lineales, calibrados y con la hora exacta": "The golden rule: measure on linear, calibrated data with the exact time",
     "Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.": "No stretching, deconvolution or noise reduction (BlurXTerminator, NoiseXTerminator…) before measuring: they change the brightness of each star differently. The same frames serve both purposes: the calibrated, linear copy goes to the measurement and the processed one to the picture. ASTRO always measures on the original frames, calibrated with your library.",
     "Programa creado por": "Created by",
+    "Colaboradores especiales:": "Special contributors:",
+    "Programa gratuito (freeware). Todos los derechos reservados. Se ofrece «tal cual», sin garantía: haz copia de seguridad de tus datos.": "Free-of-charge software (freeware). All rights reserved. Provided “as is”, without warranty: back up your data.",
     "Miembro de Astrocitas y Asociación Astronómica Azarquiel (Piedrabuena, C.Real).": "Member of Astrocitas and the Asociación Astronómica Azarquiel (Piedrabuena, C.Real).",
     "Medir el cielo": "Measure the sky",
     "Elige qué medir. ASTRO calibra cada toma con tu biblioteca, la resuelve con Siril, la compara con las estrellas de Gaia y calcula el brillo del fondo, la magnitud límite, el tamaño de las estrellas y la transparencia.": "Choose what to measure. ASTRO calibrates each frame with your library, plate-solves it with Siril, compares it with the Gaia stars and computes the background brightness, the limiting magnitude, the star size and the transparency.",
@@ -7691,7 +7693,7 @@ DIC_EN = {
     "Informe copiado. Pégalo en un correo o mensaje.": "Report copied. Paste it into an email or message.",
     "No se pudo copiar": "Could not copy",
     "Informe de problema de ASTRO": "ASTRO problem report",
-    "Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila con Siril y mide con tus fotos.": "Free astrophotography software: it checks the quality of your light frames, organises your library of darks, flats and bias, stacks with Siril and measures with your images.",
+    "Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila y mide con tus fotos.": "Free astrophotography software: it checks the quality of your light frames, organises your library of darks, flats and bias, stacks and measures with your images.",
     "ya hay una medida en marcha": "a measurement is already running",
     "no hay nada que medir": "there is nothing to measure",
     "no encuentro el archivo de la toma (¿está conectado el disco?)": "I can't find the frame's file (is the disk connected?)",
@@ -8531,7 +8533,7 @@ th{background:var(--surface);font-weight:700}
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
       <h3 class="seccion">Los siete bloques</h3>
       <div class="bloques" id="bloques"></div>
-      <div class="autor"><span>Programa creado por</span> <b>Raúl Hussein Galindo · Tomás Moreno González</b><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div></div>
+      <div class="autor"><span>Programa creado por</span> <b>Raúl Hussein Galindo · Tomás Moreno González</b><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div><div class="colab" style="margin-top:6px"><span>Colaboradores especiales:</span> <b>Francisco López · Carlos Oltra</b></div></div>
     </section>
 
     <section id="vistaBloque" style="display:none">
@@ -10430,9 +10432,9 @@ function acercaDe(){
   d.innerHTML = `<div class="box" style="width:min(520px,100%);text-align:center;gap:10px;align-items:center">
     <span class="logo" style="width:64px;height:64px;border-radius:18px"><svg viewBox="0 0 24 24" style="width:32px;height:32px"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z"/></svg></span>
     <h2>ASTRO</h2><div class="note">${tr("Ciencia: medir con tus fotos")} · ${tr("versión")} <span class="notr">${VERSION_ACTUAL}</span></div>
-    <p>${tr("Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila con Siril y mide con tus fotos.")}</p>
+    <p>${tr("Programa gratuito para astrofotografía: revisa la calidad de los lights, organiza la biblioteca de darks, flats y bias, apila y mide con tus fotos.")}</p>
     <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;width:100%"><div class="note">${tr("Programa creado por")}</div><b style="font-size:16px">Raúl Hussein Galindo · Tomás Moreno González</b>
-      <div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div></div>
+      <div class="escudos grandes"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div><div class="colab" style="margin-top:6px"><span>${tr("Colaboradores especiales:")}</span> <b>Francisco López · Carlos Oltra</b></div><div class="legal" style="margin-top:6px;font-size:12px;color:var(--muted)">© 2026 <span>${tr("Programa gratuito (freeware). Todos los derechos reservados. Se ofrece «tal cual», sin garantía: haz copia de seguridad de tus datos.")}</span></div></div>
     ${bloqueDonar()}
     <button class="btn primary" onclick="this.closest('.modal').remove()">${tr("Cerrar")}</button></div>`;
   d.onclick = e => { if (e.target === d) d.remove(); };
