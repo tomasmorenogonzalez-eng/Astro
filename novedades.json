@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.10",
+  "es": [
+   "**Mapa del campo.** ASTRO mide ahora la nitidez y el alargamiento de las estrellas en 25 zonas de cada toma y te los enseña en un mapa: en la ficha de una toma y, con la mediana de todas sus tomas, en la ficha de cada equipo de un proyecto (botón «Mapa del campo…»).",
+   "El mapa dice lo que ve: **inclinación del sensor** (un lado peor que el otro), **esquinas alargadas hacia el centro o en círculo** (distancia al reductor o aplanador), curvatura de campo, o estrellas alargadas en la misma dirección en todo el campo (guiado o viento, no la óptica). Las tomas ya analizadas se miden otra vez con un botón."
+  ],
+  "en": [
+   "**Field map.** ASTRO now measures star sharpness and elongation in 25 zones of each frame and shows them on a map: in a frame's sheet and, with the median of all its frames, in each setup's sheet in a project («Field map…» button).",
+   "The map says what it sees: **sensor tilt** (one side worse than the other), **corners elongated towards the centre or in a circle** (reducer or flattener spacing), field curvature, or stars elongated the same way across the field (guiding or wind, not the optics). Frames already analysed are measured again with one button."
+  ],
+  "fr": [
+   "**Carte du champ.** ASTRO mesure désormais la netteté et l'allongement des étoiles dans 25 zones de chaque pose et les montre sur une carte : dans la fiche d'une pose et, avec la médiane de toutes ses poses, dans la fiche de chaque équipement d'un projet (bouton « Carte du champ… »).",
+   "La carte dit ce qu'elle voit : **tilt du capteur** (un côté moins bon que l'autre), **coins allongés vers le centre ou en cercle** (distance au réducteur ou à l'aplanisseur), courbure de champ, ou étoiles allongées dans la même direction partout (guidage ou vent, pas l'optique). Les poses déjà analysées se remesurent d'un bouton."
+  ],
+  "de": [
+   "**Feldkarte.** ASTRO misst jetzt Schärfe und Elongation der Sterne in 25 Zonen jeder Aufnahme und zeigt sie auf einer Karte: im Blatt einer Aufnahme und, mit dem Median aller Aufnahmen, im Blatt jeder Ausrüstung eines Projekts (Schaltfläche „Feldkarte…“).",
+   "Die Karte sagt, was sie sieht: **Sensorverkippung** (eine Seite schlechter als die andere), **zur Mitte oder kreisförmig verzogene Ecken** (Abstand zum Reducer oder Flattener), Bildfeldwölbung oder überall gleich verzogene Sterne (Nachführung oder Wind, nicht die Optik). Bereits analysierte Aufnahmen werden mit einem Klick neu gemessen."
+  ],
+  "it": [
+   "**Mappa del campo.** ASTRO ora misura la nitidezza e l'allungamento delle stelle in 25 zone di ogni posa e li mostra su una mappa: nella scheda di una posa e, con la mediana di tutte le sue pose, nella scheda di ogni attrezzatura di un progetto (pulsante «Mappa del campo…»).",
+   "La mappa dice ciò che vede: **tilt del sensore** (un lato peggiore dell'altro), **angoli allungati verso il centro o in cerchio** (distanza dal riduttore o spianatore), curvatura di campo, o stelle allungate nella stessa direzione ovunque (guida o vento, non l'ottica). Le pose già analizzate si rimisurano con un pulsante."
+  ],
+  "pt": [
+   "**Mapa do campo.** O ASTRO mede agora a nitidez e o alongamento das estrelas em 25 zonas de cada exposição e mostra-os num mapa: na ficha de uma exposição e, com a mediana de todas as suas exposições, na ficha de cada equipamento de um projeto (botão «Mapa do campo…»).",
+   "O mapa diz o que vê: **inclinação do sensor** (um lado pior do que o outro), **cantos alongados para o centro ou em círculo** (distância ao redutor ou aplanador), curvatura de campo, ou estrelas alongadas na mesma direção em todo o campo (guiagem ou vento, não a ótica). As exposições já analisadas medem-se outra vez com um botão."
+  ]
+ },
+ {
   "version": "0.33.9",
   "es": [
    "**Proyectos hechos de masters.** Si un proyecto tiene una sola imagen por equipo (masters ya apilados, de varios equipos o compañeros), «Apilar» lo avisa antes de empezar en lugar de fallar, y ofrece el botón **«Unir los masters de este proyecto…»**.",
