@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.12",
+  "es": [
+   "**Ciencia: curvas de luz retrospectivas.** En «Estrellas variables» puedes elegir ahora «Todas las noches de un objeto»: ASTRO recorre las tomas que ya tienes guardadas (mismo filtro y mismo equipo), mide unas pocas por noche o todas, y saca la curva de luz de meses o años de cualquier variable del campo, con un punto por noche.",
+   "La curva se dibuja por fechas y, además, plegada con el periodo del VSX (o con el que tú escribas). El informe para la AAVSO sale igual que siempre. Es la primera versión: los cálculos están comprobados con datos inventados, aún no con noches reales."
+  ],
+  "en": [
+   "**Science: retrospective light curves.** In “Variable stars” you can now choose “Every night of an object”: ASTRO goes through the frames you already keep (same filter and equipment), measures a few per night or all of them, and builds the light curve over months or years of any variable in the field, one point per night.",
+   "The curve is drawn by date and also folded on the VSX period (or one you type). The AAVSO report comes out as usual. First version: the maths is checked with synthetic data, not yet with real nights."
+  ],
+  "fr": [
+   "**Science : courbes de lumière rétrospectives.** Dans « Étoiles variables », tu peux choisir « Toutes les nuits d'un objet » : ASTRO parcourt les poses déjà archivées (même filtre, même matériel), en mesure quelques-unes par nuit ou toutes, et trace la courbe de lumière sur des mois ou des années de n'importe quelle variable du champ, un point par nuit.",
+   "La courbe est tracée par date et aussi repliée sur la période du VSX (ou celle que tu saisis). Première version : vérifiée avec des données simulées, pas encore avec de vraies nuits."
+  ],
+  "de": [
+   "**Wissenschaft: rückblickende Lichtkurven.** Unter „Veränderliche Sterne“ kannst du jetzt „Alle Nächte eines Objekts“ wählen: ASTRO geht die bereits archivierten Aufnahmen durch (gleicher Filter, gleiche Ausrüstung), misst einige pro Nacht oder alle und erstellt die Lichtkurve über Monate oder Jahre für jeden Veränderlichen im Feld, ein Punkt pro Nacht.",
+   "Die Kurve wird nach Datum gezeichnet und zusätzlich mit der VSX-Periode (oder einer eigenen) gefaltet. Erste Version: mit simulierten Daten geprüft, noch nicht mit echten Nächten."
+  ],
+  "it": [
+   "**Scienza: curve di luce retrospettive.** In «Stelle variabili» puoi scegliere «Tutte le notti di un oggetto»: ASTRO percorre le pose già archiviate (stesso filtro e stessa strumentazione), ne misura alcune per notte o tutte, e ricava la curva di luce di mesi o anni di qualsiasi variabile nel campo, un punto per notte.",
+   "La curva è disegnata per data e anche ripiegata sul periodo del VSX (o su quello che scrivi tu). Prima versione: verificata con dati simulati, non ancora con notti reali."
+  ],
+  "pt": [
+   "**Ciência: curvas de luz retrospetivas.** Em «Estrelas variáveis» podes escolher «Todas as noites de um objeto»: o ASTRO percorre as imagens já guardadas (mesmo filtro e mesmo equipamento), mede algumas por noite ou todas, e obtém a curva de luz de meses ou anos de qualquer variável no campo, um ponto por noite.",
+   "A curva é desenhada por data e também dobrada com o período do VSX (ou o que escreveres). Primeira versão: verificada com dados simulados, ainda não com noites reais."
+  ]
+ },
+ {
   "version": "0.33.11",
   "es": [
    "**Ciencia: binarias eclipsantes, el mínimo.** Un bloque nuevo, hermano del de las RR Lyrae: te dice los mínimos de las próximas noches que se ven enteros desde tu lugar, mide la curva con comparaciones de Gaia, ajusta el instante del mínimo con su error y calcula el O−C frente a los elementos del VSX, también en los mínimos secundarios.",
@@ -57,27 +84,27 @@
   "version": "0.33.9",
   "es": [
    "**Proyectos hechos de masters.** Si un proyecto tiene una sola imagen por equipo (masters ya apilados, de varios equipos o compañeros), «Apilar» lo avisa antes de empezar en lugar de fallar, y ofrece el botón **«Unir los masters de este proyecto…»**.",
-   "Ese mismo botón está en el paso «Apilado» de la página del proyecto: abre «Unir masters de varios equipos» con sus imágenes ya cargadas, sin tener que reunirlas a mano en una carpeta. No se copia ni se mueve nada."
+   "Ese mismo botón está en el paso «Apilado» de la página del proyecto: abre «Unir masters de varios equipos» con sus imágenes ya cargadas, sin tener que reunirlas a mano en una carpeta. Los originales no se mueven (en discos exFAT, que no admiten enlaces, se hace una copia)."
   ],
   "en": [
    "**Projects made of masters.** If a project has a single image per setup (masters already stacked, from several setups or colleagues), «Stack» now says so before starting instead of failing, and offers the button **«Merge this project's masters…»**.",
-   "The same button is in the «Stacking» step of the project page: it opens «Merge masters from several setups» with its images already loaded, with no need to gather them by hand in a folder. Nothing is copied or moved."
+   "The same button is in the «Stacking» step of the project page: it opens «Merge masters from several setups» with its images already loaded, with no need to gather them by hand in a folder. The originals are not moved (on exFAT disks, which do not support links, a copy is made)."
   ],
   "fr": [
    "**Projets faits de masters.** Si un projet n'a qu'une image par équipement (masters déjà empilés, de plusieurs équipements ou collègues), « Empiler » le signale avant de commencer au lieu d'échouer, et propose le bouton **« Fusionner les masters de ce projet… »**.",
-   "Ce même bouton se trouve à l'étape « Empilement » de la page du projet : il ouvre la fusion de masters avec ses images déjà chargées, sans devoir les rassembler à la main dans un dossier. Rien n'est copié ni déplacé."
+   "Ce même bouton se trouve à l'étape « Empilement » de la page du projet : il ouvre la fusion de masters avec ses images déjà chargées, sans devoir les rassembler à la main dans un dossier. Les originaux ne sont pas déplacés (sur les disques exFAT, qui n'acceptent pas les liens, une copie est faite)."
   ],
   "de": [
    "**Projekte aus Mastern.** Hat ein Projekt nur ein Bild pro Ausrüstung (bereits gestackte Master von mehreren Ausrüstungen oder Kollegen), meldet „Stacken“ das vor dem Start, statt fehlzuschlagen, und bietet die Schaltfläche **„Die Master dieses Projekts zusammenführen…“**.",
-   "Dieselbe Schaltfläche steht im Schritt „Stacking“ der Projektseite: Sie öffnet das Zusammenführen von Mastern mit den Bildern bereits geladen, ohne sie von Hand in einem Ordner zu sammeln. Nichts wird kopiert oder verschoben."
+   "Dieselbe Schaltfläche steht im Schritt „Stacking“ der Projektseite: Sie öffnet das Zusammenführen von Mastern mit den Bildern bereits geladen, ohne sie von Hand in einem Ordner zu sammeln. Die Originale werden nicht verschoben (auf exFAT-Laufwerken, die keine Verknüpfungen erlauben, wird eine Kopie angelegt)."
   ],
   "it": [
    "**Progetti fatti di master.** Se un progetto ha una sola immagine per attrezzatura (master già impilati, di più attrezzature o colleghi), «Impila» lo segnala prima di iniziare invece di fallire, e offre il pulsante **«Unisci i master di questo progetto…»**.",
-   "Lo stesso pulsante è nel passo «Impilamento» della pagina del progetto: apre l'unione dei master con le immagini già caricate, senza doverle raccogliere a mano in una cartella. Nulla viene copiato o spostato."
+   "Lo stesso pulsante è nel passo «Impilamento» della pagina del progetto: apre l'unione dei master con le immagini già caricate, senza doverle raccogliere a mano in una cartella. Gli originali non vengono spostati (sui dischi exFAT, che non ammettono collegamenti, viene fatta una copia)."
   ],
   "pt": [
    "**Projetos feitos de masters.** Se um projeto tem uma só imagem por equipamento (masters já empilhados, de vários equipamentos ou colegas), «Empilhar» avisa antes de começar em vez de falhar, e oferece o botão **«Unir os masters deste projeto…»**.",
-   "Esse mesmo botão está no passo «Empilhamento» da página do projeto: abre a união de masters com as imagens já carregadas, sem ter de as reunir à mão numa pasta. Nada é copiado nem movido."
+   "Esse mesmo botão está no passo «Empilhamento» da página do projeto: abre a união de masters com as imagens já carregadas, sem ter de as reunir à mão numa pasta. Os originais não são movidos (em discos exFAT, que não admitem ligações, é feita uma cópia)."
   ]
  },
  {

@@ -89,7 +89,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.10.03.1"
+VERSION_PROG = "2026.10.03.2"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2593,7 +2593,7 @@ def _calibrar_tanda(grupo, W, siril, hechos, k0, total):
     return rutas
 
 
-def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver):
+def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver, por_noche=False):
     """Calibra las tomas por tandas con Siril, sigue el campo (resolviendo la primera) y mide todas las estrellas
     con las aperturas dadas (en FWHM). Devuelve un registro por toma medida."""
     alineacion = [(e["ra"], e["dec"]) for e in estrellas]
@@ -2602,6 +2602,7 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
     previo = (0.0, 0.0)
     hechos = {}
     tanda = 6
+    ultima = None
     for k0 in range(0, len(tomas), tanda):
         if JOB["cancelar"]:
             raise Cancelado()
@@ -2618,6 +2619,11 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
                 JOB["errores"].append({"nombre": nombre, "error": "para medir tomas XISF sin calibrar hace falta pasarlas a FITS"})
                 continue
             JOB["texto"], JOB["archivo"] = "Midiendo", nombre
+            # curva de varias noches: de una noche a otra el campo puede venir girado o movido, así que cada noche
+            # se vuelve a situar desde cero (su astrometría o Siril) en vez de seguir el desplazamiento de la anterior
+            if por_noche and ultima is not None and abs((fecha - ultima).total_seconds()) > 36000:
+                ref, previo = None, (0.0, 0.0)
+            ultima = fecha
             try:
                 img = Imagen(ruta)
             except Exception as e:
@@ -2727,7 +2733,8 @@ def trabajo_variable(p):
         if len(estrellas) < 3:
             raise RuntimeError("la secuencia de la AAVSO no tiene magnitudes en %s para este campo" % bcat)
         lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
-        registros = _medir_serie(tomas, estrellas, escala, lg, ra_v, dec_v, [1.6], base, siril, ver)
+        retro = bool(p.get("retro"))
+        registros = _medir_serie(tomas, estrellas, escala, lg, ra_v, dec_v, [1.6], base, siril, ver, por_noche=retro)
         if len(registros) < 2:
             raise RuntimeError("no he podido medir bastantes tomas")
         JOB["hechos"] = len(tomas)
@@ -2736,12 +2743,13 @@ def trabajo_variable(p):
                  "ra": ra_v, "dec": dec_v, "banda": banda, "banda_catalogo": bcat, "carta": {k: carta[k] for k in ("fov", "maglimit", "fuente")},
                  "estrellas": estrellas, "tomas": registros, "objeto": d0.get("objeto") or "", "filtro": d0.get("filtro") or "",
                  "cam": d0.get("cam") or "", "tel": d0.get("tel") or "", "noche": d0.get("noche") or "",
+                 "retro": retro, "noche_fin": tomas[-1][1].get("noche") or "",
                  "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon")},
                  "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
                  "siril": ver}
         # primero el cálculo: si falla (p. ej. sin estrellas de comparación útiles), no queda una serie a medias que
         # luego no se puede abrir
-        calc = calcular_variable(serie, {"agrupar": int(p.get("agrupar") or 1)})
+        calc = calcular_variable(serie, {"agrupar": p.get("agrupar") or 1})
         d = os.path.join(VARIABLES_DIR, serie["id"])
         os.makedirs(d, exist_ok=True)
         escribir_json(os.path.join(d, "serie.json"), serie)
@@ -2867,9 +2875,21 @@ def calcular_variable(serie, sel):
                        "masa_aire": t.get("masa_aire"), "archivo": t["archivo"], "avisos": avisos})
     if not puntos:
         raise RuntimeError("no hay tomas con la variable y sus comparaciones medidas")
-    n = max(1, int(sel.get("agrupar") or 1))
-    if n > 1:
-        grupos = [puntos[i:i + n] for i in range(0, len(puntos), n)]
+    # las noches de la serie: tomas separadas por más de diez horas son de noches distintas
+    noches = []
+    for p in puntos:
+        if noches and p["jd"] - noches[-1][-1]["jd"] < 10.0 / 24:
+            noches[-1].append(p)
+        else:
+            noches.append([p])
+    n_noches = len(noches)
+    por_noche = sel.get("agrupar") == "noche"
+    try:
+        n = 1 if por_noche else max(1, int(sel.get("agrupar") or 1))
+    except (TypeError, ValueError):
+        n = 1
+    if n > 1 or por_noche:
+        grupos = noches if por_noche else [puntos[i:i + n] for i in range(0, len(puntos), n)]
         nuevos = []
         for g in grupos:
             w = [1.0 / max(p["err"], 0.001) ** 2 for p in g]
@@ -2884,11 +2904,11 @@ def calcular_variable(serie, sel):
                            "comp_inst": round(sum(p["comp_inst"] for p in g) / len(g), 4) if modo == "single" else None,
                            "var_inst": round(sum(p["var_inst"] for p in g) / len(g), 4),
                            "masa_aire": round(sum(p["masa_aire"] for p in g if p["masa_aire"]) / max(1, sum(1 for p in g if p["masa_aire"])), 3) if any(p["masa_aire"] for p in g) else None,
-                           "archivo": "%s … (%d)" % (g[0]["archivo"], len(g)), "avisos": sorted({a for p in g for a in p["avisos"]})})
+                           "archivo": ("%s … (%d)" % (g[0]["archivo"], len(g))) if len(g) > 1 else g[0]["archivo"], "avisos": sorted({a for p in g for a in p["avisos"]})})
         puntos = nuevos
     ck = [p["check"] for p in puntos if p["check"] is not None]
     k_cat = est[check]["mags"][bcat][0] if check else None
-    res = {"comps": elegidas, "check": check, "modo": modo, "agrupar": n, "puntos": puntos, "tabla": tabla,
+    res = {"comps": elegidas, "check": check, "modo": modo, "agrupar": "noche" if por_noche else n, "noches": n_noches, "puntos": puntos, "tabla": tabla,
            "magnitud": round(sorted(p["mag"] for p in puntos)[len(puntos) // 2], 3),
            "amplitud": round(max(p["mag"] for p in puntos) - min(p["mag"] for p in puntos), 3),
            "error_medio": round(sum(p["err"] for p in puntos) / len(puntos), 4),
@@ -2940,6 +2960,7 @@ def series_variables():
         if not s:
             continue
         out.append({"id": s["id"], "estrella": s["estrella"], "noche": s.get("noche"), "banda": s["banda"], "tomas": len(s["tomas"]),
+                    "retro": bool(s.get("retro")), "noches": (c or {}).get("noches"),
                     "inicio": s["tomas"][0]["fecha"], "fin": s["tomas"][-1]["fecha"], "chartid": s.get("chartid"),
                     "magnitud": (c or {}).get("magnitud"), "amplitud": (c or {}).get("amplitud"), "error_medio": (c or {}).get("error_medio"),
                     "check_dif": (c or {}).get("check_dif"), "check_disp": (c or {}).get("check_disp"), "lugar": (s.get("lugar") or {}).get("nombre", "")})
@@ -9265,6 +9286,11 @@ th{background:var(--surface);font-weight:700}
         <div class="caja">
           <h3 style="font-size:17px">Medir una estrella variable</h3>
           <div class="note">Elige la sesión con las tomas de la variable. ASTRO descarga de la AAVSO la secuencia oficial de estrellas de comparación, calibra y mide cada toma, dibuja la curva de luz y prepara el informe para WebObs.</div>
+          <div class="opciones">
+            <label>Qué medir <select id="vModo"><option value="noche">Una noche</option><option value="retro">Todas las noches de un objeto (curva retrospectiva)</option></select></label>
+            <label id="vPorNocheL" style="display:none" title="Con pocas tomas por noche la medida va rápida y basta para estrellas que cambian despacio. Con todas, se ve también lo que la estrella hace dentro de cada noche.">Tomas por noche <select id="vPorNoche"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="0">todas</option></select></label>
+          </div>
+          <div class="note" id="vRetroNota" style="display:none;margin-top:6px">Curva retrospectiva: ASTRO recorre las tomas que ya tienes guardadas de un objeto, de todas sus noches con el mismo filtro y el mismo equipo, y saca la curva de luz de meses o años de cualquier variable que haya en el campo, con un punto por noche.</div>
           <div id="vSesiones" style="margin-top:12px"></div>
           <div class="acciones" style="margin-top:10px"><button class="btn small" id="btnCampoVar">Buscar variables en estas tomas</button><span class="note">ASTRO pregunta al VSX de la AAVSO qué estrellas variables conocidas hay en el campo.</span></div>
           <div id="vCampo" style="margin-top:8px"></div>
@@ -10216,7 +10242,7 @@ function graficaResiduos(m){
 }
 
 /* ============ Estrellas variables ============ */
-const VAR = {sesiones:null, sel:null, series:[], cfg:null, actual:null};
+const VAR = {sesiones:null, sel:null, series:[], cfg:null, actual:null, modo:"noche", grupos:[], selG:null};
 const BANDAS_AAVSO = [["V","V (Johnson, fotométrico)"],["B","B (Johnson, fotométrico)"],["R","R (Cousins, fotométrico)"],["I","I (Cousins, fotométrico)"],
   ["TG","TG: verde de imagen o canal verde de una cámara en color"],["TB","TB: azul de imagen"],["TR","TR: rojo de imagen"],
   ["CV","CV: sin filtro o luminancia, con el cero en V"],["CR","CR: sin filtro, con el cero en R"]];
@@ -10228,7 +10254,53 @@ async function abrirVariables(){
   if (!VAR.sesiones){ try { VAR.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ VAR.sesiones = []; } }
   pintarSesionesVar(); cargarSeries(); sondear();
 }
+function gruposRetro(){
+  const m = new Map();
+  for (const s of (VAR.sesiones || [])){
+    if (!s.aavso || !s.tomas.length) continue;
+    const k = [s.objeto, s.filtro, s.cam, s.tel].join("|");
+    if (!m.has(k)) m.set(k, {objeto: s.objeto, filtro: s.filtro, filtro_original: s.filtro_original, cam: s.cam, tel: s.tel, aavso: s.aavso, ses: []});
+    m.get(k).ses.push(s);
+  }
+  const out = [...m.values()].filter(g => g.ses.length >= 2);
+  for (const g of out){ g.ses.sort((a, b) => a.noche < b.noche ? -1 : 1); g.tomas = g.ses.reduce((a, s) => a + s.tomas.length, 0); }
+  out.sort((a, b) => b.ses.length - a.ses.length || (a.objeto < b.objeto ? -1 : 1));
+  return out;
+}
+function varSesion(){   // la sesión de la que se saca el campo: la elegida o, en una curva retrospectiva, la noche con más tomas
+  if (VAR.modo === "retro"){ const g = VAR.selG !== null ? VAR.grupos[VAR.selG] : null; return g ? g.ses.reduce((a, s) => s.tomas.length > a.tomas.length ? s : a, g.ses[0]) : null; }
+  return VAR.sel !== null ? VAR.sesiones[VAR.sel] : null;
+}
+function idsRetro(g, n){
+  const ids = [];
+  for (const s of g.ses){ const t = s.tomas;
+    if (!n || t.length <= n) ids.push(...t.map(x => x.id));
+    else for (let k = 0; k < n; k++) ids.push(t[Math.round(k * (t.length - 1) / (n - 1))].id);
+  }
+  return ids;
+}
+$("vModo").onchange = () => { VAR.modo = $("vModo").value; const r = VAR.modo === "retro";
+  $("vPorNocheL").style.display = r ? "" : "none"; $("vRetroNota").style.display = r ? "" : "none";
+  $("vAgrupar").closest("label").style.display = r ? "none" : "";
+  $("vCampo").innerHTML = ""; $("vEstrella").value = ""; pintarSesionesVar(); };
+$("vPorNoche").onchange = () => pintarSesionesVar();
+function pintarRetro(){
+  VAR.grupos = gruposRetro(); if (VAR.selG !== null && !VAR.grupos[VAR.selG]) VAR.selG = null;
+  const gs = VAR.grupos, n = +$("vPorNoche").value;
+  if (!gs.length){ $("vSesiones").innerHTML = `<div class="vacio"><b>${esc(tr("No hay objetos con tomas de varias noches"))}</b>${esc(tr("Hace falta un objeto fotografiado al menos dos noches con el mismo filtro, la misma cámara y el mismo telescopio."))}</div>`; return; }
+  $("vSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>${esc(tr("Objeto"))}</th><th>${esc(tr("Filtro"))}</th><th>${esc(tr("Cámara"))}</th><th>${esc(tr("Telescopio"))}</th><th class="num">${esc(tr("Noches"))}</th><th>${esc(tr("Desde"))}</th><th>${esc(tr("Hasta"))}</th><th class="num">${esc(tr("Tomas"))}</th><th class="num">${esc(tr("Se medirán"))}</th></tr></thead><tbody>${
+    gs.map((g, i) => `<tr data-g="${i}" class="${VAR.selG === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="vSes" ${VAR.selG === i ? "checked" : ""}></td><td class="notr"><b>${esc(g.objeto)}</b></td>
+      <td class="notr">${esc(g.filtro_original || g.filtro)}</td><td class="notr">${esc(g.cam)}</td><td class="notr">${esc(g.tel)}</td><td class="num">${g.ses.length}</td><td>${esc(fechaCorta(g.ses[0].noche))}</td><td>${esc(fechaCorta(g.ses[g.ses.length - 1].noche))}</td>
+      <td class="num">${g.tomas}</td><td class="num">${idsRetro(g, n).length}</td></tr>`).join("")}</tbody></table></div>`;
+  $("vSesiones").querySelectorAll("tr[data-g]").forEach(t => t.onclick = () => {
+    VAR.selG = +t.dataset.g;
+    $("vSesiones").querySelectorAll("tr[data-g]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
+    $("vEstrella").value = ""; $("vBanda").value = VAR.grupos[VAR.selG].aavso || "CV";
+    buscarVariablesCampo();
+  });
+}
 function pintarSesionesVar(){
+  if (VAR.modo === "retro") return pintarRetro();
   const ss = (VAR.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.aavso && s.tomas.length >= 2);
   if (!ss.length){ $("vSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con varias tomas</b>Añade en Control de lights las tomas de una noche de tu estrella variable (todas con el mismo filtro).</div>`; return; }
   $("vSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th class="num">Exp (s)</th></tr></thead><tbody>${
@@ -10244,13 +10316,13 @@ function pintarSesionesVar(){
 }
 $("btnCampoVar").onclick = () => buscarVariablesCampo();
 async function buscarVariablesCampo(){
-  if (VAR.sel === null){ toast("Elige primero la sesión con las tomas de la variable"); return; }
-  const s = VAR.sesiones[VAR.sel], sel = VAR.sel;
+  const s = varSesion(), sel = VAR.tok = (VAR.tok || 0) + 1;
+  if (!s){ toast(VAR.modo === "retro" ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
   $("vCampo").innerHTML = `<div class="note">${esc(tr("Buscando en el VSX las variables conocidas del campo…"))}</div>`;
   let d;
   try { d = await (await api("/api/variables/campo?id=" + encodeURIComponent(s.tomas[Math.floor(s.tomas.length / 2)].id))).json(); }
-  catch(e){ if (VAR.sel === sel) $("vCampo").innerHTML = `<div class="avisos"><div>${esc(tr(e.message || String(e)))}</div></div>`; return; }
-  if (VAR.sel !== sel) return;
+  catch(e){ if (VAR.tok === sel) $("vCampo").innerHTML = `<div class="avisos"><div>${esc(tr(e.message || String(e)))}</div></div>`; return; }
+  if (VAR.tok !== sel) return;
   const norma = t => String(t || "").toLowerCase().replace(/[\s_-]+/g, "");
   const propia = d.variables.find(v => norma(v.nombre) === norma(s.objeto));
   if (propia) $("vEstrella").value = propia.nombre;
@@ -10267,12 +10339,12 @@ async function buscarVariablesCampo(){
   });
 }
 $("btnVariable").onclick = async () => {
-  if (VAR.sel === null){ toast("Elige primero la sesión con las tomas de la variable"); return; }
-  const s = VAR.sesiones[VAR.sel];
+  const s = varSesion(), retro = VAR.modo === "retro";
+  if (!s){ toast(retro ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
   if (!$("vEstrella").value.trim()){ toast("Escribe el nombre de la estrella como en el VSX (por ejemplo, SS Cyg)"); $("vEstrella").focus(); return; }
   try {
-    await post("/api/variables/medir", {ids: s.tomas.map(t => t.id), estrella: $("vEstrella").value.trim(), banda: $("vBanda").value,
-      agrupar: +$("vAgrupar").value, obscode: $("vObscode").value.trim(), obstype: $("vObstype").value});
+    await post("/api/variables/medir", {ids: retro ? idsRetro(VAR.grupos[VAR.selG], +$("vPorNoche").value) : s.tomas.map(t => t.id), estrella: $("vEstrella").value.trim(), banda: $("vBanda").value,
+      retro, agrupar: retro ? "noche" : +$("vAgrupar").value, obscode: $("vObscode").value.trim(), obstype: $("vObstype").value});
     sondear();
   } catch(e){ toast(e.message || e); }
 };
@@ -10281,7 +10353,7 @@ async function cargarSeries(){
   const ss = VAR.series;
   if (!ss.length){ $("vSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ninguna variable</b>Elige arriba una sesión y pulsa «Medir la serie».</div>`; return; }
   $("vSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Noche</th><th>Estrella</th><th>Filtro</th><th class="num">Tomas</th><th class="num">Magnitud</th><th class="num">Amplitud</th><th class="num">Error medio</th><th class="num">Control − catálogo</th><th></th></tr></thead><tbody>${
-    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche || x.inicio))}</td><td class="notr"><b>${esc(x.estrella)}</b></td><td class="notr">${esc(x.banda)}</td>
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche || x.inicio))}${x.retro ? ` → ${esc(fechaCorta(String(x.fin || "").slice(0, 10)))} <span class="chip">${x.noches || ""} ${esc(tr("noches"))}</span>` : ""}</td><td class="notr"><b>${esc(x.estrella)}</b></td><td class="notr">${esc(x.banda)}</td>
       <td class="num">${x.tomas}</td><td class="num">${numEs(x.magnitud, 3)}</td><td class="num">${numEs(x.amplitud, 3)}</td><td class="num">${numEs(x.error_medio, 3)}</td>
       <td class="num">${x.check_dif != null ? (x.check_dif > 0 ? "+" : "") + numEs(x.check_dif, 3) : "—"}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   $("vSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verSerie(t.dataset.id));
@@ -10295,19 +10367,20 @@ async function verSerie(id, calcNuevo){
   const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
   const ck = c.check_dif != null ? `${c.check_dif > 0 ? "+" : ""}${numEs(c.check_dif, 3)} · σ ${numEs(c.check_disp, 3)}` : "—";
   const box = $("detalleBox");
-  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.estrella)}</h2><div class="note"><span>${esc(fechaCorta(s.noche || s.tomas[0].fecha))}</span> ·
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.estrella)}</h2><div class="note"><span>${esc(fechaCorta(s.noche || s.tomas[0].fecha))}${s.retro && s.noche_fin ? " → " + esc(fechaCorta(s.noche_fin)) + " · " + c.noches + " " + esc(tr("noches")) : ""}</span> ·
       <span class="notr">${esc([vsx.tipo, vsx.periodo ? "P = " + numEs(vsx.periodo, 4) + " d" : "", vsx.max && vsx.min ? vsx.max + " – " + vsx.min : ""].filter(Boolean).join(" · "))}</span>
       · <span>carta</span> <span class="notr">${esc(s.chartid || "—")}</span> · <span class="notr">${s.n_tomas}</span> <span>tomas</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
-    <div class="cifras">${cifra(numEs(c.magnitud, 3), "mag " + esc(s.banda), tr("Magnitud mediana de la noche"), true)}${cifra(numEs(c.amplitud, 3), "mag", tr("Amplitud (del más brillante al más débil)"))}
+    <div class="cifras">${cifra(numEs(c.magnitud, 3), "mag " + esc(s.banda), tr(c.noches > 1 ? "Magnitud mediana" : "Magnitud mediana de la noche"), true)}${cifra(numEs(c.amplitud, 3), "mag", tr("Amplitud (del más brillante al más débil)"))}
       ${cifra(numEs(c.error_medio, 3), "mag", tr("Error medio de cada punto"))}${cifra(ck, "", tr("Estrella de control: diferencia con el catálogo y dispersión"))}</div>
     ${Math.abs(c.check_dif || 0) > 0.1 ? `<div class="avisos"><div>${esc(tr("La estrella de control sale a más de 0,1 mag de su catálogo: revisa las comparaciones (¿alguna variable, saturada o con una vecina?) o el filtro elegido."))}</div></div>` : ""}
     <div class="graf" id="gCurva"></div>
+    <div class="graf" id="gFase" style="display:none"></div>
     <div class="dos">
       <div class="graf"><h4>Estrellas de la secuencia de la AAVSO</h4><div class="tabla" style="max-height:300px"><table><thead><tr><th>Comp.</th><th>Control</th><th>Etiqueta</th><th>AUID</th><th class="num">Mag</th><th class="num">B−V</th><th class="num">SNR</th><th class="num">Medida</th></tr></thead><tbody>${
         c.tabla.map(x => `<tr><td><input type="checkbox" class="vComp" value="${esc(x.id)}" ${c.comps.includes(x.id) ? "checked" : ""}></td><td><input type="radio" name="vCheck" value="${esc(x.id)}" ${c.check === x.id ? "checked" : ""}></td>
           <td class="notr">${esc(x.label)}</td><td class="notr">${esc(x.auid)}</td><td class="num">${numEs(x.mag, 3)}</td><td class="num">${x.bv != null ? numEs(x.bv, 2) : "—"}</td><td class="num">${numEs(x.snr, 0)}</td>
           <td class="num">${x.saturada > 0.1 ? `<span class="chip warn">saturada</span>` : numEs(100 * x.presente, 0) + " %"}</td></tr>`).join("")}</tbody></table></div>
-        <div class="acciones" style="margin-top:10px;align-items:center"><label class="note" style="display:flex;gap:6px;align-items:center">Agrupar <select id="dAgrupar" class="btn small">${[1,3,5,10].map(n => `<option value="${n}" ${c.agrupar === n ? "selected" : ""}>${n === 1 ? tr("cada toma") : tr("de # en #").replace(/#/g, n)}</option>`).join("")}</select></label>
+        <div class="acciones" style="margin-top:10px;align-items:center"><label class="note" style="display:flex;gap:6px;align-items:center">Agrupar <select id="dAgrupar" class="btn small">${[1,3,5,10].concat(c.noches > 1 ? ["noche"] : []).map(n => `<option value="${n}" ${c.agrupar === n ? "selected" : ""}>${n === "noche" ? tr("un punto por noche") : n === 1 ? tr("cada toma") : tr("de # en #").replace(/#/g, n)}</option>`).join("")}</select></label>
           <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
         <div class="pie">Marca las estrellas de comparación (con varias se usa el conjunto, «ENSEMBLE») y elige la de control. Conviene que sean de brillo y color parecidos a la variable y que no estén saturadas.</div></div>
       <div class="graf"><h4>Informe para la AAVSO</h4><pre class="klog notr" style="max-height:220px">${esc(c.aavso.split("\n").slice(0, 12).join("\n"))}${c.puntos.length > 5 ? "\n…" : ""}</pre>
@@ -10334,15 +10407,63 @@ async function verSerie(id, calcNuevo){
     if (!comps.length){ toast("Marca al menos una estrella de comparación"); return; }
     if (comps.includes(chk)){ toast("La estrella de control no puede estar también entre las de comparación"); return; }
     try {
-      const nuevo = await (await post("/api/variables/recalcular", {id: s.id, comps, check: chk, agrupar: +$("dAgrupar").value, obscode: $("dObscode").value.trim()})).json();
+      const nuevo = await (await post("/api/variables/recalcular", {id: s.id, comps, check: chk, agrupar: $("dAgrupar").value === "noche" ? "noche" : +$("dAgrupar").value, obscode: $("dObscode").value.trim()})).json();
       if (VAR.cfg) VAR.cfg.obscode = $("dObscode").value.trim().toUpperCase();
       verSerie(s.id, nuevo); cargarSeries(); toast("Recalculado");
     } catch(e){ toast(e.message || e); }
   };
-  graficaCurva(s, c);
+  graficaCurva(s, c); graficaFase(s, c);
+}
+function graficaFase(s, c, periodo){
+  const P = c.puntos, vsx = s.vsx || {}, caja = $("gFase");
+  const per = periodo || vsx.periodo;
+  if (!caja) return;
+  if (!(c.noches > 1) || P.length < 3){ caja.style.display = "none"; return; }
+  caja.style.display = "";
+  const campo = `<div class="acciones" style="margin-top:8px;align-items:center"><label class="note" style="display:flex;gap:6px;align-items:center">${esc(tr("Periodo (d)"))} <input id="dPeriodo" class="btn small notr" style="width:110px" value="${per ? String(per) : ""}"></label><button class="btn small" id="dPlegar">${esc(tr("Plegar"))}</button>${vsx.periodo ? `<span class="note">VSX: <span class="notr">${numEs(vsx.periodo, 5)} d</span></span>` : ""}</div>`;
+  const fin = html => { caja.innerHTML = `<h4>${esc(tr("Curva plegada con el periodo"))}</h4>` + html + campo;
+    $("dPlegar").onclick = () => { const v = parseFloat(String($("dPeriodo").value).replace(",", ".")); if (!(v > 0)){ toast("Escribe un periodo en días"); return; } graficaFase(s, c, v); }; };
+  if (!(per > 0)) return fin(`<div class="note">${esc(tr("El VSX no da periodo para esta estrella. Si conoces uno, escríbelo y pulsa «Plegar»."))}</div>`);
+  const W = 1000, H = 300, L = 60, R = 16, Tp = 14, B = 40;
+  const e0 = vsx.epoca && vsx.epoca > 2400000 ? vsx.epoca : P[0].hjd, fase = p => { const f = ((p.hjd - e0) / per) % 1; return f < 0 ? f + 1 : f; };
+  const ms = P.flatMap(p => [p.mag - p.err, p.mag + p.err]); let y0 = Math.min(...ms), y1 = Math.max(...ms);
+  const pad = Math.max(0.02, (y1 - y0) * 0.12); y0 -= pad; y1 += pad;
+  const X = f => L + (f + 0.25) / 1.5 * (W - L - R), Y = m => Tp + (m - y0) / (y1 - y0) * (H - Tp - B);
+  let g = "";
+  const pasoY = (y1 - y0) > 3 ? 0.5 : (y1 - y0) > 1 ? 0.2 : (y1 - y0) > 0.3 ? 0.05 : 0.01;
+  for (let m = Math.ceil(y0 / pasoY) * pasoY; m <= y1; m += pasoY) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m)}" y2="${Y(m)}"/><text class="tx" x="${L-6}" y="${Y(m)+4}" text-anchor="end">${numEs(m, pasoY < 0.1 ? 2 : 1)}</text>`;
+  for (const f of [-0.25, 0, 0.25, 0.5, 0.75, 1, 1.25]) g += `<line class="rej" x1="${X(f)}" x2="${X(f)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(f)}" y="${H-B+16}" text-anchor="middle">${numEs(f, 2)}</text>`;
+  for (const p of P){ const f = fase(p);
+    for (const ff of [f - 1, f, f + 1]){ if (ff < -0.25 || ff > 1.25) continue; const rep = ff !== f;
+      g += `<line stroke="var(--accent)" stroke-width="1.2" opacity="${rep ? ".2" : ".5"}" x1="${X(ff).toFixed(1)}" x2="${X(ff).toFixed(1)}" y1="${Y(p.mag - p.err).toFixed(1)}" y2="${Y(p.mag + p.err).toFixed(1)}"/>` +
+        `<circle class="pt zp" opacity="${rep ? ".4" : "1"}" cx="${X(ff).toFixed(1)}" cy="${Y(p.mag).toFixed(1)}" r="3"><title>${esc(p.archivo)} · ${numEs(p.mag, 3)} ± ${numEs(p.err, 3)}</title></circle>`; } }
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("fase"))} · P = ${numEs(per, 5)} d</text>`;
+  const ciclos = (P[P.length - 1].hjd - P[0].hjd) / per;
+  fin(`<div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("Todas las noches, colocadas en el punto del ciclo que les toca: si el periodo es bueno, los puntos dibujan una sola curva limpia. Los puntos tenues son los mismos, repetidos para que se vea el ciclo entero."))} ${esc(tr("Tus tomas cubren"))} <span class="notr">${numEs(ciclos, ciclos < 10 ? 1 : 0)}</span> ${esc(tr("ciclos."))}</div>`);
+}
+function graficaCurvaLarga(s, c){
+  const P = c.puntos, W = 1000, H = 330, L = 60, R = 16, Tp = 14, B = 40;
+  const t0 = P[0].jd, dias = p => p.jd - t0, span = Math.max(1, dias(P[P.length - 1])), xa = -0.03 * span, x1 = span * 1.03;
+  const ms = P.flatMap(p => [p.mag - p.err, p.mag + p.err]); let y0 = Math.min(...ms), y1 = Math.max(...ms);
+  const ckOff = c.check_media != null ? c.check_media - c.magnitud : null;
+  const pad = Math.max(0.02, (y1 - y0) * 0.12); y0 -= pad; y1 += pad;
+  const X = d => L + (d - xa) / (x1 - xa) * (W - L - R), Y = m => Tp + (m - y0) / (y1 - y0) * (H - Tp - B);
+  let g = "";
+  const pasoY = (y1 - y0) > 3 ? 0.5 : (y1 - y0) > 1 ? 0.2 : (y1 - y0) > 0.3 ? 0.05 : 0.01;
+  for (let m = Math.ceil(y0 / pasoY) * pasoY; m <= y1; m += pasoY) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m)}" y2="${Y(m)}"/><text class="tx" x="${L-6}" y="${Y(m)+4}" text-anchor="end">${numEs(m, pasoY < 0.1 ? 2 : 1)}</text>`;
+  const pasoX = [1, 2, 5, 10, 20, 30, 60, 90, 180, 365, 730].find(v => span / v <= 8) || 1460;
+  const dia0 = new Date(Math.floor((t0 - 2440587.5) + 1) * 864e5);      // la primera medianoche UTC después de la primera toma
+  for (let k = 0; ; k++){ const d = new Date(dia0.getTime() + k * pasoX * 864e5), x = d.getTime() / 864e5 + 2440587.5 - t0; if (x > x1) break;
+    g += `<line class="rej" x1="${X(x)}" x2="${X(x)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(x)}" y="${H-B+16}" text-anchor="middle">${esc(fechaCorta(d.toISOString().slice(0, 10)))}</text>`; }
+  g += P.map(p => `<line stroke="var(--accent)" stroke-width="1.2" opacity=".5" x1="${X(dias(p)).toFixed(1)}" x2="${X(dias(p)).toFixed(1)}" y1="${Y(p.mag - p.err).toFixed(1)}" y2="${Y(p.mag + p.err).toFixed(1)}"/>` +
+    `<circle class="pt zp" cx="${X(dias(p)).toFixed(1)}" cy="${Y(p.mag).toFixed(1)}" r="3"><title>${esc(p.archivo)} · JD ${p.jd.toFixed(4)} · ${numEs(p.mag, 3)} ± ${numEs(p.err, 3)}</title></circle>`).join("");
+  if (ckOff != null) g += P.filter(p => p.check != null).map(p => `<circle cx="${X(dias(p)).toFixed(1)}" cy="${Y(p.check - ckOff).toFixed(1)}" r="2.2" fill="var(--oro)" opacity=".75"/>`).join("");
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("fecha"))} · JD ${t0.toFixed(4)} + ${numEs(span, 0)} d</text>`;
+  $("gCurva").innerHTML = `<h4>${esc(tr("Curva de luz"))} · ${c.noches} ${esc(tr("noches"))}</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("En morado, la variable (con su error); en dorado, la estrella de control desplazada a la altura de la variable: si la dorada sale plana, la noche y las comparaciones son buenas. Arriba, más brillante."))}</div>`;
 }
 function graficaCurva(s, c){
   const P = c.puntos; if (!P.length){ $("gCurva").innerHTML = ""; return; }
+  if (c.noches > 1 && P[P.length - 1].jd - P[0].jd > 1.5) return graficaCurvaLarga(s, c);
   const W = 1000, H = 330, L = 60, R = 16, Tp = 14, B = 40;
   const t0 = P[0].jd, horas = p => (p.jd - t0) * 24;
   const span = Math.max(0.1, horas(P[P.length - 1])), xa = -0.03 * span, x1 = span * 1.03;
@@ -11672,6 +11793,7 @@ def _donar_astro():
 
 
 DIC_EN.update({"Mínimos de las próximas noches": "Minima in the coming nights", "Las binarias eclipsantes del VSX cuyo mínimo se ve desde tu lugar con dos horas antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.": "eclipsing binaries from the VSX whose minimum can be seen from your site with two hours before and after: the star more than 30° high and the Sun more than 12° below the horizon. Times are your computer's.", "Buscar mínimos": "Find minima", "Medir un mínimo": "Measure a minimum", "Elige la sesión con las tomas de la estrella (el eclipse entero, con margen antes y después). ASTRO busca sus elementos en el VSX, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el mínimo y calcula su O−C.": "Choose the session with the frames of the star (about three hours in a row around the minimum). ASTRO looks up its elements in the VSX, chooses Gaia comparison stars, calibrates and measures every frame, fits the minimum and computes its O−C.", "automática (30 % de la profundidad)": "automatic (30% of the depth)", "automática (50 % de la profundidad)": "automatic (30% of the depth; 20% if it rises very fast)", "# % de la profundidad": "#% of the depth", "Tu nombre de observador": "Your name to submit", "Medir el mínimo": "Measure the minimum", "Tus mínimos": "Your minima", "Las que tienen nombre del catálogo general (GCVS), como Algol o W UMa: las más estudiadas.": "Those with a name from the General Catalogue (GCVS), such as RR Lyr or XZ Cyg: the best studied, with many years of O−C in VarAstro.", "p. ej. W UMa": "e.g. RR Lyr", "Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la profundidad por encima del fondo del eclipse.": "The points that go into the fit: those less than that fraction of the depth above the bottom of the eclipse.", "Efecto Blazhko: la altura y la forma del mínimo cambian en semanas o meses, y el instante baila con ellas.": "Blazhko effect: the height and shape of the minimum change over weeks or months, and its timing wanders with them.", "Calculando… La primera vez ASTRO descarga del VSX la lista de binarias eclipsantes, y puede tardar un par de minutos.": "Calculating… The first time, ASTRO downloads the list of eclipsing binaries from the VSX, which can take a couple of minutes.", "No hay mínimos que se vean enteros": "No minima fully visible", "las tomas no llegan al mínimo previsto": "the frames don't reach the predicted minimum", "poca curva antes del mínimo previsto": "little curve before the predicted minimum", "poca curva después del mínimo previsto": "little curve after the predicted minimum", "según el VSX no es una binaria eclipsante": "according to the VSX it is not an eclipsing binaries", "Instante del mínimo": "Time of minimum", "Brillo en el mínimo (aprox., en la escala G de Gaia)": "Brightness at minimum (approx., on the Gaia G scale)", "no se puede calcular: la serie no ve el mínimo entero": "can't be computed: the series doesn't see the whole minimum", "mínimo": "minimum", "Magnitud aproximada en la escala G de Gaia (arriba, más brillante). En morado oscuro, los puntos del ajuste, dentro de la franja; en dorado, el polinomio y el instante del mínimo, con su margen de error. La línea de puntos gris es el mínimo previsto por los elementos del VSX.": "Approximate magnitude on the Gaia G scale (brighter at the top). In dark purple, the points of the fit, inside the band; in gold, the polynomial and the time of minimum, with its error margin. The grey dotted line is the minimum predicted by the VSX elements.", "minutos desde el mínimo": "minutes from minimum", "De momento, solo este. Con más mínimos de la misma estrella verás aquí cómo cambia su periodo: una recta inclinada si los elementos no son buenos, una curva si el periodo cambia, y una onda si hay un tercer cuerpo.": "Only this one so far. With more minima of the same star you will see here how its period changes: a sloping line if the elements are not good, a curve if the period changes, and jumps over weeks if it has the Blazhko effect.", "Cada punto es uno de tus mínimos (en dorado, este). Una recta inclinada dice que el periodo del VSX no es del todo bueno; una curva, que el periodo cambia; una onda, quizá un tercer cuerpo.": "Each point is one of your minima (in gold, this one). A sloping line says the VSX period is not quite right; a curve, that the period changes; jumps from one week to another, the Blazhko effect.", "La altura es la de la estrella al empezar, en el mínimo y al terminar; el brillo, el del mínimo según el VSX. Con elementos de hace muchos años el mínimo puede llegar bastante antes o después: por eso se deja hora y media a cada lado.": "The altitude is the star's at the start, at minimum and at the end; the brightness, the minimum according to the VSX. With elements from many years ago the minimum can come quite a bit earlier or later: that is why an hour and a half is left on each side.", "Añade en Control de lights las tomas de la noche del mínimo (al menos 15 seguidas, todas con el mismo filtro; lo normal son más de cien).": "Add the frames of the night of the minimum in the Light frame checker (at least 15 in a row, all with the same filter; usually more than a hundred).", "mínimo previsto": "predicted minimum", "Todavía no has medido ningún mínimo": "You haven't measured any minimum yet", "Elige arriba una sesión y la estrella, y pulsa «Medir el mínimo».": "Choose a session and the star above, and click “Measure the minimum”.", "Mínimo (HJD)": "Minimum (HJD)", "Para enviar": "For VarAstro", "Archivo del mínimo": "Minimum to submit", "Abrir VarAstro": "Open the VarAstro database", "El archivo lleva la estrella, el instante en HJD y su error, el filtro, el método y el observador, además del O−C, el BJD_TDB y cómo se ha medido. Cada base de datos (VarAstro, BAV, AAVSO) tiene su propio formulario: copia de aquí los datos.": "VarAstro stores each minimum with the star, the time in HJD and its error, the filter, the method and the observer. The file carries all that, plus the O−C, the BJD_TDB and how it was measured.", "Mínimo previsto": "Predicted minimum", "de la profundidad": "of the depth", "por encima del fondo del eclipse": "above the bottom of the eclipse", "después del mínimo": "after the minimum", "El mínimo de cerca": "The minimum up close", "Tus mínimos de esta estrella": "Your minima of this star", "~No he podido descargar la lista de binarias eclipsantes del VSX (VizieR, CDS). ¿Hay conexión a Internet?": "I couldn't download the list of eclipsing binaries from the VSX (VizieR, CDS). Is there an Internet connection?", "VizieR no ha devuelto ninguna binaria eclipsante: prueba otra vez dentro de un rato": "VizieR returned no eclipsing binaries: try again in a while", "hacen falta al menos 12 puntos para buscar el mínimo": "at least 12 points are needed to look for the minimum", "hay muy pocos puntos alrededor del mínimo": "there are very few points around the minimum", "no se ha podido ajustar el mínimo": "the minimum couldn't be fitted", "~en el VSX de la AAVSO: escribe su nombre como allí (por ejemplo, W UMa o U Cep)": "in the AAVSO's VSX: type its name as it appears there (for example, RR Lyr or XZ Cyg)", "para un mínimo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)": "a minimum needs many frames in a row (at least 15; usually more than a hundred)", "Ajustando el mínimo": "Fitting the minimum", "la serie no llega a ver el mínimo entero: empieza después de él o termina antes, así que el instante no es de fiar": "the series doesn't see the whole minimum: it starts after it or ends before it, so the time can't be trusted", "ningún polinomio sigue el mínimo sin ondas: prueba con otra ventana o otro grado": "no polynomial follows the minimum without waves: try another window or degree", "hay poca curva antes del mínimo (# min): el error puede ser mayor de lo que parece": "there is little curve before the minimum (# min): the error may be larger than it looks", "hay poca curva después del mínimo (# min): el error puede ser mayor de lo que parece": "there is little curve after the minimum (# min): the error may be larger than it looks", "el instante del mínimo tiene un error grande (más de 5 minutos)": "the time of minimum has a large error (more than 5 minutes)", "el mínimo medido cae lejos del previsto (O−C de # periodos): ¿es la estrella buena, o sus elementos son muy antiguos?": "the measured minimum falls far from the predicted one (O−C of # periods): is it the right star, or are its elements very old?", "según el VSX, esta estrella no es una binaria eclipsante: mira su tipo arriba": "according to the VSX, this star is not an eclipsing binaries: see its type above", "duración del eclipse": "eclipse duration", "Binarias eclipsantes: el mínimo": "Eclipsing binaries: the minimum"})       # binarias eclipsantes
+DIC_EN.update({"Qué medir": "What to measure", "Una noche": "One night", "Todas las noches de un objeto (curva retrospectiva)": "Every night of an object (retrospective curve)", "Tomas por noche": "Frames per night", "todas": "all", "Con pocas tomas por noche la medida va rápida y basta para estrellas que cambian despacio. Con todas, se ve también lo que la estrella hace dentro de cada noche.": "With a few frames per night the measurement is quick and enough for slowly changing stars. With all of them you also see what the star does within each night.", "Curva retrospectiva: ASTRO recorre las tomas que ya tienes guardadas de un objeto, de todas sus noches con el mismo filtro y el mismo equipo, y saca la curva de luz de meses o años de cualquier variable que haya en el campo, con un punto por noche.": "Retrospective curve: ASTRO goes through the frames you already keep of an object, from all its nights with the same filter and the same equipment, and builds the light curve over months or years of any variable in the field, one point per night.", "No hay objetos con tomas de varias noches": "No objects with frames from several nights", "Hace falta un objeto fotografiado al menos dos noches con el mismo filtro, la misma cámara y el mismo telescopio.": "You need an object imaged on at least two nights with the same filter, camera and telescope.", "Noches": "Nights", "Desde": "From", "Hasta": "To", "Se medirán": "To be measured", "Elige primero el objeto": "Choose the object first", "noches": "nights", "Magnitud mediana": "Median magnitude", "un punto por noche": "one point per night", "Plegar": "Fold", "Curva plegada con el periodo": "Curve folded on the period", "Escribe un periodo en días": "Type a period in days", "El VSX no da periodo para esta estrella. Si conoces uno, escríbelo y pulsa «Plegar».": "The VSX gives no period for this star. If you know one, type it and press “Fold”.", "fase": "phase", "fecha": "date", "Tus tomas cubren": "Your frames span", "ciclos.": "cycles.", "Todas las noches, colocadas en el punto del ciclo que les toca: si el periodo es bueno, los puntos dibujan una sola curva limpia. Los puntos tenues son los mismos, repetidos para que se vea el ciclo entero.": "Every night, placed at its point in the cycle: if the period is right, the points trace a single clean curve. The faint points are the same ones, repeated so the whole cycle shows."})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
