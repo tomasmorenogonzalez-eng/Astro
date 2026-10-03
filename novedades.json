@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.18",
+  "es": [
+   "**Ciencia: rotación de asteroides.** En «Asteroides y cometas», cada asteroide medido en bastantes tomas lleva ahora su curva de rotación: cómo cambia su brillo a lo largo de la noche, la amplitud y, si la noche da para ello, el periodo de rotación estimado. Sale al medir de nuevo o al pulsar «Recalcular» en una medida antigua. Comprobado con curvas inventadas, aún no con noches reales."
+  ],
+  "en": [
+   "**Science: asteroid rotation.** In “Asteroids and comets”, each asteroid measured in enough frames now has its rotation curve: how its brightness changes through the night, the amplitude and, if the night is long enough, the estimated rotation period. It appears on new measurements or after pressing “Recalculate” on an old one. Checked with synthetic curves, not yet with real nights."
+  ],
+  "fr": [
+   "**Science : rotation des astéroïdes.** Chaque astéroïde mesuré sur assez de poses a maintenant sa courbe de rotation : amplitude et, si la nuit le permet, période estimée. Vérifié avec des courbes simulées."
+  ],
+  "de": [
+   "**Wissenschaft: Asteroidenrotation.** Jeder in genügend Aufnahmen gemessene Asteroid hat nun seine Rotationskurve: Amplitude und, wenn die Nacht reicht, die geschätzte Periode. Mit simulierten Kurven geprüft."
+  ],
+  "it": [
+   "**Scienza: rotazione degli asteroidi.** Ogni asteroide misurato in abbastanza pose ha ora la sua curva di rotazione: ampiezza e, se la notte basta, il periodo stimato. Verificato con curve simulate."
+  ],
+  "pt": [
+   "**Ciência: rotação de asteroides.** Cada asteroide medido em imagens suficientes tem agora a sua curva de rotação: amplitude e, se a noite chegar, o período estimado. Verificado com curvas simuladas."
+  ]
+ },
+ {
   "version": "0.33.17",
   "es": [
    "**Ciencia: buscar variables nuevas en un campo.** En «Estrellas variables», la opción «Buscar variables nuevas en el campo» mide todas las estrellas de Gaia del campo (hasta 2500) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las del VSX salen con su nombre; las demás son candidatas, con su curva, sus coordenadas y un botón para buscarlas en el VSX.",

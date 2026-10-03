@@ -89,7 +89,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.10.03.4"
+VERSION_PROG = "2026.10.03.5"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -6346,7 +6346,7 @@ def _astrometria_toma(img, wcs, ref, fw, fecha, exp, d, objetos, medidas, escala
         err_c = fw * escala / max(1.0, c["snr"]) / 1.5
         medidas[o["nombre"]].append({"archivo": d.get("id"), "tiempo": tiempo, "jd": round(t, 7), "x": round(c["x"], 3), "y": round(c["y"], 3),
                                      "encontrado": True, "ra": round(ra_m, 7), "dec": round(dec_m, 7), "ra_pred": round(pred[0], 7), "dec_pred": round(pred[1], 7),
-                                     "oc_ra": round(oc_ra, 3), "oc_dec": round(oc_dec, 3), "mag": round(mag, 2) if mag is not None else None,
+                                     "oc_ra": round(oc_ra, 3), "oc_dec": round(oc_dec, 3), "mag": round(mag, 3) if mag is not None else None,
                                      "snr": round(c["snr"], 1), "err_ra": round(math.hypot(err_c, pl["rms_ra"] * rad), 3),
                                      "err_dec": round(math.hypot(err_c, pl["rms_dec"] * rad), 3), "avisos": avisos,
                                      "vista": _recorte_vista(img, c["x"], c["y"])})
@@ -6366,6 +6366,53 @@ def iniciar_astrometria(p):
                    cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
     guardar_config_ciencia(**{k: p.get(k) for k in ("mpc_codigo", "observador", "apertura_m", "detector", "diseno") if p.get(k) not in (None, "")})
     threading.Thread(target=trabajo_astrometria, args=(p,), daemon=True).start()
+
+
+def rotacion_de(ts, ms, es):
+    """Curva de rotación de un asteroide: amplitud y, si la noche da para ello, el periodo. Se busca el seno que mejor
+    sigue las medidas; como un asteroide alargado da dos máximos por vuelta, el periodo de rotación es el doble."""
+    n = len(ts)
+    if n < 8:
+        return None
+    t0 = ts[0]
+    x = [(t - t0) * 24.0 for t in ts]                # horas
+    span = x[-1] - x[0]
+    if span <= 0.3:
+        return None
+    w = [1.0 / max(e, 0.005) ** 2 for e in es]
+    sw = sum(w)
+    media = sum(m * wi for m, wi in zip(ms, w)) / sw
+    chi0 = sum(wi * (m - media) ** 2 for m, wi in zip(ms, w))
+    v = sorted(ms)
+    amp = v[int(0.95 * (n - 1))] - v[int(0.05 * (n - 1))]
+    err = sorted(es)[n // 2]
+    dts = sorted(b - a for a, b in zip(x, x[1:]))
+    pmin, pmax = max(0.3, 4 * dts[len(dts) // 2]), 2.0 * span
+    mejor = None
+    if pmax > pmin and chi0 > 0:
+        for k in range(300):
+            per = pmin * (pmax / pmin) ** (k / 299.0)
+            A = [[0.0] * 3 for _ in range(3)]
+            b = [0.0] * 3
+            for xi, m, wi in zip(x, ms, w):
+                f = 2 * math.pi * xi / per
+                t = (1.0, math.sin(f), math.cos(f))
+                for i in range(3):
+                    b[i] += wi * t[i] * m
+                    for j in range(3):
+                        A[i][j] += wi * t[i] * t[j]
+            c = _resolver(A, b)
+            if c is None:
+                continue
+            chi = sum(wi * (m - c[0] - c[1] * math.sin(2 * math.pi * xi / per) - c[2] * math.cos(2 * math.pi * xi / per)) ** 2 for xi, m, wi in zip(x, ms, w))
+            if mejor is None or chi < mejor[0]:
+                mejor = (chi, per, 2 * math.hypot(c[1], c[2]))
+    r = {"amplitud": round(amp, 3), "error": round(err, 3), "horas": round(span, 2), "n": n, "cambia": bool(amp > 4 * err and n >= 10)}
+    if mejor:
+        mejora = 1.0 - mejor[0] / chi0
+        r.update(p_seno=round(mejor[1], 3), p_rot=round(2 * mejor[1], 2), amp_seno=round(mejor[2], 3), mejora=round(mejora, 3),
+                 fiable=bool(r["cambia"] and mejora > 0.5 and span >= 1.5 * mejor[1]), cubierto=round(span / (2 * mejor[1]), 2))
+    return r
 
 
 def calcular_astrometria(serie, sel):
@@ -6390,6 +6437,8 @@ def calcular_astrometria(serie, sel):
             mags = [m["mag"] for m in us if m.get("mag") is not None]
             r["mag"] = round(sorted(mags)[len(mags) // 2], 2) if mags else None
             r["snr"] = round(sorted(m["snr"] for m in us)[len(us) // 2], 1)
+            cm = sorted((m["jd"], m["mag"], 1.0857 / max(m["snr"], 1.0)) for m in us if m.get("mag") is not None)
+            r["rotacion"] = rotacion_de([a for a, _b, _c in cm], [b for _a, b, _c in cm], [c_ for _a, _b, c_ in cm]) if o.get("tipo") != "cometa" else None
         r["medidas"] = [{k: v for k, v in m.items() if k != "vista"} for m in ms]
         objetos.append(r)
     t = serie["tomas"]
@@ -11633,6 +11682,23 @@ function pintarVista(cv, datos){
   datos.forEach((v, i) => { im.data[4*i] = im.data[4*i+1] = im.data[4*i+2] = v; im.data[4*i+3] = 255; });
   ctx.putImageData(im, 0, 0);
 }
+// la curva de rotación de un asteroide: su brillo a lo largo de la noche
+function curvaRotacion(o, col){
+  const r = o.rotacion, P = (o.medidas || []).filter(m => m.usar && m.mag != null);
+  if (!r || P.length < 8) return "";
+  const W = 1000, H = 230, L = 56, R = 14, Tp = 12, B = 34, t0 = P[0].jd, hx = m => (m.jd - t0) * 24, span = Math.max(0.1, hx(P[P.length - 1]));
+  const er = m => 1.0857 / Math.max(1, m.snr), ms = P.flatMap(m => [m.mag - er(m), m.mag + er(m)]); let y0 = Math.min(...ms), y1 = Math.max(...ms); const pad = Math.max(0.02, (y1 - y0) * 0.1); y0 -= pad; y1 += pad;
+  const X = h => L + (h + 0.02 * span) / (1.04 * span) * (W - L - R), Y = m => Tp + (m - y0) / (y1 - y0) * (H - Tp - B);
+  const pasoY = (y1 - y0) > 1 ? 0.2 : (y1 - y0) > 0.3 ? 0.05 : 0.02, pasoX = span > 8 ? 2 : span > 3 ? 1 : 0.5; let g = "";
+  for (let m = Math.ceil(y0 / pasoY) * pasoY; m <= y1; m += pasoY) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m)}" y2="${Y(m)}"/><text class="tx" x="${L-6}" y="${Y(m)+4}" text-anchor="end">${numEs(m, 2)}</text>`;
+  for (let h = 0; h <= span; h += pasoX) g += `<line class="rej" x1="${X(h)}" x2="${X(h)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(h)}" y="${H-B+15}" text-anchor="middle">${numEs(h, pasoX < 1 ? 1 : 0)} h</text>`;
+  g += P.map(m => `<line stroke="${col}" stroke-width="1.2" opacity=".45" x1="${X(hx(m)).toFixed(1)}" x2="${X(hx(m)).toFixed(1)}" y1="${Y(m.mag - er(m)).toFixed(1)}" y2="${Y(m.mag + er(m)).toFixed(1)}"/><circle cx="${X(hx(m)).toFixed(1)}" cy="${Y(m.mag).toFixed(1)}" r="3" fill="${col}"><title>${esc(m.tiempo.slice(11, 19))} · ${numEs(m.mag, 3)}</title></circle>`).join("");
+  let txt;
+  if (!r.cambia) txt = tr("No se aprecia que cambie de brillo esta noche: la variación") + ` (${numEs(r.amplitud, 2)} mag) ` + tr("es del orden del error de cada medida") + ` (${numEs(r.error, 2)} mag).`;
+  else if (r.fiable) txt = tr("Cambia de brillo al girar: amplitud") + ` ${numEs(r.amplitud, 2)} mag. ` + tr("Periodo de rotación estimado:") + ` ${numEs(r.p_rot, 1)} h ` + tr("(dos máximos por vuelta).") + " " + (r.cubierto < 1 ? tr("La noche solo cubre una parte de la vuelta: tómalo como orientación y repítelo otra noche.") : tr("Con una sola noche es una primera estimación; se confirma repitiéndolo."));
+  else txt = tr("Cambia de brillo al girar: amplitud de al menos") + ` ${numEs(r.amplitud, 2)} mag ` + tr("en") + ` ${numEs(r.horas, 1)} h. ` + tr("La noche no da para medir el periodo: hacen falta más horas seguidas u otra noche.");
+  return `<div style="margin-top:10px"><div class="note" style="font-weight:700;color:var(--text)">${esc(tr("Curva de rotación"))}</div><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(txt)} ${esc(tr("Magnitud G aproximada, con el punto cero de las estrellas de Gaia de cada toma; arriba, más brillante. Las medidas van en la tabla (CSV)."))}</div></div>`;
+}
 async function verAst(id, calcNuevo){
   let d; try { d = await (await api("/api/ast/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
   const s = d.serie, c = calcNuevo || d.calculo;
@@ -11649,6 +11715,7 @@ async function verAst(id, calcNuevo){
       <td>${(m.avisos || []).map(a => `<span class="chip warn">${esc(tr(a))}</span>`).join(" ")}</td>` : `<td colspan="5"><span class="chip">${esc(tr("no se ve"))}</span></td>`}</tr>`).join("");
     return `<div class="graf"><h4><span style="color:${col}">●</span> <span class="notr">${esc(o.nombre)}</span> <span class="chip">${esc(tr(o.tipo))}</span></h4>
       <div class="note"><span>V prevista</span> <span class="notr">${numEs(o.v, 1)}</span> · <span>medido en</span> <span class="notr">${o.n_encontrado} / ${o.n_tomas}</span> <span>tomas</span>${o.n_usadas ? ` · O−C <span class="notr">${(o.oc_ra > 0 ? "+" : "") + numEs(o.oc_ra, 2)}″, ${(o.oc_dec > 0 ? "+" : "") + numEs(o.oc_dec, 2)}″</span>${o.oc_rms != null ? ` · <span>dispersión entre tomas</span> <span class="notr">${numEs(o.oc_rms, 2)}″</span>` : ""}${o.mag != null ? ` · G ≈ <span class="notr">${numEs(o.mag, 1)}</span>` : ""}` : ""}</div>
+      ${curvaRotacion(o, col)}
       <div class="tabla" style="max-height:340px;margin-top:8px"><table><thead><tr><th>Usar</th><th></th><th>Hora (UTC)</th><th class="num">O−C RA (″)</th><th class="num">O−C Dec (″)</th><th class="num">G</th><th class="num">SNR</th><th></th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
   }).join("");
   box.innerHTML = `<div class="cabBox"><div><h2>${esc(tr("Asteroides y cometas"))} · <span class="notr">${esc(s.objeto || "")}</span></h2><div class="note"><span>${esc(fechaCorta(s.noche))}</span> · <span class="notr">${s.tomas.length}</span> <span>tomas</span> · <span>objetos del</span> <span class="notr">JPL (SB Identification, Horizons)</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
@@ -12170,6 +12237,7 @@ DIC_EN.update({"Qué medir": "What to measure", "Una noche": "One night", "Todas
 DIC_EN.update({"Medir las noches que faltan": "Measure the missing nights", "Una toma (la de en medio) de cada noche de tu archivo que todavía no tenga medida: así sale la historia de tu cielo a lo largo de los años.": "One frame (the middle one) from each night in your archive that has no measurement yet: this builds the history of your sky over the years.", "Todas las noches que se pueden medir ya tienen su medida": "Every night that can be measured already has its measurement", "Se va a medir una toma de cada una de estas noches:": "One frame will be measured from each of these nights:", "Puede tardar un buen rato; puedes cancelarlo cuando quieras y lo medido se queda guardado.": "It may take a good while; you can cancel at any time and what has been measured stays saved.", "Todavía no hay bastantes noches para decir si tu cielo cambia: hacen falta al menos seis noches sin Luna repartidas en un año o más.": "There are not enough nights yet to tell whether your sky is changing: at least six moonless nights spread over a year or more are needed.", "años": "years", "Tu cielo no ha cambiado de forma apreciable:": "Your sky has not changed appreciably:", "por año": "per year", "Tu cielo se está aclarando (más contaminación lumínica):": "Your sky is getting brighter (more light pollution):", "Tu cielo se está oscureciendo:": "Your sky is getting darker:", "es decir, un": "that is,", "más de luz cada año": "more light each year", "menos de luz cada año": "less light each year", "La historia de tu cielo": "The history of your sky", "Solo cuentan las noches sin Luna y con el objeto a más de 35° de altura; cada punto es la mediana de una noche. Arriba, más oscuro.": "Only moonless nights with the target above 35° count; each point is one night's median. Up is darker."})
 DIC_EN.update({"Distancia con la relación periodo-luminosidad": "Distance from the period–luminosity relation", "años luz": "light-years", "Brillo real (magnitud absoluta) que le toca por su periodo": "True brightness (absolute magnitude) implied by its period", "Módulo de distancia: lo que mides menos lo que brilla de verdad": "Distance modulus: what you measure minus its true brightness", "Es una cefeida clásica: cuanto más largo el periodo, más luminosa (Leavitt, 1912; calibración de Benedict y otros, 2007). No se descuenta el polvo que hay por el camino, que la apaga y la hace parecer más lejana: la distancia real es menor, a veces bastante. Sirve para ver el método, no para publicar.": "It is a classical Cepheid: the longer the period, the more luminous (Leavitt, 1912; calibration by Benedict et al., 2007). Dust along the way is not corrected for; it dims the star and makes it look farther: the true distance is smaller, sometimes by a lot. It shows the method; it is not for publication."})
 DIC_EN.update({"Buscar variables nuevas en el campo": "Search the field for new variables", "Hasta qué magnitud de Gaia se miden las estrellas del campo. Más débiles: más estrellas y más tiempo.": "How faint (Gaia magnitude) the field stars are measured. Fainter means more stars and more time.", "Búsqueda de variables: ASTRO mide todas las estrellas del campo (hasta 2500, las del catálogo Gaia) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las que ya están en el VSX salen con su nombre; las demás son candidatas a variable nueva. Cuantas más tomas y más noches, mejor.": "Variable search: ASTRO measures every star in the field (up to 2500, from the Gaia catalogue) in the frames you already have and flags those that change more than stars of their brightness should. Those already in the VSX are shown with their name; the rest are candidate new variables. The more frames and nights, the better.", "Tus búsquedas de variables": "Your variable searches", "Buscar variables": "Search for variables", "Para buscar variables hacen falta al menos ocho tomas": "At least eight frames are needed to search for variables", "Todavía no has buscado variables en ningún campo": "You haven't searched any field for variables yet", "Elige arriba «Buscar variables nuevas en el campo», un objeto con bastantes tomas y pulsa «Buscar variables».": "Choose “Search the field for new variables” above, a target with plenty of frames, and press “Search for variables”.", "Estrellas medidas": "Stars measured", "Candidatas": "Candidates", "Sin catalogar": "Uncatalogued", "Búsqueda de variables": "Variable search", "Candidatas que no están en el VSX ni marcadas como variables en Gaia": "Candidates not in the VSX nor flagged as variable in Gaia", "Estrellas que cambian más de lo que les toca": "Stars that change more than they should", "Estrellas medidas, hasta la magnitud": "Stars measured, down to magnitude", "Pulsa una candidata de la tabla o un punto del diagrama para ver su curva.": "Click a candidate in the table or a point in the diagram to see its curve.", "Candidatas, de más a menos clara": "Candidates, clearest first", "Qué es": "What it is", "Índice": "Index", "Orden": "Order", "Cuántas veces cambia más que las estrellas de su mismo brillo": "How many times more it varies than stars of the same brightness", "Cerca de 1: cambia con orden, como una curva. Cerca de 0: saltos sueltos, probablemente ruido.": "Near 1: it changes smoothly, like a curve. Near 0: isolated jumps, probably noise.", "variable en Gaia": "variable in Gaia", "sin catalogar": "uncatalogued", "Ninguna estrella cambia más de lo que le toca por su brillo en estas tomas.": "No star changes more than expected for its brightness in these frames.", "Una candidata no es un descubrimiento: antes de darla por buena, mira su curva, comprueba que no tiene una vecina pegada ni cae en el borde, y repítela otra noche. Si aguanta, búscala en el VSX con el botón (30″ alrededor) y, si no está, la AAVSO explica cómo enviarla.": "A candidate is not a discovery: before trusting it, look at its curve, check it has no close neighbour and is not at the edge, and repeat it another night. If it holds, look it up in the VSX with the button (30″ around) and, if it is not there, the AAVSO explains how to submit it.", "Borrar esta búsqueda": "Delete this search", "¿Borrar esta búsqueda?": "Delete this search?", "Cada franja es una noche. Magnitud en la escala G de Gaia; arriba, más brillante.": "Each band is one night. Magnitude on the Gaia G scale; up is brighter.", "magnitud": "magnitude", "Cuánto cambia cada estrella según su brillo": "How much each star varies, by brightness", "Cada punto es una estrella: las débiles se dispersan más por el ruido. Las que quedan muy por encima de la nube son las candidatas (en morado, sin catalogar; en dorado, ya conocidas).": "Each point is a star: faint ones scatter more because of noise. Those well above the cloud are the candidates (purple, uncatalogued; gold, already known).", "Consultando las variables conocidas (VSX)": "Querying known variables (VSX)", "Buscando las que cambian": "Looking for the ones that change", "para buscar variables hacen falta al menos ocho tomas del mismo campo": "at least eight frames of the same field are needed to search for variables", "hay muy pocas estrellas de Gaia en el campo para comparar unas con otras": "there are too few Gaia stars in the field to compare with one another"})
+DIC_EN.update({"No se aprecia que cambie de brillo esta noche: la variación": "No brightness change can be seen tonight: the variation", "es del orden del error de cada medida": "is of the order of each measurement's error", "Cambia de brillo al girar: amplitud": "It changes brightness as it spins: amplitude", "Periodo de rotación estimado:": "Estimated rotation period:", "(dos máximos por vuelta).": "(two maxima per turn).", "La noche solo cubre una parte de la vuelta: tómalo como orientación y repítelo otra noche.": "The night covers only part of a turn: take it as a guide and repeat it another night.", "Con una sola noche es una primera estimación; se confirma repitiéndolo.": "With a single night this is a first estimate; confirm it by repeating.", "Cambia de brillo al girar: amplitud de al menos": "It changes brightness as it spins: amplitude of at least", "en": "in", "La noche no da para medir el periodo: hacen falta más horas seguidas u otra noche.": "The night is not long enough to measure the period: more consecutive hours or another night are needed.", "Curva de rotación": "Rotation curve", "Magnitud G aproximada, con el punto cero de las estrellas de Gaia de cada toma; arriba, más brillante. Las medidas van en la tabla (CSV).": "Approximate G magnitude, using each frame's Gaia zero point; up is brighter. The measurements are in the table (CSV)."})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
