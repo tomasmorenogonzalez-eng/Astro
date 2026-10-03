@@ -89,7 +89,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.10.03.6"
+VERSION_PROG = "2026.10.03.8"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1048,10 +1048,12 @@ def gaia_campo(ra, dec, radio, gmax=21.0, radio_profundo=None):
     return d
 
 
-def gaia_campo_o_guardado(ra, dec, radio, gmax):
+def gaia_campo_o_guardado(ra, dec, radio, gmax, solo_guardado=False):
     """Como gaia_campo, pero si los servidores de Gaia no contestan vale una consulta guardada de otro día que cubra el
     campo (la de una medida del cielo o de asteroides de ese mismo objeto, por ejemplo)."""
     try:
+        if solo_guardado:
+            raise RuntimeError("No he podido consultar el catálogo Gaia (¿hay conexión a Internet?) y no hay ninguna consulta guardada que cubra este campo.")
         return gaia_campo(ra, dec, radio, gmax=gmax)
     except RuntimeError as err:
         mejor = None
@@ -2618,7 +2620,7 @@ def _calibrar_tanda(grupo, W, siril, hechos, k0, total):
     return rutas
 
 
-def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver, por_noche=False, n_ref=None, compacto=False):
+def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver, por_noche=False, n_ref=None, compacto=False, por_toma=None):
     """Calibra las tomas por tandas con Siril, sigue el campo (resolviendo la primera) y mide todas las estrellas
     con las aperturas dadas (en FWHM). Devuelve un registro por toma medida."""
     alineacion = [(e["ra"], e["dec"]) for e in (estrellas[:n_ref] if n_ref else estrellas)]
@@ -2699,8 +2701,9 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
                     radios = [max(1.5, f * fw) for f in factores]
                 rin = max(max(radios) + 3.0, 3.0 * fw)
                 rout = max(rin + 5.0, 5.0 * fw)
+                extra = por_toma(img, wcs, fw, fecha, d, h, exp) if por_toma else None
                 medidas = {}
-                for e in estrellas:
+                for e in ([] if por_toma else estrellas):
                     pp = wcs.cielo_a_pix(e["ra"], e["dec"])
                     if not pp:
                         continue
@@ -2724,7 +2727,7 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
                                   "exp": exp, "fwhm": round(fw, 2), "apertura": [round(r, 2) for r in radios] + [round(rin, 2), round(rout, 2)],
                                   "masa_aire": round(masa_de_aire(alt), 4) if alt and alt > 0 else None, "altura": round(alt, 2) if alt is not None else None,
                                   "gain": num(h.get("EGAIN")), "bits": int(num(h.get("BITPIX")) or 16), "flotante": img.bitpix < 0,
-                                  "calibrada": ruta != d["ruta"], "estrellas": medidas})
+                                  "calibrada": ruta != d["ruta"], "estrellas": medidas, "extra": extra})
             except Cancelado:
                 raise
             except Exception as e:
@@ -6444,7 +6447,17 @@ def _astrometria_toma(img, wcs, ref, fw, fecha, exp, d, objetos, medidas, escala
                 avisos.append("estrella cerca")
                 break
         err_c = fw * escala / max(1.0, c["snr"]) / 1.5
-        medidas[o["nombre"]].append({"archivo": d.get("id"), "tiempo": tiempo, "jd": round(t, 7), "x": round(c["x"], 3), "y": round(c["y"], 3),
+        # un cometa no es un punto: su brillo depende de cuánta coma se coja. Se mide con aperturas cada vez mayores
+        aper = None
+        if o.get("tipo") == "cometa" and zp is not None:
+            rs = [r / escala for r in COMETA_RADIOS]
+            cabe = min(c["x"], c["y"], img.w - c["x"], img.h - c["y"]) - 4
+            rs = [r for r in rs if 1.6 * r < cabe]
+            if len(rs) >= 2:
+                mm = medir_multi(img, c["x"], c["y"], rs, 1.25 * rs[-1], 1.55 * rs[-1])
+                if mm and mm.get("flujos"):
+                    aper = [round(zp - 2.5 * math.log10(f), 3) if f > 0 else None for f in mm["flujos"]]
+        medidas[o["nombre"]].append({"aper": aper, "archivo": d.get("id"), "tiempo": tiempo, "jd": round(t, 7), "x": round(c["x"], 3), "y": round(c["y"], 3),
                                      "encontrado": True, "ra": round(ra_m, 7), "dec": round(dec_m, 7), "ra_pred": round(pred[0], 7), "dec_pred": round(pred[1], 7),
                                      "oc_ra": round(oc_ra, 3), "oc_dec": round(oc_dec, 3), "mag": round(mag, 3) if mag is not None else None,
                                      "snr": round(c["snr"], 1), "err_ra": round(math.hypot(err_c, pl["rms_ra"] * rad), 3),
@@ -6466,6 +6479,33 @@ def iniciar_astrometria(p):
                    cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
     guardar_config_ciencia(**{k: p.get(k) for k in ("mpc_codigo", "observador", "apertura_m", "detector", "diseno") if p.get(k) not in (None, "")})
     threading.Thread(target=trabajo_astrometria, args=(p,), daemon=True).start()
+
+
+COMETA_RADIOS = [6.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0]       # segundos de arco
+
+
+def coma_de(us):
+    """Brillo de un cometa según la apertura (mediana de las tomas) y hasta dónde llega la coma: el radio a partir del
+    cual coger más cielo ya no añade luz."""
+    filas = [m["aper"] for m in us if m.get("aper")]
+    if len(filas) < 1:
+        return None
+    n = max(len(f) for f in filas)
+    mags = []
+    for k in range(n):
+        v = [f[k] for f in filas if k < len(f) and f[k] is not None]
+        mags.append(round(_mediana_l(v), 2) if v else None)
+    if sum(1 for m in mags if m is not None) < 2:
+        return None
+    k_fin = max(k for k, m in enumerate(mags) if m is not None)
+    for k in range(1, n):
+        if mags[k] is None or mags[k - 1] is None:
+            continue
+        if mags[k - 1] - mags[k] < 0.05:              # ya no gana ni un 5 % de luz
+            k_fin = k - 1
+            break
+    return {"radios": COMETA_RADIOS[:n], "mags": mags, "radio_coma": COMETA_RADIOS[k_fin], "m1": mags[k_fin],
+            "completa": k_fin < max(k for k, m in enumerate(mags) if m is not None), "n": len(filas)}
 
 
 def rotacion_de(ts, ms, es):
@@ -6538,6 +6578,7 @@ def calcular_astrometria(serie, sel):
             r["mag"] = round(sorted(mags)[len(mags) // 2], 2) if mags else None
             r["snr"] = round(sorted(m["snr"] for m in us)[len(us) // 2], 1)
             cm = sorted((m["jd"], m["mag"], 1.0857 / max(m["snr"], 1.0)) for m in us if m.get("mag") is not None)
+            r["coma"] = coma_de(us) if o.get("tipo") == "cometa" else None
             r["rotacion"] = rotacion_de([a for a, _b, _c in cm], [b for _a, b, _c in cm], [c_ for _a, _b, c_ in cm]) if o.get("tipo") != "cometa" else None
         r["medidas"] = [{k: v for k, v in m.items() if k != "vista"} for m in ms]
         objetos.append(r)
@@ -6698,6 +6739,607 @@ def zip_astrometria(sid, en=False):
 
 
 # ═════════════════════════════ DIAGRAMAS DE HERTZSPRUNG-RUSSELL ═════════════════════════════
+# ───────────────────────── Estrellas dobles y movimiento propio ─────────────────────────
+# La astrometría de cada toma se hace con las estrellas de Gaia llevadas a la fecha de la toma (con su movimiento
+# propio); sobre esa referencia se mide dónde está cada estrella elegida: las que se mueven deprisa (movimiento propio)
+# y las parejas (separación y ángulo de posición).
+ESTRELLAS_DIR = os.path.join(ROOT, "Dobles y movimiento propio")
+
+
+def _placa_toma(img, wcs, ref, fw):
+    """Constantes de placa de una toma con las estrellas de referencia (ya en la fecha de la toma). Devuelve
+    (placa, ra0, dec0) o None."""
+    ra0, dec0 = wcs.pix_a_cielo(img.w / 2.0, img.h / 2.0)
+    pares = []
+    for e in ref:
+        pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+        if not pp or not (15 < pp[0] < img.w - 15 and 15 < pp[1] < img.h - 15):
+            continue
+        c = centroide(img, pp[0], pp[1], fw)
+        if not c or c["snr"] < 20 or math.hypot(c["x"] - pp[0], c["y"] - pp[1]) > max(4.0, 2.5 * fw):
+            continue
+        xi, eta = a_plano(e["ra"], e["dec"], ra0, dec0)
+        pares.append((c["x"], c["y"], xi, eta, c["pico"]))
+        if len(pares) >= 400:
+            break
+    if len(pares) > 10:
+        techo = max(p[4] for p in pares)
+        pares = [p for p in pares if p[4] < 0.9 * techo] or pares
+    grado = 3 if len(pares) >= 60 else (2 if len(pares) >= 25 else 1)
+    pl = ajustar_placa([p[:4] for p in pares], img.w / 2.0, img.h / 2.0, grado)
+    return (pl, ra0, dec0) if pl else None
+
+
+def _anio_de(fecha):
+    return fecha.year + (fecha.timetuple().tm_yday - 0.5 + fecha.hour / 24.0) / 365.25
+
+
+def trabajo_estrellas(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "est-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        tomas = _tomas_de_ids([i for i in (p.get("ids") or []) if i])
+        if len(tomas) < 2:
+            raise RuntimeError("hacen falta al menos dos tomas")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[len(tomas) // 2]
+        escala = num(d0.get("escala")) or 1.0
+        w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
+        c = (WCS(h0).pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0) if _ya_resuelta(h0) else None) or coords_cabecera(h0) or (tuple(d0["coords"]) if d0.get("coords") else None)
+        if not c:
+            raise RuntimeError("las tomas no dicen adónde apuntan (ni coordenadas ni astrometría en la cabecera)")
+        ra_c, dec_c = c
+        radio = min(3.0, math.hypot(w, h) / 2 * escala / 3600.0)
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        cat = gaia_campo_o_guardado(ra_c, dec_c, radio, 16.0)
+        gaia = [e for e in cat["estrellas"] if e.get("g") is not None and e["g"] >= 6.5]
+        pm_min = float(p.get("pm_min") or 80.0)
+        gmax_par = float(p.get("gmax") or 13.5)
+        # las que se mueven deprisa
+        rapidas = sorted((e for e in gaia if math.hypot(e["pmra"], e["pmdec"]) >= pm_min and e["g"] < 15.5), key=lambda e: -math.hypot(e["pmra"], e["pmdec"]))[:30]
+        # las parejas: dos estrellas de Gaia cerca una de otra
+        br = sorted((e for e in gaia if e["g"] < gmax_par), key=lambda e: e["dec"])
+        smin, smax = max(4.0, 3.0 * escala * 3.0), 60.0
+        parejas, vistos = [], set()
+        for j, a in enumerate(br):
+            k = j + 1
+            while k < len(br) and br[k]["dec"] - a["dec"] < smax / 3600.0:
+                b = br[k]
+                k += 1
+                sep = separacion(a["ra"], a["dec"], b["ra"], b["dec"]) * 3600
+                if not (smin <= sep <= smax) or abs(a["g"] - b["g"]) > 3.5:
+                    continue
+                pri, sec = (a, b) if a["g"] <= b["g"] else (b, a)
+                # una tercera estrella pegada estropea el centro
+                fisica = (pri.get("plx") and sec.get("plx") and abs(pri["plx"] - sec["plx"]) < 3 * math.hypot(pri.get("e_plx") or 0.1, sec.get("e_plx") or 0.1) + 0.1
+                          and math.hypot(pri["pmra"] - sec["pmra"], pri["pmdec"] - sec["pmdec"]) < 0.15 * max(5.0, math.hypot(pri["pmra"], pri["pmdec"])) + 1.0)
+                parejas.append({"a": pri["id"], "b": sec["id"], "sep": sep, "fisica": bool(fisica)})
+        parejas.sort(key=lambda q: (not q["fisica"], q["sep"]))
+        # una estrella con otra pegada (que no sea su pareja) no se puede centrar bien: se aparta
+        lim_v = max(8.0, 12.0 * escala) / 3600.0
+        por_dec = sorted(gaia, key=lambda e: e["dec"])
+        decs = [e["dec"] for e in por_dec]
+        import bisect
+        def vecina(e, menos=None):
+            j0 = bisect.bisect_left(decs, e["dec"] - lim_v)
+            for x in por_dec[j0:]:
+                if x["dec"] > e["dec"] + lim_v:
+                    break
+                if x["id"] != e["id"] and x["id"] != menos and x["g"] < e["g"] + 3.0 and separacion(e["ra"], e["dec"], x["ra"], x["dec"]) < lim_v:
+                    return True
+            return False
+        mezcladas = [e["id"] for e in rapidas if vecina(e)]
+        rapidas = [e for e in rapidas if e["id"] not in mezcladas]
+        por_id0 = {e["id"]: e for e in gaia}
+        parejas = [q for q in parejas if not vecina(por_id0[q["a"]], q["b"]) and not vecina(por_id0[q["b"]], q["a"])][:60]
+        ids_obj = {e["id"] for e in rapidas} | {q["a"] for q in parejas} | {q["b"] for q in parejas}
+        if not ids_obj:
+            raise RuntimeError("en este campo no hay estrellas con movimiento propio grande ni parejas de estrellas brillantes que medir")
+        por_id = {e["id"]: e for e in gaia}
+        refs = sorted((e for e in gaia if 9.5 < e["g"] < 16 and e["id"] not in ids_obj and math.hypot(e["pmra"], e["pmdec"]) < 60), key=lambda e: e["g"])[:500]
+        if len(refs) < 12:
+            raise RuntimeError("hay muy pocas estrellas de Gaia en el campo para la astrometría")
+        anio0 = _anio_de(f0)
+        alin = [dict(id=e["id"], ra=posicion_en(e, anio0)[0], dec=posicion_en(e, anio0)[1]) for e in refs[:80]]
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+
+        def medir(img, wcs, fw, fecha, d, hh, exp):
+            anio = _anio_de(fecha)
+            ref = [{"ra": r_[0], "dec": r_[1]} for r_ in (posicion_en(e, anio) for e in refs)]
+            pt = _placa_toma(img, wcs, ref, fw)
+            if not pt:
+                raise RuntimeError("no hay bastantes estrellas de Gaia para la astrometría de esta toma")
+            pl, ra0, dec0 = pt
+            techo = 0.85 * (1.0 if img.bitpix < 0 else 65535.0)
+            out = {}
+            for i in ids_obj:
+                e = por_id[i]
+                ra, dec = posicion_en(e, anio)
+                pp = wcs.cielo_a_pix(ra, dec)
+                if not pp or not (15 < pp[0] < img.w - 15 and 15 < pp[1] < img.h - 15):
+                    continue
+                cc = centroide(img, pp[0], pp[1], fw)
+                if not cc or cc["snr"] < 15 or math.hypot(cc["x"] - pp[0], cc["y"] - pp[1]) > max(5.0, 3.0 * fw):
+                    continue
+                xi, eta = placa_a_plano(pl, cc["x"], cc["y"])
+                ra_m, dec_m = de_plano(xi, eta, ra0, dec0)
+                out[i] = [round(ra_m, 8), round(dec_m, 8), round(cc["snr"], 1), int(cc["pico"] >= techo)]
+            return {"anio": round(anio, 5), "rms": round(math.hypot(pl["rms_ra"], pl["rms_dec"]) * 206264.806, 3), "n_ref": pl["n"], "pos": out}
+
+        registros = _medir_serie(tomas, alin, escala, lg, ra_c, dec_c, [1.6], base, siril, ver, por_noche=True, n_ref=80, por_toma=medir)
+        registros = [t for t in registros if t.get("extra")]
+        if len(registros) < 2:
+            raise RuntimeError("no he podido medir bastantes tomas")
+        JOB["hechos"] = len(tomas)
+        claves = ("id", "ra", "dec", "pmra", "pmdec", "g", "plx", "e_pm")
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "estrellas",
+                 "objeto": d0.get("objeto") or "", "filtro": d0.get("filtro") or "", "cam": d0.get("cam") or "", "tel": d0.get("tel") or "",
+                 "centro": [round(ra_c, 5), round(dec_c, 5)], "radio": round(radio, 4), "escala": escala, "pm_min": pm_min,
+                 "noche": tomas[0][1].get("noche") or "", "noche_fin": tomas[-1][1].get("noche") or "",
+                 "estrellas": [{k: por_id[i].get(k) for k in claves} for i in sorted(ids_obj)], "rapidas": [e["id"] for e in rapidas], "parejas": parejas, "mezcladas": len(mezcladas),
+                 "tomas": [{"archivo": t["archivo"], "fecha": t["fecha"], "jd": t["jd"], "fwhm": t["fwhm"], **t["extra"]} for t in registros],
+                 "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
+        calc = calcular_estrellas(serie)
+        dd = os.path.join(ESTRELLAS_DIR, serie["id"])
+        os.makedirs(dd, exist_ok=True)
+        escribir_json(os.path.join(dd, "serie.json"), serie)
+        guardar_estrellas(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_estrellas(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="estrellas", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    threading.Thread(target=trabajo_estrellas, args=(p,), daemon=True).start()
+
+
+def calcular_estrellas(serie):
+    est = {e["id"]: e for e in serie["estrellas"]}
+    tomas = serie["tomas"]
+    # las noches: tomas separadas por más de diez horas
+    noches = []
+    for t in sorted(tomas, key=lambda t: t["jd"]):
+        if noches and t["jd"] - noches[-1][-1]["jd"] < 10.0 / 24:
+            noches[-1].append(t)
+        else:
+            noches.append([t])
+    mas = 3.6e6
+    rapidas = []
+    for i in serie.get("rapidas") or []:
+        e = est[i]
+        cosd = math.cos(math.radians(e["dec"]))
+        pts = []                                   # por noche: (año, Δα·cosδ, Δδ) en mas respecto a la posición de Gaia en 2016,0
+        for n in noches:
+            v = [(t["anio"], (t["pos"][i][0] - e["ra"]) * cosd * mas, (t["pos"][i][1] - e["dec"]) * mas) for t in n if i in t["pos"] and not t["pos"][i][3]]
+            if not v:
+                continue
+            a = _mediana_l([x[0] for x in v]); dx = _mediana_l([x[1] for x in v]); dy = _mediana_l([x[2] for x in v])
+            sx = (1.4826 * _mediana_l([abs(x[1] - dx) for x in v]) if len(v) > 2 else 0.0)
+            sy = (1.4826 * _mediana_l([abs(x[2] - dy) for x in v]) if len(v) > 2 else 0.0)
+            rms = _mediana_l([t["rms"] for t in n]) * 1000.0
+            err = max(math.hypot(sx, sy) / math.sqrt(len(v)), rms / math.sqrt(max(8, _mediana_l([t["n_ref"] for t in n]))), 15.0)
+            pts.append({"anio": round(a, 4), "dx": round(dx, 1), "dy": round(dy, 1), "err": round(err, 1), "n": len(v)})
+        r = {"id": i, "g": e["g"], "ra": e["ra"], "dec": e["dec"], "pmra": round(e["pmra"], 1), "pmdec": round(e["pmdec"], 1),
+             "pm": round(math.hypot(e["pmra"], e["pmdec"]), 1), "plx": e.get("plx"), "puntos": pts}
+        if pts:
+            # lo que se ha movido desde 2016,0, medido de una vez: vale con una sola noche (comparación con Gaia)
+            am = sum(q["anio"] for q in pts) / len(pts)
+            r["desde2016"] = {"anios": round(am - 2016.0, 2), "dx": round(sum(q["dx"] for q in pts) / len(pts), 1), "dy": round(sum(q["dy"] for q in pts) / len(pts), 1),
+                              "dx_gaia": round(e["pmra"] * (am - 2016.0), 1), "dy_gaia": round(e["pmdec"] * (am - 2016.0), 1),
+                              "err": round(max(math.sqrt(sum(q["err"] ** 2 for q in pts)) / len(pts), 40.0,   # color, paralaje: nunca mejor que unas centésimas
+                                               (math.sqrt(sum((q["dx"] - sum(z["dx"] for z in pts) / len(pts)) ** 2 + (q["dy"] - sum(z["dy"] for z in pts) / len(pts)) ** 2 for q in pts) / (len(pts) - 1)) / math.sqrt(len(pts))) if len(pts) > 1 else 0.0), 1)}
+            d = r["desde2016"]
+            r["pm_gaia_epoca"] = {"pmra": round(d["dx"] / d["anios"], 1), "pmdec": round(d["dy"] / d["anios"], 1), "err": round(d["err"] / d["anios"], 1)} if d["anios"] > 1 else None
+        span = pts[-1]["anio"] - pts[0]["anio"] if len(pts) >= 2 else 0.0
+        if len(pts) >= 2 and span >= 0.15:
+            ws = [1.0 / q["err"] ** 2 for q in pts]
+            sw = sum(ws)
+            tm = sum(q["anio"] * wi for q, wi in zip(pts, ws)) / sw
+            stt = sum(wi * (q["anio"] - tm) ** 2 for q, wi in zip(pts, ws))
+            r["propio"] = {"pmra": round(sum(wi * (q["anio"] - tm) * q["dx"] for q, wi in zip(pts, ws)) / stt, 1),
+                           "pmdec": round(sum(wi * (q["anio"] - tm) * q["dy"] for q, wi in zip(pts, ws)) / stt, 1),
+                           "err": round(1.0 / math.sqrt(stt), 1), "anios": round(span, 2), "noches": len(pts)}
+        rapidas.append(r)
+    parejas = []
+    for q in serie.get("parejas") or []:
+        a, b = est[q["a"]], est[q["b"]]
+        ms = []
+        for t in tomas:
+            pa, pb = t["pos"].get(q["a"]), t["pos"].get(q["b"])
+            if not pa or not pb or pa[3] or pb[3]:
+                continue
+            dx = (pb[0] - pa[0]) * math.cos(math.radians((pa[1] + pb[1]) / 2)) * 3600
+            dy = (pb[1] - pa[1]) * 3600
+            if abs(math.hypot(dx, dy) - q["sep"]) > max(1.5, 0.2 * q["sep"]):
+                continue                           # el centro se ha ido a otra estrella
+            ms.append((t["anio"], math.hypot(dx, dy), math.degrees(math.atan2(dx, dy)) % 360.0, t["jd"]))
+        if len(ms) < 2:
+            continue
+        rho = _mediana_l([m[1] for m in ms])
+        th0 = _mediana_l([m[2] for m in ms])
+        dth = [((m[2] - th0 + 180) % 360) - 180 for m in ms]
+        s_rho = 1.4826 * _mediana_l([abs(m[1] - rho) for m in ms])
+        s_th = 1.4826 * _mediana_l([abs(x - _mediana_l(dth)) for x in dth])
+        anio = sum(m[0] for m in ms) / len(ms)
+        ra_a, de_a = posicion_en(a, anio)
+        ra_b, de_b = posicion_en(b, anio)
+        gx = (ra_b - ra_a) * math.cos(math.radians((de_a + de_b) / 2)) * 3600
+        gy = (de_b - de_a) * 3600
+        n_noches = len({round(m[3] - 0.5) for m in ms})
+        parejas.append({"a": q["a"], "b": q["b"], "ra": round(a["ra"], 6), "dec": round(a["dec"], 6), "g_a": a["g"], "g_b": b["g"], "fisica": q["fisica"],
+                        "rho": round(rho, 3), "theta": round((th0 + _mediana_l(dth)) % 360, 2), "e_rho": round(max(s_rho / math.sqrt(len(ms)), 0.005), 3),
+                        "e_theta": round(max(s_th / math.sqrt(len(ms)), 0.01), 2), "epoca": round(anio, 3), "n": len(ms), "noches": n_noches,
+                        "rho_gaia": round(math.hypot(gx, gy), 3), "theta_gaia": round(math.degrees(math.atan2(gx, gy)) % 360, 2)})
+    parejas.sort(key=lambda x: (not x["fisica"], x["rho"]))
+    rms = _mediana_l([t["rms"] for t in tomas])
+    return {"rapidas": rapidas, "parejas": parejas, "tomas": len(tomas), "noches": len(noches), "rms": rms,
+            "anios": round(max(t["anio"] for t in tomas) - min(t["anio"] for t in tomas), 2)}
+
+
+def guardar_estrellas(serie, calc):
+    d = os.path.join(ESTRELLAS_DIR, serie["id"])
+    escribir_json(os.path.join(d, "calculo.json"), calc)
+    with open(os.path.join(d, "dobles.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["gaia_dr3_a", "gaia_dr3_b", "ra_a", "dec_a", "G_a", "G_b", "epoca", "rho_arcsec", "e_rho", "theta_deg", "e_theta", "n_tomas", "noches", "rho_gaia", "theta_gaia", "pareja_fisica_probable"])
+        for q in calc["parejas"]:
+            w.writerow([q["a"], q["b"], q["ra"], q["dec"], q["g_a"], q["g_b"], q["epoca"], q["rho"], q["e_rho"], q["theta"], q["e_theta"], q["n"], q["noches"], q["rho_gaia"], q["theta_gaia"], int(q["fisica"])])
+    with open(os.path.join(d, "movimiento_propio.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["gaia_dr3", "ra", "dec", "G", "pmra_gaia", "pmdec_gaia", "pmra_medido_mas_a", "pmdec_medido_mas_a", "error", "metodo", "anios"])
+        for r in calc["rapidas"]:
+            m = r.get("propio") or r.get("pm_gaia_epoca")
+            if m:
+                w.writerow([r["id"], r["ra"], r["dec"], r["g"], r["pmra"], r["pmdec"], m["pmra"], m["pmdec"], m["err"],
+                            "tus noches" if r.get("propio") else "desde Gaia 2016.0", (r.get("propio") or {}).get("anios") or r["desde2016"]["anios"]])
+
+
+def series_estrellas():
+    out = []
+    if not os.path.isdir(ESTRELLAS_DIR):
+        return out
+    for n in sorted(os.listdir(ESTRELLAS_DIR), reverse=True):
+        c = leer_json(os.path.join(ESTRELLAS_DIR, n, "calculo.json"), None)
+        s = leer_json(os.path.join(ESTRELLAS_DIR, n, "serie.json"), None) if c else None
+        if not s:
+            continue
+        out.append({"id": s["id"], "objeto": s.get("objeto"), "noche": s.get("noche"), "noche_fin": s.get("noche_fin"), "filtro": s.get("filtro"),
+                    "tomas": c["tomas"], "noches": c["noches"], "parejas": len(c["parejas"]), "rapidas": len(c["rapidas"]), "rms": c["rms"]})
+    return out
+
+
+def serie_estrellas(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    s = leer_json(os.path.join(ESTRELLAS_DIR, sid, "serie.json"), None)
+    if not s:
+        return None, None
+    return ({k: v for k, v in s.items() if k not in ("tomas", "estrellas")}, leer_json(os.path.join(ESTRELLAS_DIR, sid, "calculo.json"), None))
+
+
+def borrar_estrellas(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("no válida")
+    shutil.rmtree(os.path.join(ESTRELLAS_DIR, sid), ignore_errors=True)
+
+
+# ───────────────────────── Patrulla de supernovas: lo nuevo en el campo ─────────────────────────
+# En las tomas de la noche nueva se buscan todos los puntos de luz de la zona elegida; los que no son estrellas de Gaia
+# se miden también, en el mismo sitio, en las tomas de una noche anterior. Lo que antes no estaba (o era mucho más
+# débil) es una candidata: una supernova, una nova, una variable en erupción… o un asteroide, un reflejo o un rayo cósmico.
+PATRULLA_DIR = os.path.join(ROOT, "Patrulla de supernovas")
+
+
+def detectar_puntos(img, caja, fw, maximo=2500):
+    """Los puntos de luz de una zona de la imagen: máximos locales que sobresalen del fondo de su alrededor (el de la
+    galaxia incluido). Devuelve [(x, y, altura sobre el fondo en sigmas)], de más a menos destacado."""
+    x0, y0, x1, y1 = caja
+    x0, y0, x1, y1 = max(2, x0), max(2, y0), min(img.w - 2, x1), min(img.h - 2, y1)
+    lado = 48
+    picos = []
+    for ty in range(y0, y1, lado):
+        filas = img.recorte(x0 - 1, ty - 1, x1 + 1, min(y1, ty + lado) + 1)
+        if len(filas) < 3:
+            continue
+        alto = len(filas) - 2
+        for tx in range(0, x1 - x0, lado):
+            ancho = min(lado, x1 - x0 - tx)
+            if ancho < 4:
+                continue
+            ms = sorted(v for f in filas[1:-1:2] for v in f[1 + tx:1 + tx + ancho:2])
+            if len(ms) < 20:
+                continue
+            med = ms[len(ms) // 2]
+            sig = max((med - ms[int(0.159 * len(ms))]), 1e-9)      # la mitad baja del reparto: no la hinchan las estrellas
+            um = med + 5.0 * sig
+            for j in range(1, alto + 1):
+                f, fa, fb = filas[j], filas[j - 1], filas[j + 1]
+                for i in range(1 + tx, 1 + tx + ancho):
+                    v = f[i]
+                    if v > um and v >= f[i - 1] and v > f[i + 1] and v >= fa[i] and v > fb[i] and v >= fa[i - 1] and v >= fa[i + 1] and v > fb[i - 1] and v > fb[i + 1]:
+                        picos.append(((v - med) / sig, x0 - 1 + i, ty - 1 + j))
+    picos.sort(reverse=True)
+    out, r2 = [], max(2.0, fw) ** 2
+    for a, x, y in picos:
+        if len(out) >= maximo:
+            break
+        if any((x - q[0]) ** 2 + (y - q[1]) ** 2 < r2 for q in out[-60:]):
+            continue
+        out.append((x, y, a))
+    return out
+
+
+def trabajo_patrulla(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "sn-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        ids_n, ids_r = [i for i in (p.get("nuevas") or []) if i], [i for i in (p.get("referencia") or []) if i]
+        if len(ids_n) < 2 or not ids_r:
+            raise RuntimeError("hacen falta al menos dos tomas de la noche nueva y una de una noche anterior")
+        todas = _tomas_de_ids(ids_n + ids_r)
+        tn = [t for t in todas if t[1].get("id") in set(ids_n)]
+        tr_ = [t for t in todas if t[1].get("id") in set(ids_r)]
+        if len(tn) < 2 or not tr_:
+            raise RuntimeError("no encuentro bastantes tomas con fecha")
+        JOB["total"] = len(tn) + len(tr_)
+        f0, d0, h0, _e = tn[0]
+        escala = num(d0.get("escala")) or 1.0
+        w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
+        c = (tuple(d0["coords"]) if d0.get("coords") else None) or coords_cabecera(h0) or (WCS(h0).pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0) if _ya_resuelta(h0) else None)
+        if not c:
+            raise RuntimeError("las tomas no dicen adónde apuntan (ni coordenadas ni astrometría en la cabecera)")
+        ra_c, dec_c = c
+        r_campo = math.hypot(w, h) / 2 * escala / 3600.0
+        radio = min(r_campo, max(2.0, float(p.get("radio") or 12.0)) / 60.0)
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        try:
+            cat = gaia_campo(ra_c, dec_c, radio * 1.05, gmax=21.0)
+            g_hasta = 21.0
+        except RuntimeError:
+            cat, g_hasta = None, None
+            for gm in (20.0, 18.0, 16.0):
+                try:
+                    cat, g_hasta = gaia_campo_o_guardado(ra_c, dec_c, radio * 1.05, gm, solo_guardado=True), gm
+                    break
+                except RuntimeError:
+                    continue
+            if cat is None:
+                raise
+        anio = _anio_de(f0)
+        gaia = []
+        for e in cat["estrellas"]:
+            if e.get("g") is None:
+                continue
+            ra, dec = posicion_en(e, anio)
+            gaia.append({"id": e["id"], "ra": ra, "dec": dec, "g": e["g"]})
+        gaia.sort(key=lambda e: e["dec"])
+        decs = [e["dec"] for e in gaia]
+        import bisect
+
+        def de_gaia(ra, dec, tol):
+            j = bisect.bisect_left(decs, dec - tol)
+            mejor = None
+            while j < len(gaia) and gaia[j]["dec"] <= dec + tol:
+                sdist = separacion(ra, dec, gaia[j]["ra"], gaia[j]["dec"])
+                if sdist < tol and (mejor is None or sdist < mejor[0]):
+                    mejor = (sdist, gaia[j])
+                j += 1
+            return mejor[1] if mejor else None
+
+        alin = sorted((e for e in gaia if 9.5 < e["g"] < 16.5), key=lambda e: e["g"])[:80]
+        if len(alin) < 6:
+            raise RuntimeError("hay muy pocas estrellas de Gaia en la zona para situar las tomas")
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        desconocidas = []                       # una lista por toma nueva
+
+        def caja_de(img, wcs):
+            pc = wcs.cielo_a_pix(ra_c, dec_c)
+            if not pc:
+                raise RuntimeError("el objeto no cae en esta toma")
+            rp = radio * 3600.0 / escala
+            return (int(pc[0] - rp), int(pc[1] - rp), int(pc[0] + rp), int(pc[1] + rp)), pc, rp
+
+        def cero(img, wcs, fw):
+            zs = []
+            for e in alin:
+                pp = wcs.cielo_a_pix(e["ra"], e["dec"])
+                if not pp or not (15 < pp[0] < img.w - 15 and 15 < pp[1] < img.h - 15):
+                    continue
+                cc = centroide(img, pp[0], pp[1], fw)
+                if cc and cc["snr"] > 25 and cc["flujo"] > 0 and cc["pico"] < 0.85 * (1.0 if img.bitpix < 0 else 65535.0):
+                    zs.append(e["g"] + 2.5 * math.log10(cc["flujo"]))
+            return sigma_clip(zs, 2.5, 4)[0] if len(zs) >= 4 else None
+
+        def nueva(img, wcs, fw, fecha, d, hh, exp):
+            caja, pc, rp = caja_de(img, wcs)
+            zp = cero(img, wcs, fw)
+            if zp is None:
+                raise RuntimeError("no he podido poner esta toma a la escala de Gaia")
+            tol = max(2.5, 1.2 * fw * escala) / 3600.0
+            fuera, n_gaia, mags = [], 0, []
+            for x, y, alt in detectar_puntos(img, caja, fw):
+                if math.hypot(x - pc[0], y - pc[1]) > rp:
+                    continue
+                cc = centroide(img, x, y, fw)
+                if not cc or cc["snr"] < 6 or math.hypot(cc["x"] - x, cc["y"] - y) > 1.5 * fw:
+                    continue
+                ra, dec = wcs.pix_a_cielo(cc["x"], cc["y"])
+                mag = zp - 2.5 * math.log10(cc["flujo"])
+                if de_gaia(ra, dec, tol):
+                    n_gaia += 1
+                    mags.append(mag)
+                    continue
+                v = fwhm_hfr(img, cc["x"], cc["y"], 3.0 * fw)
+                if not v or not (0.55 * fw <= v <= 1.9 * fw):
+                    continue                    # demasiado fino (un píxel caliente, un rayo cósmico) o demasiado ancho (una galaxia, un nudo)
+                fuera.append({"ra": ra, "dec": dec, "mag": round(mag, 2), "snr": round(cc["snr"], 1), "x": round(cc["x"], 1), "y": round(cc["y"], 1),
+                              "vista": _recorte_vista(img, cc["x"], cc["y"], 41)})
+            desconocidas.append(fuera)
+            mags.sort()
+            return {"zp": round(zp, 3), "gaia": n_gaia, "sueltas": len(fuera), "limite": round(mags[int(0.95 * (len(mags) - 1))], 2) if len(mags) >= 10 else None}
+
+        reg_n = _medir_serie(tn, alin, escala, lg, ra_c, dec_c, [1.6], os.path.join(base, "n"), siril, ver, por_noche=True, n_ref=80, por_toma=nueva)
+        reg_n = [t for t in reg_n if t.get("extra")]
+        if len(reg_n) < 2:
+            raise RuntimeError("no he podido medir bastantes tomas de la noche nueva")
+        # las que salen en al menos dos tomas nuevas, en el mismo sitio
+        tol = max(2.5, 3.0 * escala) / 3600.0
+        cands = []
+        for k, lista in enumerate(desconocidas):
+            for q in lista:
+                for cnd in cands:
+                    if separacion(q["ra"], q["dec"], cnd["ra"], cnd["dec"]) < tol:
+                        if k not in cnd["en"]:
+                            cnd["en"].append(k)
+                            cnd["mags"].append(q["mag"])
+                            cnd["snrs"].append(q["snr"])
+                        break
+                else:
+                    cands.append({"ra": q["ra"], "dec": q["dec"], "en": [k], "mags": [q["mag"]], "snrs": [q["snr"]], "vista": q["vista"]})
+        minimo = 2 if len(desconocidas) <= 3 else max(2, int(math.ceil(0.5 * len(desconocidas))))
+        cands = [cnd for cnd in cands if len(cnd["en"]) >= minimo]
+        cands.sort(key=lambda cnd: _mediana_l(cnd["mags"]))
+        cands = cands[:150]
+        for cnd in cands:
+            cnd["antes"] = []
+
+        def vieja(img, wcs, fw, fecha, d, hh, exp):
+            zp = cero(img, wcs, fw)
+            if zp is None:
+                raise RuntimeError("no he podido poner esta toma a la escala de Gaia")
+            n = 0
+            for cnd in cands:
+                pp = wcs.cielo_a_pix(cnd["ra"], cnd["dec"])
+                if not pp or not (25 < pp[0] < img.w - 25 and 25 < pp[1] < img.h - 25):
+                    continue
+                m = medir_estrella(img, pp[0], pp[1], max(2.0, 1.6 * fw), max(1.6 * fw + 3, 3.0 * fw), max(1.6 * fw + 8, 5.0 * fw))
+                if not m:
+                    continue
+                ruido = math.sqrt(m["n_ap"] * m["sd"] ** 2 * (1 + m["n_ap"] / max(m["n_an"], 1)))
+                lim = zp - 2.5 * math.log10(3.0 * ruido) if ruido > 0 else None
+                mag = zp - 2.5 * math.log10(m["flujo"]) if m["flujo"] > 3.0 * ruido else None
+                cnd["antes"].append({"mag": round(mag, 2) if mag is not None else None, "lim": round(lim, 2) if lim is not None else None})
+                if cnd.get("vista_antes") is None:
+                    cnd["vista_antes"] = _recorte_vista(img, pp[0], pp[1], 41)
+                n += 1
+            return {"zp": round(zp, 3), "medidas": n}
+
+        reg_r = []
+        if cands:
+            reg_r = [t for t in _medir_serie(tr_, alin, escala, lg, ra_c, dec_c, [1.6], os.path.join(base, "r"), siril, ver, por_noche=True, n_ref=80, por_toma=vieja) if t.get("extra")]
+            if not reg_r:
+                raise RuntimeError("no he podido medir ninguna toma de la noche de referencia")
+        JOB["hechos"] = len(tn) + len(tr_)
+        minutos = (reg_n[-1]["jd"] - reg_n[0]["jd"]) * 1440.0
+        salida, vistas = [], {}
+        for cnd in cands:
+            ahora = _mediana_l(cnd["mags"])
+            ant = cnd["antes"]
+            if not ant:
+                continue                         # la referencia no cubre ese sitio
+            vistos = [a["mag"] for a in ant if a["mag"] is not None]
+            lims = [a["lim"] for a in ant if a["lim"] is not None]
+            antes = _mediana_l(vistos) if len(vistos) >= max(1, (len(ant) + 1) // 2) else None
+            lim = _mediana_l(lims) if lims else None
+            if antes is not None and antes - ahora < 1.0:
+                continue                         # ya estaba, con un brillo parecido: un nudo de la galaxia, una estrella que Gaia no tiene
+            if antes is None and (lim is None or lim < ahora + 0.5):
+                clase = "dudosa"                 # la referencia no llega tan hondo como para decir que antes no estaba
+            else:
+                clase = "nueva" if antes is None else "sube"
+            k = "c%d" % len(salida)
+            vistas[k] = {"ahora": cnd["vista"], "antes": cnd.get("vista_antes")}
+            salida.append({"k": k, "ra": round(cnd["ra"], 6), "dec": round(cnd["dec"], 6), "mag": round(ahora, 2), "snr": round(_mediana_l(cnd["snrs"]), 1),
+                           "tomas": len(cnd["en"]), "antes": round(antes, 2) if antes is not None else None, "limite_antes": round(lim, 2) if lim is not None else None,
+                           "clase": clase, "dist": round(separacion(ra_c, dec_c, cnd["ra"], cnd["dec"]) * 60, 2)})
+        orden = {"nueva": 0, "sube": 1, "dudosa": 2}
+        salida.sort(key=lambda q: (orden[q["clase"]], q["mag"]))
+        lims_n = [t["extra"]["limite"] for t in reg_n if t["extra"].get("limite") is not None]
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "patrulla",
+                 "objeto": d0.get("objeto") or "", "filtro": d0.get("filtro") or "", "cam": d0.get("cam") or "", "tel": d0.get("tel") or "",
+                 "centro": [round(ra_c, 5), round(dec_c, 5)], "radio": round(radio * 60, 2), "escala": escala,
+                 "noche": d0.get("noche") or "", "noche_ref": tr_[0][1].get("noche") or "", "gaia_hasta": g_hasta,
+                 "tomas_nuevas": [{"archivo": t["archivo"], "fecha": t["fecha"], "fwhm": t["fwhm"], **t["extra"]} for t in reg_n],
+                 "tomas_ref": [{"archivo": t["archivo"], "fecha": t["fecha"], "fwhm": t["fwhm"], **t["extra"]} for t in reg_r],
+                 "minutos": round(minutos, 1), "limite": round(_mediana_l(lims_n), 2) if lims_n else None,
+                 "candidatas": salida, "revisadas": len(cands), "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
+        d = os.path.join(PATRULLA_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        escribir_json(os.path.join(d, "vistas.json"), vistas)
+        with open(os.path.join(d, "candidatas.csv"), "w", encoding="utf-8", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["ra", "dec", "mag_G", "snr", "tomas", "mag_antes", "limite_antes", "clase", "distancia_arcmin"])
+            for q in salida:
+                wr.writerow([q["ra"], q["dec"], q["mag"], q["snr"], q["tomas"], q["antes"], q["limite_antes"], q["clase"], q["dist"]])
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_patrulla(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("nuevas") or not p.get("referencia"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="patrulla", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["nuevas"]) + len(p["referencia"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    threading.Thread(target=trabajo_patrulla, args=(p,), daemon=True).start()
+
+
+def series_patrulla():
+    out = []
+    if not os.path.isdir(PATRULLA_DIR):
+        return out
+    for n in sorted(os.listdir(PATRULLA_DIR), reverse=True):
+        s = leer_json(os.path.join(PATRULLA_DIR, n, "serie.json"), None)
+        if not s:
+            continue
+        cs = s.get("candidatas") or []
+        out.append({"id": s["id"], "objeto": s.get("objeto"), "noche": s.get("noche"), "noche_ref": s.get("noche_ref"), "filtro": s.get("filtro"),
+                    "radio": s.get("radio"), "limite": s.get("limite"), "nuevas": sum(1 for q in cs if q["clase"] == "nueva"),
+                    "suben": sum(1 for q in cs if q["clase"] == "sube"), "dudosas": sum(1 for q in cs if q["clase"] == "dudosa")})
+    return out
+
+
+def serie_patrulla(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return (leer_json(os.path.join(PATRULLA_DIR, sid, "serie.json"), None), leer_json(os.path.join(PATRULLA_DIR, sid, "vistas.json"), {}))
+
+
+def borrar_patrulla(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("no válida")
+    shutil.rmtree(os.path.join(PATRULLA_DIR, sid), ignore_errors=True)
+
+
 HR_DIR = os.path.join(ROOT, "Diagramas H-R")
 A_G_POR_E = 2.0          # A_G / E(BP−RP), aproximado para estrellas de tipo solar (Casagrande y VandenBerg, 2018)
 PLX_CERO = -0.017        # punto cero global de las paralajes de Gaia DR3 (Lindegren y otros, 2021), en mas
@@ -8210,6 +8852,20 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/variables/zip":
                 datos, nombre = zip_serie((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
                 return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/estrellas/series":
+                return self._json(series_estrellas())
+            if p.path == "/api/estrellas/serie":
+                serie, calc = serie_estrellas((qs.get("id") or [""])[0])
+                if not serie or not calc:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                return self._json({"serie": serie, "calculo": calc})
+            if p.path == "/api/patrulla/series":
+                return self._json(series_patrulla())
+            if p.path == "/api/patrulla/serie":
+                serie, vistas = serie_patrulla((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                return self._json({"serie": serie, "vistas": vistas})
             if p.path == "/api/busca/series":
                 return self._json(series_busca())
             if p.path == "/api/busca/serie":
@@ -8486,6 +9142,24 @@ class H(BaseHTTPRequestHandler):
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
                 return self._json({"ok": True})
+            if p.path == "/api/estrellas/medir":
+                try:
+                    iniciar_estrellas(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/estrellas/borrar":
+                borrar_estrellas(d.get("id"))
+                return self._json({"ok": True})
+            if p.path == "/api/patrulla/medir":
+                try:
+                    iniciar_patrulla(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/patrulla/borrar":
+                borrar_patrulla(d.get("id"))
+                return self._json({"ok": True})
             if p.path == "/api/busca/medir":
                 try:
                     iniciar_busca(d)
@@ -8618,7 +9292,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "busca": BUSCA_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ecl": ECL_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "busca": BUSCA_DIR, "estrellas": ESTRELLAS_DIR, "patrulla": PATRULLA_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ecl": ECL_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -9674,12 +10348,16 @@ th{background:var(--surface);font-weight:700}
           <h3 style="font-size:17px">Medir una estrella variable</h3>
           <div class="note">Elige la sesión con las tomas de la variable. ASTRO descarga de la AAVSO la secuencia oficial de estrellas de comparación, calibra y mide cada toma, dibuja la curva de luz y prepara el informe para WebObs.</div>
           <div class="opciones">
-            <label>Qué medir <select id="vModo"><option value="noche">Una noche</option><option value="retro">Todas las noches de un objeto (curva retrospectiva)</option><option value="busca">Buscar variables nuevas en el campo</option></select></label>
+            <label>Qué medir <select id="vModo"><option value="noche">Una noche</option><option value="retro">Todas las noches de un objeto (curva retrospectiva)</option><option value="busca">Buscar variables nuevas en el campo</option><option value="patrulla">Patrulla de supernovas: lo nuevo en el campo</option></select></label>
+            <label id="vSnNuevaL" style="display:none">Noche nueva <select id="vSnNueva"></select></label>
+            <label id="vSnRefL" style="display:none">Comparar con <select id="vSnRef"></select></label>
+            <label id="vSnRadioL" style="display:none" title="Se busca en un círculo de este radio alrededor del objeto.">Radio <select id="vSnRadio"><option value="6">6′</option><option value="12" selected>12′</option><option value="20">20′</option><option value="30">30′</option><option value="60">60′</option></select></label>
             <label id="vGmaxL" style="display:none" title="Hasta qué magnitud de Gaia se miden las estrellas del campo. Más débiles: más estrellas y más tiempo.">Estrellas hasta la magnitud <select id="vGmax"><option value="13">13</option><option value="14">14</option><option value="15" selected>15</option><option value="16">16</option></select></label>
             <label id="vPorNocheL" style="display:none" title="Con pocas tomas por noche la medida va rápida y basta para estrellas que cambian despacio. Con todas, se ve también lo que la estrella hace dentro de cada noche.">Tomas por noche <select id="vPorNoche"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="0">todas</option></select></label>
           </div>
           <div class="note" id="vRetroNota" style="display:none;margin-top:6px">Curva retrospectiva: ASTRO recorre las tomas que ya tienes guardadas de un objeto, de todas sus noches con el mismo filtro y el mismo equipo, y saca la curva de luz de meses o años de cualquier variable que haya en el campo, con un punto por noche.</div>
           <div class="note" id="vBuscaNota" style="display:none;margin-top:6px">Búsqueda de variables: ASTRO mide todas las estrellas del campo (hasta 2500, las del catálogo Gaia) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las que ya están en el VSX salen con su nombre; las demás son candidatas a variable nueva. Cuantas más tomas y más noches, mejor.</div>
+          <div class="note" id="vSnNota" style="display:none;margin-top:6px">Patrulla de supernovas: ASTRO busca todos los puntos de luz alrededor del objeto en las tomas de la noche nueva, aparta los que son estrellas de Gaia y mira si los demás estaban ya en las tomas de una noche anterior. Lo que antes no estaba, o era mucho más débil, sale como candidata. Hacen falta tomas del mismo objeto de dos noches con el mismo equipo.</div>
           <div id="vSesiones" style="margin-top:12px"></div>
           <div class="acciones" style="margin-top:10px"><button class="btn small" id="btnCampoVar">Buscar variables en estas tomas</button><span class="note">ASTRO pregunta al VSX de la AAVSO qué estrellas variables conocidas hay en el campo.</span></div>
           <div id="vCampo" style="margin-top:8px"></div>
@@ -9700,6 +10378,8 @@ th{background:var(--surface);font-weight:700}
         <div id="vSeries"></div>
         <h3 class="seccion">Tus búsquedas de variables</h3>
         <div id="vBuscas"></div>
+        <h3 class="seccion">Tus patrullas de supernovas</h3>
+        <div id="vPatrullas"></div>
       </div>
       <div id="herramientaExo" style="display:none">
         <div class="caja">
@@ -9825,6 +10505,20 @@ th{background:var(--surface);font-weight:700}
         </div>
         <h3 class="seccion">Tus medidas de asteroides y cometas</h3>
         <div id="aSeries"></div>
+        <div class="caja" style="margin-top:22px">
+          <h3 style="font-size:17px">Estrellas dobles y movimiento propio</h3>
+          <div class="note">Elige un objeto: ASTRO busca en su campo las parejas de estrellas (para medir su separación y su ángulo de posición) y las estrellas que se mueven deprisa por el cielo (para medir su movimiento propio), y las mide en tus tomas con la astrometría de Gaia. Con tomas de varios años, el movimiento sale solo de tus noches; con una sola época, se compara con la posición de Gaia en 2016.</div>
+          <div id="eGrupos" style="margin-top:12px"></div>
+          <div class="opciones">
+            <label>Tomas por noche <select id="ePorNoche"><option value="3" selected>3</option><option value="5">5</option><option value="10">10</option></select></label>
+            <label title="Solo se miden las estrellas que se mueven más que esto, en milésimas de segundo de arco por año.">Movimiento propio mayor que <select id="ePmMin"><option value="50">50 mas/año</option><option value="80" selected>80 mas/año</option><option value="150">150 mas/año</option></select></label>
+            <label>Parejas hasta la magnitud <select id="eGmax"><option value="12">12</option><option value="13.5" selected>13,5</option><option value="15">15</option></select></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnEst">Medir</button>
+          </div>
+        </div>
+        <h3 class="seccion">Tus medidas de dobles y movimiento propio</h3>
+        <div id="eSeries"></div>
       </div>
       <div id="herramientaHR" style="display:none">
         <div class="caja">
@@ -10484,7 +11178,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", busca: "variables", exo: "exoplanetas", rr: "rrlyrae", ecl: "eclipsantes", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", busca: "variables", patrulla: "variables", estrellas: "astrometria", exo: "exoplanetas", rr: "rrlyrae", ecl: "eclipsantes", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -10498,7 +11192,9 @@ async function sondear(){
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
-    if (e.tipo === "busca"){ cargarBuscas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verBusca(e.resultados[0]); }
+    if (e.tipo === "patrulla"){ cargarPatrullas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verPatrulla(e.resultados[0]); }
+    else if (e.tipo === "estrellas"){ cargarSeriesEst(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "astrometria") verEst(e.resultados[0]); }
+    else if (e.tipo === "busca"){ cargarBuscas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verBusca(e.resultados[0]); }
     else if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
     else if (e.tipo === "rr"){ cargarSeriesRR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "rrlyrae") verRR(e.resultados[0]); }
@@ -10688,7 +11384,7 @@ async function abrirVariables(){
   $("vObscode").value = VAR.cfg.obscode || ""; $("vObstype").value = VAR.cfg.obstype || "CCD";
   if (!CIELO.estado){ try { CIELO.estado = await (await api("/api/estado")).json(); } catch(_){} }
   if (!VAR.sesiones){ try { VAR.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ VAR.sesiones = []; } }
-  pintarSesionesVar(); cargarSeries(); cargarBuscas(); sondear();
+  pintarSesionesVar(); cargarSeries(); cargarBuscas(); cargarPatrullas(); sondear();
 }
 function gruposRetro(){
   const m = new Map();
@@ -10702,6 +11398,7 @@ function gruposRetro(){
   for (const g of out){ g.ses.sort((a, b) => a.noche < b.noche ? -1 : 1); g.tomas = g.ses.reduce((a, s) => a + s.tomas.length, 0); }
   const busca = VAR.modo === "busca";
   for (let i = out.length - 1; i >= 0; i--) if (busca ? out[i].tomas < 8 : out[i].ses.length < 2) out.splice(i, 1);
+  if (VAR.modo === "patrulla") out.sort((a, b) => b.ses[b.ses.length - 1].noche > a.ses[a.ses.length - 1].noche ? 1 : -1);
   out.sort((a, b) => b.ses.length - a.ses.length || (a.objeto < b.objeto ? -1 : 1));
   return out;
 }
@@ -10718,10 +11415,12 @@ function idsRetro(g, n){
   return ids;
 }
 $("vModo").onchange = () => { VAR.modo = $("vModo").value; const r = VAR.modo === "retro", bq = VAR.modo === "busca";
+  const sn = VAR.modo === "patrulla";
+  for (const k of ["vSnNuevaL", "vSnRefL", "vSnRadioL", "vSnNota"]) $(k).style.display = sn ? "" : "none";
   $("vPorNocheL").style.display = r || bq ? "" : "none"; $("vRetroNota").style.display = r ? "" : "none"; $("vBuscaNota").style.display = bq ? "" : "none";
   $("vGmaxL").style.display = bq ? "" : "none"; $("vPorNoche").value = bq ? "0" : "5"; VAR.selG = null;
-  $("vEstrella").closest(".opciones").style.display = bq ? "none" : ""; $("btnCampoVar").closest(".acciones").style.display = bq ? "none" : "";
-  $("btnVariable").textContent = tr(bq ? "Buscar variables" : "Medir la serie");
+  $("vEstrella").closest(".opciones").style.display = bq || sn ? "none" : ""; $("btnCampoVar").closest(".acciones").style.display = bq || sn ? "none" : "";
+  $("btnVariable").textContent = tr(sn ? "Buscar lo nuevo" : bq ? "Buscar variables" : "Medir la serie");
   $("vAgrupar").closest("label").style.display = r ? "none" : "";
   $("vCampo").innerHTML = ""; $("vEstrella").value = ""; pintarSesionesVar(); };
 $("vPorNoche").onchange = () => pintarSesionesVar();
@@ -10738,6 +11437,9 @@ function pintarRetro(){
     $("vSesiones").querySelectorAll("tr[data-g]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
     $("vEstrella").value = ""; $("vBanda").value = VAR.grupos[VAR.selG].aavso || "CV";
     if (VAR.modo === "busca") return;
+    if (VAR.modo === "patrulla"){ const g = VAR.grupos[VAR.selG], op = g.ses.map((x, i) => `<option value="${i}">${esc(fechaCorta(x.noche))} · ${x.tomas.length} ${esc(tr("tomas"))}</option>`);
+      $("vSnNueva").innerHTML = op.join(""); $("vSnNueva").value = String(g.ses.length - 1);
+      $("vSnRef").innerHTML = op.join(""); $("vSnRef").value = "0"; return; }
     buscarVariablesCampo();
   });
 }
@@ -10783,6 +11485,14 @@ async function buscarVariablesCampo(){
 $("btnVariable").onclick = async () => {
   const s = varSesion(), retro = VAR.modo === "retro";
   if (!s){ toast(VAR.modo !== "noche" ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
+  if (VAR.modo === "patrulla"){
+    const g = VAR.grupos[VAR.selG], a = g.ses[+$("vSnNueva").value], b = g.ses[+$("vSnRef").value];
+    if (!a || !b || a === b){ toast("Elige dos noches distintas: la nueva y la de comparación"); return; }
+    if (a.tomas.length < 2){ toast("La noche nueva necesita al menos dos tomas"); return; }
+    const repartidas = (t, n) => t.length <= n ? t.map(x => x.id) : Array.from({length: n}, (_, k) => t[Math.round(k * (t.length - 1) / (n - 1))].id);
+    try { await post("/api/patrulla/medir", {nuevas: repartidas(a.tomas, 5), referencia: repartidas(b.tomas, 3), radio: +$("vSnRadio").value}); sondear(); } catch(e){ toast(e.message || e); }
+    return;
+  }
   if (VAR.modo === "busca"){
     let ids = idsRetro(VAR.grupos[VAR.selG], +$("vPorNoche").value);
     if (ids.length > 400) ids = ids.filter((_, k) => k % Math.ceil(ids.length / 400) === 0);      // repartidas, para no eternizarse
@@ -10806,6 +11516,39 @@ async function cargarSeries(){
       <td class="num">${x.tomas}</td><td class="num">${numEs(x.magnitud, 3)}</td><td class="num">${numEs(x.amplitud, 3)}</td><td class="num">${numEs(x.error_medio, 3)}</td>
       <td class="num">${x.check_dif != null ? (x.check_dif > 0 ? "+" : "") + numEs(x.check_dif, 3) : "—"}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   $("vSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verSerie(t.dataset.id));
+}
+/* ---- patrulla de supernovas ---- */
+async function cargarPatrullas(){
+  let bs; try { bs = await (await api("/api/patrulla/series")).json(); } catch(_){ bs = []; }
+  if (!bs.length){ $("vPatrullas").innerHTML = `<div class="vacio"><b>${esc(tr("Todavía no has hecho ninguna patrulla"))}</b>${esc(tr("Elige arriba «Patrulla de supernovas», un objeto con tomas de dos noches y pulsa «Buscar lo nuevo»."))}</div>`; return; }
+  $("vPatrullas").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>${esc(tr("Noche nueva"))}</th><th>${esc(tr("Comparada con"))}</th><th>${esc(tr("Objeto"))}</th><th>${esc(tr("Filtro"))}</th><th class="num">${esc(tr("Radio"))}</th><th class="num">${esc(tr("Llega hasta"))}</th><th class="num">${esc(tr("Nuevas"))}</th><th class="num">${esc(tr("Suben"))}</th><th class="num">${esc(tr("Dudosas"))}</th><th></th></tr></thead><tbody>${
+    bs.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}</td><td>${esc(fechaCorta(x.noche_ref))}</td><td class="notr"><b>${esc(x.objeto)}</b></td><td class="notr">${esc(x.filtro)}</td><td class="num">${numEs(x.radio, 0)}′</td>
+      <td class="num">${x.limite != null ? numEs(x.limite, 1) : "—"}</td><td class="num"><b>${x.nuevas}</b></td><td class="num">${x.suben}</td><td class="num">${x.dudosas}</td><td><button class="btn small">${esc(tr("Ver"))}</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("vPatrullas").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verPatrulla(t.dataset.id));
+}
+async function verPatrulla(id){
+  let d; try { d = await (await api("/api/patrulla/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, V = d.vistas || {}, C = s.candidatas || [];
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const sexa = (v, horas) => { const a = Math.abs(horas ? v / 15 : v), g = Math.floor(a), m = Math.floor((a - g) * 60), sg = ((a - g) * 60 - m) * 60; return (horas ? "" : (v < 0 ? "−" : "+")) + String(g).padStart(2, "0") + " " + String(m).padStart(2, "0") + " " + sg.toFixed(horas ? 2 : 1).padStart(horas ? 5 : 4, "0"); };
+  const chip = q => q.clase === "nueva" ? `<span class="chip ya">${esc(tr("antes no estaba"))}</span>` : q.clase === "sube" ? `<span class="chip">${esc(tr("ha subido"))} ${numEs(q.antes - q.mag, 1)} mag</span>` : `<span class="chip warn" title="${esc(tr("La noche de comparación no llega tan hondo como para asegurar que antes no estaba."))}">${esc(tr("dudosa"))}</span>`;
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.objeto || tr("Patrulla de supernovas"))}</h2><div class="note"><span>${esc(fechaCorta(s.noche))}</span> · <span>${esc(tr("comparada con"))}</span> <span>${esc(fechaCorta(s.noche_ref))}</span> · <span class="notr">${esc([s.tel, s.cam, s.filtro].filter(Boolean).join(" · "))}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">${esc(tr("Cerrar"))}</button></div>
+    <div class="cifras">${cifra(C.filter(q => q.clase === "nueva").length, "", tr("Puntos de luz que antes no estaban"), true)}${cifra(C.filter(q => q.clase === "sube").length, "", tr("Han subido más de una magnitud"))}
+      ${cifra(s.limite != null ? numEs(s.limite, 1) : "—", "mag G", tr("Hasta dónde llega la noche nueva") + " · " + tr("radio") + " " + numEs(s.radio, 0) + "′")}${cifra(s.tomas_nuevas.length + " + " + s.tomas_ref.length, "", tr("Tomas nuevas y de comparación") + " · " + s.revisadas + " " + tr("puntos revisados"))}</div>
+    ${s.minutos < 20 && C.length ? `<div class="avisos"><div>${esc(tr("Las tomas nuevas abarcan menos de 20 minutos: un asteroide lento podría parecer quieto. Comprueba que la candidata no se mueve en tomas más separadas."))}</div></div>` : ""}
+    ${s.gaia_hasta && s.gaia_hasta < 21 ? `<div class="avisos"><div>${esc(tr("Gaia no contestaba y se ha usado una consulta guardada, menos profunda: puede haber estrellas débiles conocidas que aquí salgan como sueltas (la comparación con la otra noche las descarta igual)."))}</div></div>` : ""}
+    <div class="graf"><h4>${esc(tr("Candidatas"))}</h4>${C.length ? `<div class="tabla" style="max-height:460px"><table><thead><tr><th>${esc(tr("Antes"))}</th><th>${esc(tr("Ahora"))}</th><th></th><th>AR (J2000)</th><th>Dec</th><th class="num">${esc(tr("Mag G ahora"))}</th><th class="num">${esc(tr("Antes"))}</th><th class="num">SNR</th><th class="num">${esc(tr("Tomas"))}</th><th class="num">${esc(tr("Del centro"))}</th><th></th></tr></thead><tbody>${
+      C.map(q => `<tr><td><canvas class="vista snv" data-k="${q.k}" data-c="antes" style="width:82px;height:82px"></canvas></td><td><canvas class="vista snv" data-k="${q.k}" data-c="ahora" style="width:82px;height:82px"></canvas></td><td>${chip(q)}</td>
+        <td class="notr">${sexa(q.ra, true)}</td><td class="notr">${sexa(q.dec, false)}</td><td class="num"><b>${numEs(q.mag, 1)}</b></td><td class="num">${q.antes != null ? numEs(q.antes, 1) : (q.limite_antes != null ? "> " + numEs(q.limite_antes, 1) : "—")}</td><td class="num">${numEs(q.snr, 0)}</td><td class="num">${q.tomas}</td><td class="num">${numEs(q.dist, 1)}′</td>
+        <td><a class="btn small" target="_blank" rel="noopener" href="https://www.wis-tns.org/search?ra=${encodeURIComponent(q.ra.toFixed(5))}&decl=${encodeURIComponent(q.dec.toFixed(5))}&radius=10&coords_unit=arcsec">TNS</a></td></tr>`).join("")}</tbody></table></div>` : `<div class="note">${esc(tr("Nada nuevo: todos los puntos de luz de la zona son estrellas de Gaia o ya estaban en la noche de comparación."))}</div>`}
+      <div class="pie">${esc(tr("Una candidata no es un descubrimiento. Mira los dos recortes: tiene que verse un punto como las estrellas donde antes no había nada. Luego búscala con el botón en el TNS (el registro internacional de transitorios, 10″ alrededor): lo normal es que ya esté allí. Si no está, descarta que sea un asteroide (con el bloque de asteroides o el comprobador del MPC), repítela otra noche y entonces se envía al TNS."))}</div></div>
+    <div class="acciones"><button class="btn small" id="dCarpeta">${esc(tr("Abrir la carpeta"))}</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">${esc(tr("Borrar esta patrulla"))}</button></div>`;
+  $("detalle").classList.add("show");
+  box.querySelectorAll("canvas.snv").forEach(cv => pintarVista(cv, (V[cv.dataset.k] || {})[cv.dataset.c]));
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "patrulla"});
+  $("dBorrar").onclick = async () => { if (!confirm(tr("¿Borrar esta patrulla?"))) return; await post("/api/patrulla/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarPatrullas(); };
 }
 /* ---- búsqueda de variables nuevas ---- */
 async function cargarBuscas(){
@@ -11739,7 +12482,7 @@ async function abrirAst(){
   $("aCodigo").value = AST.cfg.mpc_codigo || ""; $("aObservador").value = AST.cfg.observador || ""; $("aApertura").value = AST.cfg.apertura_m || "";
   $("aDetector").value = AST.cfg.detector || "CMO"; $("aDiseno").value = AST.cfg.diseno || "Reflector";
   if (!AST.sesiones){ try { AST.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ AST.sesiones = []; } }
-  pintarSesionesAst(); cargarSeriesAst(); sondear();
+  pintarSesionesAst(); cargarSeriesAst(); pintarGruposEst(); cargarSeriesEst(); sondear();
 }
 function pintarSesionesAst(){
   const ss = (AST.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.tomas.length >= 2);
@@ -11753,6 +12496,68 @@ function pintarSesionesAst(){
     AST.sel = +t.dataset.i;
     $("aSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
   });
+}
+/* ---- estrellas dobles y movimiento propio ---- */
+const EST = {grupos: [], sel: null};
+function pintarGruposEst(){
+  const m = new Map();
+  for (const s of (AST.sesiones || [])){ if (!s.tomas.length || !s.banda) continue;
+    const k = [s.objeto, s.filtro, s.cam, s.tel].join("|");
+    if (!m.has(k)) m.set(k, {objeto: s.objeto, filtro: s.filtro_original || s.filtro, cam: s.cam, tel: s.tel, ses: []});
+    m.get(k).ses.push(s); }
+  const gs = EST.grupos = [...m.values()];
+  for (const g of gs){ g.ses.sort((a, b) => a.noche < b.noche ? -1 : 1); g.tomas = g.ses.reduce((a, s) => a + s.tomas.length, 0); }
+  gs.sort((a, b) => (b.ses[b.ses.length - 1].noche > a.ses[a.ses.length - 1].noche ? 1 : -1));
+  if (!gs.length){ $("eGrupos").innerHTML = `<div class="vacio"><b>${esc(tr("Todavía no hay tomas en ASTRO"))}</b></div>`; return; }
+  $("eGrupos").innerHTML = `<div class="tabla" style="max-height:300px"><table><thead><tr><th></th><th>${esc(tr("Objeto"))}</th><th>${esc(tr("Filtro"))}</th><th>${esc(tr("Cámara"))}</th><th>${esc(tr("Telescopio"))}</th><th class="num">${esc(tr("Noches"))}</th><th>${esc(tr("Desde"))}</th><th>${esc(tr("Hasta"))}</th><th class="num">${esc(tr("Tomas"))}</th></tr></thead><tbody>${
+    gs.map((g, i) => `<tr data-e="${i}" class="${EST.sel === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="eSes" ${EST.sel === i ? "checked" : ""}></td><td class="notr"><b>${esc(g.objeto)}</b></td><td class="notr">${esc(g.filtro)}</td><td class="notr">${esc(g.cam)}</td><td class="notr">${esc(g.tel)}</td>
+      <td class="num">${g.ses.length}</td><td>${esc(fechaCorta(g.ses[0].noche))}</td><td>${esc(fechaCorta(g.ses[g.ses.length - 1].noche))}</td><td class="num">${g.tomas}</td></tr>`).join("")}</tbody></table></div>`;
+  $("eGrupos").querySelectorAll("tr[data-e]").forEach(t => t.onclick = () => { EST.sel = +t.dataset.e;
+    $("eGrupos").querySelectorAll("tr[data-e]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; }); });
+}
+$("btnEst").onclick = async () => {
+  const g = EST.sel !== null ? EST.grupos[EST.sel] : null;
+  if (!g){ toast("Elige primero el objeto"); return; }
+  const n = +$("ePorNoche").value, ids = [];
+  for (const s of g.ses){ const t = s.tomas; if (t.length <= n) ids.push(...t.map(x => x.id)); else for (let k = 0; k < n; k++) ids.push(t[Math.round(k * (t.length - 1) / (n - 1))].id); }
+  if (ids.length < 2){ toast("Hacen falta al menos dos tomas"); return; }
+  try { await post("/api/estrellas/medir", {ids: ids.slice(0, 600), pm_min: +$("ePmMin").value, gmax: +$("eGmax").value}); sondear(); } catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesEst(){
+  let bs; try { bs = await (await api("/api/estrellas/series")).json(); } catch(_){ bs = []; }
+  if (!bs.length){ $("eSeries").innerHTML = `<div class="vacio"><b>${esc(tr("Todavía no has medido dobles ni movimientos propios"))}</b>${esc(tr("Elige arriba un objeto y pulsa «Medir»."))}</div>`; return; }
+  $("eSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>${esc(tr("Noches"))}</th><th>${esc(tr("Objeto"))}</th><th>${esc(tr("Filtro"))}</th><th class="num">${esc(tr("Tomas"))}</th><th class="num">${esc(tr("Parejas"))}</th><th class="num">${esc(tr("Estrellas rápidas"))}</th><th class="num">${esc(tr("Residuo (″)"))}</th><th></th></tr></thead><tbody>${
+    bs.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}${x.noche_fin && x.noche_fin !== x.noche ? " → " + esc(fechaCorta(x.noche_fin)) : ""} <span class="chip">${x.noches}</span></td><td class="notr"><b>${esc(x.objeto)}</b></td><td class="notr">${esc(x.filtro)}</td>
+      <td class="num">${x.tomas}</td><td class="num">${x.parejas}</td><td class="num">${x.rapidas}</td><td class="num">${numEs(x.rms, 2)}</td><td><button class="btn small">${esc(tr("Ver"))}</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("eSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verEst(t.dataset.id));
+}
+async function verEst(id){
+  let d; try { d = await (await api("/api/estrellas/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = d.calculo;
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const sexa = (v, horas) => { const a = Math.abs(horas ? v / 15 : v), g = Math.floor(a), m = Math.floor((a - g) * 60), sg = ((a - g) * 60 - m) * 60; return (horas ? "" : (v < 0 ? "−" : "+")) + String(g).padStart(2, "0") + " " + String(m).padStart(2, "0") + " " + sg.toFixed(horas ? 2 : 1).padStart(horas ? 5 : 4, "0"); };
+  const sg = v => (v > 0 ? "+" : "") + numEs(v, 0);
+  const filaPM = r => { const m = r.propio || r.pm_gaia_epoca;
+    return `<tr><td class="notr">${sexa(r.ra, true)}</td><td class="notr">${sexa(r.dec, false)}</td><td class="num">${numEs(r.g, 1)}</td>
+      <td class="num">${sg(r.pmra)}</td><td class="num">${sg(r.pmdec)}</td>
+      ${m ? `<td class="num"><b>${sg(m.pmra)}</b></td><td class="num"><b>${sg(m.pmdec)}</b></td><td class="num">± ${numEs(m.err, 0)}</td><td>${r.propio ? `<span class="chip ya">${esc(tr("tus noches"))} · ${numEs(r.propio.anios, 1)} ${esc(tr("años"))}</span>` : `<span class="chip">${esc(tr("desde Gaia 2016"))} · ${numEs(r.desde2016.anios, 1)} ${esc(tr("años"))}</span>`}</td>` : `<td colspan="4"><span class="chip">${esc(tr("no se ha podido medir"))}</span></td>`}
+      <td class="notr" style="font-size:12px">${esc(r.id)}</td></tr>`; };
+  const filaDB = q => `<tr><td class="notr">${sexa(q.ra, true)}</td><td class="notr">${sexa(q.dec, false)}</td><td class="num">${numEs(q.g_a, 1)}</td><td class="num">${numEs(q.g_b, 1)}</td>
+      <td class="num"><b>${numEs(q.rho, 2)}</b> ± ${numEs(q.e_rho, 2)}</td><td class="num"><b>${numEs(q.theta, 1)}</b> ± ${numEs(q.e_theta, 1)}</td><td class="num">${numEs(q.epoca, 2)}</td><td class="num">${q.n}</td>
+      <td class="num">${numEs(q.rho_gaia, 2)}</td><td class="num">${numEs(q.theta_gaia, 1)}</td><td>${q.fisica ? `<span class="chip ya" title="${esc(tr("Las dos estrellas están a la misma distancia y se mueven juntas según Gaia."))}">${esc(tr("pareja real"))}</span>` : `<span class="chip" title="${esc(tr("Según Gaia no están a la misma distancia o no se mueven juntas: coinciden en la misma línea de visión."))}">${esc(tr("óptica"))}</span>`}</td></tr>`;
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.objeto || "")}</h2><div class="note"><span>${esc(fechaCorta(s.noche))}${s.noche_fin && s.noche_fin !== s.noche ? " → " + esc(fechaCorta(s.noche_fin)) : ""}</span> · <span class="notr">${esc([s.tel, s.cam, s.filtro].filter(Boolean).join(" · "))}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">${esc(tr("Cerrar"))}</button></div>
+    <div class="cifras">${cifra(c.parejas.length, "", tr("Parejas de estrellas medidas"), true)}${cifra(c.rapidas.filter(r => r.propio || r.pm_gaia_epoca).length, "", tr("Estrellas con movimiento propio medido"))}
+      ${cifra(numEs(c.rms, 2), "″", tr("Residuo de la astrometría (estrellas de Gaia)"))}${cifra(c.tomas, "", tr("Tomas") + " · " + c.noches + " " + tr("noches") + " · " + numEs(c.anios, 1) + " " + tr("años"))}</div>
+    <div class="graf"><h4>${esc(tr("Estrellas dobles: separación y ángulo de posición"))}</h4>${c.parejas.length ? `<div class="tabla" style="max-height:340px"><table><thead><tr><th>AR (J2000)</th><th>Dec</th><th class="num">G A</th><th class="num">G B</th><th class="num">ρ (″)</th><th class="num">θ (°)</th><th class="num">${esc(tr("Época"))}</th><th class="num">${esc(tr("Tomas"))}</th><th class="num">ρ Gaia</th><th class="num">θ Gaia</th><th></th></tr></thead><tbody>${c.parejas.map(filaDB).join("")}</tbody></table></div>` : `<div class="note">${esc(tr("No hay parejas de estrellas que se puedan medir en este campo con esos límites."))}</div>`}
+      <div class="pie">${esc(tr("ρ es la separación y θ el ángulo de posición de la secundaria, contado desde el norte hacia el este. Las columnas de Gaia son lo que predice su catálogo para la fecha de tus tomas: sirven para ver cuánto te acercas. Las parejas salen de Gaia; para saber si una está en el catálogo WDS de dobles, búscala allí por sus coordenadas."))}</div></div>
+    <div class="graf"><h4>${esc(tr("Movimiento propio (milésimas de segundo de arco por año)"))}</h4>${c.rapidas.length ? `<div class="tabla" style="max-height:340px"><table><thead><tr><th>AR (J2000)</th><th>Dec</th><th class="num">G</th><th class="num">Gaia AR</th><th class="num">Gaia Dec</th><th class="num">${esc(tr("Medido AR"))}</th><th class="num">${esc(tr("Medido Dec"))}</th><th class="num">${esc(tr("Error"))}</th><th>${esc(tr("Cómo"))}</th><th>Gaia DR3</th></tr></thead><tbody>${c.rapidas.map(filaPM).join("")}</tbody></table></div>` : `<div class="note">${esc(tr("No hay estrellas que se muevan tan deprisa en este campo."))}</div>`}
+      <div class="pie">${esc(tr("«Tus noches»: la recta ajustada a tus propias medidas a lo largo de los años. «Desde Gaia 2016»: lo que se ha desplazado la estrella entre la posición de Gaia (época 2016,0) y la de tus tomas, dividido entre los años que han pasado. No se descuenta la paralaje, que en las estrellas más cercanas añade un vaivén anual de unas décimas de segundo."))}</div></div>
+    <div class="acciones"><button class="btn small" id="dCarpeta">${esc(tr("Abrir la carpeta"))}</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">${esc(tr("Borrar esta medida"))}</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "estrellas"});
+  $("dBorrar").onclick = async () => { if (!confirm(tr("¿Borrar esta medida?"))) return; await post("/api/estrellas/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesEst(); };
 }
 function datosObservador(){
   return {mpc_codigo: ($("aCodigo").value.trim() || "XXX").toUpperCase(), observador: $("aObservador").value.trim(), apertura_m: $("aApertura").value.trim().replace(",", "."),
@@ -11781,6 +12586,15 @@ function pintarVista(cv, datos){
   const ctx = cv.getContext("2d"), im = ctx.createImageData(n, n);
   datos.forEach((v, i) => { im.data[4*i] = im.data[4*i+1] = im.data[4*i+2] = v; im.data[4*i+3] = 255; });
   ctx.putImageData(im, 0, 0);
+}
+// el brillo de un cometa según cuánta coma se coge
+function comaHTML(o){
+  const k = o.coma; if (!k) return "";
+  return `<div style="margin-top:10px"><div class="note" style="font-weight:700;color:var(--text)">${esc(tr("Brillo del cometa según la apertura"))}</div>
+    <div class="cifras" style="margin-top:6px"><div class="cifra dest"><div><span class="v">${numEs(k.m1, 1)}</span><span class="u">mag G</span></div><div class="e">${esc(tr("Magnitud total aproximada (m1)"))}</div></div>
+      <div class="cifra"><div><span class="v">${k.completa ? "" : "≥ "}${numEs(2 * k.radio_coma / 60, 1)}</span><span class="u">′</span></div><div class="e">${esc(tr("Diámetro de la coma que se aprecia"))}</div></div></div>
+    <div class="tabla" style="margin-top:8px"><table><thead><tr><th>${esc(tr("Radio de la apertura"))}</th>${k.radios.map(r => `<th class="num">${r}″</th>`).join("")}</tr></thead><tbody><tr><td>${esc(tr("Magnitud G"))}</td>${k.mags.map(m => `<td class="num">${m != null ? numEs(m, 2) : "—"}</td>`).join("")}</tr></tbody></table></div>
+    <div class="pie">${esc(tr("Un cometa no es un punto: cuanto mayor es la apertura, más coma entra y más brillante sale, hasta que ya solo se añade cielo. Esa magnitud es la total (m1), la que recogen bases como COBS. Es aproximada: va en la banda G de Gaia y, si hay estrellas dentro de la apertura, sale más brillante de la cuenta."))}${k.completa ? "" : " " + esc(tr("La coma llega hasta la mayor apertura que cabe: la magnitud total real es algo más brillante."))}</div></div>`;
 }
 // la curva de rotación de un asteroide: su brillo a lo largo de la noche
 function curvaRotacion(o, col){
@@ -11815,7 +12629,7 @@ async function verAst(id, calcNuevo){
       <td>${(m.avisos || []).map(a => `<span class="chip warn">${esc(tr(a))}</span>`).join(" ")}</td>` : `<td colspan="5"><span class="chip">${esc(tr("no se ve"))}</span></td>`}</tr>`).join("");
     return `<div class="graf"><h4><span style="color:${col}">●</span> <span class="notr">${esc(o.nombre)}</span> <span class="chip">${esc(tr(o.tipo))}</span></h4>
       <div class="note"><span>V prevista</span> <span class="notr">${numEs(o.v, 1)}</span> · <span>medido en</span> <span class="notr">${o.n_encontrado} / ${o.n_tomas}</span> <span>tomas</span>${o.n_usadas ? ` · O−C <span class="notr">${(o.oc_ra > 0 ? "+" : "") + numEs(o.oc_ra, 2)}″, ${(o.oc_dec > 0 ? "+" : "") + numEs(o.oc_dec, 2)}″</span>${o.oc_rms != null ? ` · <span>dispersión entre tomas</span> <span class="notr">${numEs(o.oc_rms, 2)}″</span>` : ""}${o.mag != null ? ` · G ≈ <span class="notr">${numEs(o.mag, 1)}</span>` : ""}` : ""}</div>
-      ${curvaRotacion(o, col)}
+      ${curvaRotacion(o, col)}${comaHTML(o)}
       <div class="tabla" style="max-height:340px;margin-top:8px"><table><thead><tr><th>Usar</th><th></th><th>Hora (UTC)</th><th class="num">O−C RA (″)</th><th class="num">O−C Dec (″)</th><th class="num">G</th><th class="num">SNR</th><th></th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
   }).join("");
   box.innerHTML = `<div class="cabBox"><div><h2>${esc(tr("Asteroides y cometas"))} · <span class="notr">${esc(s.objeto || "")}</span></h2><div class="note"><span>${esc(fechaCorta(s.noche))}</span> · <span class="notr">${s.tomas.length}</span> <span>tomas</span> · <span>objetos del</span> <span class="notr">JPL (SB Identification, Horizons)</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
@@ -12339,6 +13153,9 @@ DIC_EN.update({"Distancia con la relación periodo-luminosidad": "Distance from 
 DIC_EN.update({"Buscar variables nuevas en el campo": "Search the field for new variables", "Hasta qué magnitud de Gaia se miden las estrellas del campo. Más débiles: más estrellas y más tiempo.": "How faint (Gaia magnitude) the field stars are measured. Fainter means more stars and more time.", "Búsqueda de variables: ASTRO mide todas las estrellas del campo (hasta 2500, las del catálogo Gaia) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las que ya están en el VSX salen con su nombre; las demás son candidatas a variable nueva. Cuantas más tomas y más noches, mejor.": "Variable search: ASTRO measures every star in the field (up to 2500, from the Gaia catalogue) in the frames you already have and flags those that change more than stars of their brightness should. Those already in the VSX are shown with their name; the rest are candidate new variables. The more frames and nights, the better.", "Tus búsquedas de variables": "Your variable searches", "Buscar variables": "Search for variables", "Para buscar variables hacen falta al menos ocho tomas": "At least eight frames are needed to search for variables", "Todavía no has buscado variables en ningún campo": "You haven't searched any field for variables yet", "Elige arriba «Buscar variables nuevas en el campo», un objeto con bastantes tomas y pulsa «Buscar variables».": "Choose “Search the field for new variables” above, a target with plenty of frames, and press “Search for variables”.", "Estrellas medidas": "Stars measured", "Candidatas": "Candidates", "Sin catalogar": "Uncatalogued", "Búsqueda de variables": "Variable search", "Candidatas que no están en el VSX ni marcadas como variables en Gaia": "Candidates not in the VSX nor flagged as variable in Gaia", "Estrellas que cambian más de lo que les toca": "Stars that change more than they should", "Estrellas medidas, hasta la magnitud": "Stars measured, down to magnitude", "Pulsa una candidata de la tabla o un punto del diagrama para ver su curva.": "Click a candidate in the table or a point in the diagram to see its curve.", "Candidatas, de más a menos clara": "Candidates, clearest first", "Qué es": "What it is", "Índice": "Index", "Orden": "Order", "Cuántas veces cambia más que las estrellas de su mismo brillo": "How many times more it varies than stars of the same brightness", "Cerca de 1: cambia con orden, como una curva. Cerca de 0: saltos sueltos, probablemente ruido.": "Near 1: it changes smoothly, like a curve. Near 0: isolated jumps, probably noise.", "variable en Gaia": "variable in Gaia", "sin catalogar": "uncatalogued", "Ninguna estrella cambia más de lo que le toca por su brillo en estas tomas.": "No star changes more than expected for its brightness in these frames.", "Una candidata no es un descubrimiento: antes de darla por buena, mira su curva, comprueba que no tiene una vecina pegada ni cae en el borde, y repítela otra noche. Si aguanta, búscala en el VSX con el botón (30″ alrededor) y, si no está, la AAVSO explica cómo enviarla.": "A candidate is not a discovery: before trusting it, look at its curve, check it has no close neighbour and is not at the edge, and repeat it another night. If it holds, look it up in the VSX with the button (30″ around) and, if it is not there, the AAVSO explains how to submit it.", "Borrar esta búsqueda": "Delete this search", "¿Borrar esta búsqueda?": "Delete this search?", "Cada franja es una noche. Magnitud en la escala G de Gaia; arriba, más brillante.": "Each band is one night. Magnitude on the Gaia G scale; up is brighter.", "magnitud": "magnitude", "Cuánto cambia cada estrella según su brillo": "How much each star varies, by brightness", "Cada punto es una estrella: las débiles se dispersan más por el ruido. Las que quedan muy por encima de la nube son las candidatas (en morado, sin catalogar; en dorado, ya conocidas).": "Each point is a star: faint ones scatter more because of noise. Those well above the cloud are the candidates (purple, uncatalogued; gold, already known).", "Consultando las variables conocidas (VSX)": "Querying known variables (VSX)", "Buscando las que cambian": "Looking for the ones that change", "para buscar variables hacen falta al menos ocho tomas del mismo campo": "at least eight frames of the same field are needed to search for variables", "hay muy pocas estrellas de Gaia en el campo para comparar unas con otras": "there are too few Gaia stars in the field to compare with one another"})
 DIC_EN.update({"No se aprecia que cambie de brillo esta noche: la variación": "No brightness change can be seen tonight: the variation", "es del orden del error de cada medida": "is of the order of each measurement's error", "Cambia de brillo al girar: amplitud": "It changes brightness as it spins: amplitude", "Periodo de rotación estimado:": "Estimated rotation period:", "(dos máximos por vuelta).": "(two maxima per turn).", "La noche solo cubre una parte de la vuelta: tómalo como orientación y repítelo otra noche.": "The night covers only part of a turn: take it as a guide and repeat it another night.", "Con una sola noche es una primera estimación; se confirma repitiéndolo.": "With a single night this is a first estimate; confirm it by repeating.", "Cambia de brillo al girar: amplitud de al menos": "It changes brightness as it spins: amplitude of at least", "en": "in", "La noche no da para medir el periodo: hacen falta más horas seguidas u otra noche.": "The night is not long enough to measure the period: more consecutive hours or another night are needed.", "Curva de rotación": "Rotation curve", "Magnitud G aproximada, con el punto cero de las estrellas de Gaia de cada toma; arriba, más brillante. Las medidas van en la tabla (CSV).": "Approximate G magnitude, using each frame's Gaia zero point; up is brighter. The measurements are in the table (CSV)."})
 DIC_EN.update({"sigue al seeing": "follows the seeing", "Candidatas limpias que no están en el VSX ni marcadas como variables en Gaia": "Clean candidates not in the VSX nor flagged as variable in Gaia", "Su brillo sube y baja con el tamaño de las estrellas de cada toma: casi seguro es una vecina que se cuela en la medida o el fondo de una galaxia, no la estrella.": "Its brightness goes up and down with the star size in each frame: almost certainly a neighbour leaking into the measurement or a galaxy's background, not the star.", "Gaia no contesta: se usa la consulta guardada del": "Gaia is not answering: using the saved query from"})
+DIC_EN.update({"Estrellas dobles y movimiento propio": "Double stars and proper motion", "Elige un objeto: ASTRO busca en su campo las parejas de estrellas (para medir su separación y su ángulo de posición) y las estrellas que se mueven deprisa por el cielo (para medir su movimiento propio), y las mide en tus tomas con la astrometría de Gaia. Con tomas de varios años, el movimiento sale solo de tus noches; con una sola época, se compara con la posición de Gaia en 2016.": "Choose a target: ASTRO finds in its field the star pairs (to measure their separation and position angle) and the stars that move fast across the sky (to measure their proper motion), and measures them in your frames with Gaia astrometry. With frames spanning several years the motion comes from your nights alone; with a single epoch it is compared with Gaia's 2016 position.", "Solo se miden las estrellas que se mueven más que esto, en milésimas de segundo de arco por año.": "Only stars moving faster than this are measured, in milliarcseconds per year.", "Movimiento propio mayor que": "Proper motion above", "50 mas/año": "50 mas/yr", "80 mas/año": "80 mas/yr", "150 mas/año": "150 mas/yr", "Parejas hasta la magnitud": "Pairs down to magnitude", "Tus medidas de dobles y movimiento propio": "Your double-star and proper-motion measurements", "Hacen falta al menos dos tomas": "At least two frames are needed", "Todavía no has medido dobles ni movimientos propios": "You haven't measured doubles or proper motions yet", "Elige arriba un objeto y pulsa «Medir».": "Choose a target above and press “Measure”.", "Parejas": "Pairs", "Estrellas rápidas": "Fast stars", "Residuo (″)": "Residual (″)", "tus noches": "your nights", "desde Gaia 2016": "since Gaia 2016", "no se ha podido medir": "could not be measured", "Las dos estrellas están a la misma distancia y se mueven juntas según Gaia.": "According to Gaia the two stars are at the same distance and move together.", "pareja real": "real pair", "Según Gaia no están a la misma distancia o no se mueven juntas: coinciden en la misma línea de visión.": "According to Gaia they are not at the same distance or do not move together: a chance alignment.", "óptica": "optical", "Parejas de estrellas medidas": "Star pairs measured", "Estrellas con movimiento propio medido": "Stars with measured proper motion", "Estrellas dobles: separación y ángulo de posición": "Double stars: separation and position angle", "Época": "Epoch", "No hay parejas de estrellas que se puedan medir en este campo con esos límites.": "There are no measurable star pairs in this field with those limits.", "ρ es la separación y θ el ángulo de posición de la secundaria, contado desde el norte hacia el este. Las columnas de Gaia son lo que predice su catálogo para la fecha de tus tomas: sirven para ver cuánto te acercas. Las parejas salen de Gaia; para saber si una está en el catálogo WDS de dobles, búscala allí por sus coordenadas.": "ρ is the separation and θ the position angle of the secondary, counted from north through east. The Gaia columns are what its catalogue predicts for the date of your frames: they show how close you get. Pairs come from Gaia; to know whether one is in the WDS double-star catalogue, look it up there by coordinates.", "Movimiento propio (milésimas de segundo de arco por año)": "Proper motion (milliarcseconds per year)", "Medido AR": "Measured RA", "Medido Dec": "Measured Dec", "Error": "Error", "Cómo": "How", "No hay estrellas que se muevan tan deprisa en este campo.": "No stars move that fast in this field.", "«Tus noches»: la recta ajustada a tus propias medidas a lo largo de los años. «Desde Gaia 2016»: lo que se ha desplazado la estrella entre la posición de Gaia (época 2016,0) y la de tus tomas, dividido entre los años que han pasado. No se descuenta la paralaje, que en las estrellas más cercanas añade un vaivén anual de unas décimas de segundo.": "“Your nights”: the line fitted to your own measurements over the years. “Since Gaia 2016”: how far the star has moved between Gaia's position (epoch 2016.0) and your frames, divided by the years elapsed. Parallax is not removed; for the nearest stars it adds a yearly wobble of a few tenths of an arcsecond.", "en este campo no hay estrellas con movimiento propio grande ni parejas de estrellas brillantes que medir": "this field has no stars with large proper motion nor bright star pairs to measure", "hay muy pocas estrellas de Gaia en el campo para la astrometría": "there are too few Gaia stars in the field for the astrometry"})
+DIC_EN.update({"Brillo del cometa según la apertura": "Comet brightness by aperture", "Magnitud total aproximada (m1)": "Approximate total magnitude (m1)", "Diámetro de la coma que se aprecia": "Visible coma diameter", "Radio de la apertura": "Aperture radius", "Magnitud G": "G magnitude", "Un cometa no es un punto: cuanto mayor es la apertura, más coma entra y más brillante sale, hasta que ya solo se añade cielo. Esa magnitud es la total (m1), la que recogen bases como COBS. Es aproximada: va en la banda G de Gaia y, si hay estrellas dentro de la apertura, sale más brillante de la cuenta.": "A comet is not a point: the larger the aperture, the more coma is included and the brighter it comes out, until only sky is being added. That magnitude is the total one (m1), the one databases such as COBS collect. It is approximate: it is in the Gaia G band and, if there are stars inside the aperture, it comes out too bright.", "La coma llega hasta la mayor apertura que cabe: la magnitud total real es algo más brillante.": "The coma reaches the largest aperture that fits: the true total magnitude is somewhat brighter."})
+DIC_EN.update({"Patrulla de supernovas: lo nuevo en el campo": "Supernova patrol: what is new in the field", "Noche nueva": "New night", "Comparar con": "Compare with", "Radio": "Radius", "Se busca en un círculo de este radio alrededor del objeto.": "The search covers a circle of this radius around the target.", "Patrulla de supernovas: ASTRO busca todos los puntos de luz alrededor del objeto en las tomas de la noche nueva, aparta los que son estrellas de Gaia y mira si los demás estaban ya en las tomas de una noche anterior. Lo que antes no estaba, o era mucho más débil, sale como candidata. Hacen falta tomas del mismo objeto de dos noches con el mismo equipo.": "Supernova patrol: ASTRO finds every point of light around the target in the new night's frames, sets aside those that are Gaia stars and checks whether the rest were already there in an earlier night's frames. Whatever was not there before, or was much fainter, is listed as a candidate. You need frames of the same target from two nights with the same equipment.", "Tus patrullas de supernovas": "Your supernova patrols", "Buscar lo nuevo": "Find what is new", "Elige dos noches distintas: la nueva y la de comparación": "Choose two different nights: the new one and the comparison one", "La noche nueva necesita al menos dos tomas": "The new night needs at least two frames", "Todavía no has hecho ninguna patrulla": "You haven't run any patrol yet", "Elige arriba «Patrulla de supernovas», un objeto con tomas de dos noches y pulsa «Buscar lo nuevo».": "Choose “Supernova patrol” above, a target with frames from two nights, and press “Find what is new”.", "Comparada con": "Compared with", "Llega hasta": "Reaches", "Nuevas": "New", "Suben": "Brighter", "Dudosas": "Doubtful", "Patrulla de supernovas": "Supernova patrol", "antes no estaba": "was not there before", "ha subido": "brightened by", "dudosa": "doubtful", "La noche de comparación no llega tan hondo como para asegurar que antes no estaba.": "The comparison night is not deep enough to be sure it was not there before.", "comparada con": "compared with", "Puntos de luz que antes no estaban": "Points of light that were not there before", "Han subido más de una magnitud": "Brightened by more than one magnitude", "Hasta dónde llega la noche nueva": "How deep the new night reaches", "radio": "radius", "Tomas nuevas y de comparación": "New and comparison frames", "puntos revisados": "points checked", "Las tomas nuevas abarcan menos de 20 minutos: un asteroide lento podría parecer quieto. Comprueba que la candidata no se mueve en tomas más separadas.": "The new frames span less than 20 minutes: a slow asteroid could look stationary. Check that the candidate does not move in frames further apart.", "Gaia no contestaba y se ha usado una consulta guardada, menos profunda: puede haber estrellas débiles conocidas que aquí salgan como sueltas (la comparación con la otra noche las descarta igual).": "Gaia was not answering and a shallower saved query was used: some known faint stars may show up as unmatched here (the comparison with the other night discards them anyway).", "Antes": "Before", "Ahora": "Now", "Mag G ahora": "G mag now", "Del centro": "From centre", "Nada nuevo: todos los puntos de luz de la zona son estrellas de Gaia o ya estaban en la noche de comparación.": "Nothing new: every point of light in the area is a Gaia star or was already there on the comparison night.", "Una candidata no es un descubrimiento. Mira los dos recortes: tiene que verse un punto como las estrellas donde antes no había nada. Luego búscala con el botón en el TNS (el registro internacional de transitorios, 10″ alrededor): lo normal es que ya esté allí. Si no está, descarta que sea un asteroide (con el bloque de asteroides o el comprobador del MPC), repítela otra noche y entonces se envía al TNS.": "A candidate is not a discovery. Look at the two cutouts: there must be a star-like point where there was nothing before. Then look it up with the button in the TNS (the international transient registry, 10″ around): usually it is already there. If it is not, rule out an asteroid (with the asteroid block or the MPC checker), repeat it another night and only then submit it to the TNS.", "Borrar esta patrulla": "Delete this patrol", "¿Borrar esta patrulla?": "Delete this patrol?", "hacen falta al menos dos tomas de la noche nueva y una de una noche anterior": "at least two frames from the new night and one from an earlier night are needed", "hay muy pocas estrellas de Gaia en la zona para situar las tomas": "there are too few Gaia stars in the area to place the frames"})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 

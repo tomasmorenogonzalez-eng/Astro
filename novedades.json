@@ -1,5 +1,34 @@
 [
  {
+  "version": "0.33.20",
+  "es": [
+   "**Ciencia: estrellas dobles y movimiento propio.** En «Asteroides y cometas» hay una herramienta nueva: eliges un objeto y ASTRO mide en su campo la separación y el ángulo de posición de las parejas de estrellas, y el movimiento propio de las que se mueven deprisa. Probado con tomas reales de M 31: las dobles salen a unas centésimas de segundo de arco de lo que predice Gaia.",
+   "**Patrulla de supernovas.** En «Estrellas variables», la opción «Patrulla de supernovas» compara las tomas de una noche con las de otra anterior y lista los puntos de luz que antes no estaban, con sus dos recortes y un botón para buscarlos en el TNS. Probada con estrellas inventadas (las encuentra) y con M 31 real (ninguna falsa alarma); aún no con una supernova de verdad.",
+   "**Cometas.** Los cometas medidos llevan ahora su brillo según la apertura, la magnitud total aproximada y el diámetro de la coma. Comprobado solo con un cometa inventado."
+  ],
+  "en": [
+   "**Science: double stars and proper motion.** “Asteroids and comets” has a new tool: choose a target and ASTRO measures the separation and position angle of star pairs in its field, and the proper motion of fast-moving stars. Tested on real M 31 frames: doubles come out within a few hundredths of an arcsecond of Gaia's prediction.",
+   "**Supernova patrol.** In “Variable stars”, the “Supernova patrol” option compares one night's frames with an earlier night's and lists points of light that were not there before, with both cutouts and a button to look them up in the TNS. Tested with synthetic stars (found) and real M 31 frames (no false alarms); not yet with a real supernova.",
+   "**Comets.** Measured comets now show brightness by aperture, approximate total magnitude and coma diameter. Checked only with a synthetic comet."
+  ],
+  "fr": [
+   "**Science : étoiles doubles et mouvement propre.** Nouvel outil dans « Astéroïdes et comètes » : séparation et angle de position des couples, et mouvement propre des étoiles rapides. Testé sur de vraies poses de M 31.",
+   "**Patrouille de supernovae** dans « Étoiles variables » : compare deux nuits et liste les points lumineux nouveaux. **Comètes :** magnitude selon l'ouverture, magnitude totale et diamètre de la coma."
+  ],
+  "de": [
+   "**Wissenschaft: Doppelsterne und Eigenbewegung.** Neues Werkzeug unter „Asteroiden und Kometen“: Abstand und Positionswinkel von Sternpaaren sowie die Eigenbewegung schneller Sterne. An echten M-31-Aufnahmen getestet.",
+   "**Supernova-Patrouille** unter „Veränderliche Sterne“: vergleicht zwei Nächte und listet neue Lichtpunkte. **Kometen:** Helligkeit je Blende, Gesamthelligkeit und Komadurchmesser."
+  ],
+  "it": [
+   "**Scienza: stelle doppie e moto proprio.** Nuovo strumento in «Asteroidi e comete»: separazione e angolo di posizione delle coppie e moto proprio delle stelle veloci. Provato su pose reali di M 31.",
+   "**Pattuglia di supernove** in «Stelle variabili»: confronta due notti ed elenca i punti di luce nuovi. **Comete:** magnitudine per apertura, magnitudine totale e diametro della chioma."
+  ],
+  "pt": [
+   "**Ciência: estrelas duplas e movimento próprio.** Nova ferramenta em «Asteroides e cometas»: separação e ângulo de posição dos pares e movimento próprio das estrelas rápidas. Testado com imagens reais de M 31.",
+   "**Patrulha de supernovas** em «Estrelas variáveis»: compara duas noites e lista os pontos de luz novos. **Cometas:** magnitude por abertura, magnitude total e diâmetro da coma."
+  ]
+ },
+ {
   "version": "0.33.19",
   "es": [
    "**Búsqueda de variables, afinada con noches reales.** Probada con tomas de M 31 de seis noches: ahora cada toma se sitúa con su propia astrometría (vale para mosaicos y encuadres distintos), el viñeteo sin corregir ya no hace pasar por variables a las estrellas de las esquinas, y las candidatas cuyo brillo sigue al seeing (una vecina que se cuela, el fondo de una galaxia) salen marcadas y al final de la lista.",
