@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.8"
+VERSION_PROG = "2026.10.03.9"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1656,6 +1656,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
           <span id="navCalib"></span>
           <button class="nav sub" id="btnNombres">Nombres de objeto</button>
           <button class="nav sub" id="btnRename">Renombrar por lotes</button>
+          <button class="nav sub notr" id="btnGradiente"></button>
           <button class="nav sub" id="btnRegistros" title="Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma">Registros de la ASIAIR</button>
           <button class="nav sub" id="btnIndicadores">Indicadores de calidad</button>
           <button class="nav sub" id="btnReport">Informe de calidad</button>
@@ -1690,6 +1691,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
           <button id="btnVariosMenu">Proyecto con varios equipos…</button>
           <button id="btnGrupoMenu">Unirme a un proyecto en grupo…</button>
           <button id="btnUnirMenu" title="Junta masters de un mismo objeto hechos con distintos telescopios, tuyos o de compañeros, con el encuadre del de campo más grande">Unir masters de varios equipos…</button>
+          <button id="btnGradienteMenu" class="notr"></button>
           <hr>
           <button id="btnFinder">Abrir la carpeta en el Finder</button>
           <hr>
@@ -1842,6 +1844,12 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
 <div class="modal" id="igBox"><div class="box" style="width:min(1100px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="igTitulo">¿Sigo con este filtro?</h2><button class="btn small" id="igCerrar">Cerrar</button></div>
   <div id="igCuerpo" style="display:flex;flex-direction:column;gap:10px"></div>
+</div></div>
+<div class="modal" id="gcBox"><div class="box notr" style="width:min(1500px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="gcTit"></h2><button class="btn small" id="gcCerrar"></button></div>
+  <p class="varIntro" id="gcIntro"></p>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="gcElegir"></button><span class="note" id="gcRuta"></span></div>
+  <div id="gcCuerpo"></div>
 </div></div>
 <div class="modal" id="unirBox"><div class="box" style="width:min(1100px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>Unir masters de varios equipos</h2><button class="btn small" id="unirCerrar">Cerrar</button></div>
@@ -11294,6 +11302,115 @@ async function unVigilar(recien){
     $("unAbrirCarpeta").onclick = () => fetch("/api/unir/abrir", {method:"POST"});
   }
 }
+/* ---- corrección de gradientes ---- */
+const GCD = {low_thr:0.2, low_tol:0.5, high_thr:0.05, high_tol:0, scale:5, smooth:0.4, conv:false, simp:false, grado:1, prot:true, pthr:0.1, pamt:0.5};
+const GCS = {P:{...GCD}, vista:"despues", info:null, res:null, t:0, ocupado:false, pend:false, n:0, hecho:null};
+const GC_MANDOS = [
+  ["scale", 1, 8, 0.5, ["Escala", "Scale"], ["Tamaño de los gradientes que se buscan. Alta: gradientes suaves y amplios (protege nebulosas grandes). Baja: gradientes complicados, con cambios bruscos.", "Size of the gradients sought. High: smooth, wide gradients (protects large nebulae). Low: complex gradients with sharp changes."]],
+  ["smooth", 0.05, 1, 0.05, ["Suavidad", "Smoothness"], ["Cuánto se alisa el modelo de gradiente.", "How much the gradient model is smoothed."]],
+  ["high_thr", 0, 1, 0.01, ["Umbral alto", "High threshold"], ["Cuánta estructura brillante entra en el modelo. Súbelo si queda gradiente; bájalo si se come el objeto.", "How much bright structure goes into the model. Raise it if gradient remains; lower it if it eats the object."]],
+  ["high_tol", 0, 1, 0.05, ["Tolerancia alta", "High tolerance"], ["Peso que conservan las estructuras brillantes apartadas. Más alto corrige un poco más.", "Weight kept by the rejected bright structures. Higher corrects a little more."]],
+  ["low_thr", 0, 1, 0.01, ["Umbral bajo", "Low threshold"], ["Cuánta estructura oscura entra en el modelo. Bájalo si la corrección aplana las nebulosas oscuras.", "How much dark structure goes into the model. Lower it if the correction flattens dark nebulae."]],
+  ["low_tol", 0, 1, 0.05, ["Tolerancia baja", "Low tolerance"], ["Peso que conservan las estructuras oscuras apartadas.", "Weight kept by the rejected dark structures."]]];
+const GC_PROT = [
+  ["pthr", 0.01, 1, 0.01, ["Umbral de protección", "Protection threshold"], ["Bájalo para proteger estructuras más débiles; súbelo si la protección tapa demasiado y queda gradiente.", "Lower it to protect fainter structures; raise it if protection covers too much and gradient remains."]],
+  ["pamt", 0, 1, 0.05, ["Cantidad de protección", "Protection amount"], ["Cuánto se protege lo marcado. Por encima de 0,5 la zona protegida además se ensancha.", "How strongly the marked area is protected. Above 0.5 the protected area also widens."]]];
+function gcMando([k, a, b, st, n, ay]){
+  return `<label class="compRango" title="${esc(trLT(...ay))}"><span style="min-width:150px">${esc(trLT(...n))}</span><input type="range" data-gc="${k}" min="${a}" max="${b}" step="${st}" value="${GCS.P[k]}"><b data-gcv="${k}">${numEs(GCS.P[k], st < 0.1 ? 2 : st < 1 ? (k === "scale" ? 1 : 2) : 0)}</b></label>`;
+}
+function gcAbrir(){
+  $("menuLista").classList.remove("show");
+  $("gcTit").textContent = trLT("Corregir gradientes", "Gradient correction");
+  $("gcCerrar").textContent = trLT("Cerrar", "Close");
+  $("gcElegir").textContent = trLT("Elegir la imagen apilada…", "Choose the stacked image…");
+  $("gcIntro").textContent = trLT("Quita del apilado el fondo desigual que dejan la contaminación lumínica o la Luna. ASTRO separa el gradiente (que vive en las escalas grandes) de las estructuras reales con un análisis a varias escalas y estadística robusta, sin poner muestras a mano, y protege galaxias y nebulosas. La imagen debe ser lineal (sin estirar) y estar recortada: sin bordes oscuros o ruidosos. El original no se toca: se guarda una copia corregida al lado.", "Removes from the stack the uneven background left by light pollution or the Moon. ASTRO separates the gradient (which lives at large scales) from real structures with multiscale analysis and robust statistics, with no hand-placed samples, and protects galaxies and nebulae. The image must be linear (unstretched) and cropped: no dark or noisy edges. The original is untouched: a corrected copy is saved next to it.");
+  $("gcBox").classList.add("show");
+  gcPintar();
+}
+function gcPintar(){
+  const c = $("gcCuerpo"), i = GCS.info;
+  if (!i){ c.innerHTML = ""; $("gcRuta").textContent = ""; return; }
+  $("gcRuta").textContent = `${i.nombre} · ${i.w} × ${i.h} · ${i.canales === 3 ? trLT("color", "colour") : trLT("una capa", "one layer")}`;
+  const P = GCS.P, casilla = (k, n, ay) => `<label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-weight:600" title="${esc(ay)}"><input type="checkbox" data-gcc="${k}" ${P[k] ? "checked" : ""}> ${esc(n)}</label>`;
+  const vistas = [["antes", trLT("Antes", "Before")], ["despues", trLT("Después", "After")], ["modelo", trLT("Gradiente", "Gradient")], ["mascara", trLT("Protección", "Protection")]];
+  c.innerHTML = `${i.estirada ? `<ul class="reasons" style="margin-top:10px"><li class="bad">${esc(trLT("Esta imagen parece ya estirada. La corrección está pensada para imágenes lineales; el resultado puede no ser bueno.", "This image looks already stretched. The correction is meant for linear images; the result may be poor."))}</li></ul>` : ""}
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;margin-top:12px;align-items:start" id="gcRej">
+      <div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">${vistas.map(([k, n]) => `<button class="btn small${GCS.vista === k ? " primary" : ""}" data-gcvista="${k}">${esc(n)}</button>`).join("")}<span class="note" id="gcEstado" style="margin-left:8px"></span></div>
+        <div style="background:#000;border-radius:10px;overflow:hidden;min-height:200px"><img id="gcImg" alt="" style="width:100%;display:block;cursor:pointer" title="${esc(trLT("Pulsa para alternar antes y después", "Click to toggle before and after"))}"></div>
+        <div class="note" style="margin-top:6px">${esc(trLT("Las vistas están muy estiradas a propósito, para que se vea el gradiente. «Gradiente» es lo que se resta; no debe verse en él el objeto. En «Protección», lo negro es lo protegido.", "The views are heavily stretched on purpose, so the gradient shows. «Gradient» is what gets subtracted; the object should not show in it. In «Protection», black is what is protected."))}</div></div>
+      <div><h3 style="margin:0 0 4px">${esc(trLT("Modelo de gradiente", "Gradient model"))}</h3>${GC_MANDOS.map(gcMando).join("")}
+        ${casilla("prot", trLT("Proteger estructuras", "Structure protection"), trLT("Evita que se oscurezcan galaxias y nebulosas grandes y brillantes.", "Keeps large, bright galaxies and nebulae from being darkened."))}
+        <div id="gcProt" ${P.prot ? "" : 'style="display:none"'}>${GC_PROT.map(gcMando).join("")}</div>
+        ${casilla("simp", trLT("Modelo simplificado previo", "Simplified model first"), trLT("Resta antes una superficie sencilla. Útil con gradientes muy fuertes; no lo uses si la Vía Láctea ocupa un lado de la imagen o hay objetos grandes y brillantes.", "Subtracts a simple surface first. Useful with very strong gradients; avoid it if the Milky Way fills one side of the image or there are large bright objects."))}
+        <div id="gcSimp" ${P.simp ? "" : 'style="display:none"'}>${gcMando(["grado", 1, 6, 1, ["Grado", "Degree"], ["1 es un plano inclinado; más alto se adapta más, con más riesgo de comerse señal.", "1 is a tilted plane; higher adapts more, with more risk of eating signal."]])}</div>
+        ${casilla("conv", trLT("Convergencia automática", "Automatic convergence"), trLT("Repite la corrección hasta que el modelo deja de cambiar (hasta 6 vueltas).", "Repeats the correction until the model stops changing (up to 6 passes)."))}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px"><button class="btn" id="gcDef">${esc(trLT("Valores de fábrica", "Defaults"))}</button><span style="flex:1"></span><button class="btn primary" id="gcGuardar">${esc(trLT("Aplicar y guardar", "Apply and save"))}</button></div>
+        <div id="gcHecho" style="margin-top:12px"></div></div></div>`;
+  if (innerWidth < 980) $("gcRej").style.gridTemplateColumns = "minmax(0,1fr)";
+  c.querySelectorAll("[data-gc]").forEach(x => { x.oninput = () => { const k = x.dataset.gc, st = +x.step; GCS.P[k] = +x.value; c.querySelector(`[data-gcv="${k}"]`).textContent = numEs(+x.value, st < 0.1 ? 2 : st < 1 ? (k === "scale" ? 1 : 2) : 0); }; x.onchange = () => gcPrevia(); });
+  c.querySelectorAll("[data-gcc]").forEach(x => x.onchange = () => { GCS.P[x.dataset.gcc] = x.checked; $("gcProt").style.display = GCS.P.prot ? "" : "none"; $("gcSimp").style.display = GCS.P.simp ? "" : "none"; gcPrevia(); });
+  c.querySelectorAll("[data-gcvista]").forEach(x => x.onclick = () => gcVista(x.dataset.gcvista));
+  $("gcImg").onclick = () => gcVista(GCS.vista === "antes" ? "despues" : "antes");
+  $("gcDef").onclick = () => { GCS.P = {...GCD}; gcPintar(); gcPrevia(); };
+  $("gcGuardar").onclick = gcGuardar;
+  gcVista(GCS.vista); gcHecho();
+}
+function gcVista(v){
+  GCS.vista = v;
+  document.querySelectorAll("[data-gcvista]").forEach(x => x.classList.toggle("primary", x.dataset.gcvista === v));
+  if (GCS.res && $("gcImg")) $("gcImg").src = `/api/gc/img?n=${v === "mascara" && !GCS.res.mascara ? "modelo" : v}&t=${GCS.n}`;
+}
+function gcEstado(){
+  const e = $("gcEstado"); if (!e) return;
+  if (GCS.ocupado){ e.textContent = trLT("Calculando…", "Computing…"); return; }
+  const r = GCS.res; if (!r){ e.textContent = ""; return; }
+  const pct = Math.max(...r.capas.map(x => x.fondo ? 100 * x.amplitud / Math.abs(x.fondo) : 0)), vu = Math.max(...r.capas.map(x => x.vueltas));
+  e.textContent = trLT("Gradiente retirado: {1} % del nivel del fondo", "Gradient removed: {1} % of the background level", numEs(pct, pct < 10 ? 1 : 0)) + (vu > 1 ? " · " + trLT("{1} vueltas", "{1} passes", vu) : "");
+}
+async function gcPrevia(){
+  if (!GCS.info) return;
+  if (GCS.ocupado){ GCS.pend = true; return; }
+  GCS.ocupado = true; GCS.hecho = null; gcEstado(); gcHecho();
+  try {
+    const r = await fetch("/api/gc/previa", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(GCS.P)});
+    if (!r.ok) throw new Error(await r.text());
+    GCS.res = await r.json(); GCS.n = GCS.res.n + "_" + Date.now();
+  } catch(e){ toast(String(e.message || e)); }
+  GCS.ocupado = false; gcEstado(); gcVista(GCS.vista);
+  if (GCS.pend){ GCS.pend = false; gcPrevia(); }
+}
+async function gcElegir(){
+  $("gcRuta").textContent = trLT("Leyendo la imagen…", "Reading the image…");
+  let d;
+  try {
+    const r = await fetch("/api/gc/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({elegir:true})});
+    if (!r.ok) throw new Error(await r.text());
+    d = await r.json();
+  } catch(e){ $("gcRuta").textContent = ""; toast(String(e.message || e)); gcPintar(); return; }
+  if (!d.ruta){ gcPintar(); if (d.fallo) toast(trLT("No se ha podido abrir la ventana para elegir el archivo.", "The file window could not be opened.")); return; }
+  GCS.info = d; GCS.res = null; GCS.hecho = null; GCS.vista = "despues";
+  gcPintar(); gcPrevia();
+}
+function gcHecho(){
+  const h = $("gcHecho"); if (!h) return;
+  h.innerHTML = GCS.hecho ? `<ul class="reasons"><li class="ok">${esc(trLT("Guardada", "Saved"))}: <b>${esc(GCS.hecho.archivo)}</b></li></ul><div class="note" style="margin:6px 0">${esc(trLT("Sigue siendo lineal, lista para procesar. El original no se ha tocado.", "It is still linear, ready to process. The original is untouched."))}</div><button class="btn small" id="gcCarpeta">${esc(trLT("Mostrar en la carpeta", "Show in folder"))}</button>` : "";
+  if (GCS.hecho) $("gcCarpeta").onclick = () => fetch("/api/gc/carpeta", {method:"POST"});
+}
+async function gcGuardar(){
+  if (!GCS.info || GCS.ocupado) return;
+  const b = $("gcGuardar"); b.disabled = true; b.textContent = trLT("Guardando…", "Saving…");
+  try {
+    const r = await fetch("/api/gc/guardar", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(GCS.P)});
+    if (!r.ok) throw new Error(await r.text());
+    GCS.hecho = await r.json();
+  } catch(e){ toast(String(e.message || e)); }
+  if ($("gcGuardar")){ $("gcGuardar").disabled = false; $("gcGuardar").textContent = trLT("Aplicar y guardar", "Apply and save"); }
+  gcHecho();
+}
+$("btnGradiente").textContent = $("btnGradienteMenu").textContent = trLT("Corregir gradientes", "Gradient correction");
+$("btnGradiente").onclick = $("btnGradienteMenu").onclick = gcAbrir;
+$("gcElegir").onclick = gcElegir;
+$("gcCerrar").onclick = () => $("gcBox").classList.remove("show");
 $("btnUnirMenu").onclick = unAbrir;
 $("unirElegir").onclick = () => unCargar({elegir: true});
 $("unirCerrar").onclick = () => { $("unirBox").classList.remove("show"); clearTimeout(UN.t); };
@@ -13731,6 +13848,563 @@ def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=N
 
 # ─── Herramienta «Unir masters»: masters sueltos de una carpeta (de varios equipos o compañeros) ───
 EXT_MASTER = (".fit", ".fits", ".fts", ".xisf")
+# ───────── Corrección de gradientes (método propio: análisis a varias escalas y estadística robusta) ─────────
+import array, zlib, struct, math
+
+GC_DEF = {"low_thr": 0.2, "low_tol": 0.5, "high_thr": 0.05, "high_tol": 0.0, "scale": 5.0, "smooth": 0.4,
+          "conv": False, "simp": False, "grado": 1, "prot": True, "pthr": 0.1, "pamt": 0.5}
+
+
+def gc_cab(ruta):
+    h, n, cards = {}, 0, []
+    with open(ruta, "rb") as f:
+        while n < 2880 * 400:
+            b = f.read(2880)
+            if len(b) < 2880:
+                raise ValueError("FITS incompleto")
+            n += 2880
+            for i in range(0, 2880, 80):
+                c = b[i:i + 80].decode("latin-1")
+                k = c[:8].strip()
+                if k == "END":
+                    return h, n, cards
+                cards.append(c)
+                if c[8:10] == "= ":
+                    v = c[10:].strip()
+                    h[k] = v[1:max(1, v.find("'", 1))].strip() if v.startswith("'") else v.split("/")[0].strip()
+    raise ValueError("FITS sin END")
+
+
+_GC_TIPO = {-32: ("f", 4), 16: ("h", 2), -64: ("d", 8), 32: ("i", 4), 8: ("B", 1)}
+
+
+def gc_info(ruta):
+    h, off, cards = gc_cab(ruta)
+    bp = int(h["BITPIX"])
+    if bp not in _GC_TIPO:
+        raise ValueError("FITS de un tipo que no se sabe leer")
+    na = int(h.get("NAXIS", 2))
+    W, H = int(h["NAXIS1"]), int(h["NAXIS2"])
+    C = int(h.get("NAXIS3", 1)) if na >= 3 else 1
+    if C not in (1, 3):
+        raise ValueError("Solo imágenes de una o de tres capas")
+    bz = float(h.get("BZERO", 0) or 0)
+    bs = float(h.get("BSCALE", 1) or 1)
+    arriba = "TOP" in str(h.get("ROWORDER", "")).upper()
+    return {"W": W, "H": H, "C": C, "bp": bp, "bzero": bz, "bscale": bs, "off": off, "cards": cards, "arriba": arriba}
+
+
+def _gc_fila(f, I, c, y):
+    t, nb = _GC_TIPO[I["bp"]]
+    f.seek(I["off"] + (c * I["H"] + y) * I["W"] * nb)
+    a = array.array(t)
+    a.frombytes(f.read(I["W"] * nb))
+    if sys.byteorder == "little" and nb > 1:
+        a.byteswap()
+    return a
+
+
+def gc_muestra(ruta, ancho=1200, avance=None):
+    """Imagen reducida (cada píxel, la media de 4 muestras de su bloque de k×k). Los píxeles sin datos (0) quedan en 0."""
+    I = gc_info(ruta)
+    W, H, C = I["W"], I["H"], I["C"]
+    k = max(1, -(-W // ancho))
+    mw, mh = W // k, H // k
+    bz, bs = I["bzero"], I["bscale"]
+    entero = I["bp"] > 0
+    x0, x1 = k // 4, (3 * k) // 4
+    planos = []
+    with open(ruta, "rb") as f:
+        for c in range(C):
+            p = array.array("f")
+            for j in range(mh):
+                r0 = _gc_fila(f, I, c, j * k + x0)
+                if k > 1:
+                    r1 = _gc_fila(f, I, c, j * k + x1)
+                    a, b, d, e = r0[x0::k], r0[x1::k], r1[x0::k], r1[x1::k]
+                    fila = [(s + t + u + v) * 0.25 if (s == s and t == t and u == u and v == v and (entero or (s and t and u and v))) else 0.0
+                            for s, t, u, v in zip(a, b, d, e)][:mw]
+                else:
+                    fila = [v if v == v else 0.0 for v in r0]
+                if entero:
+                    fila = [v * bs + bz for v in fila]
+                p.extend(fila)
+                if avance and j % 50 == 0:
+                    avance((c + j / mh) / C)
+            planos.append(p)
+    I.update(k=k, mw=mw, mh=mh, planos=planos)
+    return I
+
+
+def gc_pequena(M, q=4):
+    """Imagen pequeña para el modelo: mediana de cada bloque de q×q de la reducida. Devuelve (sw, sh, [valores por capa], validez)."""
+    mw, mh = M["mw"], M["mh"]
+    sw, sh = -(-mw // q), -(-mh // q)
+    S, V = [], [1.0] * (sw * sh)
+    for p in M["planos"]:
+        s = [0.0] * (sw * sh)
+        for j in range(sh):
+            filas = [p[y * mw:(y + 1) * mw] for y in range(j * q, min(mh, (j + 1) * q))]
+            for i in range(sw):
+                v = [x for r in filas for x in r[i * q:(i + 1) * q] if x]
+                tot = sum(len(r[i * q:(i + 1) * q]) for r in filas)
+                if len(v) * 2 >= tot and v:
+                    v.sort()
+                    s[j * sw + i] = v[len(v) // 2]
+                else:
+                    V[j * sw + i] = 0.0
+        S.append(s)
+    for s in S:
+        for i, ok in enumerate(V):
+            if not ok:
+                s[i] = 0.0
+    return sw, sh, S, V
+
+
+def _gc_caja(a, sw, sh, r):
+    """Suma de caja (ventana recortada en los bordes) de radio r, en horizontal y vertical."""
+    if r <= 0:
+        return a[:]
+    out = [0.0] * (sw * sh)
+    for y in range(sh):
+        fila = a[y * sw:(y + 1) * sw]
+        pref = [0.0]
+        s = 0.0
+        for v in fila:
+            s += v
+            pref.append(s)
+        out[y * sw:(y + 1) * sw] = [pref[min(sw, x + r + 1)] - pref[max(0, x - r)] for x in range(sw)]
+    res = [0.0] * (sw * sh)
+    acc = [0.0] * sw
+    for y in range(min(r, sh)):
+        acc = [p + q for p, q in zip(acc, out[y * sw:(y + 1) * sw])]
+    for y in range(sh):
+        if y + r < sh:
+            acc = [p + q for p, q in zip(acc, out[(y + r) * sw:(y + r + 1) * sw])]
+        if y - r - 1 >= 0:
+            acc = [p - q for p, q in zip(acc, out[(y - r - 1) * sw:(y - r) * sw])]
+        res[y * sw:(y + 1) * sw] = acc
+    return res
+
+
+def _gc_suave(v, w, sw, sh, sigma, relleno=0.0):
+    """Suavizado gaussiano (tres cajas) normalizado por los pesos: los huecos se rellenan desde su alrededor."""
+    r = max(1, int(round((math.sqrt(12.0 * sigma * sigma / 3 + 1) - 1) / 2)))
+    num = [a * b for a, b in zip(v, w)]
+    den = list(w)
+    for _ in range(3):
+        num = _gc_caja(num, sw, sh, r)
+        den = _gc_caja(den, sw, sh, r)
+        m = max(den) or 1.0
+        num = [x / m for x in num]
+        den = [x / m for x in den]
+    return [a / b if b > 1e-9 else relleno for a, b in zip(num, den)]
+
+
+def _gc_sigma(d, V):
+    x = [a for a, ok in zip(d, V) if ok]
+    if not x:
+        return 0.0, 0.0
+    m = _med(x)
+    return m, 1.4826 * _med([abs(a - m) for a in x])
+
+
+def _gc_poli(S, V, sw, sh, grado):
+    """Superficie polinómica robusta (rechaza lo brillante) de grado dado."""
+    exps = [(i, j) for i in range(grado + 1) for j in range(grado + 1 - i)]
+    nb = len(exps)
+    paso = max(1, int(math.sqrt(sw * sh / 6000.0)))
+    pts = []
+    for y in range(0, sh, paso):
+        yy = 2.0 * y / max(1, sh - 1) - 1
+        for x in range(0, sw, paso):
+            if V[y * sw + x]:
+                xx = 2.0 * x / max(1, sw - 1) - 1
+                pts.append(([xx ** i * yy ** j for i, j in exps], S[y * sw + x]))
+    if len(pts) < nb * 4:
+        return [0.0] * (sw * sh)
+    wts = [1.0] * len(pts)
+    coef = [0.0] * nb
+    for it in range(7):
+        A = [[0.0] * nb for _ in range(nb)]
+        B = [0.0] * nb
+        for (b, v), w in zip(pts, wts):
+            if w:
+                for i in range(nb):
+                    bi = b[i] * w
+                    B[i] += bi * v
+                    Ai = A[i]
+                    for j in range(i, nb):
+                        Ai[j] += bi * b[j]
+        for i in range(nb):
+            for j in range(i):
+                A[i][j] = A[j][i]
+            A[i][i] *= 1 + 1e-9
+        coef = _gc_resolver(A, B) or coef
+        res = [v - sum(c * t for c, t in zip(coef, b)) for b, v in pts]
+        m = _med(res)
+        s = 1.4826 * _med([abs(r - m) for r in res]) or 1e-12
+        wts = [1.0 if -4 * s < r - m < 2.0 * s else 0.0 for r in res]
+    out = [0.0] * (sw * sh)
+    xp = [[(2.0 * x / max(1, sw - 1) - 1) ** i for x in range(sw)] for i in range(grado + 1)]
+    for y in range(sh):
+        yy = 2.0 * y / max(1, sh - 1) - 1
+        fila = [0.0] * sw
+        for c, (i, j) in zip(coef, exps):
+            cy = c * yy ** j
+            fila = [f + cy * p for f, p in zip(fila, xp[i])]
+        out[y * sw:(y + 1) * sw] = fila
+    return out
+
+
+def _gc_resolver(A, B):
+    n = len(B)
+    M = [r[:] + [b] for r, b in zip(A, B)]
+    for i in range(n):
+        p = max(range(i, n), key=lambda r: abs(M[r][i]))
+        if abs(M[p][i]) < 1e-300:
+            return None
+        M[i], M[p] = M[p], M[i]
+        d = M[i][i]
+        M[i] = [x / d for x in M[i]]
+        for r in range(n):
+            if r != i and M[r][i]:
+                f = M[r][i]
+                M[r] = [a - f * b for a, b in zip(M[r], M[i])]
+    return [M[i][n] for i in range(n)]
+
+
+def _gc_una(S, V, sw, sh, P, simp):
+    n = sw * sh
+    # siempre se quita antes un plano inclinado (así el suavizado no se queda corto en los bordes); con «simplificado», del grado pedido
+    poli = _gc_poli(S, V, sw, sh, int(P["grado"]) if simp else 1)
+    T = [a - b for a, b in zip(S, poli)] if poli else S
+    sigma = max(1.5, 2.0 ** P["scale"] * sw / 256.0)
+    kH, kL = 0.5 + 50.0 * P["high_thr"], 0.5 + 50.0 * P["low_thr"]
+    tH, tL = max(0.0, min(1.0, P["high_tol"])), max(0.0, min(1.0, P["low_tol"]))
+    medg = _med([a for a, ok in zip(T, V) if ok])
+    L = _gc_suave(T, V, sw, sh, sigma, medg)
+    for it in range(6):
+        D = [a - b for a, b in zip(T, L)]
+        m, s = _gc_sigma(D, V)
+        s = s or 1e-12
+        hi, lo = kH * s, kL * s
+        val, w = [0.0] * n, [0.0] * n
+        for i in range(n):
+            if V[i]:
+                d = D[i] - m
+                if d > hi:
+                    val[i] = L[i] + m + hi
+                    w[i] = tH
+                elif d < -lo:
+                    val[i] = L[i] + m - lo
+                    w[i] = tL
+                else:
+                    val[i] = T[i]
+                    w[i] = 1.0
+        L = _gc_suave(val, w, sw, sh, sigma, medg)
+    ss = max(1.0, sigma * P["smooth"])
+    mod = _gc_suave(L, V, sw, sh, ss, medg)
+    masc = None
+    if P["prot"]:
+        E = [a - b for a, b in zip(_gc_suave(T, V, sw, sh, max(1.0, sigma / 4), medg), mod)]
+        m, sE = _gc_sigma(E, V)
+        thr = m + 20.0 * P["pthr"] * (sE or 1e-12)
+        pm = [1.0 if (ok and e > thr) else 0.0 for e, ok in zip(E, V)]
+        pm = _gc_suave(pm, V, sw, sh, max(1.5, sigma / 3), 0.0)
+        am = max(0.0, min(1.0, P["pamt"]))
+        pm = [min(1.0, (2.5 + 10.0 * max(0.0, am - 0.5)) * x) for x in pm]
+        am = min(1.0, 2 * am)
+        L2 = _gc_suave(val, [a * (1.0 - am * p) for a, p in zip(w, pm)], sw, sh, sigma, medg)
+        mod = _gc_suave(L2, V, sw, sh, ss, medg)
+        masc = pm
+    if poli:
+        mod = [a + b for a, b in zip(mod, poli)]
+    return mod, masc
+
+
+def gc_modelo(S, V, sw, sh, P):
+    """Modelo de gradiente de una capa. Devuelve (modelo, máscara de protección, vueltas)."""
+    P = dict(GC_DEF, **(P or {}))
+    total, masc, base, vueltas = [0.0] * (sw * sh), None, S, 0
+    for v in range(6 if P["conv"] else 1):
+        mod, mk = _gc_una(base, V, sw, sh, P, P["simp"] and v == 0)
+        vueltas += 1
+        if v == 0:
+            masc = mk
+            total = mod
+        else:
+            x = sorted(a for a, ok in zip(mod, V) if ok)
+            ampl = x[int(0.98 * (len(x) - 1))] - x[int(0.02 * (len(x) - 1))] if x else 0.0
+            mm = _med(x)
+            total = [a + b - mm for a, b in zip(total, mod)]
+            _, s = _gc_sigma([a - b for a, b in zip(base, _gc_suave(base, V, sw, sh, 2.0))], V)
+            if ampl < 0.5 * (s or 1e-12):
+                break
+        base = [a - b for a, b in zip(S, total)]
+    return total, masc, vueltas
+
+
+def _gc_interp(mod, sw, sh, mw, mh, q):
+    """El modelo pequeño llevado a la reducida (bilineal)."""
+    xs = []
+    for x in range(mw):
+        fx = min(max((x + 0.5) / q - 0.5, 0.0), sw - 1.0)
+        i = min(int(fx), sw - 2) if sw > 1 else 0
+        xs.append((i, fx - i))
+    filas = [[mod[j * sw + i] * (1 - t) + mod[j * sw + min(i + 1, sw - 1)] * t for i, t in xs] for j in range(sh)]
+    out = array.array("f")
+    for y in range(mh):
+        fy = min(max((y + 0.5) / q - 0.5, 0.0), sh - 1.0)
+        j = min(int(fy), sh - 2) if sh > 1 else 0
+        t = fy - j
+        A, B = filas[j], filas[min(j + 1, sh - 1)]
+        out.extend([a + t * (b - a) for a, b in zip(A, B)])
+    return out
+
+
+def _gc_png(ruta, w, h, canales, arriba):
+    """PNG de 8 bits: canales = [bytes] (1 gris o 3 RGB), filas de abajo arriba salvo que 'arriba'."""
+    if len(canales) == 1:
+        tipo, filas = 0, [canales[0][y * w:(y + 1) * w] for y in range(h)]
+    else:
+        tipo = 2
+        buf = bytearray(w * h * 3)
+        buf[0::3], buf[1::3], buf[2::3] = canales[0], canales[1], canales[2]
+        filas = [bytes(buf[y * w * 3:(y + 1) * w * 3]) for y in range(h)]
+    if not arriba:
+        filas.reverse()
+    crudo = b"".join(b"\0" + bytes(f) for f in filas)
+
+    def tr(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+    with open(ruta, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + tr(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, tipo, 0, 0, 0)) + tr(b"IDAT", zlib.compress(crudo, 6)) + tr(b"IEND", b""))
+
+
+def _gc_stf(p, fondo=0.25, sombra=-2.8):
+    """Estirado automático (como el STF) de una capa: devuelve bytes."""
+    x = [v for v in p[::7] if v]
+    if not x:
+        return bytes(len(p))
+    med = _med(x)
+    mad = 1.4826 * _med([abs(v - med) for v in x]) or 1e-12
+    c0 = med + sombra * mad
+    top = max(x)
+    rng = max(top - c0, 1e-12)
+    xm = (med - c0) / rng
+    m = xm * (fondo - 1) / (2 * fondo * xm - fondo - xm) if xm > 0 else 0.5
+    N = 4096
+    lut = bytes(min(255, max(0, int(255.0 * ((m - 1) * t / ((2 * m - 1) * t - m)) + 0.5))) for t in (i / (N - 1.0) for i in range(N)))
+    esc = (N - 1) / rng
+    return bytes([lut[min(N - 1, max(0, int((v - c0) * esc)))] if v else 0 for v in p])
+
+
+def _gc_lineal(p, V=None):
+    x = sorted(v for v in p[::3])
+    a, b = x[0], x[-1]
+    r = (b - a) or 1.0
+    return bytes(int(20 + 215 * (v - a) / r) for v in p)
+
+
+def gc_previa(M, P, carpeta, q=4):
+    """Calcula el modelo y escribe antes.png, despues.png, modelo.png y mascara.png."""
+    sw, sh, S, V = gc_pequena(M, q)
+    mw, mh = M["mw"], M["mh"]
+    antes, desp, modv, mods, info = [], [], [], [], []
+    masc = None
+    for c, s in enumerate(S):
+        mod, mk, vueltas = gc_modelo(s, V, sw, sh, P)
+        ped = _med([a for a, ok in zip(mod, V) if ok])
+        mods.append((mod, ped))
+        mm = _gc_interp(mod, sw, sh, mw, mh, q)
+        p = M["planos"][c]
+        cor = array.array("f", [v - m + ped if v else 0.0 for v, m in zip(p, mm)])
+        antes.append(_gc_stf(p))
+        desp.append(_gc_stf(cor))
+        modv.append(mm)
+        if mk and masc is None:
+            masc = mk
+        elif mk:
+            masc = [max(a, b) for a, b in zip(masc, mk)]
+        x = sorted(a for a, ok in zip(mod, V) if ok)
+        info.append({"vueltas": vueltas, "amplitud": x[int(0.99 * (len(x) - 1))] - x[int(0.01 * (len(x) - 1))], "fondo": ped})
+    lo = min(min(m) for m in modv)
+    hi = max(max(m) for m in modv)
+    r = (hi - lo) or 1.0
+    _gc_png(os.path.join(carpeta, "antes.png"), mw, mh, antes, M["arriba"])
+    _gc_png(os.path.join(carpeta, "despues.png"), mw, mh, desp, M["arriba"])
+    _gc_png(os.path.join(carpeta, "modelo.png"), mw, mh, [bytes(int(15 + 225 * (v - lo) / r) for v in m) for m in modv], M["arriba"])
+    if masc:
+        _gc_png(os.path.join(carpeta, "mascara.png"), sw, sh, [bytes(int(255 * (1 - min(1.0, v))) for v in masc)], M["arriba"])
+    return {"sw": sw, "sh": sh, "q": q, "mods": mods, "info": info, "mascara": bool(masc)}
+
+
+def gc_aplicar(ruta, salida, M, R, avance=None, nota=""):
+    """Resta el modelo a la imagen entera y la guarda en FITS de 32 bits con la misma cabecera."""
+    I = M
+    W, H, C, k = I["W"], I["H"], I["C"], I["k"]
+    sw, sh, paso = R["sw"], R["sh"], I["k"] * R["q"]
+    entero = I["bp"] > 0
+    bz, bs = I["bzero"], I["bscale"]
+    cards = []
+    for c in I["cards"]:
+        kk = c[:8].strip()
+        if kk == "BITPIX":
+            c = ("BITPIX  = %20d" % -32).ljust(80)
+        if kk in ("BZERO", "BSCALE"):
+            continue
+        cards.append(c)
+    for t in ["ASTRO: gradiente corregido (modelo aditivo restado)"] + ([nota] if nota else []):
+        cards.append(("HISTORY " + t)[:80].ljust(80))
+    cab = ("".join(cards) + "END".ljust(80)).encode("latin-1", "replace")
+    cab += b" " * (-len(cab) % 2880)
+    xs = []
+    for x in range(W):
+        fx = min(max((x + 0.5) / paso - 0.5, 0.0), sw - 1.0)
+        i = min(int(fx), sw - 2) if sw > 1 else 0
+        xs.append((i, fx - i))
+    tmp = salida + ".tmp"
+    with open(ruta, "rb") as f, open(tmp, "wb") as g:
+        g.write(cab)
+        for c in range(C):
+            mod, ped = R["mods"][c]
+            filas = [array.array("f", [mod[j * sw + i] * (1 - t) + mod[j * sw + min(i + 1, sw - 1)] * t - ped for i, t in xs]) for j in range(sh)]
+            for y in range(H):
+                fy = min(max((y + 0.5) / paso - 0.5, 0.0), sh - 1.0)
+                j = min(int(fy), sh - 2) if sh > 1 else 0
+                t = fy - j
+                A, B = filas[j], filas[min(j + 1, sh - 1)]
+                r = _gc_fila(f, I, c, y)
+                if entero:
+                    o = array.array("f", [v * bs + bz - (a + t * (b - a)) for v, a, b in zip(r, A, B)])
+                else:
+                    o = array.array("f", [v - (a + t * (b - a)) if v else 0.0 for v, a, b in zip(r, A, B)])
+                if sys.byteorder == "little":
+                    o.byteswap()
+                g.write(o.tobytes())
+                if avance and y % 200 == 0:
+                    avance((c + y / H) / C)
+        g.write(b"\0" * (-(W * H * C * 4) % 2880))
+    os.replace(tmp, salida)
+
+
+
+GC = {"ruta": "", "src": "", "M": None, "R": None, "dir": "", "ultimo": "", "n": 0}
+_GC_LOCK = threading.Lock()
+
+
+def elegir_fits_gc():
+    """Ventana del sistema para elegir la imagen apilada (FITS o XISF); devuelve (ruta, fallo)."""
+    texto = _L("Elige la imagen apilada (FITS o XISF), lineal", "Choose the stacked image (FITS or XISF), linear")
+    r = _dialogo_ventana("archivo", texto, ("Imagen (*.fit;*.fits;*.fts;*.xisf)",))
+    if r is not None:
+        return r, False
+    ruta, fallo = "", True
+    try:
+        if ES_MAC:
+            r = subprocess.run(["osascript", "-e", "activate", "-e",
+                                'POSIX path of (choose file with prompt "%s" of type {"fit", "fits", "fts", "xisf"})' % texto.replace('"', "'")],
+                               capture_output=True, text=True, timeout=600)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0 and not re.search(r"cancel|-128", r.stderr or "", re.I)
+        elif ES_WIN:
+            ps = ("Add-Type -AssemblyName System.Windows.Forms;"
+                  "$f=New-Object System.Windows.Forms.OpenFileDialog;"
+                  "$f.Title='" + texto.replace("'", "’") + "';$f.Filter='Imagen (*.fit;*.fits;*.fts;*.xisf)|*.fit;*.fits;*.fts;*.xisf';"
+                  "$w=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
+                  "if($f.ShowDialog($w) -eq 'OK'){[Console]::OutputEncoding=[Text.Encoding]::UTF8;$f.FileName}")
+            r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
+                               timeout=600, encoding="utf-8", errors="replace", **SIN_VENTANA)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode != 0
+        else:
+            r = subprocess.run(["zenity", "--file-selection", "--title", texto], capture_output=True, text=True, timeout=600)
+            ruta = r.stdout.strip()
+            fallo = not ruta and r.returncode not in (0, 1)
+    except Exception:
+        pass
+    return ruta, fallo
+
+
+def _gc_params(d):
+    P = dict(GC_DEF)
+    lim = {"low_thr": (0, 1), "low_tol": (0, 1), "high_thr": (0, 1), "high_tol": (0, 1), "scale": (1, 8), "smooth": (0.05, 1),
+           "pthr": (0.005, 1), "pamt": (0, 1), "grado": (1, 6)}
+    for k, (a, b) in lim.items():
+        v = num((d or {}).get(k))
+        if v is not None:
+            P[k] = min(b, max(a, v))
+    P["grado"] = int(round(P["grado"]))
+    for k in ("conv", "simp", "prot"):
+        if isinstance((d or {}).get(k), bool):
+            P[k] = d[k]
+    return P
+
+
+def gc_abrir(ruta):
+    import tempfile
+    if not ruta or not os.path.isfile(ruta):
+        raise RuntimeError("No encuentro ese archivo.")
+    with _GC_LOCK:
+        d = GC["dir"] if GC["dir"] and os.path.isdir(GC["dir"]) else tempfile.mkdtemp(prefix="astro_gc_")
+        src = ruta
+        if ruta.lower().endswith(".xisf"):
+            src = os.path.join(d, "entrada.fit")
+            try:
+                xisf_a_fits(ruta, src)
+            except Exception as e:
+                raise RuntimeError("No se ha podido leer ese XISF (guárdalo sin compresión o como FITS): %s" % e)
+        try:
+            M = gc_muestra(src)
+        except Exception as e:
+            raise RuntimeError("No se ha podido leer la imagen: %s" % e)
+        x = sorted(v for v in M["planos"][0][::11] if v)
+        if len(x) < 100:
+            raise RuntimeError("La imagen está vacía.")
+        med, top = x[len(x) // 2], x[int(0.999 * (len(x) - 1))]
+        GC.update(ruta=ruta, src=src, M=M, R=None, dir=d, ultimo="")
+        return {"ruta": ruta, "nombre": os.path.basename(ruta), "w": M["W"], "h": M["H"], "canales": M["C"],
+                "estirada": bool(top > 0 and med / top > 0.2)}
+
+
+def gc_calcular(P):
+    with _GC_LOCK:
+        if not GC["M"]:
+            raise RuntimeError("Elige primero una imagen.")
+        R = gc_previa(GC["M"], P, GC["dir"])
+        R["P"] = P
+        GC["R"] = R
+        GC["n"] += 1
+        return {"n": GC["n"], "mascara": R["mascara"],
+                "capas": [{"vueltas": i["vueltas"], "amplitud": i["amplitud"], "fondo": i["fondo"]} for i in R["info"]]}
+
+
+def gc_guardar(P):
+    with _GC_LOCK:
+        if not GC["M"]:
+            raise RuntimeError("Elige primero una imagen.")
+        R = GC["R"]
+        if not R or R.get("P") != P:
+            R = gc_previa(GC["M"], P, GC["dir"])
+            R["P"] = P
+            GC["R"] = R
+            GC["n"] += 1
+        base = os.path.splitext(GC["ruta"])[0]
+        salida, k = base + "_GC.fit", 2
+        while os.path.exists(salida):
+            salida, k = "%s_GC_%d.fit" % (base, k), k + 1
+        nota = "escala %.1f suav %.2f alto %.2f/%.2f bajo %.2f/%.2f prot %s %.2f/%.2f simp %s conv %s" % (
+            P["scale"], P["smooth"], P["high_thr"], P["high_tol"], P["low_thr"], P["low_tol"], "si" if P["prot"] else "no", P["pthr"], P["pamt"],
+            ("grado %d" % P["grado"]) if P["simp"] else "no", "si" if P["conv"] else "no")
+        try:
+            gc_aplicar(GC["src"], salida, GC["M"], R, nota=nota)
+        except OSError as e:
+            raise RuntimeError("No se ha podido guardar la imagen corregida: %s" % e)
+        GC["ultimo"] = salida
+        return {"archivo": os.path.basename(salida), "carpeta": os.path.dirname(salida), "n": GC["n"]}
+
+
 UNIR = {"ultimo": None}
 
 
@@ -21891,6 +22565,13 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps([{"id": e["id"], "nombre": e["nombre"]} for e in editores()], ensure_ascii=False))
         if p.path == "/api/proyecto/estado":
             return self._send(200, json.dumps({k: v for k, v in PROY.items() if k != "cancelar"}, ensure_ascii=False, default=str))
+        if p.path == "/api/gc/img":
+            n = (urllib.parse.parse_qs(p.query).get("n") or [""])[0]
+            ruta = os.path.join(GC.get("dir") or "", n + ".png") if n in ("antes", "despues", "modelo", "mascara") else ""
+            if ruta and os.path.isfile(ruta):
+                with open(ruta, "rb") as fh:
+                    return self._send(200, fh.read(), "image/png")
+            return self._send(404, "no hay vista", "text/plain; charset=utf-8")
         if p.path == "/api/unir/vista":
             u = UNIR.get("ultimo") or {}
             if u.get("jpg") and os.path.isfile(u["jpg"]):
@@ -22052,6 +22733,23 @@ class H(BaseHTTPRequestHandler):
                 if _PROC.get("p"):
                     try: _PROC["p"].terminate()
                     except Exception: pass
+                return self._send(200, '{"ok":true}')
+            if p.path in ("/api/gc/abrir", "/api/gc/previa", "/api/gc/guardar"):
+                d = json.loads(self._body() or b"{}")
+                try:
+                    if p.path == "/api/gc/abrir":
+                        ruta, fallo = elegir_fits_gc() if d.get("elegir") else (str(d.get("ruta") or ""), False)
+                        if not ruta:
+                            return self._send(200, json.dumps({"ruta": "", "fallo": fallo}))
+                        return self._send(200, json.dumps(gc_abrir(ruta), ensure_ascii=False))
+                    if p.path == "/api/gc/previa":
+                        return self._send(200, json.dumps(gc_calcular(_gc_params(d))))
+                    return self._send(200, json.dumps(gc_guardar(_gc_params(d)), ensure_ascii=False))
+                except RuntimeError as e:
+                    return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+            if p.path == "/api/gc/carpeta":
+                if GC.get("ultimo") and os.path.isfile(GC["ultimo"]):
+                    abrir_sistema(GC["ultimo"], True)
                 return self._send(200, '{"ok":true}')
             if p.path == "/api/unir/carpeta":
                 d = json.loads(self._body() or b"{}")
