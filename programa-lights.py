@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.11"
+VERSION_PROG = "2026.10.03.12"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -11417,14 +11417,15 @@ async function gcGuardar(){
 }
 /* ---- modo desarrollador: herramientas en pruebas, ocultas para los demás. Se activa con siete clics seguidos en la marca ASTRO ---- */
 const DEV = {n: 0, t: 0};
-function devOn(){ try { return localStorage.getItem("astro-dev") === "1"; } catch(_){ return false; } }
+function devOn(){ try { return sessionStorage.getItem("astro-dev") === "1"; } catch(_){ return false; } }
+try { localStorage.removeItem("astro-dev"); } catch(_){}      // ya no se recuerda de una vez para otra: al cerrar ASTRO se vuelve a esconder
 function devPintar(){ $("grpDev").hidden = !devOn(); }
 $("devTit").textContent = trLT("En pruebas", "In testing");
 document.querySelector(".marca").addEventListener("click", () => {
   const ah = Date.now(); DEV.n = ah - DEV.t < 700 ? DEV.n + 1 : 1; DEV.t = ah;
   if (DEV.n < 7) return;
   DEV.n = 0;
-  if (devOn()){ try { localStorage.setItem("astro-dev", "0"); } catch(_){} devPintar(); toast(trLT("Modo desarrollador desactivado", "Developer mode off")); return; }
+  if (devOn()){ try { sessionStorage.setItem("astro-dev", "0"); } catch(_){} devPintar(); toast(trLT("Modo desarrollador desactivado", "Developer mode off")); return; }
   $("devBoxTit").textContent = trLT("Clave de desarrollador", "Developer key");
   $("devNo").textContent = trLT("Cancelar", "Cancel"); $("devSi").textContent = trLT("Entrar", "Enter");
   $("devClave").value = ""; $("devMal").textContent = "";
@@ -11434,7 +11435,7 @@ async function devEntrar(){
   let ok = false;
   try { ok = (await (await fetch("/api/dev/clave", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({clave: $("devClave").value})})).json()).ok; } catch(_){}
   if (!ok){ $("devMal").textContent = trLT("Clave incorrecta", "Wrong key"); return; }
-  try { localStorage.setItem("astro-dev", "1"); } catch(_){}
+  try { sessionStorage.setItem("astro-dev", "1"); } catch(_){}
   $("devBox").classList.remove("show"); devPintar();
   toast(trLT("Modo desarrollador activado: mira «En pruebas» en el menú", "Developer mode on: see «In testing» in the menu"));
 }
