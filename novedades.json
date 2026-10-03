@@ -1,23 +1,44 @@
 [
  {
-  "version": "0.33.24",
+  "version": "0.33.25",
   "es": [
-   "**Corregir gradientes (nuevo).** En «Mi archivo» y en «Más opciones» hay una herramienta nueva para quitar del apilado el fondo desigual de la contaminación lumínica o la Luna. Eliges un FITS o XISF lineal y ASTRO separa el gradiente de las estructuras reales con un análisis a varias escalas y estadística robusta, sin poner muestras a mano. Tiene escala, suavidad, umbrales y tolerancias alto y bajo, protección de estructuras, modelo simplificado previo y convergencia automática. Se ve el antes, el después, el gradiente que se resta y la máscara de protección, y la copia corregida se guarda al lado del original (que no se toca), con su cabecera intacta. Es la primera versión: todavía no está enganchada al apilado."
+   "**Mejoras internas.** Preparativos para herramientas que llegarán más adelante."
   ],
   "en": [
-   "**Gradient correction (new).** Under «My archive» and «More options» there is a new tool to remove from a stack the uneven background from light pollution or the Moon. You choose a linear FITS or XISF and ASTRO separates the gradient from real structures with multiscale analysis and robust statistics, with no hand-placed samples. It has scale, smoothness, high and low thresholds and tolerances, structure protection, a simplified model first and automatic convergence. You see before, after, the gradient being subtracted and the protection mask, and the corrected copy is saved next to the original (which is untouched), header intact. This is the first version: it is not yet wired into stacking."
+   "**Internal improvements.** Groundwork for tools coming later."
   ],
   "fr": [
-   "**Correction des gradients (nouveau).** Dans « Mes archives » et « Plus d'options », un nouvel outil retire de l'empilement le fond inégal dû à la pollution lumineuse ou à la Lune : analyse multi-échelle et statistique robuste, sans échantillons posés à la main, avec protection des structures. La copie corrigée est enregistrée à côté de l'original, qui n'est pas modifié."
+   "**Améliorations internes.** Préparatifs pour des outils à venir."
   ],
   "de": [
-   "**Gradientenkorrektur (neu).** Unter „Mein Archiv“ und „Weitere Optionen“ gibt es ein neues Werkzeug, das den ungleichmäßigen Hintergrund durch Lichtverschmutzung oder Mond aus dem Stack entfernt: Multiskalenanalyse und robuste Statistik, ohne von Hand gesetzte Proben, mit Strukturschutz. Die korrigierte Kopie wird neben dem unveränderten Original gespeichert."
+   "**Interne Verbesserungen.** Vorbereitungen für kommende Werkzeuge."
   ],
   "it": [
-   "**Correzione dei gradienti (nuovo).** In «Il mio archivio» e «Altre opzioni» c'è un nuovo strumento che toglie dall'integrazione il fondo disuguale dovuto all'inquinamento luminoso o alla Luna: analisi multiscala e statistica robusta, senza campioni messi a mano, con protezione delle strutture. La copia corretta viene salvata accanto all'originale, che non viene toccato."
+   "**Miglioramenti interni.** Preparativi per strumenti in arrivo."
   ],
   "pt": [
-   "**Correção de gradientes (novo).** Em «O meu arquivo» e «Mais opções» há uma nova ferramenta que retira do empilhamento o fundo desigual da poluição luminosa ou da Lua: análise multiescala e estatística robusta, sem amostras colocadas à mão, com proteção de estruturas. A cópia corrigida é guardada ao lado do original, que não é alterado."
+   "**Melhorias internas.** Preparativos para ferramentas que chegarão mais tarde."
+  ]
+ },
+ {
+  "version": "0.33.24",
+  "es": [
+   "**Mejoras internas.** Preparativos para herramientas que llegarán más adelante."
+  ],
+  "en": [
+   "**Internal improvements.** Groundwork for tools coming later."
+  ],
+  "fr": [
+   "**Améliorations internes.** Préparatifs pour des outils à venir."
+  ],
+  "de": [
+   "**Interne Verbesserungen.** Vorbereitungen für kommende Werkzeuge."
+  ],
+  "it": [
+   "**Miglioramenti interni.** Preparativi per strumenti in arrivo."
+  ],
+  "pt": [
+   "**Melhorias internas.** Preparativos para ferramentas que chegarão mais tarde."
   ]
  },
  {

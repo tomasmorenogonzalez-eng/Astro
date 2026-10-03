@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.9"
+VERSION_PROG = "2026.10.03.10"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -643,7 +643,7 @@ details{margin-top:12px} details summary{cursor:pointer; color:var(--muted); fon
 .ficha .acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:10px}
 .tagEq{font-size:11px;padding:2px 7px;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:600;letter-spacing:.02em;white-space:nowrap}
 .tagEq.warn{background:var(--warn-bg);color:var(--warn)}
-.addEquipo[hidden]{display:none}
+.addEquipo[hidden]{display:none} #grpDev[hidden]{display:none!important}
 .critSec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .critSec h3{margin:0;font-size:15px}
 .critSlider{display:flex;align-items:flex-end;gap:12px;font-size:13px;color:var(--muted)} .critSlider input{flex:1;min-width:120px;accent-color:var(--accent)}
@@ -1656,7 +1656,6 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
           <span id="navCalib"></span>
           <button class="nav sub" id="btnNombres">Nombres de objeto</button>
           <button class="nav sub" id="btnRename">Renombrar por lotes</button>
-          <button class="nav sub notr" id="btnGradiente"></button>
           <button class="nav sub" id="btnRegistros" title="Los registros de la ASIAIR (sesión y guiado): qué pasó cada noche y por qué salió mal una toma">Registros de la ASIAIR</button>
           <button class="nav sub" id="btnIndicadores">Indicadores de calidad</button>
           <button class="nav sub" id="btnReport">Informe de calidad</button>
@@ -1664,6 +1663,10 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
       </div>
       <div class="grp" data-g="ciencia" id="grpCiencia" hidden>
         <a class="nav grpT" id="navCiencia" href="#"><svg class="i" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L5 18.5A1.7 1.7 0 0 0 6.5 21h11a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/><path d="M7.5 15h9"/></svg><span>Ciencia</span></a>
+      </div>
+      <div class="grp" data-g="dev" id="grpDev" hidden>
+        <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg><span class="notr" id="devTit"></span><span class="chev">›</span></button>
+        <div class="subs"><button class="nav sub notr" id="btnGradiente"></button></div>
       </div>
       <div class="grp" data-g="config">
         <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Configuración</span><span class="chev">›</span></button>
@@ -1691,7 +1694,6 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
           <button id="btnVariosMenu">Proyecto con varios equipos…</button>
           <button id="btnGrupoMenu">Unirme a un proyecto en grupo…</button>
           <button id="btnUnirMenu" title="Junta masters de un mismo objeto hechos con distintos telescopios, tuyos o de compañeros, con el encuadre del de campo más grande">Unir masters de varios equipos…</button>
-          <button id="btnGradienteMenu" class="notr"></button>
           <hr>
           <button id="btnFinder">Abrir la carpeta en el Finder</button>
           <hr>
@@ -11407,8 +11409,22 @@ async function gcGuardar(){
   if ($("gcGuardar")){ $("gcGuardar").disabled = false; $("gcGuardar").textContent = trLT("Aplicar y guardar", "Apply and save"); }
   gcHecho();
 }
-$("btnGradiente").textContent = $("btnGradienteMenu").textContent = trLT("Corregir gradientes", "Gradient correction");
-$("btnGradiente").onclick = $("btnGradienteMenu").onclick = gcAbrir;
+/* ---- modo desarrollador: herramientas en pruebas, ocultas para los demás. Se activa con siete clics seguidos en la marca ASTRO ---- */
+const DEV = {n: 0, t: 0};
+function devOn(){ try { return localStorage.getItem("astro-dev") === "1"; } catch(_){ return false; } }
+function devPintar(){ $("grpDev").hidden = !devOn(); }
+$("devTit").textContent = trLT("En pruebas", "In testing");
+document.querySelector(".marca").addEventListener("click", () => {
+  const ah = Date.now(); DEV.n = ah - DEV.t < 700 ? DEV.n + 1 : 1; DEV.t = ah;
+  if (DEV.n < 7) return;
+  DEV.n = 0;
+  try { localStorage.setItem("astro-dev", devOn() ? "0" : "1"); } catch(_){}
+  devPintar();
+  toast(devOn() ? trLT("Modo desarrollador activado: mira «En pruebas» en el menú", "Developer mode on: see «In testing» in the menu") : trLT("Modo desarrollador desactivado", "Developer mode off"));
+});
+devPintar();
+$("btnGradiente").textContent = trLT("Corregir gradientes", "Gradient correction");
+$("btnGradiente").onclick = gcAbrir;
 $("gcElegir").onclick = gcElegir;
 $("gcCerrar").onclick = () => $("gcBox").classList.remove("show");
 $("btnUnirMenu").onclick = unAbrir;
