@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.14",
+  "es": [
+   "**«¿Qué fotografío?» más grande y en paleta Hubble.** La ventana ocupa ahora casi toda la pantalla y las fotos de cada objeto son bastante mayores. Las nebulosas de emisión salen coloreadas como en la paleta Hubble (SHO): dorados y azul verdoso. Es una simulación a partir de la foto en color del cielo, no datos reales de banda estrecha; las galaxias, los cúmulos y las nebulosas de reflexión siguen al natural. Se quita con la casilla «Paleta Hubble (SHO)»."
+  ],
+  "en": [
+   "**“What to shoot?” is bigger and in the Hubble palette.** The window now takes almost the whole screen and each target's photo is much larger. Emission nebulae are coloured as in the Hubble palette (SHO): golds and teal. It is a simulation from the colour sky photo, not real narrowband data; galaxies, clusters and reflection nebulae stay natural. Untick “Hubble palette (SHO)” to turn it off."
+  ],
+  "fr": [
+   "**« Que photographier ? » plus grand et en palette Hubble.** La fenêtre occupe presque tout l'écran et les photos sont bien plus grandes. Les nébuleuses en émission sont colorées comme dans la palette Hubble (SHO) : une simulation à partir de la photo couleur du ciel, pas de vraies données à bande étroite. La case « Palette Hubble (SHO) » la désactive."
+  ],
+  "de": [
+   "**„Was fotografieren?“ größer und in der Hubble-Palette.** Das Fenster nutzt fast den ganzen Bildschirm, die Fotos sind deutlich größer. Emissionsnebel werden wie in der Hubble-Palette (SHO) eingefärbt: eine Simulation aus dem Farbfoto des Himmels, keine echten Schmalbanddaten. Mit dem Kästchen „Hubble-Palette (SHO)“ abschaltbar."
+  ],
+  "it": [
+   "**«Cosa fotografo?» più grande e in tavolozza Hubble.** La finestra occupa quasi tutto lo schermo e le foto sono molto più grandi. Le nebulose a emissione sono colorate come nella tavolozza Hubble (SHO): una simulazione dalla foto a colori del cielo, non dati reali a banda stretta. Si disattiva con la casella «Tavolozza Hubble (SHO)»."
+  ],
+  "pt": [
+   "**«O que fotografo?» maior e em paleta Hubble.** A janela ocupa quase todo o ecrã e as fotos são bastante maiores. As nebulosas de emissão aparecem coloridas como na paleta Hubble (SHO): uma simulação a partir da foto a cores do céu, não dados reais de banda estreita. Desliga-se na caixa «Paleta Hubble (SHO)»."
+  ]
+ },
+ {
   "version": "0.33.13",
   "es": [
    "**Mapa del cielo más grande y con Tycho-2 de serie.** El mapa ocupa ahora casi toda la altura de la ventana y tiene un botón «Pantalla completa» (Esc para salir). El catálogo Tycho-2 (2,5 millones de estrellas, hasta la magnitud 12) se descarga solo la primera vez que abres el mapa, sin tener que pedirlo; si lo quitas, no se vuelve a bajar.",

@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.6"
+VERSION_PROG = "2026.10.03.7"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -743,7 +743,9 @@ td.chk,th.chk{width:30px; cursor:default}
 .qfCab{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13.5px}.qfCab label{display:flex;gap:6px;align-items:center}
 .qfCab select,.qfCab input{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;font:inherit;font-size:13px}
 .qfCab .seg{margin-left:0}
-.qfRejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.qfRejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+#qfBox{padding:10px}
+.qfFoto img.sho{filter:url(#filtroSHO)}
 .qfCard{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--sombra);display:flex;flex-direction:column}
 .qfCard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .qfFoto{position:relative;aspect-ratio:3/2;background:#07060C radial-gradient(ellipse at 50% 45%,#231E33,#07060C 75%)}
@@ -1930,7 +1932,17 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
     </div>
   </details>
 </div></div>
-<div class="modal" id="qfBox"><div class="box" style="width:min(1180px,100%)">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="filtroSHO" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+<feColorMatrix in="SourceGraphic" type="matrix" values="1.0 0.10 -0.10 0 0   0.50 0.15 0.35 0 0   -0.45 0.05 1.40 0 0   0 0 0 1 0" result="oro"/>
+<feColorMatrix in="SourceGraphic" type="matrix" values="0.6 0.3 0.1 0 0  0.6 0.3 0.1 0 0  0.6 0.3 0.1 0 0  0 0 0 1 0" result="lum"/>
+<feComposite in="lum" in2="lum" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="m2"/>
+<feComposite in="m2" in2="lum" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="m"/>
+<feColorMatrix in="m" type="matrix" values="-0.45 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0" result="k"/>
+<feComposite in="oro" in2="k" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="oro2"/>
+<feColorMatrix in="m" type="matrix" values="0 0 0 0 0  0.10 0 0 0 0  0.45 0 0 0 0  0 0 0 1 0" result="tinte"/>
+<feComposite in="oro2" in2="tinte" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>
+</filter></svg>
+<div class="modal" id="qfBox"><div class="box" style="width:min(1800px,100%);max-height:97%">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>¿Qué fotografío?</h2><button class="btn small" id="qfClose">Cerrar</button></div>
   <div id="qfBody" style="display:flex;flex-direction:column;gap:10px"></div>
 </div></div>
@@ -9996,6 +10008,7 @@ function clasesDeTipo(t){   // qué filtros le van: banda ancha siempre; banda e
   return ["ancha"];
 }
 let CATALOGO = null, QF = {sel: new Set(), datos: null, grupo: "todo", ocultarTengo: false};
+try { QF.sho = localStorage.getItem("astro-qf-sho") !== "0"; } catch(_){ QF.sho = true; }
 async function catalogo(){ if (!CATALOGO) CATALOGO = await (await api("/api/catalogo")).json(); return CATALOGO; }
 function equiposDeTomas(){
   const m = new Map();
@@ -10041,7 +10054,7 @@ function encaje(tam, eq){
   return {f:.4, txt:`no cabe: mosaico de ${Math.max(2,nx)}×${Math.max(1,ny)}`, cl:"mal"};
 }
 function imagenCielo(ra, dec, eq){
-  const fovDeg = Math.min(8, Math.max(eq.fovW, eq.fovH)/60*1.08), w = 360, h = Math.round(w*eq.fovH/eq.fovW);
+  const fovDeg = Math.min(8, Math.max(eq.fovW, eq.fovH)/60*1.08), w = 560, h = Math.round(w*eq.fovH/eq.fovW);
   return `https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fcolor&width=${w}&height=${h}&fov=${fovDeg.toFixed(3)}&projection=TAN&coordsys=icrs&ra=${ra.toFixed(4)}&dec=${dec.toFixed(4)}&format=jpg`;
 }
 function clasesUsuario(){ const c = new Set(frames.map(f=>claseFiltro(f.filter))); c.add("ancha"); return c; }
@@ -10064,6 +10077,7 @@ async function abrirQueFotografio(){
     </div>
     <div class="qfCab"><div class="seg" id="qfGrupo"><button data-g="todo" class="on">Todo</button><button data-g="nebulosas">Nebulosas</button><button data-g="galaxias">Galaxias</button><button data-g="cumulos">Cúmulos</button></div>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="qfTengo" ${QF.ocultarTengo?"checked":""}> Ocultar los que ya tengo</label>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center" title="${esc(trLT("Colorea las fotos de las nebulosas de emisión como en la paleta Hubble (dorados y azul verdoso). Es una simulación a partir de la foto en color del cielo, no datos reales de banda estrecha.", "Colours the photos of emission nebulae as in the Hubble palette (golds and teal). It is a simulation from the colour sky photo, not real narrowband data."))}"><input type="checkbox" id="qfSho" ${QF.sho?"checked":""}> ${esc(trLT("Paleta Hubble (SHO)", "Hubble palette (SHO)"))}</label>
       <span class="spacer" style="flex:1"></span><span class="note" id="qfPlanN"></span>
       <button class="btn small" id="qfCopiar">Copiar la lista</button><button class="btn small" id="qfCsv">Guardar CSV</button><button class="btn small primary" id="qfNina">Guardar para N.I.N.A.</button></div>
     <div id="qfLista"><div class="note">Calculando qué se ve…</div></div>
@@ -10074,6 +10088,7 @@ async function abrirQueFotografio(){
   $("qfFocal").oninput = ()=>{ try { localStorage.setItem("astroQfFocal", $("qfFocal").value); } catch(_){} clearTimeout(QF._t); QF._t = setTimeout(qfPintar, 400); };
   $("qfSensor").onchange = ()=>{ try { localStorage.setItem("astroQfSensor", $("qfSensor").value); } catch(_){} $("qfFocal").style.display = camaraQf().focal ? "none" : ""; qfPintar(); };
   const ql = body.querySelector(".qfLugar"); if (ql) ql.onchange = async ()=>{ await activarLugarId(ql.value); programarEstaNoche(); qfCalcular(); };
+  $("qfSho").onchange = () => { QF.sho = $("qfSho").checked; try { localStorage.setItem("astro-qf-sho", QF.sho ? "1" : "0"); } catch(_){} qfPintar(); };
   body.querySelectorAll("#qfGrupo button").forEach(b => b.onclick = ()=>{ QF.grupo = b.dataset.g; body.querySelectorAll("#qfGrupo button").forEach(x=>x.classList.toggle("on", x===b)); qfPintar(); });
   $("qfCopiar").onclick = ()=>qfExportar("texto"); $("qfCsv").onclick = ()=>qfExportar("csv"); $("qfNina").onclick = ()=>qfExportar("nina");
   qfCalcular();
@@ -10093,6 +10108,8 @@ async function qfCalcular(){
   if (yo !== QF.pedida) return;
   QF.datos = datos; QF.fecha = fecha; qfPintar();
 }
+// las fotos de las nebulosas de emisión, en paleta Hubble simulada (las galaxias, los cúmulos y las de reflexión, al natural)
+const QF_SHO = new Set(["PN", "HII", "EmN", "Neb", "SNR", "Cl+N"]);
 function qfCandidatos(){
   const cat = CATALOGO || [], n = QF.datos, eq = equipoElegido(), cu = clasesUsuario(), out = [];
   const porId = new Map(cat.map(o=>[o[0], o]));
@@ -10120,7 +10137,7 @@ function qfPintar(){
     (lista.length ? `<div class="qfRejilla">${lista.map((c,i)=>{ const o = c.o, nom = ES ? (o[10]||o[9]) : o[9], sel = QF.sel.has(o[0]);
       const vw = (c.x.ventanas||{})[c.mejor.cl] || `${c.x.desde}–${c.x.hasta}`;
       return `<div class="qfCard${sel?" on":""}" data-id="${esc(o[0])}">
-        <div class="qfFoto">${o[3]!=="propio" ? `<img loading="lazy" src="${imagenCielo(o[1], o[2], eq)}" alt="" onerror="this.remove()">` : ""}<span class="qfN">${i+1}</span>${c.tengo?`<span class="qfTengo">ya lo tienes</span>`:""}</div>
+        <div class="qfFoto">${o[3]!=="propio" ? `<img loading="lazy" ${QF.sho && QF_SHO.has(o[3]) ? 'class="sho" ' : ""}src="${imagenCielo(o[1], o[2], eq)}" alt="" onerror="this.remove()">` : ""}<span class="qfN">${i+1}</span>${c.tengo?`<span class="qfTengo">ya lo tienes</span>`:""}</div>
         <div class="qfTxt"><div class="qfNom"><b class="notr">${esc(o[0])}</b>${nom?` <span class="notr">· ${esc(nom)}</span>`:""}</div>
           <div class="note"><span>${esc(TIPOS_DSO[o[3]]||o[3])}</span>${o[7]?` · <span class="notr">${esc(o[7])}</span>`:""}${o[4]?` · ${o[4]>=10?Math.round(o[4]):o[4]}′`:""}${o[6]!=null?` · mag ${o[6]}`:""}</div>
           <div class="qfHoras"><b>${fmtH(c.mejor.v)}</b> <span>con ${txtCl[c.mejor.cl]}</span> <span class="note notr">(${esc(vw)})</span></div>
