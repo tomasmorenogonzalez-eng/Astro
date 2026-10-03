@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.12"
+VERSION_PROG = "2026.10.04.1"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -11328,7 +11328,7 @@ function gcMando([k, a, b, st, n, ay]){
 }
 function gcAbrir(){
   $("menuLista").classList.remove("show");
-  $("gcTit").textContent = trLT("Corregir gradientes", "Gradient correction");
+  $("gcTit").textContent = trLT("Aplanar el fondo", "Flatten the background");
   $("gcCerrar").textContent = trLT("Cerrar", "Close");
   $("gcElegir").textContent = trLT("Elegir la imagen apilada…", "Choose the stacked image…");
   $("gcIntro").textContent = trLT("Quita del apilado el fondo desigual que dejan la contaminación lumínica o la Luna. ASTRO separa el gradiente (que vive en las escalas grandes) de las estructuras reales con un análisis a varias escalas y estadística robusta, sin poner muestras a mano, y protege galaxias y nebulosas. La imagen debe ser lineal (sin estirar) y estar recortada: sin bordes oscuros o ruidosos. El original no se toca: se guarda una copia corregida al lado.", "Removes from the stack the uneven background left by light pollution or the Moon. ASTRO separates the gradient (which lives at large scales) from real structures with multiscale analysis and robust statistics, with no hand-placed samples, and protects galaxies and nebulae. The image must be linear (unstretched) and cropped: no dark or noisy edges. The original is untouched: a corrected copy is saved next to it.");
@@ -11443,7 +11443,7 @@ $("devSi").onclick = devEntrar;
 $("devClave").onkeydown = e => { if (e.key === "Enter") devEntrar(); };
 $("devNo").onclick = () => $("devBox").classList.remove("show");
 devPintar();
-$("btnGradiente").textContent = trLT("Corregir gradientes", "Gradient correction");
+$("btnGradiente").textContent = trLT("Aplanar el fondo", "Flatten the background");
 $("btnGradiente").onclick = gcAbrir;
 $("gcElegir").onclick = gcElegir;
 $("gcCerrar").onclick = () => $("gcBox").classList.remove("show");
@@ -13884,7 +13884,7 @@ def unir_en_marco(siril, W, items, ref, destino, modo_peso="ruido", pesos_mano=N
 
 # ─── Herramienta «Unir masters»: masters sueltos de una carpeta (de varios equipos o compañeros) ───
 EXT_MASTER = (".fit", ".fits", ".fts", ".xisf")
-# ───────── Corrección de gradientes (método propio: análisis a varias escalas y estadística robusta) ─────────
+# ───────── Aplanar el fondo (método propio: análisis a varias escalas y estadística robusta) ─────────
 import array, zlib, struct, math
 
 GC_DEF = {"low_thr": 0.2, "low_tol": 0.5, "high_thr": 0.05, "high_tol": 0.0, "scale": 5.0, "smooth": 0.4,
@@ -14435,9 +14435,9 @@ def gc_guardar(P):
             GC["R"] = R
             GC["n"] += 1
         base = os.path.splitext(GC["ruta"])[0]
-        salida, k = base + "_GC.fit", 2
+        salida, k = base + "_fondo_plano.fit", 2
         while os.path.exists(salida):
-            salida, k = "%s_GC_%d.fit" % (base, k), k + 1
+            salida, k = "%s_fondo_plano_%d.fit" % (base, k), k + 1
         nota = "escala %.1f suav %.2f alto %.2f/%.2f bajo %.2f/%.2f prot %s %.2f/%.2f simp %s conv %s" % (
             P["scale"], P["smooth"], P["high_thr"], P["high_tol"], P["low_thr"], P["low_tol"], "si" if P["prot"] else "no", P["pthr"], P["pamt"],
             ("grado %d" % P["grado"]) if P["simp"] else "no", "si" if P["conv"] else "no")

@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.28",
+  "es": [
+   "**Mejoras internas.** Preparativos para herramientas que llegarán más adelante."
+  ],
+  "en": [
+   "**Internal improvements.** Groundwork for tools coming later."
+  ],
+  "fr": [
+   "**Améliorations internes.** Préparatifs pour des outils à venir."
+  ],
+  "de": [
+   "**Interne Verbesserungen.** Vorbereitungen für kommende Werkzeuge."
+  ],
+  "it": [
+   "**Miglioramenti interni.** Preparativi per strumenti in arrivo."
+  ],
+  "pt": [
+   "**Melhorias internas.** Preparativos para ferramentas que chegarão mais tarde."
+  ]
+ },
+ {
   "version": "0.33.27",
   "es": [
    "**Mejoras internas.** Preparativos para herramientas que llegarán más adelante."
