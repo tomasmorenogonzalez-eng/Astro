@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.16",
+  "es": [
+   "**Ciencia: la historia de tu cielo.** En «Magnitud límite y calidad del cielo», el botón «Medir las noches que faltan» mide una toma de cada noche del archivo y una gráfica nueva enseña cómo cambia el brillo del cielo de cada lugar con los años: con seis noches sin Luna en un año o más, dice cuánto se aclara u oscurece por año.",
+   "**Distancia con cefeidas.** Al medir una cefeida clásica en «Estrellas variables», ASTRO calcula su distancia con la relación periodo-luminosidad (sin descontar el polvo: es para ver el método). Las dos novedades están comprobadas con datos inventados, aún no con noches reales."
+  ],
+  "en": [
+   "**Science: the history of your sky.** In “Limiting magnitude and sky quality”, the “Measure the missing nights” button measures one frame from each night in the archive, and a new chart shows how each site's sky brightness changes over the years: with six moonless nights over a year or more it gives the change per year.",
+   "**Distance from Cepheids.** When you measure a classical Cepheid in “Variable stars”, ASTRO works out its distance from the period–luminosity relation (dust is not corrected: it shows the method). Both checked with synthetic data, not yet with real nights."
+  ],
+  "fr": [
+   "**Science : l'histoire de ton ciel.** Le bouton « Mesurer les nuits manquantes » mesure une pose de chaque nuit de l'archive et un nouveau graphique montre comment la brillance du ciel de chaque site évolue au fil des ans.",
+   "**Distance avec les céphéides.** En mesurant une céphéide classique, ASTRO calcule sa distance par la relation période-luminosité (sans corriger la poussière). Vérifié avec des données simulées."
+  ],
+  "de": [
+   "**Wissenschaft: die Geschichte deines Himmels.** Die Schaltfläche „Fehlende Nächte messen“ misst eine Aufnahme jeder Nacht im Archiv, und ein neues Diagramm zeigt, wie sich die Himmelshelligkeit jedes Standorts über die Jahre verändert.",
+   "**Entfernung mit Cepheiden.** Bei einer klassischen Cepheide berechnet ASTRO die Entfernung aus der Perioden-Leuchtkraft-Beziehung (ohne Staubkorrektur). Mit simulierten Daten geprüft."
+  ],
+  "it": [
+   "**Scienza: la storia del tuo cielo.** Il pulsante «Misura le notti mancanti» misura una posa per ogni notte dell'archivio e un nuovo grafico mostra come cambia negli anni la luminosità del cielo di ogni sito.",
+   "**Distanza con le cefeidi.** Misurando una cefeide classica, ASTRO calcola la distanza con la relazione periodo-luminosità (senza correggere la polvere). Verificato con dati simulati."
+  ],
+  "pt": [
+   "**Ciência: a história do teu céu.** O botão «Medir as noites em falta» mede uma imagem de cada noite do arquivo e um novo gráfico mostra como muda ao longo dos anos o brilho do céu de cada local.",
+   "**Distância com cefeidas.** Ao medir uma cefeida clássica, o ASTRO calcula a distância pela relação período-luminosidade (sem corrigir a poeira). Verificado com dados simulados."
+  ]
+ },
+ {
   "version": "0.33.15",
   "es": [
    "**Panel general: cada proyecto en curso, en su caja.** Los proyectos en curso salen ahora en tarjetas separadas, con la foto y la letra más grandes, para leer de un vistazo qué llevas, qué falta y cuándo conviene seguir."
