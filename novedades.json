@@ -1,5 +1,30 @@
 [
  {
+  "version": "0.33.22",
+  "es": [
+   "**Ciencia: diez bloques.** La patrulla de supernovas y las estrellas dobles con el movimiento propio tienen ahora su propia tarjeta y su propia página, con su historia, qué necesitas y adónde van los resultados. Las imágenes de las dos tarjetas son del telescopio espacial Hubble (NASA y ESA).",
+   "**Ejemplo práctico en cada bloque.** Arriba de cada bloque hay un botón «Ejemplo práctico, paso a paso»: un ejercicio concreto (la curva de DY Peg, el tránsito de HAT-P-32 b, el máximo de SW And, el espectro de Vega…) explicado paso por paso, con lo que deberías obtener y qué hacer si algo no sale.",
+   "Arreglado: la lista «Tus espectros» no se rellenaba desde la versión 0.33.20."
+  ],
+  "en": [
+   "**Science: ten blocks.** The supernova patrol and double stars with proper motion now have their own card and page, with their story, what you need and where results go. Both card images are from the Hubble Space Telescope (NASA and ESA).",
+   "**A worked example in every block.** At the top of each block there is a “Worked example, step by step” button: a concrete exercise (the DY Peg curve, the HAT-P-32 b transit, the SW And maximum, the spectrum of Vega…) explained step by step, with what you should get and what to do if something goes wrong.",
+   "Fixed: the “Your spectra” list was not being filled since version 0.33.20."
+  ],
+  "fr": [
+   "**Science : dix blocs.** La patrouille de supernovae et les étoiles doubles ont maintenant leur propre carte (images Hubble, NASA et ESA). **Exemple pratique dans chaque bloc :** un bouton ouvre un exercice concret expliqué pas à pas (en anglais pour l'instant). Corrigé : la liste « Tes spectres » ne se remplissait plus depuis la 0.33.20."
+  ],
+  "de": [
+   "**Wissenschaft: zehn Bereiche.** Supernova-Patrouille und Doppelsterne haben jetzt eigene Karten (Hubble-Bilder, NASA und ESA). **Praxisbeispiel in jedem Bereich:** Eine Schaltfläche öffnet eine konkrete Übung, Schritt für Schritt erklärt (vorerst auf Englisch). Behoben: Die Liste „Deine Spektren“ wurde seit 0.33.20 nicht gefüllt."
+  ],
+  "it": [
+   "**Scienza: dieci blocchi.** La pattuglia di supernove e le stelle doppie hanno ora la propria scheda (immagini Hubble, NASA ed ESA). **Esempio pratico in ogni blocco:** un pulsante apre un esercizio concreto spiegato passo per passo (per ora in inglese). Corretto: l'elenco «I tuoi spettri» non si riempiva dalla 0.33.20."
+  ],
+  "pt": [
+   "**Ciência: dez blocos.** A patrulha de supernovas e as estrelas duplas têm agora o seu próprio cartão (imagens Hubble, NASA e ESA). **Exemplo prático em cada bloco:** um botão abre um exercício concreto explicado passo a passo (por agora em inglês). Corrigido: a lista «Os teus espetros» não era preenchida desde a 0.33.20."
+  ]
+ },
+ {
   "version": "0.33.21",
   "es": [
    "**Ciencia, probada con tomas de telescopios remotos.** La patrulla de supernovas ha encontrado la SN 2023ixf en tomas reales de M 101 (magnitud 11,7, comparando junio con marzo de 2023) sin ninguna falsa alarma, y tampoco ha dado ninguna en M 74.",

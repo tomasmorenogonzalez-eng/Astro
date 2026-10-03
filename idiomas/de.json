@@ -2826,7 +2826,7 @@
 "Dar más peso a las tomas con mejor señal": "Aufnahmen mit besserem Signal stärker gewichten",
 "ASTRO pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.": "ASTRO gewichtet jede Aufnahme nach ihrem Rauschen, wie PixInsight: Eine Aufnahme mit halb so viel SNR wie die anderen zählt ein Viertel, nicht so viel wie sie.",
 "Los siete bloques": "Die sieben Bereiche",
-"Los ocho bloques": "Die acht Bereiche",
+"Los diez bloques": "Die zehn Bereiche",
 "Máximos de las próximas noches": "Maxima der kommenden Nächte",
 "Las RR Lyrae del VSX cuyo máximo se ve desde tu lugar con hora y media antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.": "RR-Lyrae-Sterne aus dem VSX, deren Maximum von deinem Standort aus mit anderthalb Stunden davor und danach zu sehen ist: der Stern über 30° hoch und die Sonne mehr als 12° unter dem Horizont. Die Uhrzeiten sind die deines Computers.",
 "Solo las del GCVS": "Nur GCVS-Sterne",

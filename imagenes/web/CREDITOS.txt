@@ -1,0 +1,10 @@
+Imágenes de las tarjetas de Ciencia que no son de los autores de ASTRO
+
+ciencia-supernovas.jpg  La supernova SN 2014J en la galaxia M 82. Telescopio espacial Hubble.
+                        Crédito: NASA, ESA, A. Goobar (Universidad de Estocolmo) y el Hubble Heritage Team (STScI/AURA).
+                        NASA Image and Video Library, GSFC_20171208_Archive_e001206.
+ciencia-dobles.jpg      Alfa Centauri A y B. Telescopio espacial Hubble.
+                        Crédito: ESA/Hubble y NASA.
+                        NASA Image and Video Library, GSFC_20171208_Archive_e000214.
+
+Las imágenes de la NASA son de uso libre citando la fuente (https://www.nasa.gov/nasa-brand-center/images-and-media/).

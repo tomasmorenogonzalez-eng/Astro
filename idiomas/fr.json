@@ -2826,7 +2826,7 @@
 "Dar más peso a las tomas con mejor señal": "Donner plus de poids aux poses au meilleur signal",
 "ASTRO pondera cada toma por su ruido, como PixInsight: una toma con la mitad de SNR que las demás cuenta una cuarta parte, no lo mismo que ellas.": "ASTRO pondère chaque pose par son bruit, comme PixInsight : une pose avec la moitié du SNR des autres compte pour un quart, pas autant qu'elles.",
 "Los siete bloques": "Les sept blocs",
-"Los ocho bloques": "Les huit blocs",
+"Los diez bloques": "Les dix blocs",
 "Máximos de las próximas noches": "Maxima des prochaines nuits",
 "Las RR Lyrae del VSX cuyo máximo se ve desde tu lugar con hora y media antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.": "Les RR Lyrae du VSX dont le maximum est visible depuis votre site avec une heure et demie avant et après : l'étoile à plus de 30° de hauteur et le Soleil à plus de 12° sous l'horizon. Les heures sont celles de votre ordinateur.",
 "Solo las del GCVS": "Seulement celles du GCVS",
