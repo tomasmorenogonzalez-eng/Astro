@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.4"
+VERSION_PROG = "2026.10.03.5"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -11626,6 +11626,8 @@ let DIAG = null;
     const b = document.createElement("span"); b.className = "betaTag"; b.textContent = "BETA"; b.title = tr("Esta es una versión de prueba: puede tener fallos. Tus comentarios ayudan a mejorarla.");
     document.querySelector(".marca h1").append(b);
   }
+  // debajo del nombre, la versión de la aplicación (la que se dice al pedir ayuda)
+  if (/^\d/.test(DIAG.version_app || "")){ const sub = document.querySelector(".marca .sub"); if (sub){ sub.classList.add("notr"); sub.textContent = tr("versión") + " " + DIAG.version_app; } }
 } catch(_){} })();
 function informarProblema(){
   const d = document.createElement("div"); d.className = "modal show"; d.id = "informeBox";
