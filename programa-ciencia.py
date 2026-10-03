@@ -89,7 +89,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.10.03.3"
+VERSION_PROG = "2026.10.03.4"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -2593,10 +2593,10 @@ def _calibrar_tanda(grupo, W, siril, hechos, k0, total):
     return rutas
 
 
-def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver, por_noche=False):
+def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siril, ver, por_noche=False, n_ref=None, compacto=False):
     """Calibra las tomas por tandas con Siril, sigue el campo (resolviendo la primera) y mide todas las estrellas
     con las aperturas dadas (en FWHM). Devuelve un registro por toma medida."""
-    alineacion = [(e["ra"], e["dec"]) for e in estrellas]
+    alineacion = [(e["ra"], e["dec"]) for e in (estrellas[:n_ref] if n_ref else estrellas)]
     registros = []
     ref = None
     previo = (0.0, 0.0)
@@ -2651,7 +2651,7 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
                     ref, previo = wcs, (0.0, 0.0)
                 # tamaño de las estrellas con las de comparación
                 fws = []
-                for e in estrellas[1:]:
+                for e in (estrellas[1:n_ref + 1] if n_ref else estrellas[1:]):
                     pp = wcs.cielo_a_pix(e["ra"], e["dec"])
                     if pp and 20 < pp[0] < img.w - 20 and 20 < pp[1] < img.h - 20:
                         v = fwhm_hfr(img, pp[0], pp[1], 3.0 * fw)
@@ -2673,7 +2673,9 @@ def _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, factores, base, siri
                     m = medir_multi(img, pp[0], pp[1], radios, rin, rout)
                     if not m:
                         continue
-                    if len(radios) == 1:
+                    if compacto:          # miles de estrellas: de cada una solo la magnitud instrumental (None si satura)
+                        medidas[e["id"]] = round(-2.5 * math.log10(m["flujo"]), 4) if m["flujo"] > 0 and m["pico"] < 0.85 * (1.0 if img.bitpix < 0 else 65535.0) else None
+                    elif len(radios) == 1:
                         medidas[e["id"]] = [round(m["flujo"], 6), round(m["sd"], 8), round(m["n_ap"], 2), m["n_an"], round(m["pico"], 6),
                                             round(m["x"], 2), round(m["y"], 2), round(m["fondo"], 6)]
                     else:
@@ -3051,6 +3053,226 @@ def zip_serie(sid, en=False):
 
 
 # ═════════════════════════════ EXOPLANETAS: EL TRÁNSITO ═════════════════════════════
+# ───────────────────────── Búsqueda de variables nuevas en un campo ─────────────────────────
+# Se miden todas las estrellas de Gaia del campo en todas las tomas, se pone cada toma a la misma escala con el conjunto
+# y se señalan las que cambian más de lo que les toca por su brillo. Las conocidas (VSX, Gaia) salen con su nombre.
+BUSCA_DIR = os.path.join(ROOT, "Búsqueda de variables")
+BUSCA_MAX_ESTRELLAS = 2500
+
+
+def _mediana_l(v):
+    v = sorted(v)
+    n = len(v)
+    return None if not n else (v[n // 2] if n % 2 else 0.5 * (v[n // 2 - 1] + v[n // 2]))
+
+
+def calcular_busca(serie):
+    """Índice de variabilidad de cada estrella: su dispersión (robusta) entre la que tienen las de su mismo brillo."""
+    est = serie["estrellas"]
+    tomas = serie["tomas"]
+    mags = serie["mags"]                       # id → [magnitud instrumental o None, una por toma]
+    nt = len(tomas)
+    g = {e["id"]: e["g"] for e in est}
+    gs = sorted(g.values())
+    g_lo, g_hi = gs[int(0.05 * len(gs))], gs[int(0.80 * len(gs))]
+    usar = [e["id"] for e in est]
+    cal = {}
+    for vuelta in range(2):                    # la segunda, sin las que han salido variables: no tuercen el cero de cada toma
+        zps = []
+        for k in range(nt):
+            o = [g[i] - mags[i][k] for i in usar if mags[i][k] is not None and g_lo <= g[i] <= g_hi]
+            zps.append(_mediana_l(o) if len(o) >= 5 else None)
+        cal = {}
+        for e in est:
+            i = e["id"]
+            cal[i] = [(mags[i][k] + zps[k]) if mags[i][k] is not None and zps[k] is not None else None for k in range(nt)]
+        filas = []
+        for e in est:
+            v = [x for x in cal[e["id"]] if x is not None]
+            if len(v) < max(6, 0.6 * nt):
+                continue
+            med = _mediana_l(v)
+            sig = 1.4826 * _mediana_l([abs(x - med) for x in v])
+            filas.append({"id": e["id"], "med": med, "sig": max(sig, 1e-4), "n": len(v)})
+        filas.sort(key=lambda f: f["med"])
+        for j, f in enumerate(filas):          # lo que les toca por su brillo: la mediana de sus vecinas en magnitud
+            a, b = max(0, j - 25), min(len(filas), j + 26)
+            f["esp"] = max(_mediana_l([x["sig"] for x in filas[a:b]]), 0.003)
+            f["indice"] = f["sig"] / f["esp"]
+        if vuelta == 0:
+            malas = {f["id"] for f in filas if f["indice"] > 2.0}
+            usar = [f["id"] for f in filas if f["id"] not in malas] or usar
+    jd = [t["jd"] for t in tomas]
+    por_id = {e["id"]: e for e in est}
+    for f in filas:
+        serie_c = cal[f["id"]]
+        # ¿cambia con orden (una curva) o a saltos sueltos (ruido, un rayo cósmico)? Correlación entre tomas seguidas
+        pares = [(serie_c[k] - f["med"], serie_c[k + 1] - f["med"]) for k in range(nt - 1)
+                 if serie_c[k] is not None and serie_c[k + 1] is not None and jd[k + 1] - jd[k] < 0.4]
+        if len(pares) >= 5:
+            sxy = sum(a * b for a, b in pares)
+            sxx = sum(a * a for a, _b in pares)
+            syy = sum(b * b for _a, b in pares)
+            f["r1"] = sxy / math.sqrt(sxx * syy) if sxx > 0 and syy > 0 else 0.0
+        else:
+            f["r1"] = None
+        v = sorted(x for x in serie_c if x is not None)
+        f["amp"] = v[int(0.95 * (len(v) - 1))] - v[int(0.05 * (len(v) - 1))]
+    cand = [f for f in filas if f["indice"] >= 2.5 or (f["indice"] >= 1.8 and (f["r1"] or 0) >= 0.5)]
+    cand.sort(key=lambda f: -(f["indice"] * (1.0 + max(0.0, f["r1"] or 0.0))))
+    conocidas = serie.get("vsx") or []
+    out = []
+    for f in cand[:80]:
+        e = por_id[f["id"]]
+        cerca = min(conocidas, key=lambda v: separacion(e["ra"], e["dec"], v["ra"], v["dec"]), default=None)
+        if cerca and separacion(e["ra"], e["dec"], cerca["ra"], cerca["dec"]) * 3600 > 6:
+            cerca = None
+        out.append({"id": f["id"], "ra": round(e["ra"], 6), "dec": round(e["dec"], 6), "g": e["g"], "mag": round(f["med"], 3), "sigma": round(f["sig"], 4),
+                    "esperada": round(f["esp"], 4), "indice": round(f["indice"], 2), "r1": round(f["r1"], 2) if f["r1"] is not None else None,
+                    "amplitud": round(f["amp"], 3), "n": f["n"], "vsx": cerca["nombre"] if cerca else "", "tipo": cerca["tipo"] if cerca else "",
+                    "periodo": cerca["periodo"] if cerca else None, "gaia_var": bool(e.get("var")),
+                    "curva": [[round(jd[k], 5), round(x, 3)] for k, x in enumerate(cal[f["id"]]) if x is not None]})
+    return {"candidatas": out, "nuevas": sum(1 for c in out if not c["vsx"] and not c["gaia_var"]),
+            "diagrama": [[round(f["med"], 2), round(f["sig"], 4), round(f["indice"], 2)] for f in filas],
+            "medidas": len(filas), "tomas": nt, "noches": len({round(t["jd"] - 0.5) for t in tomas})}
+
+
+def trabajo_busca(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "busca-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        tomas = _tomas_de_ids([i for i in (p.get("ids") or []) if i])
+        if len(tomas) < 8:
+            raise RuntimeError("para buscar variables hacen falta al menos ocho tomas del mismo campo")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[len(tomas) // 2]
+        escala = num(d0.get("escala")) or 1.0
+        w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
+        c = (WCS(h0).pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0) if _ya_resuelta(h0) else None) or coords_cabecera(h0) or (tuple(d0["coords"]) if d0.get("coords") else None)
+        if not c:
+            raise RuntimeError("las tomas no dicen adónde apuntan (ni coordenadas ni astrometría en la cabecera)")
+        ra_c, dec_c = c
+        radio = min(3.0, math.hypot(w, h) / 2 * escala / 3600.0)
+        gmax = max(11.0, min(17.0, float(p.get("gmax") or 15.0)))
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        cat = gaia_campo(ra_c, dec_c, radio, gmax=gmax)
+        anio = f0.year + (f0.timetuple().tm_yday - 0.5) / 365.25
+        todas = []
+        for e in cat["estrellas"]:
+            if e["g"] is None or e["g"] < 7.5:
+                continue
+            ra, dec = posicion_en(e, anio)
+            todas.append({"id": e["id"], "ra": ra, "dec": dec, "g": round(e["g"], 3), "var": bool(e.get("var"))})
+        todas.sort(key=lambda e: e["dec"])
+        lim = 10.0 * max(1.0, escala) / 3600.0           # una vecina de brillo parecido a menos de unos píxeles la contamina
+        solas = []
+        for j, e in enumerate(todas):
+            mezclada = False
+            for sentido in (-1, 1):
+                k = j + sentido
+                while 0 <= k < len(todas) and abs(todas[k]["dec"] - e["dec"]) < lim:
+                    if todas[k]["g"] < e["g"] + 2.5 and separacion(e["ra"], e["dec"], todas[k]["ra"], todas[k]["dec"]) < lim:
+                        mezclada = True
+                        break
+                    k += sentido
+                if mezclada:
+                    break
+            if not mezclada:
+                solas.append(e)
+        solas.sort(key=lambda e: e["g"])
+        estrellas = solas[:BUSCA_MAX_ESTRELLAS]
+        if len(estrellas) < 30:
+            raise RuntimeError("hay muy pocas estrellas de Gaia en el campo para comparar unas con otras")
+        JOB["texto"], JOB["archivo"] = "Consultando las variables conocidas (VSX)", ""
+        try:
+            vsx = vsx_en_campo(ra_c, dec_c, radio, tomag=gmax + 1.5)
+        except Exception:
+            vsx = []
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        registros = _medir_serie(tomas, estrellas, escala, lg, ra_c, dec_c, [1.6], base, siril, ver, por_noche=True, n_ref=80, compacto=True)
+        if len(registros) < 8:
+            raise RuntimeError("no he podido medir bastantes tomas")
+        JOB["hechos"] = len(tomas)
+        JOB["texto"], JOB["archivo"] = "Buscando las que cambian", ""
+        mags = {}
+        for e in estrellas:
+            mags[e["id"]] = [t["estrellas"].get(e["id"]) for t in registros]
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "busca",
+                 "objeto": d0.get("objeto") or "", "filtro": d0.get("filtro") or "", "cam": d0.get("cam") or "", "tel": d0.get("tel") or "",
+                 "centro": [round(ra_c, 5), round(dec_c, 5)], "radio": round(radio, 4), "gmax": gmax,
+                 "noche": tomas[0][1].get("noche") or "", "noche_fin": tomas[-1][1].get("noche") or "",
+                 "estrellas": estrellas, "vsx": vsx, "mags": mags,
+                 "tomas": [{k: t.get(k) for k in ("archivo", "fecha", "jd", "hjd", "fwhm", "masa_aire")} for t in registros],
+                 "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
+        calc = calcular_busca(serie)
+        d = os.path.join(BUSCA_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        guardar_busca(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_busca(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="busca", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    threading.Thread(target=trabajo_busca, args=(p,), daemon=True).start()
+
+
+def guardar_busca(serie, calc):
+    d = os.path.join(BUSCA_DIR, serie["id"])
+    escribir_json(os.path.join(d, "calculo.json"), calc)
+    with open(os.path.join(d, "candidatas.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["gaia_dr3", "ra", "dec", "G", "mag", "sigma", "sigma_esperada", "indice", "amplitud", "correlacion", "n", "vsx", "tipo", "gaia_variable"])
+        for c in calc["candidatas"]:
+            w.writerow([c["id"], c["ra"], c["dec"], c["g"], c["mag"], c["sigma"], c["esperada"], c["indice"], c["amplitud"], c["r1"], c["n"], c["vsx"], c["tipo"], int(c["gaia_var"])])
+
+
+def series_busca():
+    out = []
+    if not os.path.isdir(BUSCA_DIR):
+        return out
+    for n in sorted(os.listdir(BUSCA_DIR), reverse=True):
+        c = leer_json(os.path.join(BUSCA_DIR, n, "calculo.json"), None)
+        s = leer_json(os.path.join(BUSCA_DIR, n, "serie.json"), None) if c else None
+        if not s:
+            continue
+        out.append({"id": s["id"], "objeto": s.get("objeto"), "noche": s.get("noche"), "noche_fin": s.get("noche_fin"), "filtro": s.get("filtro"),
+                    "tomas": c["tomas"], "noches": c["noches"], "medidas": c["medidas"], "candidatas": len(c["candidatas"]), "nuevas": c["nuevas"]})
+    return out
+
+
+def serie_busca(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    s = leer_json(os.path.join(BUSCA_DIR, sid, "serie.json"), None)
+    if not s:
+        return None, None
+    return ({k: v for k, v in s.items() if k not in ("mags", "estrellas", "vsx")}, leer_json(os.path.join(BUSCA_DIR, sid, "calculo.json"), None))
+
+
+def borrar_busca(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("no válida")
+    shutil.rmtree(os.path.join(BUSCA_DIR, sid), ignore_errors=True)
+
+
 EXO_DIR = os.path.join(ROOT, "Exoplanetas")
 EXOCLOCK_URL = "https://www.exoclock.space/database/planets_json"
 NASA_TAP = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
@@ -7839,6 +8061,13 @@ class H(BaseHTTPRequestHandler):
             if p.path == "/api/variables/zip":
                 datos, nombre = zip_serie((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
                 return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/busca/series":
+                return self._json(series_busca())
+            if p.path == "/api/busca/serie":
+                serie, calc = serie_busca((qs.get("id") or [""])[0])
+                if not serie or not calc:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                return self._json({"serie": serie, "calculo": calc})
             if p.path == "/api/exo/series":
                 return self._json(series_exo())
             if p.path == "/api/exo/serie":
@@ -8108,6 +8337,15 @@ class H(BaseHTTPRequestHandler):
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
                 return self._json({"ok": True})
+            if p.path == "/api/busca/medir":
+                try:
+                    iniciar_busca(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/busca/borrar":
+                borrar_busca(d.get("id"))
+                return self._json({"ok": True})
             if p.path == "/api/variables/recalcular":
                 try:
                     if "obscode" in d or "obstype" in d:
@@ -8231,7 +8469,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ecl": ECL_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "busca": BUSCA_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ecl": ECL_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -9287,10 +9525,12 @@ th{background:var(--surface);font-weight:700}
           <h3 style="font-size:17px">Medir una estrella variable</h3>
           <div class="note">Elige la sesión con las tomas de la variable. ASTRO descarga de la AAVSO la secuencia oficial de estrellas de comparación, calibra y mide cada toma, dibuja la curva de luz y prepara el informe para WebObs.</div>
           <div class="opciones">
-            <label>Qué medir <select id="vModo"><option value="noche">Una noche</option><option value="retro">Todas las noches de un objeto (curva retrospectiva)</option></select></label>
+            <label>Qué medir <select id="vModo"><option value="noche">Una noche</option><option value="retro">Todas las noches de un objeto (curva retrospectiva)</option><option value="busca">Buscar variables nuevas en el campo</option></select></label>
+            <label id="vGmaxL" style="display:none" title="Hasta qué magnitud de Gaia se miden las estrellas del campo. Más débiles: más estrellas y más tiempo.">Estrellas hasta la magnitud <select id="vGmax"><option value="13">13</option><option value="14">14</option><option value="15" selected>15</option><option value="16">16</option></select></label>
             <label id="vPorNocheL" style="display:none" title="Con pocas tomas por noche la medida va rápida y basta para estrellas que cambian despacio. Con todas, se ve también lo que la estrella hace dentro de cada noche.">Tomas por noche <select id="vPorNoche"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="0">todas</option></select></label>
           </div>
           <div class="note" id="vRetroNota" style="display:none;margin-top:6px">Curva retrospectiva: ASTRO recorre las tomas que ya tienes guardadas de un objeto, de todas sus noches con el mismo filtro y el mismo equipo, y saca la curva de luz de meses o años de cualquier variable que haya en el campo, con un punto por noche.</div>
+          <div class="note" id="vBuscaNota" style="display:none;margin-top:6px">Búsqueda de variables: ASTRO mide todas las estrellas del campo (hasta 2500, las del catálogo Gaia) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las que ya están en el VSX salen con su nombre; las demás son candidatas a variable nueva. Cuantas más tomas y más noches, mejor.</div>
           <div id="vSesiones" style="margin-top:12px"></div>
           <div class="acciones" style="margin-top:10px"><button class="btn small" id="btnCampoVar">Buscar variables en estas tomas</button><span class="note">ASTRO pregunta al VSX de la AAVSO qué estrellas variables conocidas hay en el campo.</span></div>
           <div id="vCampo" style="margin-top:8px"></div>
@@ -9309,6 +9549,8 @@ th{background:var(--surface);font-weight:700}
         </div>
         <h3 class="seccion">Tus curvas de luz</h3>
         <div id="vSeries"></div>
+        <h3 class="seccion">Tus búsquedas de variables</h3>
+        <div id="vBuscas"></div>
       </div>
       <div id="herramientaExo" style="display:none">
         <div class="caja">
@@ -10093,7 +10335,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", exo: "exoplanetas", rr: "rrlyrae", ecl: "eclipsantes", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", busca: "variables", exo: "exoplanetas", rr: "rrlyrae", ecl: "eclipsantes", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -10107,7 +10349,8 @@ async function sondear(){
   if (e.activo) CIELO.sondeo = setTimeout(sondear, 1200);
   else if (CIELO._activo) {
     CIELO._activo = false;
-    if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
+    if (e.tipo === "busca"){ cargarBuscas(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verBusca(e.resultados[0]); }
+    else if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
     else if (e.tipo === "rr"){ cargarSeriesRR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "rrlyrae") verRR(e.resultados[0]); }
     else if (e.tipo === "ecl"){ cargarSeriesECL(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "eclipsantes") verECL(e.resultados[0]); }
@@ -10296,7 +10539,7 @@ async function abrirVariables(){
   $("vObscode").value = VAR.cfg.obscode || ""; $("vObstype").value = VAR.cfg.obstype || "CCD";
   if (!CIELO.estado){ try { CIELO.estado = await (await api("/api/estado")).json(); } catch(_){} }
   if (!VAR.sesiones){ try { VAR.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ VAR.sesiones = []; } }
-  pintarSesionesVar(); cargarSeries(); sondear();
+  pintarSesionesVar(); cargarSeries(); cargarBuscas(); sondear();
 }
 function gruposRetro(){
   const m = new Map();
@@ -10306,13 +10549,15 @@ function gruposRetro(){
     if (!m.has(k)) m.set(k, {objeto: s.objeto, filtro: s.filtro, filtro_original: s.filtro_original, cam: s.cam, tel: s.tel, aavso: s.aavso, ses: []});
     m.get(k).ses.push(s);
   }
-  const out = [...m.values()].filter(g => g.ses.length >= 2);
+  const out = [...m.values()];
   for (const g of out){ g.ses.sort((a, b) => a.noche < b.noche ? -1 : 1); g.tomas = g.ses.reduce((a, s) => a + s.tomas.length, 0); }
+  const busca = VAR.modo === "busca";
+  for (let i = out.length - 1; i >= 0; i--) if (busca ? out[i].tomas < 8 : out[i].ses.length < 2) out.splice(i, 1);
   out.sort((a, b) => b.ses.length - a.ses.length || (a.objeto < b.objeto ? -1 : 1));
   return out;
 }
 function varSesion(){   // la sesión de la que se saca el campo: la elegida o, en una curva retrospectiva, la noche con más tomas
-  if (VAR.modo === "retro"){ const g = VAR.selG !== null ? VAR.grupos[VAR.selG] : null; return g ? g.ses.reduce((a, s) => s.tomas.length > a.tomas.length ? s : a, g.ses[0]) : null; }
+  if (VAR.modo !== "noche"){ const g = VAR.selG !== null ? VAR.grupos[VAR.selG] : null; return g ? g.ses.reduce((a, s) => s.tomas.length > a.tomas.length ? s : a, g.ses[0]) : null; }
   return VAR.sel !== null ? VAR.sesiones[VAR.sel] : null;
 }
 function idsRetro(g, n){
@@ -10323,8 +10568,11 @@ function idsRetro(g, n){
   }
   return ids;
 }
-$("vModo").onchange = () => { VAR.modo = $("vModo").value; const r = VAR.modo === "retro";
-  $("vPorNocheL").style.display = r ? "" : "none"; $("vRetroNota").style.display = r ? "" : "none";
+$("vModo").onchange = () => { VAR.modo = $("vModo").value; const r = VAR.modo === "retro", bq = VAR.modo === "busca";
+  $("vPorNocheL").style.display = r || bq ? "" : "none"; $("vRetroNota").style.display = r ? "" : "none"; $("vBuscaNota").style.display = bq ? "" : "none";
+  $("vGmaxL").style.display = bq ? "" : "none"; $("vPorNoche").value = bq ? "0" : "5"; VAR.selG = null;
+  $("vEstrella").closest(".opciones").style.display = bq ? "none" : ""; $("btnCampoVar").closest(".acciones").style.display = bq ? "none" : "";
+  $("btnVariable").textContent = tr(bq ? "Buscar variables" : "Medir la serie");
   $("vAgrupar").closest("label").style.display = r ? "none" : "";
   $("vCampo").innerHTML = ""; $("vEstrella").value = ""; pintarSesionesVar(); };
 $("vPorNoche").onchange = () => pintarSesionesVar();
@@ -10340,11 +10588,12 @@ function pintarRetro(){
     VAR.selG = +t.dataset.g;
     $("vSesiones").querySelectorAll("tr[data-g]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
     $("vEstrella").value = ""; $("vBanda").value = VAR.grupos[VAR.selG].aavso || "CV";
+    if (VAR.modo === "busca") return;
     buscarVariablesCampo();
   });
 }
 function pintarSesionesVar(){
-  if (VAR.modo === "retro") return pintarRetro();
+  if (VAR.modo !== "noche") return pintarRetro();
   const ss = (VAR.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.aavso && s.tomas.length >= 2);
   if (!ss.length){ $("vSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con varias tomas</b>Añade en Control de lights las tomas de una noche de tu estrella variable (todas con el mismo filtro).</div>`; return; }
   $("vSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th class="num">Exp (s)</th></tr></thead><tbody>${
@@ -10361,7 +10610,7 @@ function pintarSesionesVar(){
 $("btnCampoVar").onclick = () => buscarVariablesCampo();
 async function buscarVariablesCampo(){
   const s = varSesion(), sel = VAR.tok = (VAR.tok || 0) + 1;
-  if (!s){ toast(VAR.modo === "retro" ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
+  if (!s){ toast(VAR.modo !== "noche" ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
   $("vCampo").innerHTML = `<div class="note">${esc(tr("Buscando en el VSX las variables conocidas del campo…"))}</div>`;
   let d;
   try { d = await (await api("/api/variables/campo?id=" + encodeURIComponent(s.tomas[Math.floor(s.tomas.length / 2)].id))).json(); }
@@ -10384,7 +10633,14 @@ async function buscarVariablesCampo(){
 }
 $("btnVariable").onclick = async () => {
   const s = varSesion(), retro = VAR.modo === "retro";
-  if (!s){ toast(retro ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
+  if (!s){ toast(VAR.modo !== "noche" ? "Elige primero el objeto" : "Elige primero la sesión con las tomas de la variable"); return; }
+  if (VAR.modo === "busca"){
+    let ids = idsRetro(VAR.grupos[VAR.selG], +$("vPorNoche").value);
+    if (ids.length > 400) ids = ids.filter((_, k) => k % Math.ceil(ids.length / 400) === 0);      // repartidas, para no eternizarse
+    if (ids.length < 8){ toast("Para buscar variables hacen falta al menos ocho tomas"); return; }
+    try { await post("/api/busca/medir", {ids, gmax: +$("vGmax").value}); sondear(); } catch(e){ toast(e.message || e); }
+    return;
+  }
   if (!$("vEstrella").value.trim()){ toast("Escribe el nombre de la estrella como en el VSX (por ejemplo, SS Cyg)"); $("vEstrella").focus(); return; }
   try {
     await post("/api/variables/medir", {ids: retro ? idsRetro(VAR.grupos[VAR.selG], +$("vPorNoche").value) : s.tomas.map(t => t.id), estrella: $("vEstrella").value.trim(), banda: $("vBanda").value,
@@ -10401,6 +10657,66 @@ async function cargarSeries(){
       <td class="num">${x.tomas}</td><td class="num">${numEs(x.magnitud, 3)}</td><td class="num">${numEs(x.amplitud, 3)}</td><td class="num">${numEs(x.error_medio, 3)}</td>
       <td class="num">${x.check_dif != null ? (x.check_dif > 0 ? "+" : "") + numEs(x.check_dif, 3) : "—"}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   $("vSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verSerie(t.dataset.id));
+}
+/* ---- búsqueda de variables nuevas ---- */
+async function cargarBuscas(){
+  let bs; try { bs = await (await api("/api/busca/series")).json(); } catch(_){ bs = []; }
+  if (!bs.length){ $("vBuscas").innerHTML = `<div class="vacio"><b>${esc(tr("Todavía no has buscado variables en ningún campo"))}</b>${esc(tr("Elige arriba «Buscar variables nuevas en el campo», un objeto con bastantes tomas y pulsa «Buscar variables»."))}</div>`; return; }
+  $("vBuscas").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>${esc(tr("Noches"))}</th><th>${esc(tr("Objeto"))}</th><th>${esc(tr("Filtro"))}</th><th class="num">${esc(tr("Tomas"))}</th><th class="num">${esc(tr("Estrellas medidas"))}</th><th class="num">${esc(tr("Candidatas"))}</th><th class="num">${esc(tr("Sin catalogar"))}</th><th></th></tr></thead><tbody>${
+    bs.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}${x.noche_fin && x.noche_fin !== x.noche ? " → " + esc(fechaCorta(x.noche_fin)) : ""} <span class="chip">${x.noches}</span></td><td class="notr"><b>${esc(x.objeto)}</b></td><td class="notr">${esc(x.filtro)}</td>
+      <td class="num">${x.tomas}</td><td class="num">${x.medidas}</td><td class="num">${x.candidatas}</td><td class="num"><b>${x.nuevas}</b></td><td><button class="btn small">${esc(tr("Ver"))}</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("vBuscas").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verBusca(t.dataset.id));
+}
+async function verBusca(id){
+  let d; try { d = await (await api("/api/busca/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = d.calculo, C = c.candidatas;
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const sexa = (v, horas) => { const a = Math.abs(horas ? v / 15 : v), g = Math.floor(a), m = Math.floor((a - g) * 60), sg = ((a - g) * 60 - m) * 60; return (horas ? "" : (v < 0 ? "−" : "+")) + String(g).padStart(2, "0") + " " + String(m).padStart(2, "0") + " " + sg.toFixed(horas ? 2 : 1).padStart(horas ? 5 : 4, "0"); };
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.objeto || tr("Búsqueda de variables"))}</h2><div class="note"><span>${esc(fechaCorta(s.noche))}${s.noche_fin && s.noche_fin !== s.noche ? " → " + esc(fechaCorta(s.noche_fin)) : ""}</span> · <span class="notr">${esc([s.tel, s.cam, s.filtro].filter(Boolean).join(" · "))}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">${esc(tr("Cerrar"))}</button></div>
+    <div class="cifras">${cifra(c.nuevas, "", tr("Candidatas que no están en el VSX ni marcadas como variables en Gaia"), true)}${cifra(C.length, "", tr("Estrellas que cambian más de lo que les toca"))}
+      ${cifra(c.medidas, "", tr("Estrellas medidas, hasta la magnitud") + " " + numEs(s.gmax, 0))}${cifra(c.tomas, "", tr("Tomas") + " · " + c.noches + " " + tr("noches"))}</div>
+    <div class="dos"><div class="graf" id="bDiag"></div><div class="graf" id="bCurva"><h4>${esc(tr("Curva de luz"))}</h4><div class="note">${esc(tr("Pulsa una candidata de la tabla o un punto del diagrama para ver su curva."))}</div></div></div>
+    <div class="graf"><h4>${esc(tr("Candidatas, de más a menos clara"))}</h4>${C.length ? `<div class="tabla" style="max-height:360px"><table><thead><tr><th>#</th><th>${esc(tr("Qué es"))}</th><th>AR (J2000)</th><th>Dec</th><th class="num">G</th><th class="num">${esc(tr("Amplitud"))}</th><th class="num">${esc(tr("Dispersión"))}</th><th class="num" title="${esc(tr("Cuántas veces cambia más que las estrellas de su mismo brillo"))}">${esc(tr("Índice"))}</th><th class="num" title="${esc(tr("Cerca de 1: cambia con orden, como una curva. Cerca de 0: saltos sueltos, probablemente ruido."))}">${esc(tr("Orden"))}</th><th>Gaia DR3</th><th></th></tr></thead><tbody>${
+      C.map((x, i) => `<tr data-i="${i}" style="cursor:pointer"><td>${i + 1}</td><td>${x.vsx ? `<span class="notr"><b>${esc(x.vsx)}</b> ${esc(x.tipo)}</span>` : x.gaia_var ? `<span class="chip">${esc(tr("variable en Gaia"))}</span>` : `<span class="chip ya">${esc(tr("sin catalogar"))}</span>`}</td>
+        <td class="notr">${sexa(x.ra, true)}</td><td class="notr">${sexa(x.dec, false)}</td><td class="num">${numEs(x.g, 2)}</td><td class="num">${numEs(x.amplitud, 3)}</td><td class="num">${numEs(x.sigma, 3)}</td><td class="num"><b>${numEs(x.indice, 1)}</b></td><td class="num">${x.r1 != null ? numEs(x.r1, 2) : "—"}</td>
+        <td class="notr" style="font-size:12px">${esc(x.id)}</td><td><a class="btn small" target="_blank" rel="noopener" href="https://vsx.aavso.org/index.php?view=results.get&coords=${encodeURIComponent(x.ra.toFixed(5) + " " + (x.dec >= 0 ? "+" : "") + x.dec.toFixed(5))}&format=d&size=30&unit=3">VSX</a></td></tr>`).join("")}</tbody></table></div>` : `<div class="note">${esc(tr("Ninguna estrella cambia más de lo que le toca por su brillo en estas tomas."))}</div>`}
+      <div class="pie">${esc(tr("Una candidata no es un descubrimiento: antes de darla por buena, mira su curva, comprueba que no tiene una vecina pegada ni cae en el borde, y repítela otra noche. Si aguanta, búscala en el VSX con el botón (30″ alrededor) y, si no está, la AAVSO explica cómo enviarla."))}</div></div>
+    <div class="acciones"><button class="btn small" id="dCarpeta">${esc(tr("Abrir la carpeta"))}</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">${esc(tr("Borrar esta búsqueda"))}</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "busca"});
+  $("dBorrar").onclick = async () => { if (!confirm(tr("¿Borrar esta búsqueda?"))) return; await post("/api/busca/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarBuscas(); };
+  const curva = i => { const x = C[i], P = x.curva; if (!P.length) return;
+    box.querySelectorAll("tr[data-i]").forEach(t => t.classList.toggle("sel", +t.dataset.i === i));
+    // las noches, una al lado de otra (sin los huecos de días), cada una con su fecha
+    const noches = []; for (const p of P){ const u = noches[noches.length - 1]; if (u && p[0] - u[u.length - 1][0] < 0.4) u.push(p); else noches.push([p]); }
+    const W = 560, H = 300, L = 50, R = 10, Tp = 12, B = 34, hueco = 10, util = W - L - R - hueco * (noches.length - 1);
+    const dur = noches.map(n => Math.max(0.02, n[n.length - 1][0] - n[0][0])), tot = dur.reduce((a, b) => a + b, 0);
+    const ms = P.map(p => p[1]); let y0 = Math.min(...ms), y1 = Math.max(...ms); const pad = Math.max(0.02, (y1 - y0) * 0.12); y0 -= pad; y1 += pad;
+    const Y = m => Tp + (m - y0) / (y1 - y0) * (H - Tp - B); let g = "", x0 = L;
+    const pasoY = (y1 - y0) > 1 ? 0.2 : (y1 - y0) > 0.3 ? 0.05 : 0.02;
+    for (let m = Math.ceil(y0 / pasoY) * pasoY; m <= y1; m += pasoY) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m)}" y2="${Y(m)}"/><text class="tx" x="${L-6}" y="${Y(m)+4}" text-anchor="end">${numEs(m, 2)}</text>`;
+    noches.forEach((n, k) => { const an = util * dur[k] / tot;
+      g += `<rect x="${x0}" y="${Tp}" width="${an}" height="${H-Tp-B}" fill="var(--accent)" opacity=".05"/>`;
+      if (noches.length <= 8) g += `<text class="tx" x="${x0 + an / 2}" y="${H-B+15}" text-anchor="middle">${esc(new Date((n[0][0] - 2440587.5) * 864e5).toLocaleDateString(LOCALE, {day:"numeric", month:"short"}))}</text>`;
+      g += n.map(p => `<circle class="pt zp" cx="${(x0 + an * (dur[k] > 0.02 ? (p[0] - n[0][0]) / dur[k] : 0.5)).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="2.6"/>`).join(""); x0 += an + hueco; });
+    $("bCurva").innerHTML = `<h4>${esc(tr("Curva de luz"))} · <span class="notr">#${i + 1}${x.vsx ? " · " + esc(x.vsx) : ""}</span></h4><svg viewBox="0 0 ${W} ${H}" role="img" style="width:100%;height:auto">${g}</svg><div class="pie">${esc(tr("Cada franja es una noche. Magnitud en la escala G de Gaia; arriba, más brillante."))} ${esc(tr("Amplitud"))} ${numEs(x.amplitud, 3)} mag.</div>`; };
+  box.querySelectorAll("tr[data-i]").forEach(t => t.onclick = ev => { if (ev.target.closest("a")) return; curva(+t.dataset.i); });
+  // diagrama: dispersión frente a magnitud; arriba del todo, las que cambian
+  const D = c.diagrama; if (D.length){
+    const W = 560, H = 300, L = 50, R = 10, Tp = 12, B = 34;
+    const xs = D.map(p => p[0]), xa = Math.min(...xs) - 0.2, xb = Math.max(...xs) + 0.2, ya = Math.log10(0.002), yb = Math.log10(Math.max(0.5, ...D.map(p => p[1])) * 1.2);
+    const X = v => L + (v - xa) / (xb - xa) * (W - L - R), Y = v => H - B - (Math.log10(Math.max(0.002, v)) - ya) / (yb - ya) * (H - Tp - B);
+    let g = ""; for (const v of [0.003, 0.01, 0.03, 0.1, 0.3]) if (Math.log10(v) < yb) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tx" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${numEs(v, v < 0.01 ? 3 : 2)}</text>`;
+    for (let m = Math.ceil(xa); m <= xb; m++) g += `<text class="tx" x="${X(m)}" y="${H-B+15}" text-anchor="middle">${m}</text>`;
+    g += D.map(p => `<circle class="pt" cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="1.8"/>`).join("");
+    g += C.map((x, i) => `<circle data-c="${i}" style="cursor:pointer" cx="${X(x.mag).toFixed(1)}" cy="${Y(x.sigma).toFixed(1)}" r="5" fill="${x.vsx || x.gaia_var ? "var(--oro)" : "var(--accent)"}"><title>#${i + 1}${x.vsx ? " " + esc(x.vsx) : ""}</title></circle>`).join("");
+    g += `<text class="tx" x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">${esc(tr("magnitud"))}</text>`;
+    $("bDiag").innerHTML = `<h4>${esc(tr("Cuánto cambia cada estrella según su brillo"))}</h4><svg viewBox="0 0 ${W} ${H}" role="img" style="width:100%;height:auto">${g}</svg><div class="pie">${esc(tr("Cada punto es una estrella: las débiles se dispersan más por el ruido. Las que quedan muy por encima de la nube son las candidatas (en morado, sin catalogar; en dorado, ya conocidas)."))}</div>`;
+    $("bDiag").querySelectorAll("[data-c]").forEach(p => p.onclick = () => curva(+p.dataset.c));
+  }
+  if (C.length) curva(0);
 }
 async function verSerie(id, calcNuevo){
   let d; try { d = await (await api("/api/variables/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
@@ -11853,6 +12169,7 @@ DIC_EN.update({"Mínimos de las próximas noches": "Minima in the coming nights"
 DIC_EN.update({"Qué medir": "What to measure", "Una noche": "One night", "Todas las noches de un objeto (curva retrospectiva)": "Every night of an object (retrospective curve)", "Tomas por noche": "Frames per night", "todas": "all", "Con pocas tomas por noche la medida va rápida y basta para estrellas que cambian despacio. Con todas, se ve también lo que la estrella hace dentro de cada noche.": "With a few frames per night the measurement is quick and enough for slowly changing stars. With all of them you also see what the star does within each night.", "Curva retrospectiva: ASTRO recorre las tomas que ya tienes guardadas de un objeto, de todas sus noches con el mismo filtro y el mismo equipo, y saca la curva de luz de meses o años de cualquier variable que haya en el campo, con un punto por noche.": "Retrospective curve: ASTRO goes through the frames you already keep of an object, from all its nights with the same filter and the same equipment, and builds the light curve over months or years of any variable in the field, one point per night.", "No hay objetos con tomas de varias noches": "No objects with frames from several nights", "Hace falta un objeto fotografiado al menos dos noches con el mismo filtro, la misma cámara y el mismo telescopio.": "You need an object imaged on at least two nights with the same filter, camera and telescope.", "Noches": "Nights", "Desde": "From", "Hasta": "To", "Se medirán": "To be measured", "Elige primero el objeto": "Choose the object first", "noches": "nights", "Magnitud mediana": "Median magnitude", "un punto por noche": "one point per night", "Plegar": "Fold", "Curva plegada con el periodo": "Curve folded on the period", "Escribe un periodo en días": "Type a period in days", "El VSX no da periodo para esta estrella. Si conoces uno, escríbelo y pulsa «Plegar».": "The VSX gives no period for this star. If you know one, type it and press “Fold”.", "fase": "phase", "fecha": "date", "Tus tomas cubren": "Your frames span", "ciclos.": "cycles.", "Todas las noches, colocadas en el punto del ciclo que les toca: si el periodo es bueno, los puntos dibujan una sola curva limpia. Los puntos tenues son los mismos, repetidos para que se vea el ciclo entero.": "Every night, placed at its point in the cycle: if the period is right, the points trace a single clean curve. The faint points are the same ones, repeated so the whole cycle shows."})
 DIC_EN.update({"Medir las noches que faltan": "Measure the missing nights", "Una toma (la de en medio) de cada noche de tu archivo que todavía no tenga medida: así sale la historia de tu cielo a lo largo de los años.": "One frame (the middle one) from each night in your archive that has no measurement yet: this builds the history of your sky over the years.", "Todas las noches que se pueden medir ya tienen su medida": "Every night that can be measured already has its measurement", "Se va a medir una toma de cada una de estas noches:": "One frame will be measured from each of these nights:", "Puede tardar un buen rato; puedes cancelarlo cuando quieras y lo medido se queda guardado.": "It may take a good while; you can cancel at any time and what has been measured stays saved.", "Todavía no hay bastantes noches para decir si tu cielo cambia: hacen falta al menos seis noches sin Luna repartidas en un año o más.": "There are not enough nights yet to tell whether your sky is changing: at least six moonless nights spread over a year or more are needed.", "años": "years", "Tu cielo no ha cambiado de forma apreciable:": "Your sky has not changed appreciably:", "por año": "per year", "Tu cielo se está aclarando (más contaminación lumínica):": "Your sky is getting brighter (more light pollution):", "Tu cielo se está oscureciendo:": "Your sky is getting darker:", "es decir, un": "that is,", "más de luz cada año": "more light each year", "menos de luz cada año": "less light each year", "La historia de tu cielo": "The history of your sky", "Solo cuentan las noches sin Luna y con el objeto a más de 35° de altura; cada punto es la mediana de una noche. Arriba, más oscuro.": "Only moonless nights with the target above 35° count; each point is one night's median. Up is darker."})
 DIC_EN.update({"Distancia con la relación periodo-luminosidad": "Distance from the period–luminosity relation", "años luz": "light-years", "Brillo real (magnitud absoluta) que le toca por su periodo": "True brightness (absolute magnitude) implied by its period", "Módulo de distancia: lo que mides menos lo que brilla de verdad": "Distance modulus: what you measure minus its true brightness", "Es una cefeida clásica: cuanto más largo el periodo, más luminosa (Leavitt, 1912; calibración de Benedict y otros, 2007). No se descuenta el polvo que hay por el camino, que la apaga y la hace parecer más lejana: la distancia real es menor, a veces bastante. Sirve para ver el método, no para publicar.": "It is a classical Cepheid: the longer the period, the more luminous (Leavitt, 1912; calibration by Benedict et al., 2007). Dust along the way is not corrected for; it dims the star and makes it look farther: the true distance is smaller, sometimes by a lot. It shows the method; it is not for publication."})
+DIC_EN.update({"Buscar variables nuevas en el campo": "Search the field for new variables", "Hasta qué magnitud de Gaia se miden las estrellas del campo. Más débiles: más estrellas y más tiempo.": "How faint (Gaia magnitude) the field stars are measured. Fainter means more stars and more time.", "Búsqueda de variables: ASTRO mide todas las estrellas del campo (hasta 2500, las del catálogo Gaia) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las que ya están en el VSX salen con su nombre; las demás son candidatas a variable nueva. Cuantas más tomas y más noches, mejor.": "Variable search: ASTRO measures every star in the field (up to 2500, from the Gaia catalogue) in the frames you already have and flags those that change more than stars of their brightness should. Those already in the VSX are shown with their name; the rest are candidate new variables. The more frames and nights, the better.", "Tus búsquedas de variables": "Your variable searches", "Buscar variables": "Search for variables", "Para buscar variables hacen falta al menos ocho tomas": "At least eight frames are needed to search for variables", "Todavía no has buscado variables en ningún campo": "You haven't searched any field for variables yet", "Elige arriba «Buscar variables nuevas en el campo», un objeto con bastantes tomas y pulsa «Buscar variables».": "Choose “Search the field for new variables” above, a target with plenty of frames, and press “Search for variables”.", "Estrellas medidas": "Stars measured", "Candidatas": "Candidates", "Sin catalogar": "Uncatalogued", "Búsqueda de variables": "Variable search", "Candidatas que no están en el VSX ni marcadas como variables en Gaia": "Candidates not in the VSX nor flagged as variable in Gaia", "Estrellas que cambian más de lo que les toca": "Stars that change more than they should", "Estrellas medidas, hasta la magnitud": "Stars measured, down to magnitude", "Pulsa una candidata de la tabla o un punto del diagrama para ver su curva.": "Click a candidate in the table or a point in the diagram to see its curve.", "Candidatas, de más a menos clara": "Candidates, clearest first", "Qué es": "What it is", "Índice": "Index", "Orden": "Order", "Cuántas veces cambia más que las estrellas de su mismo brillo": "How many times more it varies than stars of the same brightness", "Cerca de 1: cambia con orden, como una curva. Cerca de 0: saltos sueltos, probablemente ruido.": "Near 1: it changes smoothly, like a curve. Near 0: isolated jumps, probably noise.", "variable en Gaia": "variable in Gaia", "sin catalogar": "uncatalogued", "Ninguna estrella cambia más de lo que le toca por su brillo en estas tomas.": "No star changes more than expected for its brightness in these frames.", "Una candidata no es un descubrimiento: antes de darla por buena, mira su curva, comprueba que no tiene una vecina pegada ni cae en el borde, y repítela otra noche. Si aguanta, búscala en el VSX con el botón (30″ alrededor) y, si no está, la AAVSO explica cómo enviarla.": "A candidate is not a discovery: before trusting it, look at its curve, check it has no close neighbour and is not at the edge, and repeat it another night. If it holds, look it up in the VSX with the button (30″ around) and, if it is not there, the AAVSO explains how to submit it.", "Borrar esta búsqueda": "Delete this search", "¿Borrar esta búsqueda?": "Delete this search?", "Cada franja es una noche. Magnitud en la escala G de Gaia; arriba, más brillante.": "Each band is one night. Magnitude on the Gaia G scale; up is brighter.", "magnitud": "magnitude", "Cuánto cambia cada estrella según su brillo": "How much each star varies, by brightness", "Cada punto es una estrella: las débiles se dispersan más por el ruido. Las que quedan muy por encima de la nube son las candidatas (en morado, sin catalogar; en dorado, ya conocidas).": "Each point is a star: faint ones scatter more because of noise. Those well above the cloud are the candidates (purple, uncatalogued; gold, already known).", "Consultando las variables conocidas (VSX)": "Querying known variables (VSX)", "Buscando las que cambian": "Looking for the ones that change", "para buscar variables hacen falta al menos ocho tomas del mismo campo": "at least eight frames of the same field are needed to search for variables", "hay muy pocas estrellas de Gaia en el campo para comparar unas con otras": "there are too few Gaia stars in the field to compare with one another"})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 

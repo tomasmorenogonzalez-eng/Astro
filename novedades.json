@@ -1,5 +1,28 @@
 [
  {
+  "version": "0.33.17",
+  "es": [
+   "**Ciencia: buscar variables nuevas en un campo.** En «Estrellas variables», la opción «Buscar variables nuevas en el campo» mide todas las estrellas de Gaia del campo (hasta 2500) en las tomas que ya tienes y señala las que cambian más de lo que les toca por su brillo. Las del VSX salen con su nombre; las demás son candidatas, con su curva, sus coordenadas y un botón para buscarlas en el VSX.",
+   "Es la primera versión: la detección está comprobada con estrellas inventadas (encuentra las cinco variables escondidas entre 900 sin falsas alarmas), aún no con noches reales. Una candidata no es un descubrimiento hasta repetirla."
+  ],
+  "en": [
+   "**Science: search a field for new variables.** In “Variable stars”, the option “Search the field for new variables” measures every Gaia star in the field (up to 2500) in the frames you already have and flags those that vary more than stars of their brightness should. VSX stars are shown by name; the rest are candidates, with their curve, coordinates and a button to look them up in the VSX.",
+   "First version: detection is checked with synthetic stars (it finds five hidden variables among 900 with no false alarms), not yet with real nights. A candidate is not a discovery until it is repeated."
+  ],
+  "fr": [
+   "**Science : chercher de nouvelles variables dans un champ.** Dans « Étoiles variables », l'option de recherche mesure toutes les étoiles Gaia du champ (jusqu'à 2500) dans tes poses et signale celles qui varient plus que prévu pour leur éclat. Celles du VSX portent leur nom ; les autres sont des candidates. Première version, vérifiée avec des étoiles simulées."
+  ],
+  "de": [
+   "**Wissenschaft: neue Veränderliche im Feld suchen.** Unter „Veränderliche Sterne“ misst die Suche alle Gaia-Sterne des Feldes (bis 2500) in deinen Aufnahmen und markiert jene, die stärker schwanken als für ihre Helligkeit üblich. VSX-Sterne erscheinen mit Namen, die übrigen sind Kandidaten. Erste Version, mit simulierten Sternen geprüft."
+  ],
+  "it": [
+   "**Scienza: cercare nuove variabili nel campo.** In «Stelle variabili», la ricerca misura tutte le stelle Gaia del campo (fino a 2500) nelle tue pose e segnala quelle che variano più del previsto per la loro luminosità. Quelle del VSX compaiono col nome; le altre sono candidate. Prima versione, verificata con stelle simulate."
+  ],
+  "pt": [
+   "**Ciência: procurar variáveis novas no campo.** Em «Estrelas variáveis», a pesquisa mede todas as estrelas Gaia do campo (até 2500) nas tuas imagens e assinala as que variam mais do que o esperado para o seu brilho. As do VSX aparecem com nome; as restantes são candidatas. Primeira versão, verificada com estrelas simuladas."
+  ]
+ },
+ {
   "version": "0.33.16",
   "es": [
    "**Ciencia: la historia de tu cielo.** En «Magnitud límite y calidad del cielo», el botón «Medir las noches que faltan» mide una toma de cada noche del archivo y una gráfica nueva enseña cómo cambia el brillo del cielo de cada lugar con los años: con seis noches sin Luna en un año o más, dice cuánto se aclara u oscurece por año.",
