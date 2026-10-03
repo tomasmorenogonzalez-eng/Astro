@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.9",
+  "es": [
+   "**Proyectos hechos de masters.** Si un proyecto tiene una sola imagen por equipo (masters ya apilados, de varios equipos o compañeros), «Apilar» lo avisa antes de empezar en lugar de fallar, y ofrece el botón **«Unir los masters de este proyecto…»**.",
+   "Ese mismo botón está en el paso «Apilado» de la página del proyecto: abre «Unir masters de varios equipos» con sus imágenes ya cargadas, sin tener que reunirlas a mano en una carpeta. No se copia ni se mueve nada."
+  ],
+  "en": [
+   "**Projects made of masters.** If a project has a single image per setup (masters already stacked, from several setups or colleagues), «Stack» now says so before starting instead of failing, and offers the button **«Merge this project's masters…»**.",
+   "The same button is in the «Stacking» step of the project page: it opens «Merge masters from several setups» with its images already loaded, with no need to gather them by hand in a folder. Nothing is copied or moved."
+  ],
+  "fr": [
+   "**Projets faits de masters.** Si un projet n'a qu'une image par équipement (masters déjà empilés, de plusieurs équipements ou collègues), « Empiler » le signale avant de commencer au lieu d'échouer, et propose le bouton **« Fusionner les masters de ce projet… »**.",
+   "Ce même bouton se trouve à l'étape « Empilement » de la page du projet : il ouvre la fusion de masters avec ses images déjà chargées, sans devoir les rassembler à la main dans un dossier. Rien n'est copié ni déplacé."
+  ],
+  "de": [
+   "**Projekte aus Mastern.** Hat ein Projekt nur ein Bild pro Ausrüstung (bereits gestackte Master von mehreren Ausrüstungen oder Kollegen), meldet „Stacken“ das vor dem Start, statt fehlzuschlagen, und bietet die Schaltfläche **„Die Master dieses Projekts zusammenführen…“**.",
+   "Dieselbe Schaltfläche steht im Schritt „Stacking“ der Projektseite: Sie öffnet das Zusammenführen von Mastern mit den Bildern bereits geladen, ohne sie von Hand in einem Ordner zu sammeln. Nichts wird kopiert oder verschoben."
+  ],
+  "it": [
+   "**Progetti fatti di master.** Se un progetto ha una sola immagine per attrezzatura (master già impilati, di più attrezzature o colleghi), «Impila» lo segnala prima di iniziare invece di fallire, e offre il pulsante **«Unisci i master di questo progetto…»**.",
+   "Lo stesso pulsante è nel passo «Impilamento» della pagina del progetto: apre l'unione dei master con le immagini già caricate, senza doverle raccogliere a mano in una cartella. Nulla viene copiato o spostato."
+  ],
+  "pt": [
+   "**Projetos feitos de masters.** Se um projeto tem uma só imagem por equipamento (masters já empilhados, de vários equipamentos ou colegas), «Empilhar» avisa antes de começar em vez de falhar, e oferece o botão **«Unir os masters deste projeto…»**.",
+   "Esse mesmo botão está no passo «Empilhamento» da página do projeto: abre a união de masters com as imagens já carregadas, sem ter de as reunir à mão numa pasta. Nada é copiado nem movido."
+  ]
+ },
+ {
   "version": "0.33.8",
   "es": [
    "**Analizar es mucho más rápido.** ASTRO lee y mide varias tomas a la vez, en segundo plano, sin parar la ventana, y ya no guarda toda la base de datos tras cada toma al añadir.",
