@@ -89,7 +89,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.10.01.1"
+VERSION_PROG = "2026.10.03.1"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -4955,6 +4955,651 @@ def zip_rr(sid, en=False):
     return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", rr["nombre"]), serie.get("noche") or serie["creada"][:10])
 
 
+# ═════════════════════════════ BINARIAS ECLIPSANTES: EL INSTANTE DEL MÍNIMO ═══════════════
+# Hermano del bloque de las RR Lyrae: mismas medidas y mismo ajuste (ajustar_maximo, con la curva del revés), con el
+# catálogo de eclipsantes del VSX, mínimos primarios y secundarios (ciclo con medio) y su propio archivo de salida.
+ECL_DIR = os.path.join(ROOT, "Binarias eclipsantes")
+FACTORES_ECL = [1.0, 1.3, 1.6, 2.0, 2.5]           # aperturas, en FWHM de cada toma
+ECL_VSX = "B/vsx/vsx"                                # el VSX de la AAVSO en VizieR (CDS): época del mínimo en HJD
+ECL_MARGEN_H = 2.0                                   # se observa hora y media antes y después del mínimo previsto
+ECL_VMAX_CATALOGO = 12.5
+ECL_URL = "https://var.astro.cz/"
+
+
+def _ecl_falso():
+    ruta = os.environ.get("ASTRO_RR_FALSO")               # para las pruebas, sin Internet
+    return leer_json(ruta, None) if ruta else None
+
+
+def _fila_ecl(f):
+    """Una binaria eclipsante del VSX (tabla de VizieR): nombre, posición, tipo, brillo, época del mínimo (HJD) y periodo."""
+    g = lambda *ks: next((f[k] for k in ks if k in f and f[k] not in ("", None)), None)
+    ra, dec = num(g("RAJ2000", "RAdeg", "ra")), num(g("DEJ2000", "DEdeg", "dec"))
+    e, p = num(g("Epoch", "epoca")), num(g("Period", "periodo"))
+    nombre = re.sub(r"\s+", " ", str(g("Name", "nombre") or "")).strip()
+    tipo = str(g("Type", "tipo") or "").strip()
+    if ra is None or dec is None or not e or not p or not nombre or not (0.15 <= p <= 30):
+        return None
+    if e < 100000:                                       # época abreviada (HJD − 2400000)
+        e += 2400000.0
+    mx, mn = num(g("max")), num(g("min"))
+    amp = None
+    if mn is not None:
+        amp = mn if str(g("f_min") or "").strip() == "(" else (round(mn - mx, 3) if mx is not None else None)
+    return {"nombre": nombre, "ra": ra, "dec": dec, "tipo": tipo, "epoca": e, "periodo": p, "max": mx,
+            "amplitud": amp if amp and 0 < amp < 3 else None, "banda": str(g("n_max") or "").strip(),
+            "gcvs": bool(_RE_GCVS.match(nombre)), "blazhko": False}
+
+
+def ecl_catalogo():
+    """Las binarias eclipsantes del VSX (la copia de VizieR) más brillantes que la magnitud 12,5, con su época y su
+    periodo. Se guarda un mes en el disco; sin conexión se usa la guardada, aunque sea más vieja."""
+    falso = _ecl_falso()
+    if falso is not None:
+        return [x for x in (_fila_ecl(f) for f in falso.get("lista") or []) if x]
+    os.makedirs(CATALOGOS, exist_ok=True)
+    ruta = os.path.join(CATALOGOS, "eclipsantes_vsx.json")
+    d = leer_json(ruta, None)
+    if d and time.time() - d.get("guardado", 0) < 30 * 86400:
+        return d["lista"]
+    cols = '"Name", "RAJ2000", "DEJ2000", "Type", "max", "n_max", "f_min", "min", "Epoch", "Period"'
+    tipos = "(\"Type\" LIKE 'EA%' OR \"Type\" LIKE 'EB%' OR \"Type\" LIKE 'EW%')"
+    adql = 'SELECT TOP 150000 %s FROM "%s" WHERE %s AND "max" < %.1f AND "Period" > 0.1 AND "Epoch" > 0' % (cols, ECL_VSX, tipos, ECL_VMAX_CATALOGO)
+    try:
+        filas = _tap(VIZIER_TAP, adql, timeout=240)
+    except Exception as e:
+        if d:
+            return d["lista"]
+        raise RuntimeError("No he podido descargar la lista de binarias eclipsantes del VSX (VizieR, CDS). ¿Hay conexión a Internet? %s" % e)
+    lista = [x for x in (_fila_ecl(f) for f in filas) if x]
+    if not lista:
+        raise RuntimeError("VizieR no ha devuelto ninguna binaria eclipsante: prueba otra vez dentro de un rato")
+    escribir_json(ruta, {"guardado": time.time(), "fecha": _dt.datetime.utcnow().strftime("%Y-%m-%d"), "fuente": "VSX (VizieR %s)" % ECL_VSX,
+                         "consulta": adql, "lista": lista})
+    return lista
+
+
+def buscar_ecl(nombre):
+    """Una binaria eclipsante por su nombre, con sus elementos: primero en el VSX (datos al día) y, si allí falta la época o
+    el periodo, en la lista guardada de VizieR."""
+    nombre = re.sub(r"\s+", " ", (nombre or "").replace("_", " ")).strip()
+    nombre = re.sub(r"^(V\d{3,4}|[A-Z]{1,2})([A-Z][A-Za-z]{2})$", r"\1 \2", nombre)     # RRLyr → RR Lyr
+    if not nombre:
+        return None
+    falso = _ecl_falso()
+    v = None
+    if falso is not None:
+        v = next((x for x in (falso.get("vsx") or []) if _slug(x.get("nombre")) == _slug(nombre)), None)
+    else:
+        try:
+            v = vsx_objeto(nombre)
+        except RuntimeError:
+            v = None
+    cat = None
+    if not v or not v.get("epoca") or not v.get("periodo"):
+        try:
+            cat = next((x for x in ecl_catalogo() if _slug(x["nombre"]) == _slug(nombre)), None)
+        except RuntimeError:
+            cat = None
+    if not v and not cat:
+        return None
+    if v:
+        amp, brillo = _amplitud_vsx(v.get("max"), v.get("min"))
+        r = {"nombre": v["nombre"], "auid": v.get("auid") or "", "ra": v["ra"], "dec": v["dec"], "tipo": v.get("tipo") or "",
+             "periodo": v.get("periodo"), "epoca": v.get("epoca"), "max": v.get("max") or "", "min": v.get("min") or "",
+             "amplitud": amp, "brillo": brillo, "subida": v.get("subida"), "constelacion": v.get("constelacion") or "", "fuente": "VSX (AAVSO)"}
+        if cat and (not r["epoca"] or not r["periodo"]):
+            r.update(epoca=cat["epoca"], periodo=cat["periodo"], fuente="VSX (VizieR)")
+    else:
+        r = {"nombre": cat["nombre"], "auid": "", "ra": cat["ra"], "dec": cat["dec"], "tipo": cat["tipo"], "periodo": cat["periodo"],
+             "epoca": cat["epoca"], "max": "%.2f %s" % (cat["max"], cat["banda"]) if cat["max"] is not None else "", "min": "",
+             "amplitud": cat["amplitud"], "brillo": cat["max"], "subida": None, "constelacion": "", "fuente": "VSX (VizieR)"}
+    if r["epoca"] and r["epoca"] < 100000:
+        r["epoca"] += 2400000.0
+    r["ecl"] = r["tipo"].upper().startswith("E")
+    r["blazhko"] = False
+    return r
+
+
+def minimo_previsto(rr, hjd):
+    """(instante del mínimo previsto más cercano, en HJD, y su número de ciclo desde la época)."""
+    # los mínimos secundarios caen a medio periodo (si la órbita es circular): ciclo con medio, como en las tablas de O−C
+    n2 = round(2 * (hjd - rr["epoca"]) / rr["periodo"])
+    return rr["epoca"] + n2 * rr["periodo"] / 2.0, (n2 // 2 if n2 % 2 == 0 else n2 / 2.0)
+
+
+
+def minimos_proximos(lugar_id="", dias=3, vmax=12.0, alt_min=30.0, todos=False, solo_gcvs=True):
+    """Mínimos de binarias eclipsantes de los próximos días que se ven desde un lugar con dos horas antes y después: la estrella
+    alta y el Sol más de 12° bajo el horizonte."""
+    lg = lugar_por_id(lugar_id)
+    if not lg or lg.get("lat") is None:
+        raise RuntimeError("elige un lugar con coordenadas (en «Próximas noches» del Control de lights)")
+    lat, lon = float(lg["lat"]), float(lg["lon"])
+    lista = ecl_catalogo()
+    ahora = 2440587.5 + time.time() / 86400.0
+    fin = ahora + max(1, min(14, dias))
+    m = ECL_MARGEN_H / 24.0
+    # las noches: el Sol cada 10 minutos (con un poco de margen a los lados)
+    paso = 10.0 / 1440
+    t0 = ahora - 2 * m
+    oscuro = []
+    t = t0
+    while t <= fin + 2 * m:
+        oscuro.append(luna_y_sol(t, lat, lon)["sol_alt"] <= -12)
+        t += paso
+
+    def de_noche(a, b):
+        i0, i1 = int(math.floor((a - t0) / paso)), int(math.ceil((b - t0) / paso))
+        return 0 <= i0 <= i1 < len(oscuro) and all(oscuro[i0:i1 + 1])
+
+    out = []
+    for s in lista:
+        if s["max"] is not None and s["max"] > vmax:
+            continue
+        if solo_gcvs and not s["gcvs"]:
+            continue
+        if s["dec"] < lat - 90 + alt_min or s["dec"] > lat + 90 - alt_min:        # nunca sube lo bastante
+            continue
+        P, E0 = s["periodo"], s["epoca"]
+        n = math.ceil((ahora - E0) / P)
+        while True:
+            T = E0 + n * P
+            n += 1
+            if T > fin + 0.01:
+                break
+            ancho = m if not todos else m / 2
+            if not de_noche(T - ancho - 0.006, T + ancho + 0.006):             # HJD y reloj difieren menos de 9 min
+                continue
+            tu = hjd_a_jd_utc(T, s["ra"], s["dec"])
+            if tu < ahora:
+                continue
+            completo = de_noche(tu - m, tu + m)
+            if not completo and not (todos and de_noche(tu - m / 2, tu + m / 2)):
+                continue
+            alts = [altura(s["ra"], s["dec"], x, lat, lon) for x in (tu - m, tu, tu + m)]
+            if min(alts) < alt_min:
+                if not todos or min(altura(s["ra"], s["dec"], x, lat, lon) for x in (tu - m / 2, tu, tu + m / 2)) < alt_min:
+                    continue
+                completo = False
+            ls = luna_y_sol(tu, lat, lon, s["ra"], s["dec"])
+            out.append({"estrella": s["nombre"], "tipo": s["tipo"], "periodo": round(P, 7), "max": s["max"], "banda": s["banda"],
+                        "amplitud": s["amplitud"], "blazhko": s["blazhko"], "gcvs": s["gcvs"], "maximo": _iso_jd(tu),
+                        "inicio": _iso_jd(tu - m), "fin": _iso_jd(tu + m), "hjd": round(T, 5), "alt": [round(a) for a in alts],
+                        "completo": completo, "luna_ilum": ls["luna_ilum"], "luna_sep": ls["luna_sep"],
+                        "epoca_anio": int(2000 + (E0 - 2451544.5) / 365.25), "ciclos": n - 1})
+    out.sort(key=lambda x: x["maximo"])
+    return {"lugar": lg.get("nombre", ""), "origen": "VSX (AAVSO), VizieR", "dias": dias, "estrellas": len(lista), "maximos": out[:500]}
+
+
+def trabajo_ecl(p):
+    siril, ver = buscar_siril()
+    base = os.path.join(TRABAJO_DIR, "ecl-" + time.strftime("%Y%m%d-%H%M%S"))
+    try:
+        ids = [i for i in (p.get("ids") or []) if i]
+        JOB["texto"], JOB["archivo"] = "Buscando la estrella en el VSX", p.get("estrella") or ""
+        rr = buscar_ecl(p.get("estrella") or "")
+        if not rr:
+            raise RuntimeError("no encuentro la estrella «%s» en el VSX de la AAVSO: escribe su nombre como allí (por ejemplo, W UMa o U Cep)" % (p.get("estrella") or ""))
+        if not rr.get("periodo") or not rr.get("epoca"):
+            raise RuntimeError("el VSX no da el periodo y la época de la estrella «%s»: sin ellos no se puede calcular el O−C" % rr["nombre"])
+        tomas = _tomas_de_ids(ids)
+        if len(tomas) < 15:
+            raise RuntimeError("para un mínimo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)")
+        JOB["total"] = len(tomas)
+        f0, d0, h0, _e = tomas[0]
+        escala = num(d0.get("escala")) or 1.0
+        w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
+        JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
+        g_t = (rr["brillo"] + (rr["amplitud"] or 0.6) / 2) if rr.get("brillo") is not None else 12.0
+        estrellas, cat = _comparaciones_gaia(rr["ra"], rr["dec"], g_t, w, h, escala, f0)
+        estrellas[0]["nombre"] = rr["nombre"]
+        lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
+        color = bool(h0.get("BAYERPAT")) or d0.get("bayer")
+        filtro = banda_aavso(h0.get("FILTER") or d0.get("filtro"), color)
+        registros = _medir_serie(tomas, estrellas, escala, lg, estrellas[0]["ra"], estrellas[0]["dec"], FACTORES_ECL, base, siril, ver)
+        if len(registros) < 15:
+            raise RuntimeError("no he podido medir bastantes tomas")
+        JOB["hechos"] = len(tomas)
+        JOB["texto"], JOB["archivo"] = "Ajustando el mínimo", ""
+        serie = {"id": _id_medida(), "creada": time.strftime("%Y-%m-%dT%H:%M:%S"), "version": VERSION_PROG, "tipo": "eclipsante",
+                 "estrella": rr, "estrellas": estrellas, "tomas": registros, "factores": FACTORES_ECL, "filtro": filtro,
+                 "filtro_original": d0.get("filtro") or "", "objeto": d0.get("objeto") or "", "cam": d0.get("cam") or "", "tel": d0.get("tel") or "",
+                 "noche": d0.get("noche") or "", "lugar": {"nombre": (lg or {}).get("nombre", ""), "lat": (lg or {}).get("lat"), "lon": (lg or {}).get("lon")},
+                 "calibracion": sorted({"%s: %s" % (k, (d.get(k) or {}).get("desc")) for _f, d, _h, _e in tomas for k in ("dark", "bias", "flat") if d.get(k)}),
+                 "catalogo": {"fuente": cat.get("fuente"), "fecha": cat.get("fecha")}, "siril": ver}
+        d = os.path.join(ECL_DIR, serie["id"])
+        os.makedirs(d, exist_ok=True)
+        escribir_json(os.path.join(d, "serie.json"), serie)
+        calc = calcular_ecl(serie, {"frac": p.get("frac"), "grado": p.get("grado")})
+        guardar_ecl(serie, calc)
+        JOB["resultados"].append(serie["id"])
+        JOB["texto"], JOB["archivo"] = "Terminado", ""
+    except Cancelado:
+        JOB["texto"], JOB["archivo"] = "Cancelado", ""
+    except Exception as e:
+        JOB["errores"].append({"nombre": "", "error": str(e)})
+        JOB["texto"], JOB["archivo"] = "No se ha podido terminar", ""
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+        JOB["activo"] = False
+        JOB["sub"] = ""
+        JOB["fin"] = time.time()
+
+
+def iniciar_ecl(p):
+    with _LOCK:
+        if JOB["activo"]:
+            raise RuntimeError("ya hay una medida en marcha")
+        if not p.get("ids"):
+            raise RuntimeError("no hay nada que medir")
+        JOB.update(activo=True, tipo="ecl", texto="Empezando", archivo="", sub="", hechos=0, total=len(p["ids"]), log=[],
+                   cancelar=False, resultados=[], errores=[], inicio=time.time(), fin=0.0)
+    if p.get("observador") is not None:
+        guardar_config_ciencia(observador=(p.get("observador") or "").strip())
+    threading.Thread(target=trabajo_ecl, args=(p,), daemon=True).start()
+
+
+def calcular_ecl(serie, sel):
+    """Curva de luz de la binaria eclipsante frente a la suma de las comparaciones (las elegidas o las automáticas), con la
+    apertura de menos dispersión, el ajuste del mínimo y su O−C frente a los elementos del VSX."""
+    rr = serie["estrella"]
+    est = {e["id"]: e for e in serie["estrellas"]}
+    tomas = [t for t in serie["tomas"] if t.get("hjd")]
+    nap = len(serie["factores"])
+    def no_lineal_de(t):
+        # el techo de cada toma: 1,0 si está calibrada (coma flotante) y 65535 si es de 16 bits sin calibrar; en una serie
+        # con unas y otras, un techo común dejaba sin marcar las estrellas saturadas de las calibradas
+        s_ = 1.0 if t.get("flotante") else (65535.0 if t.get("bits") == 16 else None)
+        return 0.8 * s_ if s_ else None
+
+    def g_nat(t):
+        g = num(t.get("gain"))
+        if not g or not (0.01 < g < 50):
+            return None
+        return g * (65535.0 if t.get("flotante") and t.get("bits") == 16 else 1.0)
+
+    def med(t, sid, a):
+        m = t["estrellas"].get(sid)
+        if not m or m[0][a] <= 0:
+            return None
+        f, sd, n_ap, n_an, pico = m[0][a], m[1], m[2][a], m[3], m[4]
+        g = g_nat(t)
+        var = n_ap * sd * sd * (1 + n_ap / max(n_an, 1)) + (f / g if g else 0.0)
+        return f, var, bool(no_lineal_de(t) and pico > no_lineal_de(t))
+
+    comps_todas = [e["id"] for e in serie["estrellas"][1:]]
+    utiles = []
+    for cid in comps_todas:
+        vals = [med(t, cid, nap // 2) for t in tomas]
+        if sum(1 for v in vals if v and not v[2]) >= 0.9 * len(tomas) and not est[cid].get("var"):
+            utiles.append(cid)
+    avisos = []
+    n_sat = sum(1 for t in tomas if (lambda v: v and v[2])(med(t, "T", nap // 2)))
+    if n_sat:
+        avisos.append("la estrella está saturada o casi en %d tomas: se quitan (baja la exposición o desenfoca un poco)" % n_sat)
+
+    def relativa(a, comps):
+        pts = []
+        for t in tomas:
+            vt = med(t, "T", a)
+            if not vt or vt[2]:
+                continue
+            vc = [med(t, c, a) for c in comps]
+            if any(v is None or v[2] for v in vc):
+                continue
+            sc, ec = sum(v[0] for v in vc), sum(v[1] for v in vc)
+            f = vt[0] / sc
+            pts.append((t, f, f * math.sqrt(vt[1] / vt[0] ** 2 + ec / sc ** 2)))
+        return pts
+
+    def limpiar_comps(a, comps):
+        """Quita, una a una, las comparaciones que bailan más de lo que explica su ruido o que cambian despacio a lo
+        largo de la noche (variables que Gaia no tiene marcadas), mirando cada una frente a la suma de las demás."""
+        comps = list(comps)
+        while len(comps) > 3:
+            blanco, lento = {}, {}
+            for c in comps:
+                otros = [x for x in comps if x != c]
+                ts_, vals, esp = [], [], []
+                for t in tomas:
+                    vc = med(t, c, a)
+                    vo = [med(t, x, a) for x in otros]
+                    if vc and not vc[2] and all(v and not v[2] for v in vo):
+                        so = sum(v[0] for v in vo)
+                        ts_.append(t["hjd"]); vals.append(vc[0] / so)
+                        esp.append(math.sqrt(vc[1] / vc[0] ** 2 + sum(v[1] for v in vo) / so ** 2))
+                if len(vals) < 10:
+                    blanco[c] = lento[c] = float("inf")
+                    continue
+                m = _mediana(vals)
+                rel = [x / m for x in vals]
+                pp = _p2p(rel)
+                a0, b0 = ajuste_lineal(ts_, rel)
+                rms = (sum((y - a0 - b0 * t) ** 2 for t, y in zip(ts_, rel)) / len(rel)) ** 0.5
+                blanco[c] = pp / max(1e-9, _mediana(esp))
+                lento[c] = rms / max(1e-9, pp)
+            mb = _mediana(list(blanco.values())) or 1.0
+            ml = max(1.0, _mediana(list(lento.values())) or 1.0)
+            nota = {c: max(blanco[c] / mb, lento[c] / ml) for c in comps}
+            peor = max(comps, key=lambda c: nota[c])
+            if nota[peor] > 1.6:
+                comps.remove(peor)
+            else:
+                break
+        return comps
+
+    elegidas = [c for c in (sel.get("comps") or []) if c in est and c != "T"]
+    ap_sel = sel.get("apertura")
+    candidatas = []
+    for a in ([int(ap_sel)] if ap_sel is not None and str(ap_sel) != "" and 0 <= int(ap_sel) < nap else range(nap)):
+        cs = elegidas or limpiar_comps(a, utiles)
+        if not cs:
+            continue
+        pts = relativa(a, cs)
+        if len(pts) < 12:
+            continue
+        mg = [-2.5 * math.log10(f) for _t, f, _e in pts if f > 0]
+        candidatas.append((_p2p(mg), a, cs, pts))
+    if not candidatas:
+        raise RuntimeError("no hay bastantes tomas con la estrella y sus comparaciones medidas")
+    disp, a_mejor, comps, pts = min(candidatas, key=lambda c: c[0])
+    # magnitud aproximada: la suma de las comparaciones tiene la magnitud G de Gaia de su flujo total
+    zp = -2.5 * math.log10(sum(10 ** (-0.4 * est[c]["g"]) for c in comps if est[c].get("g") is not None) or 1.0)
+    puntos = [{"jd": t["jd"], "hjd": t["hjd"], "bjd": t.get("bjd_tdb"), "mag": -2.5 * math.log10(f) + zp, "err": 1.0857 * e / f,
+               "masa_aire": t.get("masa_aire"), "archivo": t["archivo"]} for t, f, e in pts if f > 0]
+    puntos.sort(key=lambda x: x["hjd"])
+    frac = num(sel.get("frac")) or None
+    frac_elegida, frac_auto = frac, ""
+    if frac is None:
+        frac = 0.5            # en un eclipse se ajusta la mitad de abajo: el fondo solo, si es plano, no fija el instante
+    grado = int(sel["grado"]) if sel.get("grado") not in (None, "", 0, "0") else None
+
+    def beta_de_comps(a, cs):
+        """Ruido correlacionado de la noche, visto en las comparaciones: cada una frente a la suma de las demás."""
+        bs = []
+        for c in cs:
+            otros = [x for x in cs if x != c]
+            if not otros:
+                continue
+            ts_, vals = [], []
+            for t in tomas:
+                vc = med(t, c, a)
+                vo = [med(t, x, a) for x in otros]
+                if vc and not vc[2] and all(v and not v[2] for v in vo):
+                    ts_.append(t["hjd"])
+                    vals.append(vc[0] / sum(v[0] for v in vo))
+            if len(vals) < 20:
+                continue
+            m = _mediana(vals)
+            rel = [x / m for x in vals]
+            a0, b0 = ajuste_lineal(ts_, rel)
+            bs.append(ruido_rojo(ts_, [y - a0 - b0 * t for t, y in zip(ts_, rel)], (8, 25)))
+        return _mediana(bs) if bs else 1.0
+    beta_c = beta_de_comps(a_mejor, comps)
+    aj = ajustar_maximo([x["hjd"] for x in puntos], [-x["mag"] for x in puntos], [x["err"] for x in puntos],       # el mínimo de brillo es el máximo de la magnitud
+                        rr.get("periodo"), rr.get("amplitud"), frac, grado, beta_comps=beta_c)
+    en = set(aj["en_ajuste"])
+    for x in puntos:
+        x["ajuste"] = x["hjd"] in en
+    T = aj["tmax"]
+    cerca = min(puntos, key=lambda x: abs(x["hjd"] - T))
+    d_bjd = (cerca["bjd"] - cerca["hjd"]) if cerca.get("bjd") else None
+    d_jd = cerca["jd"] - cerca["hjd"]
+    C, ciclo = minimo_previsto(rr, T)
+    oc = T - C
+    fiable = not aj["borde"] and aj["err"] is not None
+    antes_min = (T - puntos[0]["hjd"]) * 1440
+    despues_min = (puntos[-1]["hjd"] - T) * 1440
+    if aj["borde"]:
+        avisos.append("la serie no llega a ver el mínimo entero: empieza después de él o termina antes, así que el instante no es de fiar")
+    elif not aj["limpio"]:
+        avisos.append("ningún polinomio sigue el mínimo sin ondas: prueba con otra ventana o otro grado")
+    if fiable and (antes_min < 20 or despues_min < 20):
+        avisos.append(("hay poca curva antes del mínimo (%.0f min): el error puede ser mayor de lo que parece" if antes_min < despues_min
+                       else "hay poca curva después del mínimo (%.0f min): el error puede ser mayor de lo que parece") % min(antes_min, despues_min))
+    if fiable and aj["err"] * 1440 > 5:
+        avisos.append("el instante del mínimo tiene un error grande (más de 5 minutos)")
+    if abs(oc) > 0.25 * rr["periodo"]:
+        avisos.append(("el mínimo medido cae lejos del previsto (O−C de %.2f periodos): ¿es la estrella buena, o sus elementos son muy antiguos?" % (oc / rr["periodo"])).replace(".", ",", 1))
+    if not rr.get("ecl"):
+        avisos.append("según el VSX, esta estrella no es una binaria eclipsante: mira su tipo arriba")
+    if aj["beta"] > 2:
+        avisos.append(("hay mucho ruido correlacionado (β = %.1f): nubes, seguimiento o enfoque; el error ya lo tiene en cuenta" % aj["beta"]).replace(".", ",", 1))
+    if aj["escala_err"] > 3:
+        avisos.append(("los puntos bailan mucho más de lo que explica su ruido (factor %.1f): nubes, seguimiento o una comparación mala" % aj["escala_err"]).replace(".", ",", 1))
+    tabla = []
+    for cid in comps_todas:
+        e = est[cid]
+        vals = [med(t, cid, a_mejor) for t in tomas]
+        ok = [v for v in vals if v and not v[2]]
+        tabla.append({"id": cid, "g": e.get("g"), "bp_rp": e.get("bp_rp"), "dist": e.get("dist"), "var": bool(e.get("var")),
+                      "presente": round(len(ok) / max(1, len(tomas)), 2), "saturada": round(sum(1 for v in vals if v and v[2]) / max(1, len(tomas)), 2),
+                      "snr": round(_mediana([v[0] / math.sqrt(v[1]) for v in ok if v[1] > 0]) or 0, 0)})
+    err = aj["err"]
+    return {"comps": comps, "apertura": a_mejor, "factor_apertura": serie["factores"][a_mejor], "fiable": fiable,
+            "tmax": round(T, 6), "tmax_err": round(err, 6) if err is not None else None, "tmax_bjd": round(T + d_bjd, 6) if d_bjd is not None else None,
+            "tmax_jd": round(T + d_jd, 6), "tmax_utc": _iso_jd(T + d_jd),
+            "err_boot": round(aj["err_boot"], 6) if aj["err_boot"] is not None else None, "err_grado": round(aj["err_grado"], 6),
+            "mag_max": round(-aj["mag"], 3), "mag_max_err": round(aj["mag_err"], 3) if aj["mag_err"] is not None else None,
+            "c_hjd": round(C, 6), "c_jd": round(C + d_jd, 6), "ciclo": ciclo, "oc": round(oc, 6), "oc_min": round(oc * 1440, 2),
+            "oc_fase": round(oc / rr["periodo"], 4), "grado": aj["grado"], "n_ajuste": aj["n"], "frac": aj["frac"], "amplitud": aj["amplitud"],
+            "amplitud_observada": aj["amplitud_observada"], "ventana_jd": [round(aj["t_ini"] + d_jd, 6), round(aj["t_fin"] + d_jd, 6)],
+            "antes_min": round(antes_min, 1), "despues_min": round(despues_min, 1), "puntos_antes": aj["antes"], "puntos_despues": aj["despues"],
+            "rms_mmag": round(aj["rms"] * 1000, 1), "escala_err": round(aj["escala_err"], 2), "cadencia_min": round(aj["cadencia"] * 1440, 2),
+            "bloque": aj["bloque"], "n_boot": aj["n_boot"], "bic": aj["bic"], "t_grados": aj["t_grados"], "pesos_grados": aj["pesos_grados"], "limpio": aj["limpio"],
+            "beta": round(aj["beta"], 2), "beta_comps": round(beta_c, 2), "err_pb": round(aj["err_pb"], 6) if aj["err_pb"] is not None else None,
+            "n": len(puntos), "zp": round(zp, 3), "frac_elegida": frac_elegida, "frac_auto": frac_auto, "grado_elegido": grado, "comps_elegidas": bool(elegidas),
+            "apertura_elegida": ap_sel is not None and str(ap_sel) != "",
+            "puntos": [{"jd": round(x["jd"], 6), "hjd": round(x["hjd"], 6), "bjd": round(x["bjd"], 6) if x.get("bjd") else None, "mag": round(x["mag"], 4),
+                        "err": round(x["err"], 4), "ajuste": x["ajuste"], "masa_aire": x["masa_aire"], "archivo": x["archivo"]} for x in puntos],
+            "modelo": [[round(t + d_jd, 6), round(-m, 4)] for t, m in aj["modelo"]], "tabla": tabla, "avisos": avisos}
+
+
+
+def archivo_minimo(serie, c):
+    """El mínimo para GEOS: una cabecera con cómo se ha medido y una línea con el resultado (instante en HJD)."""
+    rr = serie["estrella"]
+    cfg = config_ciencia()
+    obs = (cfg.get("observador") or "").strip() or "?"
+    code = (cfg.get("obscode") or "").strip().upper()
+    lg = serie.get("lugar") or {}
+    t = serie["tomas"]
+    exp = _exp_serie(serie)
+    app = os.environ.get("ASTRO_VERSION_APP") or ""
+    sitio = lg.get("nombre") or ""
+    if lg.get("lat") is not None and lg.get("lon") is not None:
+        sitio = ("%s (%.3f, %.3f)" % (sitio, lg["lat"], lg["lon"])).strip()
+    cab = ["# %s (Ciencia %s) · time of minimum of an eclipsing binary" % (("ASTRO " + app).strip(), VERSION_PROG),
+           "# Star: %s · type %s · elements from %s: epoch %.5f HJD, P = %.7f d" % (rr["nombre"], rr.get("tipo") or "?", rr.get("fuente") or "VSX", rr["epoca"], rr["periodo"]),
+           "# Observer: %s%s · site: %s" % (obs, (" (AAVSO %s)" % code) if code else "", sitio or "?"),
+           "# Instrument: %s · filter %s · exposure %s s · %d frames, %s to %s UTC" % (" + ".join(x for x in (serie.get("tel"), serie.get("cam")) if x) or "?",
+                                                                                     _geos_filtro(serie), exp, len(t), t[0]["fecha"][:16].replace("T", " "), t[-1]["fecha"][11:16]),
+           "# Times at mid-exposure: heliocentric HJD (UTC) and barycentric BJD_TDB.",
+           "# Method: differential aperture photometry against %d Gaia DR3 stars; polynomials of degree 3 to 6 fitted to the %d points within" % (len(c["comps"]), c["n_ajuste"]),
+           "#         %.0f%% of the depth above the bottom of the eclipse, BIC-weighted (best: degree %d); error: the larger of a block bootstrap of the" % (100 * c["frac"], c["grado"]),
+           "#         residuals (times beta for correlated noise) and the prayer-bead method, combined with the spread between degrees.",
+           "# O-C against the elements above: cycle E = %s, C = %.5f HJD" % (c["ciclo"], c["c_hjd"])]
+    if not c.get("fiable"):
+        cab.append("# WARNING: the series does not cover the whole minimum: the time is not reliable.")
+    cab += ["#", "# Star;HJD_max;HJD_err_d;BJD_TDB_max;E;O-C_d;Filter;N_points;Mag_max_approx_G;Method;Observer"]
+    lin = ";".join([rr["nombre"], "%.5f" % c["tmax"], "%.5f" % c["tmax_err"] if c.get("tmax_err") is not None else "?",
+                    "%.5f" % c["tmax_bjd"] if c.get("tmax_bjd") else "?", str(c["ciclo"]), "%+.5f" % c["oc"], serie.get("filtro") or "CV",
+                    str(c["n_ajuste"]), "%.2f" % c["mag_max"], "CCD, polynomial degree %d" % c["grado"], obs])
+    return "\n".join(cab + [lin]) + "\n"
+
+
+def svg_ecl(serie, c, en=False):
+    """Figura de la curva de luz con el ajuste del mínimo (SVG, para una memoria o un artículo)."""
+    W, H, L, R, T, B = 900, 520, 80, 20, 40, 60
+    pts = c["puntos"]
+    tj = c["tmax_jd"]
+    x_ = [(p["jd"] - tj) * 24 for p in pts]
+    xa, xb = min(x_), max(x_)
+    ms = [p["mag"] for p in pts]
+    y0, y1 = min(ms), max(ms)
+    py = (y1 - y0) * 0.08 or 0.05
+    y0, y1 = y0 - py, y1 + py
+    X = lambda v: L + (v - xa) / max(1e-9, xb - xa) * (W - L - R)
+    Y = lambda v: T + (v - y0) / max(1e-9, y1 - y0) * (H - T - B)
+    rr = serie["estrella"]
+    tit = "%s · %s · HJD %.5f ± %s" % (rr["nombre"], serie.get("noche") or "", c["tmax"], ("%.5f" % c["tmax_err"]) if c.get("tmax_err") is not None else "?")
+    g = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" font-family="Helvetica, Arial, sans-serif" font-size="13">' % (W, H),
+         '<rect width="100%" height="100%" fill="#fff"/>', '<text x="%d" y="24" font-size="16" font-weight="bold">%s</text>' % (L, _xml(tit))]
+    a, b = (c["ventana_jd"][0] - tj) * 24, (c["ventana_jd"][1] - tj) * 24
+    g.append('<rect x="%.1f" y="%d" width="%.1f" height="%d" fill="#f3eefb"/>' % (X(a), T, max(1, X(b) - X(a)), H - T - B))
+    paso = 0.1 if (y1 - y0) < 1.2 else 0.2
+    v = math.ceil(y0 / paso) * paso
+    while v <= y1:
+        g.append('<line x1="%d" x2="%d" y1="%.1f" y2="%.1f" stroke="#ddd"/><text x="%d" y="%.1f" text-anchor="end" fill="#555">%.1f</text>' % (L, W - R, Y(v), Y(v), L - 6, Y(v) + 4, v))
+        v += paso
+    h = math.ceil(xa * 2) / 2
+    while h <= xb:
+        g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#eee"/><text x="%.1f" y="%d" text-anchor="middle" fill="#555">%+.1f</text>' % (X(h), X(h), T, H - B, X(h), H - B + 18, h))
+        h += 0.5
+    for p, x in zip(pts, x_):
+        g.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s" opacity="%s"/>' % (X(x), Y(p["mag"]), 2.6 if p["ajuste"] else 2.0, "#5B2C87", "0.9" if p["ajuste"] else "0.35"))
+    g.append('<polyline fill="none" stroke="#C27A00" stroke-width="2.4" points="%s"/>' % " ".join("%.1f,%.1f" % (X((t - tj) * 24), Y(m)) for t, m in c["modelo"]))
+    g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#C27A00" stroke-dasharray="5 3"/>' % (X(0), X(0), T, H - B))
+    xc = (c["c_jd"] - tj) * 24
+    if xa <= xc <= xb:
+        g.append('<line x1="%.1f" x2="%.1f" y1="%d" y2="%d" stroke="#888" stroke-dasharray="2 4"/>' % (X(xc), X(xc), T, H - B))
+    g.append('<text x="%d" y="%d" text-anchor="middle" fill="#333">%s</text>' % ((L + W - R) // 2, H - 14, _xml(_L("horas desde el mínimo", "hours from minimum"))))
+    g.append('<text x="18" y="%d" transform="rotate(-90 18 %d)" text-anchor="middle" fill="#333">%s</text>' % ((T + H - B) // 2, (T + H - B) // 2, _xml(_L("magnitud (aprox. G)", "magnitude (approx. G)"))))
+    g.append("</svg>")
+    return "\n".join(g)
+
+
+def guardar_ecl(serie, c):
+    d = os.path.join(ECL_DIR, serie["id"])
+    escribir_json(os.path.join(d, "calculo.json"), c)
+    for nombre, texto in (("minimo.txt", archivo_minimo(serie, c)), ("curva.svg", svg_ecl(serie, c))):
+        with open(os.path.join(d, nombre), "w", encoding="utf-8", newline="\n") as f:
+            f.write(texto)
+    with open(os.path.join(d, "curva.csv"), "w", encoding="utf-8", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["jd_utc", "hjd_utc", "bjd_tdb", "mag_aprox_G", "error", "en_el_ajuste", "masa_aire", "archivo"])
+        for x in c["puntos"]:
+            wr.writerow([x["jd"], x["hjd"], x["bjd"], x["mag"], x["err"], 1 if x["ajuste"] else 0, x["masa_aire"], x["archivo"]])
+
+
+def series_ecl():
+    out = []
+    if not os.path.isdir(ECL_DIR):
+        return out
+    for n in sorted(os.listdir(ECL_DIR), reverse=True):
+        s = leer_json(os.path.join(ECL_DIR, n, "serie.json"), None)
+        c = leer_json(os.path.join(ECL_DIR, n, "calculo.json"), None) or {}
+        if not s:
+            continue
+        out.append({"id": s["id"], "estrella": s["estrella"]["nombre"], "noche": s.get("noche"), "filtro": s.get("filtro"), "tomas": len(s["tomas"]),
+                    "tmax": c.get("tmax"), "tmax_err": c.get("tmax_err"), "tmax_utc": c.get("tmax_utc"), "oc_min": c.get("oc_min"),
+                    "ciclo": c.get("ciclo"), "mag_max": c.get("mag_max"), "fiable": c.get("fiable"), "lugar": (s.get("lugar") or {}).get("nombre", "")})
+    return out
+
+
+def serie_ecl(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        return None, None
+    return leer_json(os.path.join(ECL_DIR, sid, "serie.json"), None), leer_json(os.path.join(ECL_DIR, sid, "calculo.json"), None)
+
+
+def recalcular_ecl(sid, sel):
+    serie, _c = serie_ecl(sid)
+    if not serie:
+        raise RuntimeError("no encuentro la medida")
+    c = calcular_ecl(serie, sel)
+    guardar_ecl(serie, c)
+    return c
+
+
+def borrar_ecl(sid):
+    if not re.match(r"^[\w-]+$", sid or ""):
+        raise RuntimeError("medida no válida")
+    shutil.rmtree(os.path.join(ECL_DIR, sid), ignore_errors=True)
+
+
+LEEME_ECL_ES = """MÍNIMO DE {estrella} · {noche} · ASTRO (apartado Ciencia)
+
+Qué hay en este paquete
+  minimo.txt      El mínimo, listo para enviar (por ejemplo a VarAstro, {geos}, o a la BAV): cómo se ha medido y una
+                línea con el resultado. El instante va en HJD (UTC) y también en BJD_TDB.
+  curva.csv     Todos los puntos: JD, HJD y BJD_TDB a mitad de la exposición, magnitud aproximada (G de Gaia),
+                error, si entra en el ajuste, masa de aire y archivo.
+  curva.svg     La figura: la curva, los puntos del ajuste, el polinomio y el instante del mínimo.
+  serie.json    Las medidas de cada toma: flujos de la estrella y de cada comparación de Gaia DR3 con cinco aperturas
+                (1 a 2,5 FWHM), fondo, FWHM y horas (JD, HJD y BJD_TDB).
+  calculo.json  Las comparaciones y la apertura elegidas, y el resultado del ajuste.
+
+Resultado
+  Mínimo: HJD {tmax:.5f} ± {err} (BJD_TDB {tbjd})
+  O−C = {oc:+.5f} d ({ocmin:+.1f} min) frente a los elementos del {fuente}: época {e0:.5f} HJD, periodo {per:.7f} d (ciclo {ciclo})
+  Brillo en el mínimo: {mag:.2f} (aproximado, en la escala G de Gaia de las comparaciones)
+
+Método
+  Tomas calibradas con los masters de la biblioteca de ASTRO y resueltas con Siril; fotometría de apertura de la
+  estrella y de estrellas de Gaia DR3 de brillo y color parecidos; se elige la apertura con menos dispersión de punto
+  a punto y se descartan las comparaciones que bailan más de lo que explica su ruido o que cambian a lo largo de la
+  noche. El mínimo se busca en la curva suavizada y se toman los {n} puntos que quedan a menos del {frac:.0f} % de la
+  amplitud por encima del fondo del eclipse. Se les ajustan polinomios de grado 3 a 6, y el instante es la media de los que no hacen
+  ondas, pesados por el BIC (el mejor, de grado {grado}). El error es el mayor entre el de remuestrear los residuos por
+  bloques ({nboot} veces, multiplicado por el factor β del ruido correlacionado) y el de las «cuentas de rosario»,
+  combinado con la diferencia entre grados.
+"""
+LEEME_ECL_EN = """MINIMUM OF {estrella} · {noche} · ASTRO (Science section)
+
+What this package contains
+  minimo.txt      The minimum, ready to submit (for example to VarAstro, {geos}, or to the BAV): how it was measured and
+                one line with the result. The time is in HJD (UTC) and also in BJD_TDB.
+  curva.csv     Every point: JD, HJD and BJD_TDB at mid-exposure, approximate magnitude (Gaia G), error, whether it
+                enters the fit, airmass and file.
+  curva.svg     The figure: the light curve, the points of the fit, the polynomial and the time of minimum.
+  serie.json    The measurements of each frame: fluxes of the star and of every Gaia DR3 comparison star with five
+                apertures (1 to 2.5 FWHM), background, FWHM and times (JD, HJD and BJD_TDB).
+  calculo.json  The comparison stars and aperture chosen, and the fit result.
+
+Result
+  Minimum: HJD {tmax:.5f} ± {err} (BJD_TDB {tbjd})
+  O−C = {oc:+.5f} d ({ocmin:+.1f} min) against the {fuente} elements: epoch {e0:.5f} HJD, period {per:.7f} d (cycle {ciclo})
+  Brightness at minimum: {mag:.2f} (approximate, on the Gaia G scale of the comparison stars)
+
+Method
+  Frames calibrated with the masters of ASTRO's library and plate-solved with Siril; aperture photometry of the star
+  and of Gaia DR3 stars of similar brightness and colour; the aperture with the lowest point-to-point scatter is
+  chosen and comparison stars that scatter more than their noise explains, or drift during the night, are dropped.
+  The minimum is located on the smoothed curve and the {n} points within {frac:.0f}% of the depth above the bottom of the eclipse
+  are taken. Polynomials of degree 3 to 6 are fitted to them, and the time is the BIC-weighted mean of those without
+  spurious waves (the best, of degree {grado}). The error is the larger of a block bootstrap of the residuals ({nboot}
+  resamplings, multiplied by the β factor of the correlated noise) and the prayer-bead method, combined with the
+  spread between degrees.
+"""
+
+
+def zip_ecl(sid, en=False):
+    serie, c = serie_ecl(sid)
+    if not serie or not c:
+        raise RuntimeError("no encuentro la medida")
+    d = os.path.join(ECL_DIR, sid)
+    rr = serie["estrella"]
+    texto = _leeme_ciencia("LEEME_ECL").format(
+        estrella=rr["nombre"], noche=serie.get("noche") or "", geos=ECL_URL, tmax=c["tmax"],
+        err=("%.5f" % c["tmax_err"]) if c.get("tmax_err") is not None else "?", tbjd=("%.5f" % c["tmax_bjd"]) if c.get("tmax_bjd") else "?",
+        oc=c["oc"], ocmin=c["oc_min"], fuente=rr.get("fuente") or "VSX", e0=rr["epoca"], per=rr["periodo"], ciclo=c["ciclo"], mag=c["mag_max"],
+        grado=c["grado"], n=c["n_ajuste"], frac=100 * c["frac"], nboot=c["n_boot"])
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(_L("LEEME.txt", "README.txt"), texto)
+        z.writestr("minimo.txt", archivo_minimo(serie, c))
+        for n in ("curva.csv", "serie.json", "calculo.json"):
+            if os.path.isfile(os.path.join(d, n)):
+                with open(os.path.join(d, n), "r", encoding="utf-8") as f:
+                    z.writestr(n, sin_rutas(f.read()))
+        z.writestr("curva.svg", svg_ecl(serie, c, en))
+    return mem.getvalue(), "ASTRO-%s-%s.zip" % (re.sub(r"[^\w.-]+", "_", rr["nombre"]), serie.get("noche") or serie["creada"][:10])
+
+
+
+
 # ═════════════════════════════ ASTEROIDES Y COMETAS: ASTROMETRÍA ═════════════════════════════
 ASTROMETRIA_DIR = os.path.join(ROOT, "Asteroides y cometas")
 SB_IDENT_URL = "https://ssd-api.jpl.nasa.gov/sb_ident.api"
@@ -7267,6 +7912,55 @@ class H(BaseHTTPRequestHandler):
                                                        solo_gcvs=(qs.get("gcvs") or ["1"])[0] == "1"))
                 except RuntimeError as e:
                     return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/ecl/series":
+                return self._json(series_ecl())
+            if p.path == "/api/ecl/serie":
+                serie, calc = serie_ecl((qs.get("id") or [""])[0])
+                if not serie:
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                resumen = {k: v for k, v in serie.items() if k != "tomas"}
+                resumen["n_tomas"] = len(serie["tomas"])
+                resumen["exp"] = _exp_serie(serie)
+                resumen["observador"] = config_ciencia().get("observador") or ""
+                return self._json({"serie": resumen, "calculo": calc})
+            if p.path == "/api/ecl/archivo":
+                sid, tipo = (qs.get("id") or [""])[0], (qs.get("tipo") or [""])[0]
+                serie, calc = serie_ecl(sid)
+                if not calc or tipo not in ("geos", "csv", "svg"):
+                    return self._send(404, "no encontrada", "text/plain; charset=utf-8")
+                base = "%s-%s" % (re.sub(r"[^\w.-]+", "_", serie["estrella"]["nombre"]), serie.get("noche") or serie["creada"][:10])
+                if tipo == "svg":
+                    return self._send(200, svg_ecl(serie, calc, idioma_actual() == "en"), "image/svg+xml; charset=utf-8",
+                                      {"Content-Disposition": 'attachment; filename="ASTRO-%s.svg"' % base})
+                if tipo == "csv":
+                    with open(os.path.join(ECL_DIR, sid, "curva.csv"), "r", encoding="utf-8") as f:
+                        return self._send(200, "\ufeff" + f.read(), "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="ASTRO-%s.csv"' % base})
+                return self._send(200, archivo_minimo(serie, calc), "text/plain; charset=utf-8", {"Content-Disposition": 'attachment; filename="minimo-%s.txt"' % base})
+            if p.path == "/api/ecl/zip":
+                datos, nombre = zip_ecl((qs.get("id") or [""])[0], (qs.get("en") or ["0"])[0] == "1")
+                return self._send(200, datos, "application/zip", {"Content-Disposition": 'attachment; filename="%s"' % nombre})
+            if p.path == "/api/ecl/estrella":
+                try:
+                    rr = buscar_ecl((qs.get("nombre") or [""])[0])
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                if not rr:
+                    return self._json({"encontrado": False})
+                jd = num((qs.get("jd") or [""])[0])
+                if jd and rr.get("periodo") and rr.get("epoca"):
+                    C, ciclo = minimo_previsto(rr, jd)
+                    utc = hjd_a_jd_utc(C, rr["ra"], rr["dec"])
+                    m = ECL_MARGEN_H / 24.0
+                    rr = dict(rr, minimo_previsto=_iso_jd(utc), inicio_previsto=_iso_jd(utc - m), fin_previsto=_iso_jd(utc + m),
+                              minimo_previsto_hjd=round(C, 5), ciclo=ciclo)
+                return self._json(dict(rr, encontrado=True, observador=config_ciencia().get("observador") or ""))
+            if p.path == "/api/ecl/proximos":
+                try:
+                    return self._json(minimos_proximos((qs.get("lugar") or [""])[0], int(num((qs.get("dias") or ["3"])[0]) or 3),
+                                                       float(num((qs.get("vmax") or ["12"])[0]) or 12), todos=(qs.get("todos") or ["0"])[0] == "1",
+                                                       solo_gcvs=(qs.get("gcvs") or ["1"])[0] == "1"))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/ast/series":
                 return self._json(series_astrometria())
             if p.path == "/api/ast/config":
@@ -7433,6 +8127,28 @@ class H(BaseHTTPRequestHandler):
                 if serie and calc:
                     guardar_rr(serie, calc)
                 return self._json({"ok": True})
+            if p.path == "/api/ecl/medir":
+                try:
+                    iniciar_ecl(d)
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+                return self._json({"ok": True})
+            if p.path == "/api/ecl/recalcular":
+                try:
+                    if d.get("observador") is not None:
+                        guardar_config_ciencia(observador=(d.get("observador") or "").strip())
+                    return self._json(recalcular_ecl(d.get("id"), d))
+                except RuntimeError as e:
+                    return self._send(400, str(e), "text/plain; charset=utf-8")
+            if p.path == "/api/ecl/borrar":
+                borrar_ecl(d.get("id"))
+                return self._json({"ok": True})
+            if p.path == "/api/ecl/observador":
+                guardar_config_ciencia(observador=(d.get("observador") or "").strip())
+                serie, calc = serie_ecl(d.get("id") or "")
+                if serie and calc:
+                    guardar_ecl(serie, calc)
+                return self._json({"ok": True})
             if p.path == "/api/ast/medir":
                 try:
                     iniciar_astrometria(d)
@@ -7494,7 +8210,7 @@ class H(BaseHTTPRequestHandler):
                     return self._send(400, str(e), "text/plain; charset=utf-8")
             if p.path == "/api/revelar":
                 mid = d.get("id") or ""
-                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
+                base = {"variable": VARIABLES_DIR, "exo": EXO_DIR, "rr": RR_DIR, "ecl": ECL_DIR, "ast": ASTROMETRIA_DIR, "hr": HR_DIR, "esp": ESPECTROS_DIR}.get(d.get("tipo"), CIELO_DIR)
                 ruta = os.path.join(base, mid) if mid and re.match(r"^[\w-]+$", mid) else ROOT
                 abrir_sistema(ruta if os.path.exists(ruta) else ROOT)
                 return self._json({"ok": True})
@@ -7519,6 +8235,7 @@ DIC_EN = {
     "Ciencia: medir con tus fotos": "Science: measuring with your images",
     "Inicio": "Home",
     "Los siete bloques": "The seven blocks",
+    "Los ocho bloques": "The eight blocks",
     "Día": "Day",
     "Noche": "Night",
     "Rojo": "Red",
@@ -8505,7 +9222,7 @@ th{background:var(--surface);font-weight:700}
     <div class="marca"><span class="logo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z"/></svg></span><div><h1>ASTRO</h1><div class="sub">Ciencia: medir con tus fotos</div></div></div>
     <a class="nav volverAstro notr" id="volverLights" href="#" style="display:none"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span class="vtx"><small></small><b></b></span></a>
     <button class="nav on" data-vista="inicio"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
-    <div class="grupo">Los siete bloques</div>
+    <div class="grupo">Los ocho bloques</div>
     <div id="navBloques"></div>
     <div id="navBonus" class="notr"></div>
     <div class="pieLat">
@@ -8531,7 +9248,7 @@ th{background:var(--surface);font-weight:700}
       </div>
       <div class="regla" style="margin-top:16px"><b>La regla de oro: medir sobre datos lineales, calibrados y con la hora exacta</b>
         <span class="note">Nada de estirar, deconvolucionar ni reducir ruido (BlurXTerminator, NoiseXTerminator…) antes de medir: cambian el brillo de cada estrella de forma distinta. Las mismas tomas sirven para las dos cosas: la copia calibrada y lineal va a la medida y la procesada, a la foto. ASTRO mide siempre sobre las tomas originales, calibradas con tu biblioteca.</span></div>
-      <h3 class="seccion">Los siete bloques</h3>
+      <h3 class="seccion">Los ocho bloques</h3>
       <div class="bloques" id="bloques"></div>
       <div class="autor"><span>Programa creado por</span> <b>Raúl Hussein Galindo · Tomás Moreno González</b><div class="escudos"><img src="/img/escudo-astrocitas.png" alt="Astrocitas" title="Astrocitas" onerror="this.remove()"><img src="/img/escudo-observatorio.png" alt="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" title="Observatorio Astronómico Valle del Bullaque (Piedrabuena, C.Real)" onerror="this.remove()"></div><div class="colab" style="margin-top:6px"><span>Colaboradores especiales:</span> <b>Francisco López · Carlos Oltra</b></div></div>
     </section>
@@ -8634,6 +9351,41 @@ th{background:var(--surface);font-weight:700}
         </div>
         <h3 class="seccion">Tus máximos</h3>
         <div id="rSeries"></div>
+      </div>
+      <div id="herramientaECL" style="display:none">
+        <div class="caja">
+          <h3 style="font-size:17px">Mínimos de las próximas noches</h3>
+          <div class="note">Las binarias eclipsantes del VSX cuyo mínimo se ve desde tu lugar con dos horas antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.</div>
+          <div class="opciones">
+            <label>Lugar <select id="qLugar"></select></label>
+            <label>Días <select id="qDias"><option value="1">1</option><option value="3" selected>3</option><option value="7">7</option></select></label>
+            <label>Estrellas hasta la magnitud <select id="qVmax"><option value="9">9</option><option value="10">10</option><option value="11" selected>11</option><option value="12">12</option></select></label>
+            <label title="Las que tienen nombre del catálogo general (GCVS), como Algol o W UMa: las más estudiadas."><input type="checkbox" id="qGcvs" checked> Solo las del GCVS</label>
+            <label><input type="checkbox" id="qTodos"> También los que se ven a medias</label>
+            <span style="flex:1"></span>
+            <button class="btn" id="btnECLProximos">Buscar mínimos</button>
+          </div>
+          <div id="qProximos" style="margin-top:12px"></div>
+        </div>
+        <div class="caja" style="margin-top:16px">
+          <h3 style="font-size:17px">Medir un mínimo</h3>
+          <div class="note">Elige la sesión con las tomas de la estrella (el eclipse entero, con margen antes y después). ASTRO busca sus elementos en el VSX, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el mínimo y calcula su O−C.</div>
+          <div id="qSesiones" style="margin-top:12px"></div>
+          <div class="opciones">
+            <label>Estrella <input id="qEstrella" list="qSugerencias" placeholder="p. ej. W UMa" autocomplete="off" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"><datalist id="qSugerencias"></datalist></label>
+            <span class="note" id="qEstrellaInfo"></span>
+          </div>
+          <div class="opciones">
+            <label title="Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la profundidad por encima del fondo del eclipse.">Ventana del ajuste <select id="qFrac"><option value="">automática (50 % de la profundidad)</option><option value="0.2">20 % de la profundidad</option><option value="0.3">30 % de la profundidad</option><option value="0.4">40 % de la profundidad</option><option value="0.5">50 % de la profundidad</option></select></label>
+            <label>Polinomio <select id="qGrado"><option value="">el que mejor encaje (BIC)</option><option value="3">grado 3</option><option value="4">grado 4</option><option value="5">grado 5</option><option value="6">grado 6</option></select></label>
+            <label>Tu nombre de observador <input id="qObservador" class="notr" placeholder="T. Moreno" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label>
+            <span style="flex:1"></span>
+            <button class="btn primary grande" id="btnECL">Medir el mínimo</button>
+          </div>
+          <div class="note" style="margin-top:10px">Hace falta conexión a Internet para el VSX y el catálogo Gaia, y Siril para calibrar y resolver.</div>
+        </div>
+        <h3 class="seccion">Tus mínimos</h3>
+        <div id="qSeries"></div>
       </div>
       <div id="herramientaAst" style="display:none">
         <div class="caja">
@@ -9040,6 +9792,34 @@ const BLOQUES = [
     "Publishing: a good series of maxima of a Blazhko star can go to OEJV, JAAVSO or the BAV Journal."],
    hara:["Maxima in the coming nights fully visible from your site","VSX elements: epoch, period and type","Gaia comparison stars, chosen and checked","Light curve in HJD and BJD_TDB","Fit of the maximum with polynomials and honest errors","O−C, file for GEOS, figure and package"]}},
 
+ {id:"eclipsantes", n:"1d", estado:"ya", icono:"eclipsantes",
+  es:{titulo:"Binarias eclipsantes: el mínimo", corto:"Cronometra el mínimo de una binaria eclipsante y sigue cómo cambia su periodo.",
+   historia:[
+    "En 1783 John Goodricke, un joven sordo de York, propuso que Algol se apagaba cada 2,87 días porque un cuerpo oscuro pasaba por delante. Tenía razón: una binaria eclipsante son dos estrellas que giran una alrededor de la otra en un plano que vemos de canto, de modo que en cada vuelta una tapa a la otra y el brillo cae.",
+    "El fondo de esa caída, el mínimo, es un instante muy bien definido. Si el periodo fuera constante, cada mínimo llegaría a la hora que da una fórmula sencilla: una época más un número entero de periodos. La diferencia entre lo observado y lo calculado, el O−C, cuenta lo que le pasa al sistema: una parábola, que las estrellas se pasan masa; una onda regular, que quizá hay un tercer cuerpo; mínimos secundarios que se desplazan, que la órbita es elíptica y va girando.",
+    "Hay miles de eclipsantes al alcance de un telescopio pequeño y muy pocos profesionales siguiéndolas. Los instantes de mínimo medidos por aficionados llenan desde hace un siglo las bases de datos con las que se estudian estos sistemas."],
+   necesitas:["Un telescopio pequeño basta: hay cientos de eclipsantes más brillantes que la magnitud 11. Cámara mono o color, mejor con filtro V o sin filtro.",
+    "El eclipse entero: desde antes de que el brillo empiece a bajar hasta después de que termine de subir, con una toma cada uno o dos minutos, sin mover el campo ni tocar el enfoque.",
+    "El reloj del ordenador sincronizado al segundo, y Siril para calibrar y resolver las tomas."],
+   programas:[["ASTRO","Prevé los mínimos, mide la curva y ajusta el instante"],["Peranso","Periodos, O−C y cálculo de máximos y mínimos"],["MAVKA","Instantes de máximos y mínimos por varios métodos"]],
+   destino:["VarAstro (var.astro.cz), de la Sociedad Astronómica Checa: recoge mínimos de eclipsantes y los añade al diagrama O−C de cada estrella.",
+    "La BAV alemana, que publica listas de mínimos, y la sección de binarias eclipsantes de la AAVSO.",
+    "Publicar: una buena serie de mínimos puede ir al OEJV, a JAAVSO o al BAV Journal."],
+   hara:["Mínimos primarios de las próximas noches que se ven enteros desde tu lugar","Elementos del VSX: época, periodo y tipo","Comparaciones de Gaia elegidas y vigiladas","Curva en HJD y BJD_TDB","Ajuste del mínimo con polinomios","Error con ruido correlacionado","O−C, también de mínimos secundarios","Archivo del mínimo y paquete de trazabilidad"]},
+  en:{titulo:"Eclipsing binaries: the minimum", corto:"Time the minimum of an eclipsing binary and follow how its period changes.",
+   historia:[
+    "In 1783 John Goodricke, a deaf young man from York, proposed that Algol faded every 2.87 days because a dark body passed in front of it. He was right: an eclipsing binary is two stars orbiting each other in a plane we see edge-on, so that on every turn one hides the other and the brightness drops.",
+    "The bottom of that drop, the minimum, is a very well defined moment. If the period were constant, every minimum would arrive at the time given by a simple formula: an epoch plus a whole number of periods. The difference between observed and calculated, the O−C, tells what is happening to the system: a parabola, that the stars are exchanging mass; a regular wave, that there may be a third body; secondary minima that drift, that the orbit is elliptical and slowly turning.",
+    "There are thousands of eclipsing binaries within reach of a small telescope and very few professionals following them. Times of minimum measured by amateurs have been filling, for a century, the databases used to study these systems."],
+   necesitas:["A small telescope is enough: there are hundreds of eclipsing binaries brighter than magnitude 11. Mono or colour camera, ideally with a V filter or no filter.",
+    "The whole eclipse: from before the brightness starts to drop until after it has finished rising, one frame every minute or two, without moving the field or touching the focus.",
+    "The computer clock synchronised to the second, and Siril to calibrate and plate-solve the frames."],
+   programas:[["ASTRO","Predicts the minima, measures the light curve and fits the time"],["Peranso","Periods, O−C and timing of maxima and minima"],["MAVKA","Times of maxima and minima by several methods"]],
+   destino:["VarAstro (var.astro.cz), of the Czech Astronomical Society: collects minima of eclipsing binaries and adds them to each star's O−C diagram.",
+    "The German BAV, which publishes lists of minima, and the AAVSO eclipsing binary section.",
+    "Publishing: a good series of minima can go to OEJV, JAAVSO or the BAV Journal."],
+   hara:["Primary minima in the coming nights fully visible from your site","VSX elements: epoch, period and type","Gaia comparison stars, chosen and checked","Light curve in HJD and BJD_TDB","Fit of the minimum with polynomials","Error with correlated noise","O−C, also for secondary minima","Minimum file and traceability package"]}},
+
  {id:"astrometria", n:"2", estado:"ya", icono:"astrometria",
   es:{titulo:"Asteroides y cometas", corto:"Mide dónde está un cuerpo que se mueve y ayuda a calcular su órbita.",
    historia:[
@@ -9109,11 +9889,12 @@ const BLOQUES = [
 const BL = id => BLOQUES.find(b => b.id === id);
 const _BLQ_OTRO = IDIOMA === "es" || IDIOMA === "en" ? {} : __BLQ_OTRO__;   // bloques traducidos (idiomas/xx.json)
 const T = b => b[IDIOMA] || _BLQ_OTRO[b.id] || b.en || b.es;
-const ORDEN = ["cielo", "variables", "exoplanetas", "rrlyrae", "astrometria", "hr", "espectros"];
+const ORDEN = ["cielo", "variables", "exoplanetas", "rrlyrae", "eclipsantes", "astrometria", "hr", "espectros"];
 const ICONOS = {
   cielo: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><path d="M16 4.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>',
   variables: '<path d="M3 12h3l2-6 3 12 3-9 2 3h5"/>',
   exoplanetas: '<circle cx="12" cy="12" r="7"/><circle cx="8.5" cy="10" r="2.2" fill="currentColor"/><path d="M3 20h18"/>',
+  eclipsantes: '<path d="M2.5 7.5H8.5L11 17H13L15.5 7.5H21.5"/>',
   rrlyrae: '<path d="M2.5 18.5L5.2 6.2C7.6 8.4 9.8 13.2 12.4 17.6L15.1 6.2C17.5 8.4 19.7 13.2 21.5 16.6"/>',
   astrometria: '<ellipse cx="12" cy="12" rx="9" ry="4.5" transform="rotate(-25 12 12)"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="8" r="1.4" fill="currentColor"/>',
   hr: '<path d="M4 4v16h16"/><path d="M7 7c3 3 6 6 10 10"/><circle cx="15" cy="7" r="1.2" fill="currentColor"/><circle cx="17" cy="9" r="1.2" fill="currentColor"/><circle cx="8" cy="16" r="1.2" fill="currentColor"/>',
@@ -9167,6 +9948,7 @@ function pintarBloque(id){
   $("herramientaVariable").style.display = id === "variables" ? "" : "none";
   $("herramientaExo").style.display = id === "exoplanetas" ? "" : "none";
   $("herramientaRR").style.display = id === "rrlyrae" ? "" : "none";
+  $("herramientaECL").style.display = id === "eclipsantes" ? "" : "none";
   $("herramientaAst").style.display = id === "astrometria" ? "" : "none";
   $("herramientaHR").style.display = id === "hr" ? "" : "none";
   $("herramientaEsp").style.display = id === "espectros" ? "" : "none";
@@ -9175,10 +9957,11 @@ function pintarBloque(id){
   if (id === "variables") abrirVariables();
   if (id === "exoplanetas") abrirExo();
   if (id === "rrlyrae") abrirRR();
+  if (id === "eclipsantes") abrirECL();
   if (id === "astrometria") abrirAst();
   if (id === "hr") abrirHR();
   if (id === "espectros") abrirEsp();
-  if (!["cielo", "variables", "exoplanetas", "rrlyrae", "astrometria", "hr", "espectros"].includes(id)) $("trabajo").classList.remove("show");
+  if (!["cielo", "variables", "exoplanetas", "rrlyrae", "eclipsantes", "astrometria", "hr", "espectros"].includes(id)) $("trabajo").classList.remove("show");
 }
 let BLOQUE_ACTUAL = "";
 
@@ -9273,7 +10056,7 @@ async function sondear(){
   clearTimeout(CIELO.sondeo);
   let e; try { e = await (await api("/api/trabajo/estado")).json(); } catch(_){ return; }
   const caja = $("trabajo");
-  const mio = ({variable: "variables", exo: "exoplanetas", rr: "rrlyrae", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
+  const mio = ({variable: "variables", exo: "exoplanetas", rr: "rrlyrae", ecl: "eclipsantes", astrometria: "astrometria", hr: "hr", espectro: "espectros"}[e.tipo] || "cielo") === BLOQUE_ACTUAL;
   if (mio && (e.activo || (e.fin && Date.now()/1000 - e.fin < 600))){
     caja.classList.add("show");
     $("tTexto").innerHTML = esc(tr(e.texto)) + (e.archivo ? ` <span class="notr">${esc(e.archivo)}</span>` : "") + (e.total ? ` <span class="note notr">· ${Math.min(e.hechos + (e.activo ? 1 : 0), e.total)}/${e.total}</span>` : "");
@@ -9290,6 +10073,7 @@ async function sondear(){
     if (e.tipo === "variable"){ cargarSeries(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "variables") verSerie(e.resultados[0]); }
     else if (e.tipo === "exo"){ cargarSeriesExo(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "exoplanetas") verExo(e.resultados[0]); }
     else if (e.tipo === "rr"){ cargarSeriesRR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "rrlyrae") verRR(e.resultados[0]); }
+    else if (e.tipo === "ecl"){ cargarSeriesECL(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "eclipsantes") verECL(e.resultados[0]); }
     else if (e.tipo === "astrometria"){ cargarSeriesAst(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "astrometria") verAst(e.resultados[0]); }
     else if (e.tipo === "hr"){ cargarSeriesHR(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "hr") verHR(e.resultados[0]); }
     else if (e.tipo === "espectro"){ cargarSeriesEsp(); if ((e.resultados||[]).length === 1 && BLOQUE_ACTUAL === "espectros") verEsp(e.resultados[0]); }
@@ -10043,6 +10827,267 @@ function graficaRR(s, c){
     : "Cada punto es uno de tus máximos (en dorado, este). Una recta inclinada dice que el periodo del VSX no es del todo bueno; una curva, que el periodo cambia; los saltos de unas semanas a otras, el efecto Blazhko."))}</div>`;
 }
 
+/* ============ Binarias eclipsantes: el mínimo ============ */
+const ECL = {sesiones:null, sel:null, series:[], actual:null, busca:null, nombres:new Set()};
+function tipoECL(t){ return t ? `<span class="chip notr">${esc(t)}</span>` : ""; }
+function sugerenciasECL(){ $("qSugerencias").innerHTML = [...ECL.nombres].sort().map(x => `<option value="${esc(x)}">`).join(""); }
+async function abrirECL(){
+  if (!CIELO.estado){ try { CIELO.estado = await (await api("/api/estado")).json(); } catch(_){} }
+  const ls = (CIELO.estado && CIELO.estado.lugares) || [];
+  $("qLugar").innerHTML = ls.length ? ls.map(l => `<option value="${esc(l.id)}" ${l.id === CIELO.estado.lugar_activo ? "selected" : ""}>${esc(l.nombre || "?")}</option>`).join("") : `<option value="">${esc(tr("sin lugares"))}</option>`;
+  if (!ECL.cfg){ try { ECL.cfg = await (await api("/api/ast/config")).json(); } catch(_){ ECL.cfg = {}; }
+    if (!$("qObservador").value.trim()) $("qObservador").value = ECL.cfg.observador || ""; }
+  if (!ECL.sesiones){ try { ECL.sesiones = await (await api("/api/sesiones")).json(); } catch(_){ ECL.sesiones = []; } }
+  pintarSesionesECL(); cargarSeriesECL(); sondear();
+}
+$("btnECLProximos").onclick = async () => {
+  const b = $("btnECLProximos"); b.disabled = true;
+  $("qProximos").innerHTML = `<div class="note">${esc(tr("Calculando… La primera vez ASTRO descarga del VSX la lista de binarias eclipsantes, y puede tardar un par de minutos."))}</div>`;
+  try {
+    const d = await (await api(`/api/ecl/proximos?lugar=${encodeURIComponent($("qLugar").value)}&dias=${$("qDias").value}&vmax=${$("qVmax").value}&todos=${$("qTodos").checked ? 1 : 0}&gcvs=${$("qGcvs").checked ? 1 : 0}`)).json();
+    const M = d.maximos;
+    M.forEach(x => ECL.nombres.add(x.estrella)); sugerenciasECL();
+    if (!M.length){ $("qProximos").innerHTML = `<div class="vacio"><b>${esc(tr("No hay mínimos que se vean enteros"))}</b>${esc(tr("Prueba con más días, estrellas más débiles, no solo las del GCVS o también los que se ven a medias."))}</div>`; return; }
+    $("qProximos").innerHTML = `<div class="tabla" style="max-height:420px"><table><thead><tr><th>Estrella</th><th>Cuándo</th><th class="num">Brillo</th><th class="num">Amplitud</th><th class="num">Periodo</th><th>Altura</th><th>Luna</th><th></th></tr></thead><tbody>${
+      M.map(x => `<tr data-e="${esc(x.estrella)}" style="cursor:pointer"><td><b class="notr">${esc(x.estrella)}</b><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${tipoECL(x.tipo)}${x.blazhko ? chipBlazhko() : ""}</div></td>
+        <td><span class="notr">${esc(horaLocal(x.inicio, true))} – ${esc(horaLocal(x.fin))}</span><div class="note"><span>mínimo</span> <span class="notr">${esc(horaLocal(x.maximo))}</span>${x.epoca_anio ? ` · <span>elementos de</span> <span class="notr">${x.epoca_anio}</span>` : ""}</div></td>
+        <td class="num notr">${x.max != null ? numEs(x.max, 1) + (x.banda ? " " + esc(x.banda) : "") : "—"}</td>
+        <td class="num">${x.amplitud != null ? numEs(x.amplitud, 2) + " mag" : "—"}</td>
+        <td class="num">${numEs(x.periodo * 24, 2)} h</td>
+        <td class="notr">${x.alt.map(a => a + "°").join(" → ")}</td><td class="notr">${x.luna_ilum} % · ${x.luna_sep != null ? numEs(x.luna_sep, 0) + "°" : ""}</td>
+        <td>${x.completo ? "" : `<span class="chip warn">${esc(tr("a medias"))}</span>`}</td></tr>`).join("")}</tbody></table></div>
+      <div class="note" style="margin-top:6px"><span>Elementos del</span> <span class="notr">${esc(d.origen)}</span>. <span>La altura es la de la estrella al empezar, en el mínimo y al terminar; el brillo, el del mínimo según el VSX. Con elementos de hace muchos años el mínimo puede llegar bastante antes o después: por eso se deja hora y media a cada lado.</span></div>`;
+    $("qProximos").querySelectorAll("tr[data-e]").forEach(t => t.onclick = () => { $("qEstrella").value = t.dataset.e; buscarECL(); $("qEstrella").scrollIntoView({behavior:"smooth", block:"center"}); });
+  } catch(e){ $("qProximos").innerHTML = `<div class="avisos"><div>${esc(tr(e.message || String(e)))}</div></div>`; }
+  finally { b.disabled = false; }
+};
+function pintarSesionesECL(){
+  const ss = (ECL.sesiones || []).map((s, i) => [s, i]).filter(([s]) => s.tomas.length >= 15);
+  if (!ss.length){ $("qSesiones").innerHTML = `<div class="vacio"><b>No hay sesiones con bastantes tomas</b>Añade en Control de lights las tomas de la noche del mínimo (al menos 15 seguidas, todas con el mismo filtro; lo normal son más de cien).</div>`; return; }
+  $("qSesiones").innerHTML = `<div class="tabla"><table><thead><tr><th></th><th>Noche</th><th>Objeto</th><th>Filtro</th><th>Cámara</th><th>Telescopio</th><th class="num">Tomas</th><th>De … a (UTC)</th></tr></thead><tbody>${
+    ss.map(([s, i]) => { const f = s.tomas.map(t => t.fecha).filter(Boolean).sort();
+      return `<tr data-i="${i}" class="${ECL.sel === i ? "sel" : ""}" style="cursor:pointer"><td><input type="radio" name="qSes" ${ECL.sel === i ? "checked" : ""}></td><td>${esc(fechaCorta(s.noche))}</td><td class="notr">${esc(s.objeto)}</td>
+      <td class="notr">${esc(s.filtro_original || s.filtro)}</td><td class="notr">${esc(s.cam)}</td><td class="notr">${esc(s.tel)}</td><td class="num">${s.tomas.length}</td>
+      <td class="notr">${f.length ? esc(f[0].slice(11, 16) + " – " + f[f.length - 1].slice(11, 16)) : ""}</td></tr>`; }).join("")}</tbody></table></div>`;
+  $("qSesiones").querySelectorAll("tr[data-i]").forEach(t => t.onclick = () => {
+    ECL.sel = +t.dataset.i; const s = ECL.sesiones[ECL.sel];
+    $("qSesiones").querySelectorAll("tr[data-i]").forEach(x => { x.classList.toggle("sel", x === t); x.querySelector("input").checked = x === t; });
+    if (s.objeto && s.objeto !== "(sin objeto)" && !$("qEstrella").value.trim()) $("qEstrella").value = s.objeto;
+    buscarECL();
+  });
+}
+let _tBuscaECL = null;
+$("qEstrella").addEventListener("input", () => { clearTimeout(_tBuscaECL); _tBuscaECL = setTimeout(buscarECL, 450); });
+async function buscarECL(){
+  const n = $("qEstrella").value.trim(), info = $("qEstrellaInfo");
+  if (!n){ info.innerHTML = ""; ECL.busca = null; return; }
+  const s = ECL.sel !== null ? ECL.sesiones[ECL.sel] : null;
+  const f = s ? s.tomas.map(t => t.fecha).filter(Boolean).sort() : [];
+  const jd = f.length ? (jdDe(f[0]) + jdDe(f[f.length - 1])) / 2 : 2440587.5 + Date.now() / 864e5;
+  try {
+    const d = await (await api(`/api/ecl/estrella?nombre=${encodeURIComponent(n)}&jd=${jd}`)).json();
+    if (n !== $("qEstrella").value.trim()) return;
+    if (!d.encontrado){ info.innerHTML = `<span class="chip warn">${esc(tr("No la encuentro en el VSX"))}</span> <span>${esc(tr("Escribe su nombre como allí, por ejemplo RR Lyr o XZ Cyg."))}</span>`; ECL.busca = null; return; }
+    ECL.busca = d;
+    if (d.observador && !$("qObservador").value.trim()) $("qObservador").value = d.observador;
+    let cubre = "";
+    if (f.length && d.minimo_previsto){ const a = jdDe(f[0]), b = jdDe(f[f.length - 1]), c = jdDe(d.minimo_previsto);
+      if (c < a || c > b) cubre = `<span class="chip bad">${esc(tr("las tomas no llegan al mínimo previsto"))}</span>`;
+      else if (c - a < 30 / 1440) cubre = `<span class="chip warn">${esc(tr("poca curva antes del mínimo previsto"))}</span>`;
+      else if (b - c < 30 / 1440) cubre = `<span class="chip warn">${esc(tr("poca curva después del mínimo previsto"))}</span>`; }
+    const cuando = !d.minimo_previsto ? "" : f.length ? `<span class="notr">${esc(d.minimo_previsto.slice(11, 16))} UTC</span>` : `<span class="notr">${esc(horaLocal(d.minimo_previsto, true))}</span>`;
+    info.innerHTML = `<b class="notr">${esc(d.nombre)}</b> ${tipoECL(d.tipo)} ${d.blazhko ? chipBlazhko() : ""} · <span class="notr">P ${numEs(d.periodo, 6)} d${d.max ? " · " + esc(d.max) + (d.min ? " – " + esc(d.min) : "") : ""}</span>` +
+      (cuando ? ` · <span>mínimo previsto</span> ${cuando}` : "") + ` · <span>elementos del</span> <span class="notr">${esc(d.fuente)}</span>` +
+      (!d.ecl ? ` <span class="chip warn">${esc(tr("según el VSX no es una binaria eclipsante"))}</span>` : "") + (cubre ? " " + cubre : "");
+  } catch(e){ info.innerHTML = `<span class="chip warn">${esc(tr(e.message || String(e)))}</span>`; }
+}
+$("btnECL").onclick = async () => {
+  if (ECL.sel === null){ toast("Elige primero la sesión con las tomas de la estrella"); return; }
+  if (!$("qEstrella").value.trim()){ toast("Escribe el nombre de la estrella (por ejemplo, RR Lyr)"); $("qEstrella").focus(); return; }
+  const s = ECL.sesiones[ECL.sel];
+  try {
+    await post("/api/ecl/medir", {ids: s.tomas.map(t => t.id), estrella: $("qEstrella").value.trim(), frac: $("qFrac").value === "" ? null : +$("qFrac").value,
+      grado: $("qGrado").value === "" ? null : +$("qGrado").value, observador: $("qObservador").value.trim(), lugar: $("qLugar").value});
+    sondear();
+  } catch(e){ toast(e.message || e); }
+};
+async function cargarSeriesECL(){
+  try { ECL.series = await (await api("/api/ecl/series")).json(); } catch(_){ ECL.series = []; }
+  const ss = ECL.series;
+  ss.forEach(x => ECL.nombres.add(x.estrella)); sugerenciasECL();
+  if (!ss.length){ $("qSeries").innerHTML = `<div class="vacio"><b>Todavía no has medido ningún mínimo</b>Elige arriba una sesión y la estrella, y pulsa «Medir el mínimo».</div>`; return; }
+  $("qSeries").innerHTML = `<div class="tabla" style="max-height:none"><table><thead><tr><th>Noche</th><th>Estrella</th><th>Filtro</th><th class="num">Tomas</th><th class="num">Mínimo (HJD)</th><th class="num">O−C (min)</th><th class="num">Brillo</th><th></th></tr></thead><tbody>${
+    ss.map(x => `<tr data-id="${esc(x.id)}" style="cursor:pointer"><td>${esc(fechaCorta(x.noche))}</td><td class="notr"><b>${esc(x.estrella)}</b></td><td class="notr">${esc(x.filtro || "")}</td>
+      <td class="num">${x.tomas}</td><td class="num"><span class="notr">${x.tmax != null ? x.tmax.toFixed(5) : "—"}</span>${x.tmax_err != null ? " ± " + tiempoErr(x.tmax_err) : ""}${x.fiable === false ? ` <span class="chip warn">${esc(tr("no fiable"))}</span>` : ""}</td>
+      <td class="num">${x.oc_min != null ? (x.oc_min > 0 ? "+" : "") + numEs(x.oc_min, 1) : "—"}</td>
+      <td class="num">${x.mag_max != null ? numEs(x.mag_max, 2) : "—"}</td><td><button class="btn small">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+  $("qSeries").querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => verECL(t.dataset.id));
+}
+function copiarTexto(txt, el){
+  const sel = () => { if (!el) return; const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+  try { navigator.clipboard.writeText(txt).then(() => toast("Copiado"), () => { sel(); toast("Selecciónalo y cópialo con ⌘C o Ctrl+C"); }); }
+  catch(_){ sel(); toast("Selecciónalo y cópialo con ⌘C o Ctrl+C"); }
+}
+async function verECL(id, calcNuevo){
+  let d; try { d = await (await api("/api/ecl/serie?id=" + encodeURIComponent(id))).json(); } catch(e){ toast(e.message || e); return; }
+  const s = d.serie, c = calcNuevo || d.calculo, rr = s.estrella; ECL.actual = {s, c};
+  if (!c){ toast("Esta medida no tiene resultado: vuelve a medirla"); return; }
+  if (!ECL.series.length) { try { ECL.series = await (await api("/api/ecl/series")).json(); } catch(_){} }
+  const cifra = (v, u, e, dest) => `<div class="cifra ${dest ? "dest" : ""}"><div><span class="v">${v}</span><span class="u">${u}</span></div><div class="e">${e}</div></div>`;
+  const mas = v => (v > 0 ? "+" : "") + numEs(v, 1);
+  const segs = v => { const x = Math.round(v * 86400); return (x > 0 ? "+" : x < 0 ? "−" : "") + numEs(Math.abs(x), 0) + " s"; };
+  const gradosTxt = Object.keys(c.t_grados || {}).map(g => `${esc(tr("grado"))} <span class="notr">${g}: ${segs(c.t_grados[g] - c.tmax)}${c.pesos_grados && c.pesos_grados[g] != null ? " (" + numEs(100 * c.pesos_grados[g], 0) + " %)" : ""}</span>`).join(" · ");
+  const errAzar = c.err_boot != null ? Math.max(c.err_boot * c.beta, c.err_pb || 0) : null;
+  const box = $("detalleBox");
+  box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(rr.nombre)}</h2><div class="note" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span>${esc(fechaCorta(s.noche))}</span> · <span class="notr">${esc(s.filtro)} · ${s.n_tomas}</span> <span>tomas</span> · ${tipoECL(rr.tipo)}${rr.blazhko ? chipBlazhko() : ""} · <span class="notr">P ${numEs(rr.periodo, 7)} d</span> · <span>elementos del</span> <span class="notr">${esc(rr.fuente || "VSX")}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">Cerrar</button></div>
+    <div class="cifras">${cifra(`<span class="notr" style="font-size:22px">${c.tmax.toFixed(5)}</span>`, "", "HJD · " + tr("Instante del mínimo") + (c.tmax_err != null ? " · ± " + tiempoErr(c.tmax_err) : "") + " · " + c.tmax_utc.slice(11, 19) + " UTC", true)}
+      ${cifra(mas(c.oc_min), "min", tr("O−C: adelanto (−) o retraso (+) frente a los elementos del VSX") + " · " + tr("ciclo") + " " + c.ciclo)}
+      ${cifra(numEs(c.mag_max, 2), "", tr("Brillo en el mínimo (aprox., en la escala G de Gaia)") + " · " + tr("amplitud vista") + " " + numEs(c.amplitud_observada, 2) + " mag")}
+      ${cifra(numEs(c.rms_mmag, 0), "mmag", tr("Dispersión del ajuste") + " · " + tr("polinomio de grado # con # puntos").replace("#", c.grado).replace("#", c.n_ajuste))}</div>
+    ${c.avisos.length ? `<div class="avisos">${c.avisos.map(a => `<div>${esc(tr(a))}</div>`).join("")}</div>` : ""}
+    <div class="graf" id="gECL"></div>
+    <div class="dos"><div class="graf" id="gRRZoom"></div><div class="graf" id="gRROC"></div></div>
+    <div class="dos">
+      <div class="graf"><h4>Estrellas de comparación (Gaia DR3)</h4><div class="tabla" style="max-height:300px"><table><thead><tr><th>Usar</th><th>Gaia DR3</th><th class="num">G</th><th class="num">BP−RP</th><th class="num">Distancia (′)</th><th class="num">SNR</th><th class="num">Medida</th></tr></thead><tbody>${
+        c.tabla.map(x => `<tr><td><input type="checkbox" class="qComp" value="${esc(x.id)}" ${c.comps.includes(x.id) ? "checked" : ""}></td><td class="notr">${esc(x.id)}</td>
+          <td class="num">${numEs(x.g, 2)}</td><td class="num">${x.bp_rp != null ? numEs(x.bp_rp, 2) : "—"}</td><td class="num">${x.dist != null ? numEs(x.dist, 1) : "—"}</td><td class="num">${numEs(x.snr, 0)}</td>
+          <td class="num">${x.saturada > 0.1 ? `<span class="chip warn">saturada</span>` : numEs(100 * x.presente, 0) + " %"}</td></tr>`).join("")}</tbody></table></div>
+        <div class="opciones">
+          <label>Apertura <select id="dApertura"><option value="">${esc(tr("la de menos dispersión"))}</option>${s.factores.map((f, i) => `<option value="${i}" ${c.apertura_elegida && c.apertura === i ? "selected" : ""}>${numEs(f, 1)} × FWHM</option>`).join("")}</select></label>
+          <label>Ventana <select id="dFrac"><option value="">${esc(tr("automática (50 % de la profundidad)"))}</option>${[0.2, 0.3, 0.4, 0.5].map(f => `<option value="${f}" ${c.frac_elegida === f ? "selected" : ""}>${esc(tr("# % de la profundidad").replace("#", numEs(100 * f, 0)))}</option>`).join("")}</select></label>
+          <label>Polinomio <select id="dGrado"><option value="">${esc(tr("el que mejor encaje (BIC)"))}</option>${[3, 4, 5, 6].map(g => `<option value="${g}" ${c.grado_elegido === g ? "selected" : ""}>${esc(tr("grado"))} ${g}</option>`).join("")}</select></label>
+          <button class="btn small primary" id="dRecalcular">Recalcular</button></div>
+        <div class="pie">ASTRO elige la apertura con menos dispersión y quita las comparaciones que bailan más de lo que explica su ruido o cambian despacio (variables). Puedes marcar las tuyas, cambiar la ventana del ajuste o el grado del polinomio, y recalcular.</div></div>
+      <div class="graf"><h4>Para enviar</h4>
+        <div class="acciones" style="flex-wrap:wrap"><a class="btn small primary" href="/api/ecl/archivo?tipo=geos&id=${encodeURIComponent(s.id)}" download>Archivo del mínimo</a>
+          <a class="btn small" href="/api/ecl/archivo?tipo=csv&id=${encodeURIComponent(s.id)}" download>Curva (CSV)</a>
+          <a class="btn small" href="/api/ecl/archivo?tipo=svg&id=${encodeURIComponent(s.id)}" download>Figura (SVG)</a></div>
+        <div class="opciones"><label>Tu nombre <input id="dObservador" class="notr" value="${esc(s.observador || "")}" placeholder="T. Moreno" style="width:150px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--surface)"></label><button class="btn small" id="dGuardarObs">Guardar</button></div>
+        <pre class="notr" id="dGeos" style="margin-top:10px;max-height:170px;overflow:auto;font-size:11.5px;line-height:1.45;background:var(--surface2);border-radius:10px;padding:10px 12px;white-space:pre"></pre>
+        <div class="acciones" style="margin-top:6px"><button class="btn small" id="dCopiarGeos">Copiar</button><a class="btn small" href="https://var.astro.cz/" target="_blank" rel="noopener">Abrir VarAstro</a></div>
+        <div class="pie">El archivo lleva la estrella, el instante en HJD y su error, el filtro, el método y el observador, además del O−C, el BJD_TDB y cómo se ha medido. Cada base de datos (VarAstro, BAV, AAVSO) tiene su propio formulario: copia de aquí los datos.</div></div>
+    </div>
+    <div class="graf"><h4>Cómo se ha medido</h4><dl class="kv">
+      <dt>Elementos</dt><dd><span class="notr">${esc(rr.fuente || "VSX")} · E₀ ${rr.epoca.toFixed(5)} HJD · P ${rr.periodo.toFixed(7)} d · ${esc(rr.tipo || "?")}</span>${rr.subida ? ` · <span>duración del eclipse</span> <span class="notr">${numEs(rr.subida, 0)} %</span> <span>del periodo</span>` : ""}</dd>
+      <dt>Mínimo previsto</dt><dd><span class="notr">HJD ${c.c_hjd.toFixed(5)} · ${isoDeJd(c.c_jd).slice(11, 19)} UTC</span> · <span>ciclo</span> <span class="notr">${c.ciclo}</span></dd>
+      <dt>O−C</dt><dd><span class="notr">${(c.oc > 0 ? "+" : "") + c.oc.toFixed(5)} d · ${mas(c.oc_min)} min · ${(c.oc_fase > 0 ? "+" : "") + numEs(c.oc_fase, 3)} P</span></dd>
+      <dt>BJD_TDB</dt><dd class="notr">${c.tmax_bjd != null ? c.tmax_bjd.toFixed(5) : "—"}</dd>
+      <dt>Ajuste</dt><dd><span>polinomio de grado</span> <span class="notr">${c.grado}</span> · <span class="notr">${c.n_ajuste}</span> <span>puntos, hasta el</span> <span class="notr">${numEs(100 * c.frac, 0)} %</span> <span>de la profundidad</span> (<span class="notr">${numEs(c.amplitud, 2)} mag</span>) <span>por encima del fondo del eclipse</span>${c.frac_auto === "subida" ? ` <span class="note">(${esc(tr("el 20 % porque sube muy deprisa: en el # % del periodo").replace("#", numEs(rr.subida, 0)))})</span>` : ""}</dd>
+      ${gradosTxt ? `<dt>Instante con cada grado</dt><dd>${gradosTxt}</dd>` : ""}
+      <dt>Error del instante</dt><dd>${errAzar != null ? `<span>el mayor entre el remuestreo por bloques de</span> <span class="notr">${c.bloque}</span> <span>puntos (por β</span> <span class="notr">${numEs(c.beta, 2)}</span><span>) y las «cuentas de rosario»:</span> <span class="notr">${tiempoErr(c.err_boot * c.beta)} · ${c.err_pb != null ? tiempoErr(c.err_pb) : "—"}</span>; <span>con la diferencia entre grados</span> (<span class="notr">${tiempoErr(c.err_grado)}</span>), <span class="notr">± ${tiempoErr(c.tmax_err)}</span>` : esc(tr("no se puede calcular: la serie no ve el mínimo entero"))}</dd>
+      <dt>Curva</dt><dd><span class="notr">${c.n}</span> <span>tomas medidas, una cada</span> <span class="notr">${numEs(c.cadencia_min, 1)} min</span> · <span class="notr">${numEs(c.antes_min, 0)}</span> <span>min antes y</span> <span class="notr">${numEs(c.despues_min, 0)}</span> <span>después del mínimo</span> · <span>dispersión frente a lo que explica el ruido:</span> <span class="notr">× ${numEs(c.escala_err, 1)}</span></dd>
+      <dt>Apertura</dt><dd class="notr">${numEs(c.factor_apertura, 1)} × FWHM</dd>
+      <dt>Comparación</dt><dd><span class="notr">${c.comps.length}</span> <span>estrellas de Gaia DR3, sumadas</span> · <span>β de las comparaciones</span> <span class="notr">${numEs(c.beta_comps, 2)}</span></dd>
+      <dt>Calibración</dt><dd>${(s.calibracion || []).length ? s.calibracion.map(x => `<div class="notr">${esc(x)}</div>`).join("") : esc(tr("sin calibrar"))}</dd>
+      <dt>Lugar</dt><dd class="notr">${esc((s.lugar || {}).nombre || "")}</dd>
+      <dt>Equipo</dt><dd class="notr">${esc([s.tel, s.cam].filter(Boolean).join(" + "))}</dd>
+    </dl></div>
+    <div class="acciones"><a class="btn small" href="/api/ecl/zip?id=${encodeURIComponent(s.id)}${IDIOMA === "en" ? "&en=1" : ""}" download>Paquete de trazabilidad (ZIP)</a>
+      <button class="btn small" id="dCarpeta">Abrir la carpeta</button><span style="flex:1"></span><button class="btn small" id="dBorrar" style="color:var(--bad)">Borrar esta medida</button></div>`;
+  $("detalle").classList.add("show");
+  $("dCerrar").onclick = () => $("detalle").classList.remove("show");
+  $("dCarpeta").onclick = () => post("/api/revelar", {id: s.id, tipo: "ecl"});
+  $("dBorrar").onclick = async () => { if (!confirm("¿Borrar esta medida?")) return; await post("/api/ecl/borrar", {id: s.id}); $("detalle").classList.remove("show"); cargarSeriesECL(); };
+  const verGeos = async () => { try { $("dGeos").textContent = await (await api(`/api/ecl/archivo?tipo=geos&id=${encodeURIComponent(s.id)}`)).text(); } catch(_){ $("dGeos").textContent = ""; } };
+  verGeos();
+  $("dCopiarGeos").onclick = () => copiarTexto($("dGeos").textContent, $("dGeos"));
+  $("dGuardarObs").onclick = async () => {
+    try { await post("/api/ecl/observador", {id: s.id, observador: $("dObservador").value.trim()}); $("qObservador").value = $("dObservador").value.trim(); s.observador = $("dObservador").value.trim(); verGeos(); toast("Guardado"); }
+    catch(e){ toast(e.message || e); }
+  };
+  $("dRecalcular").onclick = async () => {
+    const comps = [...document.querySelectorAll(".rComp:checked")].map(x => x.value);
+    if (comps.length < 1){ toast("Marca al menos una estrella de comparación"); return; }
+    const b = $("dRecalcular"); b.disabled = true; b.textContent = tr("Calculando…");
+    try {
+      const auto = comps.length === c.comps.length && comps.every(x => c.comps.includes(x)) && !c.comps_elegidas;
+      const nuevo = await (await post("/api/ecl/recalcular", {id: s.id, comps: auto ? [] : comps, apertura: $("dApertura").value === "" ? null : +$("dApertura").value,
+        frac: $("dFrac").value === "" ? null : +$("dFrac").value, grado: $("dGrado").value === "" ? null : +$("dGrado").value})).json();
+      await cargarSeriesECL(); verECL(s.id, nuevo); toast("Recalculado");
+    } catch(e){ toast(e.message || e); b.disabled = false; b.textContent = tr("Recalcular"); }
+  };
+  graficaECL(s, c);
+}
+function graficaECL(s, c){
+  const P = c.puntos; if (!P.length) return;
+  // la noche entera
+  const W = 1000, H = 380, L = 64, R = 16, Tp = 22, B = 40;
+  const t0 = P[0].jd, span = (P[P.length - 1].jd - t0) * 24, pad = Math.max(span * 0.02, 0.02);
+  const hx = t => (t - t0) * 24;
+  const X = v => L + (v + pad) / (span + 2 * pad) * (W - L - R);
+  const ms = P.map(p => p.mag); let y0 = Math.min(...ms), y1 = Math.max(...ms); const py = (y1 - y0) * 0.08 || 0.05; y0 -= py; y1 += py;
+  const Y = v => Tp + (v - y0) / (y1 - y0) * (H - Tp - B);
+  const pasoM = (y1 - y0) > 1.2 ? 0.2 : (y1 - y0) > 0.5 ? 0.1 : (y1 - y0) > 0.2 ? 0.05 : 0.02;
+  let g = "";
+  for (let m = Math.ceil(y0 / pasoM) * pasoM; m <= y1 + 1e-9; m += pasoM) g += `<line class="rej" x1="${L}" x2="${W-R}" y1="${Y(m).toFixed(1)}" y2="${Y(m).toFixed(1)}"/><text class="tx" x="${L-6}" y="${(Y(m)+4).toFixed(1)}" text-anchor="end">${numEs(m, pasoM < 0.1 ? 2 : 1)}</text>`;
+  const pasoX = span > 8 ? 2 : span > 3 ? 1 : span > 1.5 ? 0.5 : 0.25;
+  const hIni = new Date((t0 - 2440587.5) * 864e5), hh = hIni.getUTCHours() + hIni.getUTCMinutes() / 60 + hIni.getUTCSeconds() / 3600;
+  for (let h = Math.ceil(hh / pasoX) * pasoX - hh; h <= span + 1e-9; h += pasoX){ const d = new Date(hIni.getTime() + h * 36e5 + 30e3);
+    g += `<line class="rej" x1="${X(h).toFixed(1)}" x2="${X(h).toFixed(1)}" y1="${Tp}" y2="${H-B}"/><text class="tx" x="${X(h).toFixed(1)}" y="${H-B+16}" text-anchor="middle">${d.toISOString().slice(11, 16)}</text>`; }
+  const va = X(hx(c.ventana_jd[0])), vb = X(hx(c.ventana_jd[1]));
+  g += `<rect x="${va.toFixed(1)}" y="${Tp}" width="${Math.max(1, vb - va).toFixed(1)}" height="${H - Tp - B}" fill="var(--accent-soft)" opacity=".7"/>`;
+  if (c.tmax_err != null){ const ea = X(hx(c.tmax_jd - c.tmax_err)), eb = X(hx(c.tmax_jd + c.tmax_err));
+    g += `<rect x="${ea.toFixed(1)}" y="${Tp}" width="${Math.max(1.5, eb - ea).toFixed(1)}" height="${H - Tp - B}" fill="var(--oro)" opacity=".22"/>`; }
+  const xc = hx(c.c_jd);
+  if (xc >= -pad && xc <= span + pad) g += `<line x1="${X(xc).toFixed(1)}" x2="${X(xc).toFixed(1)}" y1="${Tp}" y2="${H-B}" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 4"/><text class="tx" x="${(X(xc) + 4).toFixed(1)}" y="${H-B-6}">${esc(tr("previsto"))}</text>`;
+  g += P.map(p => `<circle cx="${X(hx(p.jd)).toFixed(1)}" cy="${Y(p.mag).toFixed(1)}" r="${p.ajuste ? 2.6 : 2}" fill="var(--accent)" opacity="${p.ajuste ? .9 : .35}"><title>${esc(p.archivo)} · ${numEs(p.mag, 3)} ± ${numEs(p.err, 3)}</title></circle>`).join("");
+  g += `<polyline fill="none" stroke="var(--oro)" stroke-width="2.4" points="${c.modelo.map(q => X(hx(q[0])).toFixed(1) + "," + Y(q[1]).toFixed(1)).join(" ")}"/>`;
+  const xm = X(hx(c.tmax_jd));
+  g += `<line x1="${xm.toFixed(1)}" x2="${xm.toFixed(1)}" y1="${Tp}" y2="${H-B}" stroke="var(--oro)" stroke-width="1.6" stroke-dasharray="5 3"/>`;
+  g += `<text class="tx f" x="${Math.min(W - R - 4, xm + 6).toFixed(1)}" y="${Tp + 12}" text-anchor="${xm > W - 220 ? "end" : "start"}">${esc(tr("mínimo"))} ${c.tmax_utc.slice(11, 19)} UTC</text>`;
+  g += `<text class="tx" x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle">${esc(tr("hora UTC"))} · JD ${t0.toFixed(4)}</text>`;
+  $("gECL").innerHTML = `<h4>La curva de la noche</h4><div class="lienzo"><svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg></div><div class="pie">${esc(tr("Magnitud aproximada en la escala G de Gaia (arriba, más brillante). En morado oscuro, los puntos del ajuste, dentro de la franja; en dorado, el polinomio y el instante del mínimo, con su margen de error. La línea de puntos gris es el mínimo previsto por los elementos del VSX."))}</div>`;
+  // el mínimo de cerca, con los residuos
+  const mod = t => { const M = c.modelo; if (t <= M[0][0]) return M[0][1]; if (t >= M[M.length - 1][0]) return M[M.length - 1][1];
+    let i = 1; while (i < M.length - 1 && M[i][0] < t) i++; const a = M[i - 1], b = M[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); };
+  const mn = t => (t - c.tmax_jd) * 1440;
+  const wa = mn(c.ventana_jd[0]), wb = mn(c.ventana_jd[1]), extra = (wb - wa) * 0.12, za = wa - extra, zb = wb + extra;
+  const Q = P.filter(p => mn(p.jd) >= za && mn(p.jd) <= zb);
+  const W2 = 620, H2 = 400, L2 = 60, R2 = 12, T2 = 14, h2 = 270, B2 = 36;
+  const X2 = v => L2 + (v - za) / (zb - za) * (W2 - L2 - R2);
+  const qm = Q.map(p => p.mag).concat(c.modelo.map(q => q[1])); let a0 = Math.min(...qm), a1 = Math.max(...qm); const pa = (a1 - a0) * 0.08 || 0.02; a0 -= pa; a1 += pa;
+  const Y2 = v => T2 + (v - a0) / (a1 - a0) * (h2 - T2);
+  const F = Q.filter(p => p.ajuste), res = F.map(p => p.mag - mod(p.jd));
+  const rr_ = Math.max(0.005, ...res.map(Math.abs)) * 1.1;
+  const Yr = v => h2 + 30 + (v + rr_) / (2 * rr_) * (H2 - B2 - h2 - 30);
+  let g2 = "";
+  const pasoZ = (a1 - a0) > 0.5 ? 0.1 : (a1 - a0) > 0.2 ? 0.05 : (a1 - a0) > 0.08 ? 0.02 : 0.01;
+  for (let m = Math.ceil(a0 / pasoZ) * pasoZ; m <= a1 + 1e-9; m += pasoZ) g2 += `<line class="rej" x1="${L2}" x2="${W2-R2}" y1="${Y2(m).toFixed(1)}" y2="${Y2(m).toFixed(1)}"/><text class="tx" x="${L2-6}" y="${(Y2(m)+4).toFixed(1)}" text-anchor="end">${numEs(m, 2)}</text>`;
+  const pasoT = (zb - za) > 150 ? 30 : (zb - za) > 60 ? 15 : 10;
+  for (let m = Math.ceil(za / pasoT) * pasoT; m <= zb; m += pasoT) g2 += `<line class="rej" x1="${X2(m).toFixed(1)}" x2="${X2(m).toFixed(1)}" y1="${T2}" y2="${H2-B2}"/><text class="tx" x="${X2(m).toFixed(1)}" y="${H2-B2+15}" text-anchor="middle">${(m > 0 ? "+" : "") + m}</text>`;
+  if (c.tmax_err != null){ const e = c.tmax_err * 1440; g2 += `<rect x="${X2(-e).toFixed(1)}" y="${T2}" width="${Math.max(1.5, X2(e) - X2(-e)).toFixed(1)}" height="${h2 - T2}" fill="var(--oro)" opacity=".22"/>`; }
+  g2 += Q.map(p => `<circle cx="${X2(mn(p.jd)).toFixed(1)}" cy="${Y2(p.mag).toFixed(1)}" r="${p.ajuste ? 2.8 : 2.2}" fill="var(--accent)" opacity="${p.ajuste ? .85 : .3}"><title>${esc(p.archivo)}</title></circle>`).join("");
+  g2 += `<polyline fill="none" stroke="var(--oro)" stroke-width="2.4" points="${c.modelo.map(q => X2(mn(q[0])).toFixed(1) + "," + Y2(q[1]).toFixed(1)).join(" ")}"/>`;
+  g2 += `<line x1="${X2(0).toFixed(1)}" x2="${X2(0).toFixed(1)}" y1="${T2}" y2="${h2}" stroke="var(--oro)" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+  g2 += `<line class="rej" x1="${L2}" x2="${W2-R2}" y1="${Yr(0).toFixed(1)}" y2="${Yr(0).toFixed(1)}" style="stroke-dasharray:4 3"/>`;
+  g2 += `<text class="tx" x="${L2}" y="${h2 + 22}">${esc(tr("Residuos"))} · RMS ${numEs(c.rms_mmag, 0)} mmag</text>`;
+  g2 += F.map((p, i) => `<circle cx="${X2(mn(p.jd)).toFixed(1)}" cy="${Yr(res[i]).toFixed(1)}" r="1.8" fill="var(--accent)" opacity=".55"/>`).join("");
+  g2 += `<text class="tx" x="${(L2+W2-R2)/2}" y="${H2-6}" text-anchor="middle">${esc(tr("minutos desde el mínimo"))}</text>`;
+  $("gRRZoom").innerHTML = `<h4>El mínimo de cerca</h4><div class="lienzo"><svg viewBox="0 0 ${W2} ${H2}" role="img" style="min-width:0">${g2}</svg></div><div class="pie">${esc(tr("Los puntos que entran en el ajuste y el polinomio. Abajo, lo que queda al quitarlo: si hace ondas, prueba otro grado u otra ventana."))}</div>`;
+  // O−C de esta estrella, con todos tus mínimos
+  const mios = (ECL.series || []).filter(x => x.estrella === s.estrella.nombre && x.tmax != null && x.oc_min != null).sort((a, b) => a.tmax - b.tmax);
+  if (!mios.some(x => x.id === s.id)) mios.push({id: s.id, tmax: c.tmax, tmax_err: c.tmax_err, oc_min: c.oc_min, noche: s.noche, fiable: c.fiable});
+  const W3 = 620, H3 = 400, L3 = 60, R3 = 16, T3 = 16, B3 = 40;
+  const ta = Math.min(...mios.map(x => x.tmax)), tb = Math.max(...mios.map(x => x.tmax)), pt = Math.max(8, (tb - ta) * 0.08);
+  const X3 = v => L3 + (v - ta + pt) / (tb - ta + 2 * pt) * (W3 - L3 - R3);
+  const oe = mios.map(x => [x.oc_min - (x.tmax_err || 0) * 1440, x.oc_min + (x.tmax_err || 0) * 1440]).flat().concat([0]);
+  let o0 = Math.min(...oe), o1 = Math.max(...oe); const po = Math.max(2, (o1 - o0) * 0.12); o0 -= po; o1 += po;
+  const Y3 = v => T3 + (o1 - v) / (o1 - o0) * (H3 - T3 - B3);
+  let g3 = "";
+  const pasoO = (o1 - o0) > 120 ? 30 : (o1 - o0) > 50 ? 10 : (o1 - o0) > 20 ? 5 : 2;
+  for (let v = Math.ceil(o0 / pasoO) * pasoO; v <= o1; v += pasoO) g3 += `<line class="rej" x1="${L3}" x2="${W3-R3}" y1="${Y3(v).toFixed(1)}" y2="${Y3(v).toFixed(1)}"${v === 0 ? ' style="stroke:var(--muted);stroke-dasharray:4 3"' : ""}/><text class="tx" x="${L3-6}" y="${(Y3(v)+4).toFixed(1)}" text-anchor="end">${(v > 0 ? "+" : "") + v}</text>`;
+  const nt = 4; for (let k = 0; k <= nt; k++){ const t = ta - pt + (tb - ta + 2 * pt) * k / nt;
+    const lab = new Date((t - 2440587.5) * 864e5).toLocaleDateString(LOCALE, {day:"numeric", month:"short", year: (tb - ta) > 200 ? "2-digit" : undefined});
+    g3 += `<text class="tx" x="${X3(t).toFixed(1)}" y="${H3-B3+16}" text-anchor="${k === 0 ? "start" : k === nt ? "end" : "middle"}">${esc(lab)}</text>`; }
+  g3 += mios.map(x => { const e = (x.tmax_err || 0) * 1440, yo = x.id === s.id, cx = X3(x.tmax).toFixed(1);
+    return (e ? `<line x1="${cx}" x2="${cx}" y1="${Y3(x.oc_min + e).toFixed(1)}" y2="${Y3(x.oc_min - e).toFixed(1)}" stroke="${yo ? "var(--oro)" : "var(--accent)"}" stroke-width="1.4"/>` : "") +
+      `<circle cx="${cx}" cy="${Y3(x.oc_min).toFixed(1)}" r="${yo ? 5 : 4}" fill="${yo ? "var(--oro)" : "var(--accent)"}" ${x.fiable === false ? 'fill-opacity=".35"' : ""}><title>${esc(fechaCorta(x.noche))} · O−C ${(x.oc_min > 0 ? "+" : "") + numEs(x.oc_min, 1)} min</title></circle>`; }).join("");
+  g3 += `<text class="tx" x="${(L3+W3-R3)/2}" y="${H3-6}" text-anchor="middle">${esc(tr("O−C en minutos, frente a los elementos del VSX"))}</text>`;
+  $("gRROC").innerHTML = `<h4>Tus mínimos de esta estrella</h4><div class="lienzo"><svg viewBox="0 0 ${W3} ${H3}" role="img" style="min-width:0">${g3}</svg></div><div class="pie">${esc(tr(mios.length < 2
+    ? "De momento, solo este. Con más mínimos de la misma estrella verás aquí cómo cambia su periodo: una recta inclinada si los elementos no son buenos, una curva si el periodo cambia, y una onda si hay un tercer cuerpo."
+    : "Cada punto es uno de tus mínimos (en dorado, este). Una recta inclinada dice que el periodo del VSX no es del todo bueno; una curva, que el periodo cambia; una onda, quizá un tercer cuerpo."))}</div>`;
+}
+
 /* ============ Asteroides y cometas ============ */
 const AST = {sesiones:null, sel:null, series:[], cfg:null, actual:null};
 const COLORES_OBJ = ["#6A3FA0", "#C27A00", "#1F7A5C", "#B8431F", "#2F5FA8", "#8F1D52", "#5B6B1E"];
@@ -10626,6 +11671,7 @@ def _donar_astro():
     return u if _re.match(r"^https://(www\.)?(paypal\.me|paypal\.com)/[\w\-./?=&%~+#]+$", u) else ""
 
 
+DIC_EN.update({"Mínimos de las próximas noches": "Minima in the coming nights", "Las binarias eclipsantes del VSX cuyo mínimo se ve desde tu lugar con dos horas antes y después: la estrella a más de 30° de altura y el Sol a más de 12° bajo el horizonte. Las horas son las de tu ordenador.": "eclipsing binaries from the VSX whose minimum can be seen from your site with two hours before and after: the star more than 30° high and the Sun more than 12° below the horizon. Times are your computer's.", "Buscar mínimos": "Find minima", "Medir un mínimo": "Measure a minimum", "Elige la sesión con las tomas de la estrella (el eclipse entero, con margen antes y después). ASTRO busca sus elementos en el VSX, elige estrellas de comparación de Gaia, calibra y mide cada toma, ajusta el mínimo y calcula su O−C.": "Choose the session with the frames of the star (about three hours in a row around the minimum). ASTRO looks up its elements in the VSX, chooses Gaia comparison stars, calibrates and measures every frame, fits the minimum and computes its O−C.", "automática (30 % de la profundidad)": "automatic (30% of the depth)", "automática (50 % de la profundidad)": "automatic (30% of the depth; 20% if it rises very fast)", "# % de la profundidad": "#% of the depth", "Tu nombre de observador": "Your name to submit", "Medir el mínimo": "Measure the minimum", "Tus mínimos": "Your minima", "Las que tienen nombre del catálogo general (GCVS), como Algol o W UMa: las más estudiadas.": "Those with a name from the General Catalogue (GCVS), such as RR Lyr or XZ Cyg: the best studied, with many years of O−C in VarAstro.", "p. ej. W UMa": "e.g. RR Lyr", "Los puntos que entran en el ajuste: los que quedan a menos de esa parte de la profundidad por encima del fondo del eclipse.": "The points that go into the fit: those less than that fraction of the depth above the bottom of the eclipse.", "Efecto Blazhko: la altura y la forma del mínimo cambian en semanas o meses, y el instante baila con ellas.": "Blazhko effect: the height and shape of the minimum change over weeks or months, and its timing wanders with them.", "Calculando… La primera vez ASTRO descarga del VSX la lista de binarias eclipsantes, y puede tardar un par de minutos.": "Calculating… The first time, ASTRO downloads the list of eclipsing binaries from the VSX, which can take a couple of minutes.", "No hay mínimos que se vean enteros": "No minima fully visible", "las tomas no llegan al mínimo previsto": "the frames don't reach the predicted minimum", "poca curva antes del mínimo previsto": "little curve before the predicted minimum", "poca curva después del mínimo previsto": "little curve after the predicted minimum", "según el VSX no es una binaria eclipsante": "according to the VSX it is not an eclipsing binaries", "Instante del mínimo": "Time of minimum", "Brillo en el mínimo (aprox., en la escala G de Gaia)": "Brightness at minimum (approx., on the Gaia G scale)", "no se puede calcular: la serie no ve el mínimo entero": "can't be computed: the series doesn't see the whole minimum", "mínimo": "minimum", "Magnitud aproximada en la escala G de Gaia (arriba, más brillante). En morado oscuro, los puntos del ajuste, dentro de la franja; en dorado, el polinomio y el instante del mínimo, con su margen de error. La línea de puntos gris es el mínimo previsto por los elementos del VSX.": "Approximate magnitude on the Gaia G scale (brighter at the top). In dark purple, the points of the fit, inside the band; in gold, the polynomial and the time of minimum, with its error margin. The grey dotted line is the minimum predicted by the VSX elements.", "minutos desde el mínimo": "minutes from minimum", "De momento, solo este. Con más mínimos de la misma estrella verás aquí cómo cambia su periodo: una recta inclinada si los elementos no son buenos, una curva si el periodo cambia, y una onda si hay un tercer cuerpo.": "Only this one so far. With more minima of the same star you will see here how its period changes: a sloping line if the elements are not good, a curve if the period changes, and jumps over weeks if it has the Blazhko effect.", "Cada punto es uno de tus mínimos (en dorado, este). Una recta inclinada dice que el periodo del VSX no es del todo bueno; una curva, que el periodo cambia; una onda, quizá un tercer cuerpo.": "Each point is one of your minima (in gold, this one). A sloping line says the VSX period is not quite right; a curve, that the period changes; jumps from one week to another, the Blazhko effect.", "La altura es la de la estrella al empezar, en el mínimo y al terminar; el brillo, el del mínimo según el VSX. Con elementos de hace muchos años el mínimo puede llegar bastante antes o después: por eso se deja hora y media a cada lado.": "The altitude is the star's at the start, at minimum and at the end; the brightness, the minimum according to the VSX. With elements from many years ago the minimum can come quite a bit earlier or later: that is why an hour and a half is left on each side.", "Añade en Control de lights las tomas de la noche del mínimo (al menos 15 seguidas, todas con el mismo filtro; lo normal son más de cien).": "Add the frames of the night of the minimum in the Light frame checker (at least 15 in a row, all with the same filter; usually more than a hundred).", "mínimo previsto": "predicted minimum", "Todavía no has medido ningún mínimo": "You haven't measured any minimum yet", "Elige arriba una sesión y la estrella, y pulsa «Medir el mínimo».": "Choose a session and the star above, and click “Measure the minimum”.", "Mínimo (HJD)": "Minimum (HJD)", "Para enviar": "For VarAstro", "Archivo del mínimo": "Minimum to submit", "Abrir VarAstro": "Open the VarAstro database", "El archivo lleva la estrella, el instante en HJD y su error, el filtro, el método y el observador, además del O−C, el BJD_TDB y cómo se ha medido. Cada base de datos (VarAstro, BAV, AAVSO) tiene su propio formulario: copia de aquí los datos.": "VarAstro stores each minimum with the star, the time in HJD and its error, the filter, the method and the observer. The file carries all that, plus the O−C, the BJD_TDB and how it was measured.", "Mínimo previsto": "Predicted minimum", "de la profundidad": "of the depth", "por encima del fondo del eclipse": "above the bottom of the eclipse", "después del mínimo": "after the minimum", "El mínimo de cerca": "The minimum up close", "Tus mínimos de esta estrella": "Your minima of this star", "~No he podido descargar la lista de binarias eclipsantes del VSX (VizieR, CDS). ¿Hay conexión a Internet?": "I couldn't download the list of eclipsing binaries from the VSX (VizieR, CDS). Is there an Internet connection?", "VizieR no ha devuelto ninguna binaria eclipsante: prueba otra vez dentro de un rato": "VizieR returned no eclipsing binaries: try again in a while", "hacen falta al menos 12 puntos para buscar el mínimo": "at least 12 points are needed to look for the minimum", "hay muy pocos puntos alrededor del mínimo": "there are very few points around the minimum", "no se ha podido ajustar el mínimo": "the minimum couldn't be fitted", "~en el VSX de la AAVSO: escribe su nombre como allí (por ejemplo, W UMa o U Cep)": "in the AAVSO's VSX: type its name as it appears there (for example, RR Lyr or XZ Cyg)", "para un mínimo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)": "a minimum needs many frames in a row (at least 15; usually more than a hundred)", "Ajustando el mínimo": "Fitting the minimum", "la serie no llega a ver el mínimo entero: empieza después de él o termina antes, así que el instante no es de fiar": "the series doesn't see the whole minimum: it starts after it or ends before it, so the time can't be trusted", "ningún polinomio sigue el mínimo sin ondas: prueba con otra ventana o otro grado": "no polynomial follows the minimum without waves: try another window or degree", "hay poca curva antes del mínimo (# min): el error puede ser mayor de lo que parece": "there is little curve before the minimum (# min): the error may be larger than it looks", "hay poca curva después del mínimo (# min): el error puede ser mayor de lo que parece": "there is little curve after the minimum (# min): the error may be larger than it looks", "el instante del mínimo tiene un error grande (más de 5 minutos)": "the time of minimum has a large error (more than 5 minutes)", "el mínimo medido cae lejos del previsto (O−C de # periodos): ¿es la estrella buena, o sus elementos son muy antiguos?": "the measured minimum falls far from the predicted one (O−C of # periods): is it the right star, or are its elements very old?", "según el VSX, esta estrella no es una binaria eclipsante: mira su tipo arriba": "according to the VSX, this star is not an eclipsing binaries: see its type above", "duración del eclipse": "eclipse duration", "Binarias eclipsantes: el mínimo": "Eclipsing binaries: the minimum"})       # binarias eclipsantes
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 

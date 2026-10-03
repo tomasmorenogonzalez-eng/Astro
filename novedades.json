@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.11",
+  "es": [
+   "**Ciencia: binarias eclipsantes, el mínimo.** Un bloque nuevo, hermano del de las RR Lyrae: te dice los mínimos de las próximas noches que se ven enteros desde tu lugar, mide la curva con comparaciones de Gaia, ajusta el instante del mínimo con su error y calcula el O−C frente a los elementos del VSX, también en los mínimos secundarios.",
+   "Da el archivo del mínimo, la curva en CSV, la figura y el paquete de trazabilidad. Es la primera versión: el ajuste está comprobado con eclipses inventados, pero aún no con noches reales, y en los eclipses de fondo plano el error que da es prudente."
+  ],
+  "en": [
+   "**Science: eclipsing binaries, the minimum.** A new block, sibling of the RR Lyrae one: it lists the minima of the coming nights fully visible from your site, measures the light curve against Gaia comparison stars, fits the time of minimum with its error and computes the O−C against the VSX elements, secondary minima included.",
+   "It gives the minimum file, the curve as CSV, the figure and the traceability package. This is the first version: the fit has been checked with synthetic eclipses but not yet with real nights, and for flat-bottomed eclipses the error it reports is cautious."
+  ],
+  "fr": [
+   "**Science : binaires à éclipses, le minimum.** Un nouveau bloc, frère de celui des RR Lyrae : il liste les minima des prochaines nuits visibles en entier depuis ton site, mesure la courbe avec des étoiles de comparaison de Gaia, ajuste l'instant du minimum avec son erreur et calcule l'O−C par rapport aux éléments du VSX, minima secondaires compris.",
+   "Il fournit le fichier du minimum, la courbe en CSV, la figure et le paquet de traçabilité. C'est une première version : l'ajustement est vérifié avec des éclipses simulées, pas encore avec de vraies nuits. Les textes de ce bloc sont pour l'instant en anglais."
+  ],
+  "de": [
+   "**Wissenschaft: Bedeckungsveränderliche, das Minimum.** Ein neuer Bereich, Geschwister des RR-Lyrae-Bereichs: Er listet die Minima der kommenden Nächte, die von deinem Standort ganz sichtbar sind, misst die Lichtkurve mit Gaia-Vergleichssternen, passt den Minimumszeitpunkt mit Fehler an und berechnet das O−C gegen die VSX-Elemente, auch für Nebenminima.",
+   "Er liefert die Minimumsdatei, die Kurve als CSV, die Abbildung und das Nachweispaket. Dies ist die erste Version: Die Anpassung ist mit simulierten Bedeckungen geprüft, noch nicht mit echten Nächten. Die Texte dieses Bereichs sind vorerst auf Englisch."
+  ],
+  "it": [
+   "**Scienza: binarie a eclisse, il minimo.** Un nuovo blocco, fratello di quello delle RR Lyrae: elenca i minimi delle prossime notti visibili per intero dal tuo sito, misura la curva con stelle di confronto di Gaia, adatta l'istante del minimo con il suo errore e calcola l'O−C rispetto agli elementi del VSX, minimi secondari compresi.",
+   "Fornisce il file del minimo, la curva in CSV, la figura e il pacchetto di tracciabilità. È la prima versione: l'adattamento è verificato con eclissi simulate, non ancora con notti reali. I testi di questo blocco sono per ora in inglese."
+  ],
+  "pt": [
+   "**Ciência: binárias eclipsantes, o mínimo.** Um bloco novo, irmão do das RR Lyrae: lista os mínimos das próximas noites visíveis por inteiro do teu local, mede a curva com estrelas de comparação da Gaia, ajusta o instante do mínimo com o seu erro e calcula o O−C face aos elementos do VSX, também nos mínimos secundários.",
+   "Dá o ficheiro do mínimo, a curva em CSV, a figura e o pacote de rastreabilidade. É a primeira versão: o ajuste está verificado com eclipses simulados, ainda não com noites reais. Os textos deste bloco estão por agora em inglês."
+  ]
+ },
+ {
   "version": "0.33.10",
   "es": [
    "**Mapa del campo.** ASTRO mide ahora la nitidez y el alargamiento de las estrellas en 25 zonas de cada toma y te los enseña en un mapa: en la ficha de una toma y, con la mediana de todas sus tomas, en la ficha de cada equipo de un proyecto (botón «Mapa del campo…»).",
