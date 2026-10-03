@@ -1,5 +1,28 @@
 [
  {
+  "version": "0.33.19",
+  "es": [
+   "**Búsqueda de variables, afinada con noches reales.** Probada con tomas de M 31 de seis noches: ahora cada toma se sitúa con su propia astrometría (vale para mosaicos y encuadres distintos), el viñeteo sin corregir ya no hace pasar por variables a las estrellas de las esquinas, y las candidatas cuyo brillo sigue al seeing (una vecina que se cuela, el fondo de una galaxia) salen marcadas y al final de la lista.",
+   "Si los servidores de Gaia no contestan, se usa una consulta guardada de otro día que cubra el campo. Las curvas retrospectivas de varias noches también se sitúan ahora con la astrometría de cada toma."
+  ],
+  "en": [
+   "**Variable search, tuned on real nights.** Tested on six nights of M 31 frames: each frame is now placed with its own astrometry (works for mosaics and different framings), uncorrected vignetting no longer makes corner stars look variable, and candidates whose brightness follows the seeing (a leaking neighbour, a galaxy's background) are flagged and listed last.",
+   "If the Gaia servers do not answer, a saved query from another day covering the field is used. Multi-night retrospective curves are now also placed with each frame's astrometry."
+  ],
+  "fr": [
+   "**Recherche de variables, affinée sur de vraies nuits.** Testée sur six nuits de M 31 : chaque pose est placée avec sa propre astrométrie, le vignettage non corrigé ne crée plus de fausses variables et les candidates qui suivent le seeing sont signalées. Si Gaia ne répond pas, une requête enregistrée couvrant le champ est utilisée."
+  ],
+  "de": [
+   "**Veränderlichensuche, an echten Nächten abgestimmt.** Mit sechs Nächten von M 31 getestet: Jede Aufnahme wird mit ihrer eigenen Astrometrie platziert, unkorrigierte Vignettierung erzeugt keine falschen Veränderlichen mehr, und Kandidaten, die dem Seeing folgen, werden markiert. Antwortet Gaia nicht, wird eine gespeicherte Abfrage verwendet."
+  ],
+  "it": [
+   "**Ricerca di variabili, messa a punto su notti reali.** Provata su sei notti di M 31: ogni posa è posizionata con la propria astrometria, la vignettatura non corretta non crea più false variabili e le candidate che seguono il seeing sono segnalate. Se Gaia non risponde, si usa una query salvata che copre il campo."
+  ],
+  "pt": [
+   "**Pesquisa de variáveis, afinada com noites reais.** Testada com seis noites de M 31: cada imagem é posicionada com a sua própria astrometria, a vinhetagem não corrigida já não cria falsas variáveis e as candidatas que seguem o seeing são assinaladas. Se o Gaia não responder, usa-se uma consulta guardada que cubra o campo."
+  ]
+ },
+ {
   "version": "0.33.18",
   "es": [
    "**Ciencia: rotación de asteroides.** En «Asteroides y cometas», cada asteroide medido en bastantes tomas lleva ahora su curva de rotación: cómo cambia su brillo a lo largo de la noche, la amplitud y, si la noche da para ello, el periodo de rotación estimado. Sale al medir de nuevo o al pulsar «Recalcular» en una medida antigua. Comprobado con curvas inventadas, aún no con noches reales."
