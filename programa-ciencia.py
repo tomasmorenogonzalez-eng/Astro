@@ -89,7 +89,7 @@ def leer_json_o_copia(ruta, defecto):
 
 
 PROGRAMA_ID = "ciencia"
-VERSION_PROG = "2026.10.03.8"
+VERSION_PROG = "2026.10.03.9"
 NOMBRE_PROG = "Ciencia"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -980,6 +980,32 @@ def _tap(url, adql, timeout=90):
     return list(csv.DictReader(io.StringIO(texto)))
 
 
+VIZIER_ASU = ("https://vizier.cfa.harvard.edu/viz-bin/asu-tsv", "https://vizier.cds.unistra.fr/viz-bin/asu-tsv")
+
+
+def _gaia_asu(base, ra, dec, radio, gmin, gmax, limite, timeout=120):
+    """Gaia DR3 por el servicio clásico de VizieR (y sus espejos): una tabla separada por tabuladores. Sirve de tercera
+    vía cuando el archivo de la ESA y el TAP de VizieR no contestan."""
+    q = urllib.parse.urlencode({"-source": "I/355/gaiadr3", "-c": "%.6f %+.6f" % (ra, dec), "-c.rd": "%.5f" % radio,
+                                "-out": "Source,RA_ICRS,DE_ICRS,pmRA,pmDE,e_pmRA,e_pmDE,Plx,e_Plx,Gmag,BPmag,RPmag,VarFlag",
+                                "Gmag": "%.2f..%.2f" % (gmin, gmax), "-out.max": str(limite), "-sort": "Gmag"})
+    req = urllib.request.Request(base + "?" + q, headers={"User-Agent": "ASTRO-Ciencia/%s" % VERSION_PROG})
+    with urllib.request.urlopen(req, timeout=timeout, context=_contexto_ssl()) as r:
+        texto = r.read().decode("utf-8", errors="replace")
+    lineas = [l for l in texto.splitlines() if l.strip() and not l.startswith("#")]
+    if len(lineas) < 3 or not lineas[0].startswith("Source"):
+        if "#INFO" in texto or "#RESOURCE" in texto or not lineas:
+            return []                                  # la consulta ha ido bien y no hay estrellas
+        raise RuntimeError("respuesta que no se entiende")
+    cols = [c.strip() for c in lineas[0].split("\t")]
+    out = []
+    for l in lineas[3:]:
+        v = [x.strip() for x in l.split("\t")]
+        if len(v) == len(cols):
+            out.append(dict(zip(cols, v)))
+    return out
+
+
 def _fila_gaia(f):
     """Una estrella de Gaia desde una fila del archivo de Gaia o de VizieR (cambian los nombres de las columnas)."""
     g = lambda *ks: next((f[k] for k in ks if k in f and f[k] not in ("", None)), None)
@@ -1013,11 +1039,18 @@ def gaia_consulta(ra, dec, radio, gmin, gmax, limite):
     errores = []
     for fuente, url, adql in (("Gaia DR3 · archivo de la ESA", GAIA_TAP, adql_gaia), ("Gaia DR3 · VizieR (CDS)", VIZIER_TAP, adql_vizier)):
         try:
-            filas = _tap(url, adql)
+            filas = _tap(url, adql, timeout=45)
             est = [e for e in (_fila_gaia(f) for f in filas) if e and e["g"] is not None]
             return {"fuente": fuente, "consulta": adql, "url": url, "estrellas": est}
         except Exception as e:
             errores.append("%s: %s" % (fuente, e))
+    for base in VIZIER_ASU:                             # tercera vía: el servicio clásico de VizieR y su espejo de Harvard
+        try:
+            filas = _gaia_asu(base, ra, dec, radio, gmin, gmax, limite)
+            est = [e for e in (_fila_gaia(f) for f in filas) if e and e["g"] is not None]
+            return {"fuente": "Gaia DR3 · VizieR (%s)" % urllib.parse.urlparse(base).netloc, "consulta": "I/355/gaiadr3 · %.5f %+.5f · r=%.4f° · G %.1f–%.1f" % (ra, dec, radio, gmin, gmax), "url": base, "estrellas": est}
+        except Exception as e:
+            errores.append("VizieR (%s): %s" % (urllib.parse.urlparse(base).netloc, e))
     raise RuntimeError("No he podido consultar el catálogo Gaia (¿hay conexión a Internet?). " + " · ".join(errores))
 
 
@@ -2530,6 +2563,24 @@ def _resolver_con_siril(siril, ver, W, ruta, h, pista):
     return WCS(hs), L
 
 
+def _escala_de(d, h):
+    """Segundos de arco por píxel de una toma: lo que dice el Control de lights o, si no lo sabe (tomas de telescopios
+    remotos sin focal en la cabecera), lo que dice su astrometría."""
+    e = num(d.get("escala"))
+    if e:
+        return e
+    try:
+        if h.get("CD1_1") is not None:
+            e = math.hypot(num(h.get("CD1_1")) or 0.0, num(h.get("CD2_1")) or 0.0) * 3600.0
+        elif h.get("CDELT1") is not None:
+            e = abs(num(h.get("CDELT1")) or 0.0) * 3600.0
+        if not e and num(h.get("FOCALLEN")) and num(h.get("XPIXSZ")):
+            e = 206.265 * num(h["XPIXSZ"]) / num(h["FOCALLEN"])
+    except Exception:
+        e = None
+    return e if e and 0.05 < e < 120 else 1.0
+
+
 def _tomas_de_ids(ids):
     """Las tomas pedidas, con su archivo, su calibración y su hora: [(fecha, datos, cabecera, exposición)], en orden."""
     JOB["texto"], JOB["archivo"] = "Buscando la calibración de las tomas", ""
@@ -2749,7 +2800,7 @@ def trabajo_variable(p):
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[0]
         # la secuencia de comparación, con un campo algo mayor que el de la toma
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         lado = max(int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)) * escala / 60.0
         estrella = (p.get("estrella") or d0.get("objeto") or "").strip()
         JOB["texto"], JOB["archivo"] = "Consultando la secuencia de la AAVSO", estrella
@@ -3232,7 +3283,7 @@ def trabajo_busca(p):
             raise RuntimeError("para buscar variables hacen falta al menos ocho tomas del mismo campo")
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[len(tomas) // 2]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
         c = (WCS(h0).pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0) if _ya_resuelta(h0) else None) or coords_cabecera(h0) or (tuple(d0["coords"]) if d0.get("coords") else None)
         if not c:
@@ -4110,7 +4161,7 @@ def trabajo_exo(p):
             raise RuntimeError("para un tránsito hacen falta muchas tomas seguidas (al menos 20; lo normal son cientos)")
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[0]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
         ra_p, dec_p = pl["ra"], pl["dec"]
         # estrellas de comparación de Gaia: de brillo y color parecidos, aisladas y no variables
@@ -4845,7 +4896,7 @@ def trabajo_rr(p):
             raise RuntimeError("para un máximo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)")
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[0]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
         JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
         g_t = (rr["brillo"] + (rr["amplitud"] or 0.6) / 2) if rr.get("brillo") is not None else 12.0
@@ -5494,7 +5545,7 @@ def trabajo_ecl(p):
             raise RuntimeError("para un mínimo hacen falta muchas tomas seguidas (al menos 15; lo normal son más de cien)")
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[0]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
         JOB["texto"], JOB["archivo"] = "Consultando el catálogo Gaia", ""
         g_t = (rr["brillo"] + (rr["amplitud"] or 0.6) / 2) if rr.get("brillo") is not None else 12.0
@@ -6222,7 +6273,7 @@ def trabajo_astrometria(p):
             raise RuntimeError("hacen falta al menos dos tomas (mejor tres o más, separadas unos minutos)")
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[0]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         lg = lugar_de_cabecera(h0) or lugar_por_id(p.get("lugar") or "")
         vmax = float(p.get("vmax") or 19.0)
         hechos = {}
@@ -6783,7 +6834,7 @@ def trabajo_estrellas(p):
             raise RuntimeError("hacen falta al menos dos tomas")
         JOB["total"] = len(tomas)
         f0, d0, h0, _e = tomas[len(tomas) // 2]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
         c = (WCS(h0).pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0) if _ya_resuelta(h0) else None) or coords_cabecera(h0) or (tuple(d0["coords"]) if d0.get("coords") else None)
         if not c:
@@ -7099,7 +7150,7 @@ def trabajo_patrulla(p):
             raise RuntimeError("no encuentro bastantes tomas con fecha")
         JOB["total"] = len(tn) + len(tr_)
         f0, d0, h0, _e = tn[0]
-        escala = num(d0.get("escala")) or 1.0
+        escala = _escala_de(d0, h0)
         w, h = int(num(h0.get("NAXIS1")) or 3000), int(num(h0.get("NAXIS2")) or 2000)
         c = (tuple(d0["coords"]) if d0.get("coords") else None) or coords_cabecera(h0) or (WCS(h0).pix_a_cielo((w - 1) / 2.0, (h - 1) / 2.0) if _ya_resuelta(h0) else None)
         if not c:
@@ -12549,6 +12600,7 @@ async function verEst(id){
   box.innerHTML = `<div class="cabBox"><div><h2 class="notr">${esc(s.objeto || "")}</h2><div class="note"><span>${esc(fechaCorta(s.noche))}${s.noche_fin && s.noche_fin !== s.noche ? " → " + esc(fechaCorta(s.noche_fin)) : ""}</span> · <span class="notr">${esc([s.tel, s.cam, s.filtro].filter(Boolean).join(" · "))}</span></div></div><span class="spacer"></span><button class="btn small" id="dCerrar">${esc(tr("Cerrar"))}</button></div>
     <div class="cifras">${cifra(c.parejas.length, "", tr("Parejas de estrellas medidas"), true)}${cifra(c.rapidas.filter(r => r.propio || r.pm_gaia_epoca).length, "", tr("Estrellas con movimiento propio medido"))}
       ${cifra(numEs(c.rms, 2), "″", tr("Residuo de la astrometría (estrellas de Gaia)"))}${cifra(c.tomas, "", tr("Tomas") + " · " + c.noches + " " + tr("noches") + " · " + numEs(c.anios, 1) + " " + tr("años"))}</div>
+    ${c.rms > 0.25 ? `<div class="avisos"><div>${esc(tr("La astrometría de estas tomas es floja (residuo de más de 0,25″): suele pasar con campos muy amplios o estrellas deformadas. Las medidas valen como orientación, sobre todo el movimiento propio."))}</div></div>` : ""}
     <div class="graf"><h4>${esc(tr("Estrellas dobles: separación y ángulo de posición"))}</h4>${c.parejas.length ? `<div class="tabla" style="max-height:340px"><table><thead><tr><th>AR (J2000)</th><th>Dec</th><th class="num">G A</th><th class="num">G B</th><th class="num">ρ (″)</th><th class="num">θ (°)</th><th class="num">${esc(tr("Época"))}</th><th class="num">${esc(tr("Tomas"))}</th><th class="num">ρ Gaia</th><th class="num">θ Gaia</th><th></th></tr></thead><tbody>${c.parejas.map(filaDB).join("")}</tbody></table></div>` : `<div class="note">${esc(tr("No hay parejas de estrellas que se puedan medir en este campo con esos límites."))}</div>`}
       <div class="pie">${esc(tr("ρ es la separación y θ el ángulo de posición de la secundaria, contado desde el norte hacia el este. Las columnas de Gaia son lo que predice su catálogo para la fecha de tus tomas: sirven para ver cuánto te acercas. Las parejas salen de Gaia; para saber si una está en el catálogo WDS de dobles, búscala allí por sus coordenadas."))}</div></div>
     <div class="graf"><h4>${esc(tr("Movimiento propio (milésimas de segundo de arco por año)"))}</h4>${c.rapidas.length ? `<div class="tabla" style="max-height:340px"><table><thead><tr><th>AR (J2000)</th><th>Dec</th><th class="num">G</th><th class="num">Gaia AR</th><th class="num">Gaia Dec</th><th class="num">${esc(tr("Medido AR"))}</th><th class="num">${esc(tr("Medido Dec"))}</th><th class="num">${esc(tr("Error"))}</th><th>${esc(tr("Cómo"))}</th><th>Gaia DR3</th></tr></thead><tbody>${c.rapidas.map(filaPM).join("")}</tbody></table></div>` : `<div class="note">${esc(tr("No hay estrellas que se muevan tan deprisa en este campo."))}</div>`}
@@ -13156,6 +13208,7 @@ DIC_EN.update({"sigue al seeing": "follows the seeing", "Candidatas limpias que 
 DIC_EN.update({"Estrellas dobles y movimiento propio": "Double stars and proper motion", "Elige un objeto: ASTRO busca en su campo las parejas de estrellas (para medir su separación y su ángulo de posición) y las estrellas que se mueven deprisa por el cielo (para medir su movimiento propio), y las mide en tus tomas con la astrometría de Gaia. Con tomas de varios años, el movimiento sale solo de tus noches; con una sola época, se compara con la posición de Gaia en 2016.": "Choose a target: ASTRO finds in its field the star pairs (to measure their separation and position angle) and the stars that move fast across the sky (to measure their proper motion), and measures them in your frames with Gaia astrometry. With frames spanning several years the motion comes from your nights alone; with a single epoch it is compared with Gaia's 2016 position.", "Solo se miden las estrellas que se mueven más que esto, en milésimas de segundo de arco por año.": "Only stars moving faster than this are measured, in milliarcseconds per year.", "Movimiento propio mayor que": "Proper motion above", "50 mas/año": "50 mas/yr", "80 mas/año": "80 mas/yr", "150 mas/año": "150 mas/yr", "Parejas hasta la magnitud": "Pairs down to magnitude", "Tus medidas de dobles y movimiento propio": "Your double-star and proper-motion measurements", "Hacen falta al menos dos tomas": "At least two frames are needed", "Todavía no has medido dobles ni movimientos propios": "You haven't measured doubles or proper motions yet", "Elige arriba un objeto y pulsa «Medir».": "Choose a target above and press “Measure”.", "Parejas": "Pairs", "Estrellas rápidas": "Fast stars", "Residuo (″)": "Residual (″)", "tus noches": "your nights", "desde Gaia 2016": "since Gaia 2016", "no se ha podido medir": "could not be measured", "Las dos estrellas están a la misma distancia y se mueven juntas según Gaia.": "According to Gaia the two stars are at the same distance and move together.", "pareja real": "real pair", "Según Gaia no están a la misma distancia o no se mueven juntas: coinciden en la misma línea de visión.": "According to Gaia they are not at the same distance or do not move together: a chance alignment.", "óptica": "optical", "Parejas de estrellas medidas": "Star pairs measured", "Estrellas con movimiento propio medido": "Stars with measured proper motion", "Estrellas dobles: separación y ángulo de posición": "Double stars: separation and position angle", "Época": "Epoch", "No hay parejas de estrellas que se puedan medir en este campo con esos límites.": "There are no measurable star pairs in this field with those limits.", "ρ es la separación y θ el ángulo de posición de la secundaria, contado desde el norte hacia el este. Las columnas de Gaia son lo que predice su catálogo para la fecha de tus tomas: sirven para ver cuánto te acercas. Las parejas salen de Gaia; para saber si una está en el catálogo WDS de dobles, búscala allí por sus coordenadas.": "ρ is the separation and θ the position angle of the secondary, counted from north through east. The Gaia columns are what its catalogue predicts for the date of your frames: they show how close you get. Pairs come from Gaia; to know whether one is in the WDS double-star catalogue, look it up there by coordinates.", "Movimiento propio (milésimas de segundo de arco por año)": "Proper motion (milliarcseconds per year)", "Medido AR": "Measured RA", "Medido Dec": "Measured Dec", "Error": "Error", "Cómo": "How", "No hay estrellas que se muevan tan deprisa en este campo.": "No stars move that fast in this field.", "«Tus noches»: la recta ajustada a tus propias medidas a lo largo de los años. «Desde Gaia 2016»: lo que se ha desplazado la estrella entre la posición de Gaia (época 2016,0) y la de tus tomas, dividido entre los años que han pasado. No se descuenta la paralaje, que en las estrellas más cercanas añade un vaivén anual de unas décimas de segundo.": "“Your nights”: the line fitted to your own measurements over the years. “Since Gaia 2016”: how far the star has moved between Gaia's position (epoch 2016.0) and your frames, divided by the years elapsed. Parallax is not removed; for the nearest stars it adds a yearly wobble of a few tenths of an arcsecond.", "en este campo no hay estrellas con movimiento propio grande ni parejas de estrellas brillantes que medir": "this field has no stars with large proper motion nor bright star pairs to measure", "hay muy pocas estrellas de Gaia en el campo para la astrometría": "there are too few Gaia stars in the field for the astrometry"})
 DIC_EN.update({"Brillo del cometa según la apertura": "Comet brightness by aperture", "Magnitud total aproximada (m1)": "Approximate total magnitude (m1)", "Diámetro de la coma que se aprecia": "Visible coma diameter", "Radio de la apertura": "Aperture radius", "Magnitud G": "G magnitude", "Un cometa no es un punto: cuanto mayor es la apertura, más coma entra y más brillante sale, hasta que ya solo se añade cielo. Esa magnitud es la total (m1), la que recogen bases como COBS. Es aproximada: va en la banda G de Gaia y, si hay estrellas dentro de la apertura, sale más brillante de la cuenta.": "A comet is not a point: the larger the aperture, the more coma is included and the brighter it comes out, until only sky is being added. That magnitude is the total one (m1), the one databases such as COBS collect. It is approximate: it is in the Gaia G band and, if there are stars inside the aperture, it comes out too bright.", "La coma llega hasta la mayor apertura que cabe: la magnitud total real es algo más brillante.": "The coma reaches the largest aperture that fits: the true total magnitude is somewhat brighter."})
 DIC_EN.update({"Patrulla de supernovas: lo nuevo en el campo": "Supernova patrol: what is new in the field", "Noche nueva": "New night", "Comparar con": "Compare with", "Radio": "Radius", "Se busca en un círculo de este radio alrededor del objeto.": "The search covers a circle of this radius around the target.", "Patrulla de supernovas: ASTRO busca todos los puntos de luz alrededor del objeto en las tomas de la noche nueva, aparta los que son estrellas de Gaia y mira si los demás estaban ya en las tomas de una noche anterior. Lo que antes no estaba, o era mucho más débil, sale como candidata. Hacen falta tomas del mismo objeto de dos noches con el mismo equipo.": "Supernova patrol: ASTRO finds every point of light around the target in the new night's frames, sets aside those that are Gaia stars and checks whether the rest were already there in an earlier night's frames. Whatever was not there before, or was much fainter, is listed as a candidate. You need frames of the same target from two nights with the same equipment.", "Tus patrullas de supernovas": "Your supernova patrols", "Buscar lo nuevo": "Find what is new", "Elige dos noches distintas: la nueva y la de comparación": "Choose two different nights: the new one and the comparison one", "La noche nueva necesita al menos dos tomas": "The new night needs at least two frames", "Todavía no has hecho ninguna patrulla": "You haven't run any patrol yet", "Elige arriba «Patrulla de supernovas», un objeto con tomas de dos noches y pulsa «Buscar lo nuevo».": "Choose “Supernova patrol” above, a target with frames from two nights, and press “Find what is new”.", "Comparada con": "Compared with", "Llega hasta": "Reaches", "Nuevas": "New", "Suben": "Brighter", "Dudosas": "Doubtful", "Patrulla de supernovas": "Supernova patrol", "antes no estaba": "was not there before", "ha subido": "brightened by", "dudosa": "doubtful", "La noche de comparación no llega tan hondo como para asegurar que antes no estaba.": "The comparison night is not deep enough to be sure it was not there before.", "comparada con": "compared with", "Puntos de luz que antes no estaban": "Points of light that were not there before", "Han subido más de una magnitud": "Brightened by more than one magnitude", "Hasta dónde llega la noche nueva": "How deep the new night reaches", "radio": "radius", "Tomas nuevas y de comparación": "New and comparison frames", "puntos revisados": "points checked", "Las tomas nuevas abarcan menos de 20 minutos: un asteroide lento podría parecer quieto. Comprueba que la candidata no se mueve en tomas más separadas.": "The new frames span less than 20 minutes: a slow asteroid could look stationary. Check that the candidate does not move in frames further apart.", "Gaia no contestaba y se ha usado una consulta guardada, menos profunda: puede haber estrellas débiles conocidas que aquí salgan como sueltas (la comparación con la otra noche las descarta igual).": "Gaia was not answering and a shallower saved query was used: some known faint stars may show up as unmatched here (the comparison with the other night discards them anyway).", "Antes": "Before", "Ahora": "Now", "Mag G ahora": "G mag now", "Del centro": "From centre", "Nada nuevo: todos los puntos de luz de la zona son estrellas de Gaia o ya estaban en la noche de comparación.": "Nothing new: every point of light in the area is a Gaia star or was already there on the comparison night.", "Una candidata no es un descubrimiento. Mira los dos recortes: tiene que verse un punto como las estrellas donde antes no había nada. Luego búscala con el botón en el TNS (el registro internacional de transitorios, 10″ alrededor): lo normal es que ya esté allí. Si no está, descarta que sea un asteroide (con el bloque de asteroides o el comprobador del MPC), repítela otra noche y entonces se envía al TNS.": "A candidate is not a discovery. Look at the two cutouts: there must be a star-like point where there was nothing before. Then look it up with the button in the TNS (the international transient registry, 10″ around): usually it is already there. If it is not, rule out an asteroid (with the asteroid block or the MPC checker), repeat it another night and only then submit it to the TNS.", "Borrar esta patrulla": "Delete this patrol", "¿Borrar esta patrulla?": "Delete this patrol?", "hacen falta al menos dos tomas de la noche nueva y una de una noche anterior": "at least two frames from the new night and one from an earlier night are needed", "hay muy pocas estrellas de Gaia en la zona para situar las tomas": "there are too few Gaia stars in the area to place the frames"})
+DIC_EN.update({"La astrometría de estas tomas es floja (residuo de más de 0,25″): suele pasar con campos muy amplios o estrellas deformadas. Las medidas valen como orientación, sobre todo el movimiento propio.": "The astrometry of these frames is loose (residual above 0.25″): this usually happens with very wide fields or distorted stars. Take the measurements as a guide, proper motion above all."})
 DIC_EN.update({"Apoya ASTRO": "Support ASTRO", "ASTRO es gratuito. Si te resulta útil, puedes ayudar a que siga creciendo con una donación.": "ASTRO is free. If you find it useful, you can help it keep growing with a donation.", "Donar con PayPal": "Donate with PayPal"})
 HTML = HTML.replace("__DIC_EN__", json.dumps(DIC_EN, ensure_ascii=True).replace("</", "<\\/")).replace("__VERSION__", VERSION_PROG).replace("__MANROPE__", MANROPE_WOFF2).replace("__DONAR__", json.dumps(_donar_astro()))
 
