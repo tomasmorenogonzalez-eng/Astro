@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.23",
+  "es": [
+   "**Manual de Ciencia.** En la portada de Ciencia hay una tarjeta nueva, «Manual de Ciencia»: una guía sencilla y extensa en quince capítulos. Explica qué hace falta siempre, cómo se trabaja en todos los bloques, y para cada uno qué se mide, para qué sirve, un ejemplo paso a paso, más ejercicios y cómo publicar los resultados (AAVSO, ExoClock, GEOS, VarAstro, Minor Planet Center, COBS, TNS, revistas de dobles). Termina con una tabla resumen de publicación, diez tropiezos frecuentes y un glosario."
+  ],
+  "en": [
+   "**Science Manual.** The Science home page has a new card, «Science Manual»: a simple, extensive guide in fifteen chapters. It explains what you always need, how every block works, and for each one what is measured, what it is for, a step-by-step example, more exercises and how to publish the results (AAVSO, ExoClock, GEOS, VarAstro, Minor Planet Center, COBS, TNS, double-star journals). It ends with a publishing summary table, ten common stumbles and a glossary."
+  ],
+  "fr": [
+   "**Manuel de Science.** La page d'accueil de Science a une nouvelle carte, « Manuel de Science » : un guide simple et complet en quinze chapitres, avec pour chaque bloc ce que l'on mesure, un exemple pas à pas, d'autres exercices et comment publier les résultats. Il se termine par un tableau récapitulatif, dix erreurs fréquentes et un glossaire. (Texte en anglais pour l'instant.)"
+  ],
+  "de": [
+   "**Wissenschafts-Handbuch.** Die Startseite von Wissenschaft hat eine neue Karte, „Handbuch“: ein einfacher, ausführlicher Leitfaden in fünfzehn Kapiteln, mit dem, was in jedem Block gemessen wird, einem Schritt-für-Schritt-Beispiel, weiteren Übungen und der Veröffentlichung der Ergebnisse. Am Ende stehen eine Übersichtstabelle, zehn häufige Stolpersteine und ein Glossar. (Text vorerst auf Englisch.)"
+  ],
+  "it": [
+   "**Manuale di Scienza.** La pagina iniziale di Scienza ha una nuova scheda, «Manuale di Scienza»: una guida semplice ed estesa in quindici capitoli, con ciò che si misura in ogni blocco, un esempio passo per passo, altri esercizi e come pubblicare i risultati. Si chiude con una tabella riassuntiva, dieci inciampi frequenti e un glossario. (Testo per ora in inglese.)"
+  ],
+  "pt": [
+   "**Manual de Ciência.** A página inicial de Ciência tem um novo cartão, «Manual de Ciência»: um guia simples e extenso em quinze capítulos, com o que se mede em cada bloco, um exemplo passo a passo, mais exercícios e como publicar os resultados. Termina com uma tabela-resumo, dez tropeços frequentes e um glossário. (Texto por enquanto em inglês.)"
+  ]
+ },
+ {
   "version": "0.33.22",
   "es": [
    "**Ciencia: diez bloques.** La patrulla de supernovas y las estrellas dobles con el movimiento propio tienen ahora su propia tarjeta y su propia página, con su historia, qué necesitas y adónde van los resultados. Las imágenes de las dos tarjetas son del telescopio espacial Hubble (NASA y ESA).",
