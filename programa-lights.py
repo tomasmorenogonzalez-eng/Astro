@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.10"
+VERSION_PROG = "2026.10.03.11"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1846,6 +1846,12 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
 <div class="modal" id="igBox"><div class="box" style="width:min(1100px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="igTitulo">¿Sigo con este filtro?</h2><button class="btn small" id="igCerrar">Cerrar</button></div>
   <div id="igCuerpo" style="display:flex;flex-direction:column;gap:10px"></div>
+</div></div>
+<div class="modal" id="devBox"><div class="box notr" style="width:min(420px,100%)">
+  <h2 id="devBoxTit"></h2>
+  <input type="password" id="devClave" autocomplete="off" style="width:100%;margin:12px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:inherit;font-size:15px">
+  <div class="note" id="devMal" style="color:var(--bad);min-height:18px"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn" id="devNo"></button><button class="btn primary" id="devSi"></button></div>
 </div></div>
 <div class="modal" id="gcBox"><div class="box notr" style="width:min(1500px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="gcTit"></h2><button class="btn small" id="gcCerrar"></button></div>
@@ -11418,10 +11424,23 @@ document.querySelector(".marca").addEventListener("click", () => {
   const ah = Date.now(); DEV.n = ah - DEV.t < 700 ? DEV.n + 1 : 1; DEV.t = ah;
   if (DEV.n < 7) return;
   DEV.n = 0;
-  try { localStorage.setItem("astro-dev", devOn() ? "0" : "1"); } catch(_){}
-  devPintar();
-  toast(devOn() ? trLT("Modo desarrollador activado: mira «En pruebas» en el menú", "Developer mode on: see «In testing» in the menu") : trLT("Modo desarrollador desactivado", "Developer mode off"));
+  if (devOn()){ try { localStorage.setItem("astro-dev", "0"); } catch(_){} devPintar(); toast(trLT("Modo desarrollador desactivado", "Developer mode off")); return; }
+  $("devBoxTit").textContent = trLT("Clave de desarrollador", "Developer key");
+  $("devNo").textContent = trLT("Cancelar", "Cancel"); $("devSi").textContent = trLT("Entrar", "Enter");
+  $("devClave").value = ""; $("devMal").textContent = "";
+  $("devBox").classList.add("show"); $("devClave").focus();
 });
+async function devEntrar(){
+  let ok = false;
+  try { ok = (await (await fetch("/api/dev/clave", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({clave: $("devClave").value})})).json()).ok; } catch(_){}
+  if (!ok){ $("devMal").textContent = trLT("Clave incorrecta", "Wrong key"); return; }
+  try { localStorage.setItem("astro-dev", "1"); } catch(_){}
+  $("devBox").classList.remove("show"); devPintar();
+  toast(trLT("Modo desarrollador activado: mira «En pruebas» en el menú", "Developer mode on: see «In testing» in the menu"));
+}
+$("devSi").onclick = devEntrar;
+$("devClave").onkeydown = e => { if (e.key === "Enter") devEntrar(); };
+$("devNo").onclick = () => $("devBox").classList.remove("show");
 devPintar();
 $("btnGradiente").textContent = trLT("Corregir gradientes", "Gradient correction");
 $("btnGradiente").onclick = gcAbrir;
@@ -14304,6 +14323,14 @@ def gc_aplicar(ruta, salida, M, R, avance=None, nota=""):
         g.write(b"\0" * (-(W * H * C * 4) % 2880))
     os.replace(tmp, salida)
 
+
+
+DEV_CLAVE = "8295116592515474fd3e6eb45c0ee552823c46789c0e112e27086db055d11d4e"      # huella (SHA-256) de la clave del modo desarrollador; la clave no está en el código
+
+
+def dev_clave_ok(c):
+    import hashlib
+    return hashlib.sha256(("astro-dev:" + str(c or "").strip()).encode("utf-8")).hexdigest() == DEV_CLAVE
 
 
 GC = {"ruta": "", "src": "", "M": None, "R": None, "dir": "", "ultimo": "", "n": 0}
@@ -22763,6 +22790,9 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps(gc_guardar(_gc_params(d)), ensure_ascii=False))
                 except RuntimeError as e:
                     return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+            if p.path == "/api/dev/clave":
+                time.sleep(0.6)
+                return self._send(200, json.dumps({"ok": dev_clave_ok(json.loads(self._body() or b"{}").get("clave"))}))
             if p.path == "/api/gc/carpeta":
                 if GC.get("ultimo") and os.path.isfile(GC["ultimo"]):
                     abrir_sistema(GC["ultimo"], True)
