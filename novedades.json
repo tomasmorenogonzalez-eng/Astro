@@ -1,5 +1,26 @@
 [
  {
+  "version": "0.33.15",
+  "es": [
+   "**Panel general: cada proyecto en curso, en su caja.** Los proyectos en curso salen ahora en tarjetas separadas, con la foto y la letra más grandes, para leer de un vistazo qué llevas, qué falta y cuándo conviene seguir."
+  ],
+  "en": [
+   "**Overview: each project in progress in its own box.** Projects in progress now appear as separate cards, with a larger photo and text, so you can see at a glance what you have, what is missing and when to carry on."
+  ],
+  "fr": [
+   "**Vue d'ensemble : chaque projet en cours dans sa case.** Les projets en cours apparaissent en cartes séparées, avec photo et texte plus grands, pour lire d'un coup d'œil où tu en es."
+  ],
+  "de": [
+   "**Übersicht: jedes laufende Projekt in eigenem Kasten.** Laufende Projekte erscheinen als getrennte Karten mit größerem Foto und Text, damit der Stand auf einen Blick lesbar ist."
+  ],
+  "it": [
+   "**Pannello generale: ogni progetto in corso nel suo riquadro.** I progetti in corso appaiono come schede separate, con foto e testo più grandi, per leggere a colpo d'occhio a che punto sei."
+  ],
+  "pt": [
+   "**Painel geral: cada projeto em curso na sua caixa.** Os projetos em curso aparecem em cartões separados, com foto e texto maiores, para ler num relance como vão."
+  ]
+ },
+ {
   "version": "0.33.14",
   "es": [
    "**«¿Qué fotografío?» más grande y en paleta Hubble.** La ventana ocupa ahora casi toda la pantalla y las fotos de cada objeto son bastante mayores. Las nebulosas de emisión salen coloreadas como en la paleta Hubble (SHO): dorados y azul verdoso. Es una simulación a partir de la foto en color del cielo, no datos reales de banda estrecha; las galaxias, los cúmulos y las nebulosas de reflexión siguen al natural. Se quita con la casilla «Paleta Hubble (SHO)»."

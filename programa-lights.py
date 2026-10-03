@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.7"
+VERSION_PROG = "2026.10.03.8"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1292,6 +1292,15 @@ body.parpAbierto{overflow:hidden}
 .pnPr .r1{font-size:14px;font-weight:800;color:var(--accent)}
 .pnPr .r1.gris{color:var(--muted)} .pnPr .r1.ok{color:var(--ok)} .pnPr .r1 .ritmo{font-size:12.5px;font-weight:600;color:var(--muted)}
 .pnPr .r3{color:var(--text)} .pnPr .r3 .prox{padding:0;background:none}
+/* cada proyecto en curso, en su caja: se lee de un vistazo */
+.pnPr{grid-template-columns:76px minmax(0,1fr) minmax(0,270px);gap:5px 16px;padding:13px 16px;margin-top:10px;border:1px solid var(--line);border-radius:14px;background:var(--bg);transition:border-color .15s,box-shadow .15s}
+.pnPr:first-of-type{border-top:1px solid var(--line)}
+.pnPr:hover,.pnPr:focus-visible{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);outline:0}
+.pnPr .mini{width:76px;height:76px;border-radius:12px}
+.pnPr .nom b{font-size:17px} .pnPr .nom .cat{font-size:13px}
+.pnPr .eq,.pnPr .bl,.pnPr .r2,.pnPr .r3{font-size:13.5px} .pnPr .bl > b{font-size:14px;min-width:92px}
+.pnPr .r1{font-size:15.5px} .pnPr .barra{height:10px}
+@media (max-width:1250px){ .pnPr{grid-template-columns:60px minmax(0,1fr)} .pnPr .mini{width:60px;height:60px;grid-row:span 6} .pnPr .r1,.pnPr .r2,.pnPr .r3{text-align:left} }
 .pnAviso{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;padding:7px 0;border-top:1px solid var(--line)}
 .pnAviso:first-of-type{border-top:0}
 .pnAviso > i{flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--warn)}
