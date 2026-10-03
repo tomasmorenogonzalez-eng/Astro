@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.33.13",
+  "es": [
+   "**Mapa del cielo más grande y con Tycho-2 de serie.** El mapa ocupa ahora casi toda la altura de la ventana y tiene un botón «Pantalla completa» (Esc para salir). El catálogo Tycho-2 (2,5 millones de estrellas, hasta la magnitud 12) se descarga solo la primera vez que abres el mapa, sin tener que pedirlo; si lo quitas, no se vuelve a bajar.",
+   "Debajo del nombre ASTRO sale ahora la versión de la aplicación."
+  ],
+  "en": [
+   "**Bigger sky map, with Tycho-2 as standard.** The map now takes almost the full window height and has a “Full screen” button (Esc to exit). The Tycho-2 catalogue (2.5 million stars, down to magnitude 12) downloads by itself the first time you open the map; if you remove it, it is not downloaded again.",
+   "The application version now shows under the ASTRO name."
+  ],
+  "fr": [
+   "**Carte du ciel plus grande, avec Tycho-2 d'office.** La carte occupe presque toute la hauteur de la fenêtre et dispose d'un bouton « Plein écran » (Échap pour sortir). Le catalogue Tycho-2 (2,5 millions d'étoiles, jusqu'à la magnitude 12) se télécharge tout seul à la première ouverture de la carte.",
+   "La version de l'application s'affiche sous le nom ASTRO."
+  ],
+  "de": [
+   "**Größere Himmelskarte, standardmäßig mit Tycho-2.** Die Karte nutzt fast die ganze Fensterhöhe und hat eine Schaltfläche „Vollbild“ (Esc zum Verlassen). Der Tycho-2-Katalog (2,5 Millionen Sterne bis Magnitude 12) wird beim ersten Öffnen der Karte automatisch geladen.",
+   "Unter dem Namen ASTRO steht jetzt die Version der Anwendung."
+  ],
+  "it": [
+   "**Mappa del cielo più grande, con Tycho-2 di serie.** La mappa occupa quasi tutta l'altezza della finestra e ha un pulsante «Schermo intero» (Esc per uscire). Il catalogo Tycho-2 (2,5 milioni di stelle, fino alla magnitudine 12) si scarica da solo alla prima apertura della mappa.",
+   "Sotto il nome ASTRO compare ora la versione dell'applicazione."
+  ],
+  "pt": [
+   "**Mapa do céu maior, com Tycho-2 de série.** O mapa ocupa quase toda a altura da janela e tem um botão «Ecrã inteiro» (Esc para sair). O catálogo Tycho-2 (2,5 milhões de estrelas, até à magnitude 12) descarrega-se sozinho na primeira vez que abres o mapa.",
+   "Por baixo do nome ASTRO aparece agora a versão da aplicação."
+  ]
+ },
+ {
   "version": "0.33.12",
   "es": [
    "**Ciencia: curvas de luz retrospectivas.** En «Estrellas variables» puedes elegir ahora «Todas las noches de un objeto»: ASTRO recorre las tomas que ya tienes guardadas (mismo filtro y mismo equipo), mide unas pocas por noche o todas, y saca la curva de luz de meses o años de cualquier variable del campo, con un punto por noche.",

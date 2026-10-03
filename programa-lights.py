@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.03.5"
+VERSION_PROG = "2026.10.03.6"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1122,6 +1122,7 @@ tr.arcSesPri td{border-top:2px solid var(--line2)} .arcSesNoche{white-space:nowr
 .mapaCaja{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--surface);margin-top:10px;box-shadow:0 8px 28px rgba(20,10,50,.18)}
 #mapaCanvas{display:block;width:100%;touch-action:none;cursor:grab}
 .mapaCtl{position:absolute;right:10px;top:10px;display:flex;gap:6px;z-index:2}
+.mapaCaja.pleno{position:fixed;inset:0;z-index:60;margin:0;border-radius:0;border:0}
 .mapaIr{position:absolute;left:10px;top:10px;z-index:2} .mapaIr select{max-width:220px;background:rgba(14,11,30,.82);color:#F2EEFF;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px}
 .mapaCtl .btn{background:rgba(14,11,30,.82);color:#F2EEFF;border-color:rgba(255,255,255,.18)} .mapaCtl .btn:hover{background:rgba(40,30,78,.92)}
 .mapaCapas{display:flex;gap:4px 14px;flex-wrap:wrap} .mapaCapas label{display:inline-flex;gap:5px;align-items:center;color:var(--muted);cursor:pointer}
@@ -6013,11 +6014,21 @@ function leerEstrellas(buf){
   return {paso, nc, nf, n, m0: dv.getFloat32(20, true), esc: dv.getFloat32(24, true), ini,
     ra: new Uint16Array(buf, o, n), dec: new Uint16Array(buf, o + 2 * n, n), mag: new Uint8Array(buf, o + 4 * n, n), bv: new Int8Array(buf, o + 5 * n, n)};
 }
+function mapaPleno(si){
+  MAPA.pleno = !!si;
+  const caja = document.querySelector(".mapaCaja"); if (caja) caja.classList.toggle("pleno", MAPA.pleno);
+  const b = document.querySelector('[data-mapa="pleno"]'); if (b) b.textContent = MAPA.pleno ? trLT("Salir de pantalla completa", "Exit full screen") : trLT("Pantalla completa", "Full screen");
+  pedirPintarMapa();
+}
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && MAPA.pleno && document.querySelector(".mapaCaja.pleno")) mapaPleno(false); });
+// Tycho-2 se descarga solo la primera vez que se abre el mapa (15 MB); si alguien lo quita, no se vuelve a bajar sin pedirlo
+const tychoNoQuiere = () => { try { return localStorage.getItem("astro-tycho-no") === "1"; } catch(_){ return false; } };
 function estadoTycho(){
   api("/api/cielo/tycho/estado").then(r => r.json()).then(e => {
     const antes = TYCHO.estado; TYCHO.estado = e;
     if (!e.hay){ TYCHO.datos = null; TYCHO.fallo = false; }
     if (antes && !antes.hay && e.hay) pedirPintarMapa();
+    if (!e.hay && !e.bajando && !e.error && !TYCHO.autoPedido && !tychoNoQuiere()){ TYCHO.autoPedido = true; tychoAccion("descargar"); return; }
     pintarTychoUI();
     clearTimeout(TYCHO.vigia);
     if (e.bajando) TYCHO.vigia = setTimeout(estadoTycho, 700);
@@ -6030,6 +6041,7 @@ function cargarTycho(){
     .catch(() => { TYCHO.fallo = true; }).finally(() => { TYCHO.pidiendo = false; });
 }
 function tychoAccion(que){
+  try { if (que === "quitar") localStorage.setItem("astro-tycho-no", "1"); else localStorage.removeItem("astro-tycho-no"); } catch(_){}
   api("/api/cielo/tycho/" + que, {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"})
     .then(r => r.json()).then(e => { TYCHO.estado = e; if (!e.hay){ TYCHO.datos = null; pedirPintarMapa(); } pintarTychoUI(); if (e.bajando) TYCHO.vigia = setTimeout(estadoTycho, 700); })
     .catch(e => toast(trLT("No se ha podido: {1}", "It couldn't be done: {1}", e.message || e)));
@@ -6168,9 +6180,10 @@ function htmlMapaCielo(ps){
   const capas = [["const", trLT("Constelaciones", "Constellations")], ["via", trLT("Vía Láctea", "Milky Way")], ["rejilla", trLT("Rejilla", "Grid")], ["nombres", trLT("Nombres de estrellas", "Star names")]]
     .map(([k, t]) => `<label><input type="checkbox" data-mapa-ver="${k}" ${MAPA.ver[k] ? "checked" : ""}> ${esc(t)}</label>`).join("");
   const nombres = MAPA.datos.map(d => d.p.obj).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-  return `<div class="mapaCaja"><div class="mapaIr"><select id="mapaIr"><option value="">${esc(trLT("Ir a…", "Go to…"))}</option>${nombres.map(n => `<option class="notr" value="${esc(n)}">${esc(n)}</option>`).join("")}</select></div>
+  return `<div class="mapaCaja${MAPA.pleno ? " pleno" : ""}"><div class="mapaIr"><select id="mapaIr"><option value="">${esc(trLT("Ir a…", "Go to…"))}</option>${nombres.map(n => `<option class="notr" value="${esc(n)}">${esc(n)}</option>`).join("")}</select></div>
     <div class="mapaCtl"><button class="btn small" data-mapa="mas" title="${esc(trLT("Acercar", "Zoom in"))}">+</button><button class="btn small" data-mapa="menos" title="${esc(trLT("Alejar", "Zoom out"))}">−</button>
-      <button class="btn small" data-mapa="todo">${esc(trLT("Todo el cielo", "Whole sky"))}</button></div>
+      <button class="btn small" data-mapa="todo">${esc(trLT("Todo el cielo", "Whole sky"))}</button>
+      <button class="btn small" data-mapa="pleno">${esc(MAPA.pleno ? trLT("Salir de pantalla completa", "Exit full screen") : trLT("Pantalla completa", "Full screen"))}</button></div>
     <canvas id="mapaCanvas"></canvas><div class="mapaTip" id="mapaTip"></div></div>
     <div class="mapaLeyenda">${ley}<span class="spacer"></span><span class="mapaCapas">${capas}</span></div>
     <div class="note mapaTycho" id="mapaTycho"></div>
@@ -6356,7 +6369,8 @@ function dentroPoligono(x, y, q){
 function pintarMapaCielo(){
   const cv = $("mapaCanvas"); if (!cv) return;
   cargarCielo();
-  const W = cv.clientWidth || 800, H = Math.round(Math.min(720, Math.max(280, W * 0.56))), dpr = window.devicePixelRatio || 1;
+  // grande: casi toda la altura de la ventana (y, con «Pantalla completa», toda)
+  const W = cv.clientWidth || 800, H = MAPA.pleno ? window.innerHeight : Math.round(Math.max(380, Math.min(W * 0.75, window.innerHeight - 110))), dpr = window.devicePixelRatio || 1;
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + "px"; }
   const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const pr = proyector(W, H), P = pr.P, todo = pr.modo === "todo", fuente = fuenteMapa();
@@ -6508,6 +6522,7 @@ function enlazarMapa(){
     pedirPintarMapa();
   };
   document.querySelectorAll("[data-mapa]").forEach(b => b.onclick = () => { const a = b.dataset.mapa;
+    if (a === "pleno"){ mapaPleno(!MAPA.pleno); return; }
     if (a === "todo"){ MAPA.modo = "todo"; MAPA.zoom = 1; MAPA.px = MAPA.py = 0; pedirPintarMapa(); } else zoomEn(a === "mas" ? 1.6 : 1 / 1.6); });
   document.querySelectorAll("[data-mapa-ver]").forEach(ch => ch.onchange = () => {
     MAPA.ver[ch.dataset.mapaVer] = ch.checked;
