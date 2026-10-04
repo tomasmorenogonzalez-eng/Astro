@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.04.3"
+VERSION_PROG = "2026.10.04.4"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -14783,13 +14783,36 @@ def trabajo_cc(P):
                 raise RuntimeError("Faltan masters: hacen falta el rojo, el verde y el azul.")
             if len({(sel[k]["w"], sel[k]["h"]) for k in "rgb"}) != 1:
                 raise RuntimeError("Los tres masters tienen que tener el mismo tamaño y estar alineados entre sí.")
+            # los masters de cada filtro no tienen por qué coincidir píxel a píxel: se alinean aquí por sus estrellas.
+            # Si el rojo no está situado en el cielo, se alinean todos con una imagen hermana que sí lo esté (el master L)
+            # y se hereda su astrometría; así no hace falta resolver nada por internet
+            R = sel["r"]
+            donante = R["ruta"] if R["wcs"] else _cc_hermano_wcs(R)
+            orden = ([donante] if donante and donante != R["ruta"] else []) + [sel[k]["ruta"] for k in "rgb"]
+            src, seq = os.path.join(d, "src"), os.path.join(d, "seq")
+            shutil.rmtree(src, ignore_errors=True)
+            shutil.rmtree(seq, ignore_errors=True)
+            os.makedirs(src)
+            for k, ruta in enumerate(orden, 1):
+                enlace(ruta, os.path.join(src, "%02d.fit" % k))
+            E["paso"] = "Alineando los tres masters entre sí"
+            _cc_siril(siril, ["cd " + q(src), "link m " + qo("-out=", seq), "cd " + q(seq), "setref m 1", "register m"], "alinear")
+            al = [os.path.join(seq, "r_m_%05d.fit" % k) for k in range(len(orden) - 2, len(orden) + 1)]
+            if not all(os.path.isfile(x) for x in al):
+                raise RuntimeError("No se han podido alinear los tres masters entre sí (Siril no ha encontrado las mismas estrellas en todos).")
             E["paso"] = "Uniendo los tres masters en una imagen de color"
-            _cc_siril(siril, ["rgbcomp %s %s %s -out=%s" % (q(sel["r"]["ruta"]), q(sel["g"]["ruta"]), q(sel["b"]["ruta"]), "rgb")], "unir")
-            base, entrada = sel["r"], os.path.join(d, "rgb.fit")
-        # astrometría: la suya, la de una imagen hermana, o se resuelve ahora
+            _cc_siril(siril, ["rgbcomp %s %s %s -out=rgb" % (q(al[0]), q(al[1]), q(al[2]))], "unir")
+            shutil.rmtree(src, ignore_errors=True)
+            shutil.rmtree(seq, ignore_errors=True)
+            base, entrada = dict(R, wcs=False), os.path.join(d, "rgb.fit")
+            if donante:
+                E["paso"] = "Copiando la astrometría de " + os.path.basename(donante)
+                _cc_poner_wcs(entrada, os.path.join(d, "rgbw.fit"), donante)
+                entrada, base = os.path.join(d, "rgbw.fit"), dict(R, wcs=True)
+        # astrometría de una imagen en color: la suya, la de una imagen hermana, o se resuelve ahora
         resolver = []
         if not base["wcs"]:
-            hermano = _cc_hermano_wcs(base)
+            hermano = _cc_hermano_wcs(base) if "rgb" in sel else ""
             if hermano:
                 E["paso"] = "Copiando la astrometría de " + os.path.basename(hermano)
                 _cc_poner_wcs(entrada, os.path.join(d, "rgbw.fit"), hermano)
