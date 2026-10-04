@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.04.2"
+VERSION_PROG = "2026.10.04.3"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1666,7 +1666,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
       </div>
       <div class="grp" data-g="dev" id="grpDev" hidden>
         <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg><span class="notr" id="devTit"></span><span class="chev">›</span></button>
-        <div class="subs"><button class="nav sub notr" id="btnRecorte"></button><button class="nav sub notr" id="btnGradiente"></button></div>
+        <div class="subs"><button class="nav sub notr" id="btnRecorte"></button><button class="nav sub notr" id="btnGradiente"></button><button class="nav sub notr" id="btnColor"></button></div>
       </div>
       <div class="grp" data-g="config">
         <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Configuración</span><span class="chev">›</span></button>
@@ -1852,6 +1852,11 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
   <input type="password" id="devClave" autocomplete="off" style="width:100%;margin:12px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:inherit;font-size:15px">
   <div class="note" id="devMal" style="color:var(--bad);min-height:18px"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn" id="devNo"></button><button class="btn primary" id="devSi"></button></div>
+</div></div>
+<div class="modal" id="ccBox"><div class="box notr" style="width:min(1500px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="ccTit"></h2><button class="btn small" id="ccCerrar"></button></div>
+  <p class="varIntro" id="ccIntro"></p>
+  <div id="ccCuerpo"></div>
 </div></div>
 <div class="modal" id="rcBox"><div class="box notr" style="width:min(1500px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="rcTit"></h2><button class="btn small" id="rcCerrar"></button></div>
@@ -11316,6 +11321,115 @@ async function unVigilar(recien){
     $("unAbrirCarpeta").onclick = () => fetch("/api/unir/abrir", {method:"POST"});
   }
 }
+/* ---- calibrar el color ---- */
+const CCS = {modo:"tres", d:null, P:{}, t:0, vista:"despues", res:null, error:""};
+function ccRec(){ try { return JSON.parse(localStorage.getItem("astro-cc") || "{}"); } catch(_){ return {}; } }
+function ccGuardaRec(){ try { localStorage.setItem("astro-cc", JSON.stringify(CCS.P)); } catch(_){} }
+function ccAbrir(){
+  $("ccTit").textContent = trLT("Calibrar el color", "Colour calibration");
+  $("ccCerrar").textContent = trLT("Cerrar", "Close");
+  $("ccIntro").textContent = trLT("Ajusta el equilibrio de color con las estrellas del campo, comparándolas con el catálogo Gaia. Si tu cámara y tus filtros están en la base de datos de Siril, ASTRO usa la calibración espectrofotométrica (la más exacta: espectros de Gaia y curvas reales del sensor y los filtros); si no, la fotométrica, que vale para cualquier equipo. La imagen debe ser lineal y, mejor, con el fondo ya aplanado. Necesita internet. El original no se toca.", "Balances colour using the field stars, compared against the Gaia catalogue. If your camera and filters are in Siril's database, ASTRO uses spectrophotometric calibration (the most accurate: Gaia spectra and the real sensor and filter curves); otherwise photometric, which works with any gear. The image must be linear and, ideally, with the background already flattened. It needs internet. The original is untouched.");
+  $("ccBox").classList.add("show");
+  CCS.P = Object.assign({metodo:"auto", whiteref:"Average Spiral Galaxy", bg_bajo:-2.8, bg_alto:2, banda:false, rwl:671.6, gwl:656.3, bwl:500.7, rbw:7, gbw:7, bbw:7}, ccRec(), CCS.P);
+  ccPintar(); ccVigilar();
+}
+function ccJuegos(L){ const pal = n => n.replace(/\s*(R|Red|Rojo|G|Green|B|Blue)\b.*$/i, "").trim() || n; return [...new Set((L.redfilter || []).map(pal))]; }
+function ccDeJuego(L, j){ const de = l => (l || []).find(n => n.toLowerCase().startsWith(j.toLowerCase())) || ""; return {rfilter: de(L.redfilter), gfilter: de(L.greenfilter), bfilter: de(L.bluefilter)}; }
+function ccPintar(){
+  const c = $("ccCuerpo"), d = CCS.d, P = CCS.P, L = d ? d.listas : null, sel = d ? d.sel : {};
+  const arch = (k, n) => `<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button class="btn small" data-ccel="${k}">${esc(n)}</button><span class="note" style="overflow-wrap:anywhere">${sel[k] ? esc(sel[k].nombre) : "—"}</span></div>`;
+  const opc = (lista, v, vacio) => (vacio !== undefined ? `<option value="">${esc(vacio)}</option>` : "") + (lista || []).map(n => `<option${n === v ? " selected" : ""}>${esc(n)}</option>`).join("");
+  const selec = (k, n, lista, vacio) => `<label class="compRango"><span style="min-width:120px">${esc(n)}</span><select data-cc="${k}" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit">${opc(lista, P[k], vacio)}</select></label>`;
+  const numero = (k, n, paso) => `<label class="compRango"><span style="min-width:120px">${esc(n)}</span><input type="number" data-cc="${k}" step="${paso}" value="${P[k] ?? ""}" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit"></label>`;
+  const haySpcc = L && L.whiteref.length > 0, mono = d ? d.mono : CCS.modo === "tres";
+  let h = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn small${CCS.modo === "tres" ? " primary" : ""}" data-ccmodo="tres">${esc(trLT("Tres masters R, G y B", "Three masters R, G and B"))}</button><button class="btn small${CCS.modo === "una" ? " primary" : ""}" data-ccmodo="una">${esc(trLT("Una imagen en color", "One colour image"))}</button></div>`;
+  h += CCS.modo === "tres" ? arch("r", trLT("Rojo…", "Red…")) + arch("g", trLT("Verde…", "Green…")) + arch("b", trLT("Azul…", "Blue…")) : arch("rgb", trLT("Elegir la imagen…", "Choose the image…"));
+  if (d){
+    if (!d.siril) h += `<ul class="reasons" style="margin-top:10px"><li class="bad">${esc(trLT("No encuentro Siril. Instálalo desde siril.org.", "Siril not found. Install it from siril.org."))}</li></ul>`;
+    const listo = CCS.modo === "una" ? !!sel.rgb : !!(sel.r && sel.g && sel.b);
+    h += `<div style="display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:18px;margin-top:14px;align-items:start" id="ccRej"><div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><button class="btn small${CCS.vista === "antes" ? " primary" : ""}" data-ccv="antes">${esc(trLT("Antes", "Before"))}</button><button class="btn small${CCS.vista === "despues" ? " primary" : ""}" data-ccv="despues">${esc(trLT("Después", "After"))}</button><span class="note" id="ccPaso" style="margin-left:8px"></span></div>
+        <div style="background:#000;border-radius:10px;overflow:hidden;min-height:220px"><img id="ccImg" alt="" style="width:100%;display:block;cursor:pointer"></div>
+        <div id="ccRes" style="margin-top:10px"></div></div>
+      <div><h3 style="margin:0 0 4px">${esc(trLT("Equipo", "Gear"))}</h3>
+        ${haySpcc ? selec("sensor", trLT("Sensor", "Sensor"), mono ? L.monosensor : L.oscsensor, trLT("No está en la lista", "Not in the list")) : `<div class="note">${esc(trLT("Con este Siril solo está la calibración fotométrica (la espectrofotométrica pide Siril 1.4).", "With this Siril only photometric calibration is available (spectrophotometric needs Siril 1.4)."))}</div>`}
+        ${haySpcc && mono ? `<label class="compRango"><span style="min-width:120px">${esc(trLT("Juego de filtros", "Filter set"))}</span><select id="ccJuego" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit"><option value="">—</option>${ccJuegos(L).map(j => `<option${P.rfilter && P.rfilter.toLowerCase().startsWith(j.toLowerCase()) ? " selected" : ""}>${esc(j)}</option>`).join("")}</select></label>
+          ${selec("rfilter", trLT("Filtro rojo", "Red filter"), L.redfilter, "—")}${selec("gfilter", trLT("Filtro verde", "Green filter"), L.greenfilter, "—")}${selec("bfilter", trLT("Filtro azul", "Blue filter"), L.bluefilter, "—")}` : ""}
+        ${haySpcc && !mono ? selec("oscfilter", trLT("Filtro", "Filter"), L.oscfilter, "—") + selec("osclpf", trLT("Filtro de réflex", "DSLR low-pass"), L.osclpf, trLT("No es una réflex", "Not a DSLR")) : ""}
+        <div class="note" style="margin-top:6px">${d.sensor ? esc(trLT("Cámara de la cabecera: {1}. ASTRO propone el sensor {2}.", "Camera in the header: {1}. ASTRO suggests sensor {2}.", (sel.rgb || sel.r || {}).camara || "?", d.sensor)) : esc(trLT("ASTRO no ha reconocido la cámara de la cabecera: elige el sensor, o deja «No está en la lista» para usar la calibración fotométrica.", "ASTRO did not recognise the camera in the header: choose the sensor, or leave «Not in the list» to use photometric calibration."))}</div>
+        <h3 style="margin:16px 0 4px">${esc(trLT("Calibración", "Calibration"))}</h3>
+        <label class="compRango"><span style="min-width:120px">${esc(trLT("Método", "Method"))}</span><select data-cc="metodo" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit"><option value="auto"${P.metodo === "auto" ? " selected" : ""}>${esc(trLT("Automático (el mejor posible)", "Automatic (best available)"))}</option>${haySpcc ? `<option value="spcc"${P.metodo === "spcc" ? " selected" : ""}>${esc(trLT("Espectrofotométrica", "Spectrophotometric"))}</option>` : ""}<option value="pcc"${P.metodo === "pcc" ? " selected" : ""}>${esc(trLT("Fotométrica", "Photometric"))}</option></select></label>
+        ${haySpcc ? selec("whiteref", trLT("Referencia de blanco", "White reference"), L.whiteref) : ""}
+        <div title="${esc(trLT("Qué píxeles cuentan como fondo de cielo, en sigmas alrededor de la mediana", "Which pixels count as sky background, in sigmas around the median"))}">${numero("bg_bajo", trLT("Fondo: límite bajo", "Background: lower"), 0.1)}${numero("bg_alto", trLT("Fondo: límite alto", "Background: upper"), 0.1)}</div>
+        ${haySpcc ? `<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" data-ccc="banda" ${P.banda ? "checked" : ""}> ${esc(trLT("Filtros de banda estrecha", "Narrowband filters"))}</label>
+          <div id="ccBanda" ${P.banda ? "" : 'style="display:none"'}><div class="note" style="margin-top:4px">${esc(trLT("Longitud de onda y ancho de banda (nm) del filtro puesto en cada canal.", "Wavelength and bandwidth (nm) of the filter in each channel."))}</div>${numero("rwl", "R · λ", 0.1)}${numero("rbw", trLT("R · ancho", "R · width"), 0.5)}${numero("gwl", "G · λ", 0.1)}${numero("gbw", trLT("G · ancho", "G · width"), 0.5)}${numero("bwl", "B · λ", 0.1)}${numero("bbw", trLT("B · ancho", "B · width"), 0.5)}</div>` : ""}
+        ${!d.wcs && !d.hermano ? `<h3 style="margin:16px 0 4px">${esc(trLT("Astrometría", "Astrometry"))}</h3><div class="note">${esc(trLT("La imagen no está situada en el cielo. ASTRO la resolverá con estos datos.", "The image is not plate-solved. ASTRO will solve it with these values."))}</div>${numero("focal", trLT("Focal (mm)", "Focal length (mm)"), 1)}${numero("pixel", trLT("Píxel (µm)", "Pixel (µm)"), 0.01)}` : `<div class="note" style="margin-top:12px">${esc(d.wcs ? trLT("La imagen ya está situada en el cielo.", "The image is already plate-solved.") : trLT("Astrometría: se toma de {1}, que tiene el mismo encuadre.", "Astrometry: taken from {1}, which has the same framing.", d.hermano))}</div>`}
+        <div style="display:flex;gap:8px;margin-top:18px"><span style="flex:1"></span><button class="btn primary" id="ccGo" ${listo && d.siril ? "" : "disabled"}>${esc(trLT("Calibrar y guardar", "Calibrate and save"))}</button></div></div></div>`;
+  }
+  c.innerHTML = h;
+  if ($("ccRej") && innerWidth < 980) $("ccRej").style.gridTemplateColumns = "minmax(0,1fr)";
+  c.querySelectorAll("[data-ccmodo]").forEach(x => x.onclick = async () => { CCS.modo = x.dataset.ccmodo; CCS.d = null; CCS.res = null; await fetch("/api/cc/elegir", {method:"POST", body:JSON.stringify({limpiar:true})}); ccPintar(); });
+  c.querySelectorAll("[data-ccel]").forEach(x => x.onclick = () => ccElegir(x.dataset.ccel));
+  c.querySelectorAll("[data-cc]").forEach(x => x.onchange = () => { P[x.dataset.cc] = x.type === "number" ? (x.value === "" ? null : +x.value) : x.value; ccGuardaRec(); });
+  c.querySelectorAll("[data-ccc]").forEach(x => x.onchange = () => { P[x.dataset.ccc] = x.checked; ccGuardaRec(); $("ccBanda").style.display = P.banda ? "" : "none"; });
+  c.querySelectorAll("[data-ccv]").forEach(x => x.onclick = () => ccVista(x.dataset.ccv));
+  if ($("ccJuego")) $("ccJuego").onchange = () => { if ($("ccJuego").value){ Object.assign(P, ccDeJuego(L, $("ccJuego").value)); ccGuardaRec(); ccPintar(); } };
+  if ($("ccImg")) $("ccImg").onclick = () => ccVista(CCS.vista === "antes" ? "despues" : "antes");
+  if ($("ccGo")) $("ccGo").onclick = ccIniciar;
+  ccResultado();
+}
+async function ccElegir(cual){
+  let d;
+  try {
+    const r = await fetch("/api/cc/elegir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({elegir:true, cual})});
+    if (!r.ok) throw new Error(await r.text());
+    d = await r.json();
+  } catch(e){ toast(String(e.message || e)); return; }
+  if (!d.ruta){ if (d.fallo) toast(trLT("No se ha podido abrir la ventana para elegir el archivo.", "The file window could not be opened.")); return; }
+  CCS.d = d; CCS.res = null; CCS.error = "";
+  const P = CCS.P, L = d.listas, lista = d.mono ? L.monosensor : L.oscsensor;
+  if (d.sensor && lista.includes(d.sensor)) P.sensor = d.sensor; else if (!lista.includes(P.sensor)) P.sensor = "";
+  if (P.focal == null && d.escala && P.pixel) P.focal = Math.round(206.265 * P.pixel / d.escala);
+  ccPintar();
+}
+function ccVista(v){ CCS.vista = v; document.querySelectorAll("[data-ccv]").forEach(x => x.classList.toggle("primary", x.dataset.ccv === v)); if (CCS.res && CCS.res.vistas && $("ccImg")) $("ccImg").src = `/api/cc/img?n=${v}&t=${CCS.res.n}`; }
+function ccResultado(){
+  const h = $("ccRes"); if (!h) return; const r = CCS.res;
+  if (CCS.error){ h.innerHTML = `<ul class="reasons"><li class="bad">${esc(CCS.error)}</li></ul>`; return; }
+  if (!r){ h.innerHTML = ""; return; }
+  const k = r.factores || [];
+  h.innerHTML = `<ul class="reasons"><li class="ok">${esc(trLT("Guardada", "Saved"))}: <b>${esc(r.archivo)}</b></li>
+      <li>${esc(r.metodo === "spcc" ? trLT("Calibración espectrofotométrica", "Spectrophotometric calibration") : trLT("Calibración fotométrica", "Photometric calibration"))}${r.estrellas ? " · " + esc(trLT("{1} estrellas", "{1} stars", r.estrellas)) : ""}${k.length === 3 ? " · " + esc(trLT("factores", "factors")) + ` R ${numEs(k[0], 3)} · G ${numEs(k[1], 3)} · B ${numEs(k[2], 3)}` : ""}</li>
+      ${r.usa ? `<li class="note">${esc(r.usa)}</li>` : ""}${r.floja ? `<li class="warn">${esc(trLT("Siril avisa de que la solución es poco precisa: suele pasar si queda gradiente. Aplana antes el fondo.", "Siril warns the solution is imprecise: it usually happens when gradient remains. Flatten the background first."))}</li>` : ""}</ul>
+    <div class="note" style="margin:6px 0">${esc(trLT("Las vistas usan el mismo estirado para los tres canales, para que se vea el color real. Lo guardado es lineal.", "The views use the same stretch for all three channels, so the real colour shows. What is saved is linear."))}</div><button class="btn small" id="ccCarpeta">${esc(trLT("Mostrar en la carpeta", "Show in folder"))}</button>`;
+  $("ccCarpeta").onclick = () => fetch("/api/cc/carpeta", {method:"POST"});
+  ccVista(CCS.vista);
+}
+async function ccIniciar(){
+  ccGuardaRec(); CCS.res = null; CCS.error = ""; ccResultado();
+  const r = await fetch("/api/cc/iniciar", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(CCS.P)});
+  if (!r.ok) return toast(await r.text());
+  ccVigilar();
+}
+async function ccVigilar(){
+  clearTimeout(CCS.t);
+  if (!$("ccBox").classList.contains("show")) return;
+  let e; try { e = await (await fetch("/api/cc/estado")).json(); } catch(_){ CCS.t = setTimeout(ccVigilar, 3000); return; }
+  const p = $("ccPaso");
+  if (e.activo){
+    if (p) p.innerHTML = `${esc(tr(e.paso || ""))}… <button class="btn small" id="ccCancelar">${esc(trLT("Cancelar", "Cancel"))}</button>`;
+    if ($("ccCancelar")) $("ccCancelar").onclick = () => fetch("/api/cc/cancelar", {method:"POST"});
+    if ($("ccGo")) $("ccGo").disabled = true;
+    CCS.t = setTimeout(ccVigilar, 1500); return;
+  }
+  if (p) p.textContent = "";
+  if ($("ccGo") && CCS.d) $("ccGo").disabled = false;
+  if (e.error && !CCS.error && !CCS.res){ CCS.error = e.error === "Cancelado" ? trLT("Cancelado", "Cancelled") : tr(e.error); ccResultado(); }
+  else if (e.res && (!CCS.res || CCS.res.n !== e.res.n) && CCS.d){ CCS.res = e.res; CCS.vista = "despues"; ccResultado(); }
+}
+$("btnColor").textContent = trLT("Calibrar el color", "Colour calibration");
+$("btnColor").onclick = ccAbrir;
+$("ccCerrar").onclick = () => { $("ccBox").classList.remove("show"); clearTimeout(CCS.t); };
 /* ---- recortar y encuadrar ---- */
 const RCS = {info:null, x:0, y:0, w:0, h:0, ang:0, otros:new Set(), hecho:null, ocupado:false};
 function rcCaja(){ const i = RCS.info, r = RCS.ang * Math.PI / 180;
@@ -12454,7 +12568,14 @@ def _config_siril_usuario():
     cands = [os.path.join(os.environ.get("LOCALAPPDATA") or "", "siril", "config.ini")] if os.name == "nt" else []
     cands += [os.path.join(h, "Library", "Application Support", "org.siril.Siril", "siril", "config.ini"),
               os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.join(h, ".config"), "siril", "config.ini")]
-    return next((c for c in cands if c and os.path.isfile(c)), "")
+    r = next((c for c in cands if c and os.path.isfile(c)), "")
+    if not r:
+        import glob
+        for c in cands:
+            v = sorted(glob.glob(os.path.join(os.path.dirname(c), "config.*.ini")), key=os.path.getmtime) if c else []
+            if v:
+                return v[-1]
+    return r
 
 
 def orden_siril(siril, guion, carpeta):
@@ -14452,6 +14573,309 @@ DEV_CLAVE = "8295116592515474fd3e6eb45c0ee552823c46789c0e112e27086db055d11d4e"  
 def dev_clave_ok(c):
     import hashlib
     return hashlib.sha256(("astro-dev:" + str(c or "").strip()).encode("utf-8")).hexdigest() == DEV_CLAVE
+
+
+# ───────── Calibrar el color (con las calibraciones fotométrica y espectrofotométrica de Siril) ─────────
+CC = {"dir": "", "sel": {}, "listas": None, "estado": {"activo": False, "paso": "", "error": "", "res": None, "n": 0}, "ultimo": ""}
+_CC_WCS = re.compile(r"^(CTYPE[12]|CRPIX[12]|CRVAL[12]|CDELT[12]|CUNIT[12]|PC\d_\d|CD\d_\d|EQUINOX|RADESYS|LONPOLE|LATPOLE|[AB]P?_\d_\d|[AB]P?_ORDER|PLTSOLVD|OBJCTRA|OBJCTDEC|RA|DEC)$")
+# cámara (como viene en la cabecera o en «Mi equipo») → sensor de la base de Siril: (patrón, monocromo, color)
+_CC_SENSORES = [
+    (r"6200|QHY ?600|IMX ?455|IMX ?411|IMX ?461|QHY ?411|QHY ?461|ZEUS|APX60", "Sony IMX411/455/461/533/571", "Sony IMX455"),
+    (r"2600|QHY ?268|IMX ?571|POSEIDON|ATR2600|APX26|C3-26000|ARTEMIS", "Sony IMX411/455/461/533/571", "Sony IMX571"),
+    (r"533|IMX ?533|ARES|ATR533|QHY ?533", "Sony IMX411/455/461/533/571", "Sony IMX533"),
+    (r"294|IMX ?492|IMX ?294|QHY ?294|ARTEMIS-M", "Sony IMX492/294", "Sony IMX294"),
+    (r"1600|MN34230", "ZWO ASI1600MM", ""), (r"183|IMX ?183", "Sony IMX183", "Sony IMX183"),
+    (r"178|IMX ?178", "Sony IMX178", "Sony IMX178"), (r"585|IMX ?585|URANUS", "Sony IMX585", "Sony IMX585"),
+    (r"2400|IMX ?410", "", "Sony IMX410"), (r"071|IMX ?071|QHY ?168", "", "Sony IMX071"), (r"662|IMX ?662", "", "Sony IMX662"),
+    (r"678|IMX ?678", "", "Sony IMX678"), (r"676|IMX ?676", "", "Sony IMX676"), (r"715|IMX ?715", "", "Sony IMX715"),
+    (r"462|IMX ?462", "", "Sony IMX462"), (r"482|IMX ?482", "", "Sony IMX482"), (r"385|IMX ?385", "", "Sony IMX385"),
+    (r"224|IMX ?224", "", "Sony IMX224"), (r"415|IMX ?415", "", "Sony IMX415"), (r"477|IMX ?477", "", "Sony IMX477"),
+    (r"S30", "", "ZWO Seestar S30"), (r"S50|SEESTAR", "", "ZWO Seestar S50"),
+    (r"8300", "KAF8300", ""), (r"16200", "KAF16200", ""), (r"16803", "KAF16803", ""), (r"3200", "KAF3200", ""), (r"1603", "KAF1603ME", ""),
+    (r"11000", "KAI-11000M", ""), (r"0?9000", "onsemi KAF-09000", ""), (r"694", "ICX694", "")]
+
+
+def cc_sensor_de(camara, mono):
+    t = str(camara or "").upper()
+    for pat, m, c in _CC_SENSORES:
+        if re.search(pat, t) and (m if mono else c):
+            return m if mono else c
+    return ""
+
+
+def _cc_dir():
+    import tempfile
+    if not (CC["dir"] and os.path.isdir(CC["dir"])):
+        CC["dir"] = tempfile.mkdtemp(prefix="astro_cc_")
+    return CC["dir"]
+
+
+def _cc_siril(siril, lineas, nombre="paso"):
+    """Corre un guion de Siril en la carpeta de trabajo y devuelve sus líneas; si falla, RuntimeError con el motivo."""
+    d = _cc_dir()
+    guion = os.path.join(d, nombre + ".ssf")
+    with open(guion, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(["requires 1.2.0", "cd " + q(d), "setext fit", "setcompress 0", "set32bits"] + lineas) + "\n")
+    p = lanzar_siril(orden_siril(siril, guion, d), cwd=d)
+    CC["proc"] = p
+    out = []
+    for linea in p.stdout:
+        linea = re.sub(r"^log:\s*", "", linea.rstrip())
+        if linea and "progress:" not in linea and not re.match(r"^\d+: running command", linea):
+            out.append(linea)
+    p.wait()
+    CC["proc"] = None
+    if CC["estado"].get("cancelar"):
+        raise RuntimeError("Cancelado")
+    if p.returncode != 0 or any("Script execution failed" in x for x in out):
+        utiles = [x for x in out if not re.match(r"^(Running command|Setting CWD|Reading FITS|Saving FITS|Script execution|Exiting|HDU |\*\*|<|closing)", x) and x.strip()]
+        raise RuntimeError(" ".join(utiles[-2:])[:400] or "Siril ha fallado")
+    return out
+
+
+def cc_listas(siril, ver):
+    """Sensores, filtros y referencias de blanco de la base de datos de Siril (1.4 o posterior)."""
+    if CC["listas"] is not None:
+        return CC["listas"]
+    L = {k: [] for k in ("monosensor", "oscsensor", "redfilter", "greenfilter", "bluefilter", "oscfilter", "osclpf", "whiteref")}
+    try:
+        mayor = tuple(int(x) for x in re.findall(r"\d+", ver or "")[:2])
+    except ValueError:
+        mayor = ()
+    if siril and mayor >= (1, 4):
+        try:
+            out = _cc_siril(siril, ["spcc_list " + k for k in L], "listas")
+            claves, i = list(L), -1
+            for x in out:
+                if x.startswith("Running command: spcc_list"):
+                    i += 1
+                    primero = True
+                elif 0 <= i < len(claves) and not x.startswith(("Running command", "Script execution", "Setting CWD", "**", "closing", "Preparing python", "Checking the python", "Python module")):
+                    if primero:
+                        primero = False       # la primera línea es el título de la lista
+                    else:
+                        L[claves[i]].append(x.strip())
+        except RuntimeError:
+            pass
+    CC["listas"] = L
+    return L
+
+
+def _cc_ficha(ruta):
+    h = gc_cab(ruta)[0]
+    na = int(h.get("NAXIS", 2))
+    esc = None
+    try:
+        if "CDELT1" in h and "CRVAL1" in h:
+            esc = abs(float(h["CDELT1"])) * 3600
+        elif "CD1_1" in h:
+            esc = math.hypot(float(h["CD1_1"]), float(h.get("CD2_1", 0))) * 3600
+    except ValueError:
+        pass
+    return {"ruta": ruta, "nombre": os.path.basename(ruta), "w": int(h["NAXIS1"]), "h": int(h["NAXIS2"]),
+            "canales": int(h.get("NAXIS3", 1)) if na >= 3 else 1, "wcs": "CRVAL1" in h and "CTYPE1" in h, "escala": esc,
+            "camara": h.get("INSTRUME") or "", "filtro": h.get("FILTER") or "", "focal": num(h.get("FOCALLEN")), "pixel": num(h.get("XPIXSZ")),
+            "objeto": h.get("OBJECT") or ""}
+
+
+def _cc_hermano_wcs(fi):
+    """Otra imagen de la carpeta, del mismo tamaño y ya situada en el cielo (el master de luminancia, por ejemplo)."""
+    carpeta = os.path.dirname(fi["ruta"])
+    try:
+        nombres = sorted(os.listdir(carpeta))[:300]
+    except OSError:
+        return ""
+    for n in nombres:
+        r = os.path.join(carpeta, n)
+        if n.startswith(".") or not n.lower().endswith((".fit", ".fits", ".fts")) or r == fi["ruta"]:
+            continue
+        try:
+            h = gc_cab(r)[0]
+            if int(h["NAXIS1"]) == fi["w"] and int(h["NAXIS2"]) == fi["h"] and "CRVAL1" in h and "CTYPE1" in h:
+                return r
+        except Exception:
+            pass
+    return ""
+
+
+def cc_elegir(d):
+    cual = d.get("cual") if d.get("cual") in ("rgb", "r", "g", "b") else "rgb"
+    ruta, fallo = elegir_fits_gc() if d.get("elegir") else (str(d.get("ruta") or ""), False)
+    if not ruta:
+        return {"ruta": "", "fallo": fallo}
+    if ruta.lower().endswith(".xisf"):
+        raise RuntimeError("Por ahora esta herramienta solo abre FITS. Guarda la imagen como FITS.")
+    try:
+        fi = _cc_ficha(ruta)
+    except Exception as e:
+        raise RuntimeError("No se ha podido leer la imagen: %s" % e)
+    if cual == "rgb" and fi["canales"] != 3:
+        raise RuntimeError("Esa imagen no es de color (tiene una sola capa). Usa «Tres masters R, G y B».")
+    if cual != "rgb" and fi["canales"] != 1:
+        raise RuntimeError("Ese archivo ya es de color. Usa «Una imagen en color».")
+    sel = CC["sel"] = {"rgb": fi} if cual == "rgb" else dict({k: v for k, v in CC["sel"].items() if k in "rgb" and len(k) == 1}, **{cual: fi})
+    if cual == "r":
+        # los otros dos, si están al lado: mismo tamaño y filtro verde y azul en la cabecera o en el nombre
+        carpeta = os.path.dirname(ruta)
+        for k, pal in (("g", r"green|verde|(^|[_\- ])g([_\- .]|$)"), ("b", r"blue|azul|(^|[_\- ])b([_\- .]|$)")):
+            if k in sel:
+                continue
+            for n in sorted(os.listdir(carpeta))[:300]:
+                r2 = os.path.join(carpeta, n)
+                if n.startswith(".") or not n.lower().endswith((".fit", ".fits", ".fts")) or r2 == ruta:
+                    continue
+                try:
+                    f2 = _cc_ficha(r2)
+                except Exception:
+                    continue
+                if f2["canales"] == 1 and f2["w"] == fi["w"] and f2["h"] == fi["h"] and (re.search(pal, f2["filtro"], re.I) if f2["filtro"] else re.search(pal, n, re.I)):
+                    sel[k] = f2
+                    break
+    siril, ver = buscar_siril()
+    base = sel.get("rgb") or sel.get("r") or fi
+    hermano = "" if base["wcs"] else _cc_hermano_wcs(base)
+    esc = base["escala"]
+    if not esc and hermano:
+        try:
+            esc = _cc_ficha(hermano)["escala"]
+        except Exception:
+            pass
+    mono = "rgb" not in sel
+    return {"ruta": ruta, "sel": sel, "siril": bool(siril), "siril_version": ver, "listas": cc_listas(siril, ver), "mono": mono,
+            "sensor": cc_sensor_de(base["camara"], mono), "wcs": base["wcs"], "hermano": os.path.basename(hermano), "escala": esc}
+
+
+def _cc_poner_wcs(src, dst, donante):
+    """Copia a la imagen la astrometría de otra del mismo encuadre (reescribe el archivo con la cabecera ampliada)."""
+    cd = [c for c in gc_cab(donante)[2] if _CC_WCS.match(c[:8].strip())]
+    h, off, cards = gc_cab(src)
+    cards = [c for c in cards if not _CC_WCS.match(c[:8].strip())] + cd
+    cab = ("".join(cards) + "END".ljust(80)).encode("latin-1", "replace")
+    cab += b" " * (-len(cab) % 2880)
+    with open(src, "rb") as f, open(dst, "wb") as g:
+        f.seek(off)
+        g.write(cab)
+        shutil.copyfileobj(f, g, 1 << 24)
+
+
+def _cc_arg(k, v):
+    return '"-%s=%s"' % (k, str(v).replace('"', ""))
+
+
+def trabajo_cc(P):
+    E = CC["estado"]
+    d = _cc_dir()
+    try:
+        siril, ver = buscar_siril()
+        if not siril:
+            raise RuntimeError("No encuentro Siril. Instálalo desde siril.org y vuelve a intentarlo.")
+        sel = CC["sel"]
+        L = cc_listas(siril, ver)
+        for n in ("rgb.fit", "rgbw.fit", "color.fit", "antes.jpg", "despues.jpg"):
+            try:
+                os.remove(os.path.join(d, n))
+            except OSError:
+                pass
+        if "rgb" in sel:
+            base, entrada = sel["rgb"], sel["rgb"]["ruta"]
+        else:
+            if not all(k in sel for k in "rgb"):
+                raise RuntimeError("Faltan masters: hacen falta el rojo, el verde y el azul.")
+            if len({(sel[k]["w"], sel[k]["h"]) for k in "rgb"}) != 1:
+                raise RuntimeError("Los tres masters tienen que tener el mismo tamaño y estar alineados entre sí.")
+            E["paso"] = "Uniendo los tres masters en una imagen de color"
+            _cc_siril(siril, ["rgbcomp %s %s %s -out=%s" % (q(sel["r"]["ruta"]), q(sel["g"]["ruta"]), q(sel["b"]["ruta"]), "rgb")], "unir")
+            base, entrada = sel["r"], os.path.join(d, "rgb.fit")
+        # astrometría: la suya, la de una imagen hermana, o se resuelve ahora
+        resolver = []
+        if not base["wcs"]:
+            hermano = _cc_hermano_wcs(base)
+            if hermano:
+                E["paso"] = "Copiando la astrometría de " + os.path.basename(hermano)
+                _cc_poner_wcs(entrada, os.path.join(d, "rgbw.fit"), hermano)
+                entrada = os.path.join(d, "rgbw.fit")
+            else:
+                focal, pix = num(P.get("focal")) or base["focal"], num(P.get("pixel")) or base["pixel"]
+                if not focal or not pix:
+                    raise RuntimeError("La imagen no está situada en el cielo: escribe la focal y el tamaño de píxel para resolverla.")
+                resolver = ["platesolve -focal=%.1f -pixelsize=%.2f" % (focal, pix)]
+        mono = "rgb" not in sel
+        sensor = str(P.get("sensor") or "")
+        metodo = P.get("metodo") if P.get("metodo") in ("spcc", "pcc") else ("spcc" if sensor and L["whiteref"] else "pcc")
+        bg = "-bgtol=%.2f,%.2f" % (max(0.1, abs(num(P.get("bg_bajo")) or 2.8)), max(0.1, abs(num(P.get("bg_alto")) or 2.0)))     # Siril los quiere los dos en positivo
+        if metodo == "spcc":
+            if not L["whiteref"]:
+                raise RuntimeError("La calibración espectrofotométrica necesita Siril 1.4 o posterior.")
+            a = ["spcc"]
+            if mono:
+                a += [_cc_arg("monosensor", sensor)] + [_cc_arg(k, P[k]) for k in ("rfilter", "gfilter", "bfilter") if P.get(k)]
+            else:
+                a += [_cc_arg("oscsensor", sensor)] + [_cc_arg(k, P[k]) for k in ("oscfilter", "osclpf") if P.get(k)]
+            if P.get("whiteref"):
+                a.append(_cc_arg("whiteref", P["whiteref"]))
+            if P.get("banda"):
+                a.append("-narrowband")
+                for k in ("rwl", "gwl", "bwl", "rbw", "gbw", "bbw"):
+                    v = num(P.get(k))
+                    if v:
+                        a.append("-%s=%.1f" % (k, v))
+            orden = ["set photometry.is_mono=%s" % ("true" if mono else "false"), "set photometry.is_dslr=%s" % ("true" if P.get("osclpf") else "false"), " ".join(a + [bg])]
+        else:
+            orden = ["pcc -catalog=gaia " + bg]
+        E["paso"] = ("Resolviendo la astrometría y calibrando el color" if resolver else "Calibrando el color") + (" (espectrofotométrica)" if metodo == "spcc" else " (fotométrica)")
+        try:
+            out = _cc_siril(siril, ["load " + q(entrada)] + resolver + orden + ["save color"], "calibrar")
+        except RuntimeError as e:
+            if metodo != "spcc" or P.get("metodo") == "spcc" or str(e) == "Cancelado":
+                raise
+            metodo = "pcc"          # en automático, si la espectrofotométrica no sale, se prueba la fotométrica
+            E["paso"] = "La espectrofotométrica no ha salido: probando la fotométrica"
+            out = _cc_siril(siril, ["load " + q(entrada)] + resolver + ["pcc -catalog=gaia " + bg, "save color"], "calibrar2")
+        ks = [float(m.group(1)) for x in out for m in [re.search(r"^K[012]:\s*([\d.]+)", x)] if m][:3]
+        est = next((int(m.group(1)) for x in out for m in [re.search(r"using (\d+) stars", x)] if m), None)
+        usa = next((x for x in out if x.startswith("SPCC will use")), "")
+        floja = any("imprecise solution" in x for x in out)
+        E["paso"] = "Preparando las vistas"
+        fac = min(1.0, 1600.0 / base["w"])
+        red = lineas_resample(fac, " -interp=area") if fac < 0.999 else []
+        try:
+            _cc_siril(siril, ["load " + q(entrada), "autostretch -linked"] + red + ["savejpg antes 88",
+                              "load color", "autostretch -linked"] + red + ["savejpg despues 88"], "vistas")
+        except RuntimeError as e:
+            if str(e) == "Cancelado":
+                raise
+        origen = sel["rgb"]["ruta"] if "rgb" in sel else sel["r"]["ruta"]
+        b0 = os.path.splitext(origen)[0]
+        if "rgb" not in sel:
+            b0 = re.sub(r"(?i)[_\- ](r|red|rojo)(?=([_\- ]|$))", "", b0, count=1)
+        salida, k = b0 + "_color.fit", 2
+        while os.path.exists(salida):
+            salida, k = "%s_color_%d.fit" % (b0, k), k + 1
+        shutil.move(os.path.join(d, "color.fit"), salida)
+        for n in ("rgb.fit", "rgbw.fit"):
+            try:
+                os.remove(os.path.join(d, n))
+            except OSError:
+                pass
+        CC["ultimo"] = salida
+        E["n"] += 1
+        E["res"] = {"archivo": os.path.basename(salida), "metodo": metodo, "factores": ks, "estrellas": est, "usa": usa, "floja": floja,
+                    "vistas": os.path.isfile(os.path.join(d, "despues.jpg")), "n": E["n"]}
+        E["paso"] = "Terminado"
+    except Exception as e:
+        E["error"] = str(e) or "Error"
+    finally:
+        E["activo"] = False
+
+
+def cc_iniciar(P):
+    E = CC["estado"]
+    if E["activo"]:
+        raise RuntimeError("Ya hay una calibración en marcha.")
+    if not CC["sel"]:
+        raise RuntimeError("Elige primero una imagen.")
+    E.update(activo=True, paso="Empezando…", error="", res=None, cancelar=False)
+    threading.Thread(target=trabajo_cc, args=(P if isinstance(P, dict) else {},), daemon=True).start()
 
 
 # ───────── Recortar y encuadrar ─────────
@@ -22909,6 +23333,15 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps([{"id": e["id"], "nombre": e["nombre"]} for e in editores()], ensure_ascii=False))
         if p.path == "/api/proyecto/estado":
             return self._send(200, json.dumps({k: v for k, v in PROY.items() if k != "cancelar"}, ensure_ascii=False, default=str))
+        if p.path == "/api/cc/img":
+            n = (urllib.parse.parse_qs(p.query).get("n") or [""])[0]
+            ruta = os.path.join(CC.get("dir") or "", n + ".jpg") if n in ("antes", "despues") else ""
+            if ruta and os.path.isfile(ruta):
+                with open(ruta, "rb") as fh:
+                    return self._send(200, fh.read(), "image/jpeg")
+            return self._send(404, "no hay vista", "text/plain; charset=utf-8")
+        if p.path == "/api/cc/estado":
+            return self._send(200, json.dumps({k: v for k, v in CC["estado"].items() if k != "cancelar"}, ensure_ascii=False))
         if p.path == "/api/rc/img":
             ruta = os.path.join(RC.get("dir") or "", "vista.png")
             if RC.get("dir") and os.path.isfile(ruta):
@@ -23097,6 +23530,29 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps(gc_guardar(_gc_params(d)), ensure_ascii=False))
                 except RuntimeError as e:
                     return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+            if p.path in ("/api/cc/elegir", "/api/cc/iniciar"):
+                d = json.loads(self._body() or b"{}")
+                try:
+                    if p.path == "/api/cc/elegir":
+                        if d.get("limpiar"):
+                            CC["sel"] = {}
+                            return self._send(200, '{"ok":true}')
+                        return self._send(200, json.dumps(cc_elegir(d), ensure_ascii=False))
+                    cc_iniciar(d)
+                    return self._send(200, '{"ok":true}')
+                except RuntimeError as e:
+                    return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+            if p.path == "/api/cc/cancelar":
+                CC["estado"]["cancelar"] = True
+                pr = CC.get("proc")
+                if pr:
+                    try: pr.terminate()
+                    except Exception: pass
+                return self._send(200, '{"ok":true}')
+            if p.path == "/api/cc/carpeta":
+                if CC.get("ultimo") and os.path.isfile(CC["ultimo"]):
+                    abrir_sistema(CC["ultimo"], True)
+                return self._send(200, '{"ok":true}')
             if p.path in ("/api/rc/abrir", "/api/rc/recortar"):
                 d = json.loads(self._body() or b"{}")
                 try:
