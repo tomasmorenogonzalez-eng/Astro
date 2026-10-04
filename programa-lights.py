@@ -4,7 +4,7 @@ import os, sys, json, re, math, socket, subprocess, threading, webbrowser, urlli
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PROGRAMA_ID = "lights"
-VERSION_PROG = "2026.10.04.1"
+VERSION_PROG = "2026.10.04.2"
 NOMBRE_PROG = "Control de calidad de lights (ASTRO)"
 
 DISCO = os.environ.get("ASTRO_DISCO", "/Volumes/LexarDisk2")
@@ -1666,7 +1666,7 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
       </div>
       <div class="grp" data-g="dev" id="grpDev" hidden>
         <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14"/></svg><span class="notr" id="devTit"></span><span class="chev">›</span></button>
-        <div class="subs"><button class="nav sub notr" id="btnGradiente"></button></div>
+        <div class="subs"><button class="nav sub notr" id="btnRecorte"></button><button class="nav sub notr" id="btnGradiente"></button></div>
       </div>
       <div class="grp" data-g="config">
         <button class="nav grpT" data-abrir="1"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg><span>Configuración</span><span class="chev">›</span></button>
@@ -1852,6 +1852,12 @@ table.pryT{min-width:0;width:100%} .pryT th{cursor:default;white-space:nowrap} .
   <input type="password" id="devClave" autocomplete="off" style="width:100%;margin:12px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:inherit;font-size:15px">
   <div class="note" id="devMal" style="color:var(--bad);min-height:18px"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn" id="devNo"></button><button class="btn primary" id="devSi"></button></div>
+</div></div>
+<div class="modal" id="rcBox"><div class="box notr" style="width:min(1500px,100%)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="rcTit"></h2><button class="btn small" id="rcCerrar"></button></div>
+  <p class="varIntro" id="rcIntro"></p>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="rcElegir"></button><span class="note" id="rcRuta"></span></div>
+  <div id="rcCuerpo"></div>
 </div></div>
 <div class="modal" id="gcBox"><div class="box notr" style="width:min(1500px,100%)">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="gcTit"></h2><button class="btn small" id="gcCerrar"></button></div>
@@ -11310,6 +11316,120 @@ async function unVigilar(recien){
     $("unAbrirCarpeta").onclick = () => fetch("/api/unir/abrir", {method:"POST"});
   }
 }
+/* ---- recortar y encuadrar ---- */
+const RCS = {info:null, x:0, y:0, w:0, h:0, ang:0, otros:new Set(), hecho:null, ocupado:false};
+function rcCaja(){ const i = RCS.info, r = RCS.ang * Math.PI / 180;
+  return RCS.ang ? [Math.round(Math.abs(i.w * Math.cos(r)) + Math.abs(i.h * Math.sin(r))), Math.round(Math.abs(i.w * Math.sin(r)) + Math.abs(i.h * Math.cos(r)))] : [i.w, i.h]; }
+function rcAjustar(){ const [BW, BH] = rcCaja();
+  RCS.w = Math.max(16, Math.min(BW, Math.round(RCS.w))); RCS.h = Math.max(16, Math.min(BH, Math.round(RCS.h)));
+  RCS.x = Math.max(0, Math.min(BW - RCS.w, Math.round(RCS.x))); RCS.y = Math.max(0, Math.min(BH - RCS.h, Math.round(RCS.y))); }
+function rcAbrir(){
+  $("rcTit").textContent = trLT("Recortar y encuadrar", "Crop and frame");
+  $("rcCerrar").textContent = trLT("Cerrar", "Close");
+  $("rcElegir").textContent = trLT("Elegir la imagen…", "Choose the image…");
+  $("rcIntro").textContent = trLT("Recorta un apilado y, si hace falta, lo gira para enderezar el encuadre. Arrastra el rectángulo o sus esquinas y lados, o escribe las medidas. «Quitar bordes» busca solo el mayor rectángulo sin los bordes vacíos que deja el apilado. El original no se toca: se guarda una copia al lado, lineal y con su astrometría ajustada.", "Crops a stack and, if needed, rotates it to straighten the framing. Drag the rectangle or its corners and sides, or type the measurements. «Remove borders» finds the largest rectangle without the empty borders left by stacking. The original is untouched: a copy is saved next to it, linear and with its astrometry adjusted.");
+  $("rcBox").classList.add("show");
+  rcPintar();
+}
+function rcPintar(){
+  const c = $("rcCuerpo"), i = RCS.info;
+  if (!i){ c.innerHTML = ""; $("rcRuta").textContent = ""; return; }
+  $("rcRuta").textContent = `${i.nombre} · ${i.w} × ${i.h}`;
+  const campo = (k, n) => `<label class="compRango"><span style="min-width:90px">${esc(n)}</span><input type="number" data-rc="${k}" min="0" step="1" style="flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit"></label>`;
+  c.innerHTML = `<div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;margin-top:12px;align-items:start" id="rcRej">
+      <div><div id="rcLienzo" style="position:relative;background:#000;border-radius:10px;overflow:hidden;user-select:none;touch-action:none">
+          <img id="rcImg" alt="" draggable="false" src="/api/rc/img?t=${i.n}" style="position:absolute;display:block;max-width:none">
+          <div id="rcSombra" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,.55);border:1.5px solid #fff;cursor:move;box-sizing:border-box">
+            ${["nw","n","ne","e","se","s","sw","w"].map(d => `<i data-rcm="${d}" style="position:absolute;width:14px;height:14px;background:#fff;border:1px solid #000;border-radius:3px;cursor:${d}-resize;${d.includes("n") ? "top:-7px;" : d.includes("s") ? "bottom:-7px;" : "top:calc(50% - 7px);"}${d.includes("w") ? "left:-7px;" : d.includes("e") ? "right:-7px;" : "left:calc(50% - 7px);"}"></i>`).join("")}
+          </div></div>
+        <div class="note" style="margin-top:6px">${esc(trLT("La vista está estirada solo para verla; lo que se guarda es lineal.", "The view is stretched only for viewing; what is saved is linear."))}</div></div>
+      <div><h3 style="margin:0 0 4px">${esc(trLT("Recorte", "Crop"))}</h3>
+        ${campo("x", trLT("Izquierda", "Left"))}${campo("y", trLT("Arriba", "Top"))}${campo("w", trLT("Ancho", "Width"))}${campo("h", trLT("Alto", "Height"))}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn small" id="rcAuto" title="${esc(trLT("El mayor rectángulo sin los bordes vacíos del apilado", "The largest rectangle without the stack's empty borders"))}">${esc(trLT("Quitar bordes", "Remove borders"))}</button><button class="btn small" id="rcTodo">${esc(trLT("Imagen entera", "Whole image"))}</button></div>
+        <h3 style="margin:18px 0 4px">${esc(trLT("Giro", "Rotation"))}</h3>
+        <label class="compRango" title="${esc(trLT("Positivo: en el sentido de las agujas del reloj", "Positive: clockwise"))}"><span style="min-width:90px">${esc(trLT("Ángulo (°)", "Angle (°)"))}</span><input type="range" id="rcAngR" min="-180" max="180" step="0.5" value="${RCS.ang}"><input type="number" id="rcAng" min="-180" max="180" step="0.1" value="${RCS.ang}" style="width:76px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit"></label>
+        <div class="note" id="rcAngNota" style="margin-top:6px"></div>
+        ${i.hermanos.length ? `<h3 style="margin:18px 0 4px">${esc(trLT("El mismo recorte en", "The same crop on"))}</h3><div class="note" style="margin-bottom:6px">${esc(trLT("Otras imágenes de la carpeta con el mismo tamaño (los demás filtros, por ejemplo), para que sigan casando.", "Other images in the folder with the same size (the other filters, for example), so they keep matching."))}</div>
+          <div style="max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px">${i.hermanos.map(n => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:2px 0"><input type="checkbox" data-rco="${esc(n)}" ${RCS.otros.has(n) ? "checked" : ""}><span style="overflow-wrap:anywhere">${esc(n)}</span></label>`).join("")}</div>` : ""}
+        <div style="display:flex;gap:8px;margin-top:18px"><span style="flex:1"></span><button class="btn primary" id="rcGuardar">${esc(trLT("Recortar y guardar", "Crop and save"))}</button></div>
+        <div id="rcHecho" style="margin-top:12px"></div></div></div>`;
+  if (innerWidth < 980) $("rcRej").style.gridTemplateColumns = "minmax(0,1fr)";
+  c.querySelectorAll("[data-rc]").forEach(x => x.onchange = () => { RCS[x.dataset.rc] = +x.value || 0; rcAjustar(); rcDibujar(); });
+  c.querySelectorAll("[data-rco]").forEach(x => x.onchange = () => { x.checked ? RCS.otros.add(x.dataset.rco) : RCS.otros.delete(x.dataset.rco); });
+  $("rcAuto").onclick = () => { rcAngulo(0); [RCS.x, RCS.y, RCS.w, RCS.h] = i.auto; rcAjustar(); rcDibujar(); };
+  $("rcTodo").onclick = () => { const [BW, BH] = rcCaja(); RCS.x = RCS.y = 0; RCS.w = BW; RCS.h = BH; rcDibujar(); };
+  $("rcAngR").oninput = () => rcAngulo(+$("rcAngR").value); $("rcAng").onchange = () => rcAngulo(+$("rcAng").value || 0);
+  $("rcGuardar").onclick = rcGuardar;
+  const S = $("rcSombra");
+  S.onpointerdown = e => {
+    e.preventDefault(); S.setPointerCapture(e.pointerId);
+    const m = e.target.dataset.rcm || "mv", f = rcCaja()[0] / $("rcLienzo").clientWidth, p0 = {x: e.clientX, y: e.clientY}, r0 = {x: RCS.x, y: RCS.y, w: RCS.w, h: RCS.h}, [BW, BH] = rcCaja();
+    S.onpointermove = ev => {
+      const dx = (ev.clientX - p0.x) * f, dy = (ev.clientY - p0.y) * f;
+      let x0 = r0.x, y0 = r0.y, x1 = r0.x + r0.w, y1 = r0.y + r0.h;
+      if (m === "mv"){ const nx = Math.max(0, Math.min(BW - r0.w, r0.x + dx)), ny = Math.max(0, Math.min(BH - r0.h, r0.y + dy)); x0 = nx; y0 = ny; x1 = nx + r0.w; y1 = ny + r0.h; }
+      else { if (m.includes("w")) x0 = Math.max(0, Math.min(x1 - 16, x0 + dx)); if (m.includes("e")) x1 = Math.min(BW, Math.max(x0 + 16, x1 + dx));
+             if (m.includes("n")) y0 = Math.max(0, Math.min(y1 - 16, y0 + dy)); if (m.includes("s")) y1 = Math.min(BH, Math.max(y0 + 16, y1 + dy)); }
+      RCS.x = x0; RCS.y = y0; RCS.w = x1 - x0; RCS.h = y1 - y0; rcAjustar(); rcDibujar();
+    };
+    S.onpointerup = () => { S.onpointermove = null; };
+  };
+  rcDibujar(); rcHecho();
+}
+function rcAngulo(a){
+  a = Math.max(-180, Math.min(180, Math.round(a * 10) / 10));
+  const [W0, H0] = rcCaja(), cx = RCS.x + RCS.w / 2 - W0 / 2, cy = RCS.y + RCS.h / 2 - H0 / 2;
+  RCS.ang = a; const [W1, H1] = rcCaja();
+  RCS.x = W1 / 2 + cx - RCS.w / 2; RCS.y = H1 / 2 + cy - RCS.h / 2; rcAjustar();
+  $("rcAngR").value = a; $("rcAng").value = a; rcDibujar();
+}
+function rcDibujar(){
+  const L = $("rcLienzo"); if (!L) return;
+  const i = RCS.info, [BW, BH] = rcCaja(), ancho = L.clientWidth, e = ancho / BW;
+  L.style.height = Math.round(BH * e) + "px";
+  const im = $("rcImg"); im.style.width = i.w * e + "px"; im.style.height = i.h * e + "px";
+  im.style.left = (BW - i.w) * e / 2 + "px"; im.style.top = (BH - i.h) * e / 2 + "px"; im.style.transform = `rotate(${RCS.ang}deg)`;
+  const S = $("rcSombra"); S.style.left = RCS.x * e + "px"; S.style.top = RCS.y * e + "px"; S.style.width = RCS.w * e + "px"; S.style.height = RCS.h * e + "px";
+  document.querySelectorAll("[data-rc]").forEach(x => { if (document.activeElement !== x) x.value = Math.round(RCS[x.dataset.rc]); });
+  $("rcAngNota").textContent = !RCS.ang ? trLT("Sin giro, el recorte es exacto: los píxeles no se tocan.", "With no rotation the crop is exact: pixels are untouched.")
+    : i.siril ? trLT("Con giro, la imagen se recalcula con Siril: tarda más y los píxeles se interpolan. Evita que el rectángulo coja las esquinas negras.", "With rotation the image is recomputed with Siril: it takes longer and pixels are interpolated. Keep the rectangle out of the black corners.")
+    : trLT("Para girar hace falta Siril, y ASTRO no lo encuentra.", "Rotation needs Siril, and ASTRO cannot find it.");
+}
+window.addEventListener("resize", () => { if ($("rcBox").classList.contains("show")) rcDibujar(); });
+async function rcElegir(){
+  $("rcRuta").textContent = trLT("Leyendo la imagen…", "Reading the image…");
+  let d;
+  try {
+    const r = await fetch("/api/rc/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({elegir:true})});
+    if (!r.ok) throw new Error(await r.text());
+    d = await r.json();
+  } catch(e){ toast(String(e.message || e)); rcPintar(); return; }
+  if (!d.ruta){ rcPintar(); if (d.fallo) toast(trLT("No se ha podido abrir la ventana para elegir el archivo.", "The file window could not be opened.")); return; }
+  RCS.info = d; RCS.ang = 0; RCS.x = RCS.y = 0; RCS.w = d.w; RCS.h = d.h; RCS.otros = new Set(); RCS.hecho = null;
+  rcPintar();
+}
+function rcHecho(){
+  const h = $("rcHecho"); if (!h) return; const r = RCS.hecho;
+  h.innerHTML = r ? `<ul class="reasons">${r.archivos.map(a => `<li class="ok">${esc(trLT("Guardada", "Saved"))}: <b>${esc(a)}</b></li>`).join("")}${r.fallos.map(a => `<li class="bad">${esc(trLT("No se ha podido recortar", "Could not crop"))}: ${esc(a)}</li>`).join("")}</ul>
+    <div class="note" style="margin:6px 0">${r.w} × ${r.h}${r.ang ? " · " + numEs(r.ang, 1) + "°" : ""}</div><button class="btn small" id="rcCarpeta">${esc(trLT("Mostrar en la carpeta", "Show in folder"))}</button>` : "";
+  if (r) $("rcCarpeta").onclick = () => fetch("/api/rc/carpeta", {method:"POST"});
+}
+async function rcGuardar(){
+  if (!RCS.info || RCS.ocupado) return;
+  RCS.ocupado = true; const b = $("rcGuardar"); b.disabled = true; b.textContent = trLT("Guardando…", "Saving…");
+  try {
+    const r = await fetch("/api/rc/recortar", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({x:RCS.x, y:RCS.y, w:RCS.w, h:RCS.h, ang:RCS.ang, otros:[...RCS.otros]})});
+    if (!r.ok) throw new Error(await r.text());
+    RCS.hecho = await r.json();
+  } catch(e){ toast(String(e.message || e)); }
+  RCS.ocupado = false;
+  if ($("rcGuardar")){ $("rcGuardar").disabled = false; $("rcGuardar").textContent = trLT("Recortar y guardar", "Crop and save"); }
+  rcHecho();
+}
+$("btnRecorte").textContent = trLT("Recortar y encuadrar", "Crop and frame");
+$("btnRecorte").onclick = rcAbrir;
+$("rcElegir").onclick = rcElegir;
+$("rcCerrar").onclick = () => $("rcBox").classList.remove("show");
 /* ---- corrección de gradientes ---- */
 const GCD = {low_thr:0.2, low_tol:0.5, high_thr:0.05, high_tol:0, scale:5, smooth:0.4, conv:false, simp:false, grado:1, prot:true, pthr:0.1, pamt:0.5};
 const GCS = {P:{...GCD}, vista:"despues", info:null, res:null, t:0, ocupado:false, pend:false, n:0, hecho:null};
@@ -14332,6 +14452,186 @@ DEV_CLAVE = "8295116592515474fd3e6eb45c0ee552823c46789c0e112e27086db055d11d4e"  
 def dev_clave_ok(c):
     import hashlib
     return hashlib.sha256(("astro-dev:" + str(c or "").strip()).encode("utf-8")).hexdigest() == DEV_CLAVE
+
+
+# ───────── Recortar y encuadrar ─────────
+RC = {"ruta": "", "src": "", "M": None, "dir": "", "ultimo": "", "n": 0}
+
+
+def _rc_auto(M):
+    """Mayor rectángulo sin bordes vacíos (píxeles a cero del apilado), en píxeles de la imagen y coordenadas de pantalla."""
+    mw, mh, k = M["mw"], M["mh"], M["k"]
+    ok = bytearray(mw * mh)
+    for p in M["planos"]:
+        for i, v in enumerate(p):
+            if v:
+                ok[i] = 1
+    x0, y0, x1, y1 = 0, 0, mw, mh
+    while x1 - x0 > 8 and y1 - y0 > 8:
+        w, h = x1 - x0, y1 - y0
+        malos = {"a": w - sum(ok[y0 * mw + x0:y0 * mw + x1]), "b": w - sum(ok[(y1 - 1) * mw + x0:(y1 - 1) * mw + x1]),
+                 "i": h - sum(ok[y0 * mw + x0:y1 * mw + x0:mw]), "d": h - sum(ok[y0 * mw + x1 - 1:y1 * mw + x1 - 1:mw])}
+        frac = {"a": malos["a"] / w, "b": malos["b"] / w, "i": malos["i"] / h, "d": malos["d"] / h}
+        lado = max(frac, key=frac.get)
+        if frac[lado] <= 0.004:
+            break
+        if lado == "a":
+            y0 += 1
+        elif lado == "b":
+            y1 -= 1
+        elif lado == "i":
+            x0 += 1
+        else:
+            x1 -= 1
+    W, H = M["W"], M["H"]
+    X0 = 0 if x0 == 0 else x0 * k + k
+    Y0 = 0 if y0 == 0 else y0 * k + k
+    X1 = W if x1 == mw else x1 * k - k
+    Y1 = H if y1 == mh else y1 * k - k
+    X1, Y1 = max(X0 + 16, X1), max(Y0 + 16, Y1)
+    # las filas del fichero van de abajo arriba salvo que la cabecera diga lo contrario
+    yp = Y0 if M["arriba"] else H - Y1
+    return [X0, yp, X1 - X0, Y1 - Y0]
+
+
+def rc_abrir(ruta):
+    import tempfile
+    if not ruta or not os.path.isfile(ruta):
+        raise RuntimeError("No encuentro ese archivo.")
+    with _GC_LOCK:
+        d = RC["dir"] if RC["dir"] and os.path.isdir(RC["dir"]) else tempfile.mkdtemp(prefix="astro_rc_")
+        src = ruta
+        if ruta.lower().endswith(".xisf"):
+            src = os.path.join(d, "entrada.fit")
+            try:
+                xisf_a_fits(ruta, src)
+            except Exception as e:
+                raise RuntimeError("No se ha podido leer ese XISF (guárdalo sin compresión o como FITS): %s" % e)
+        try:
+            M = gc_muestra(src)
+        except Exception as e:
+            raise RuntimeError("No se ha podido leer la imagen: %s" % e)
+        _gc_png(os.path.join(d, "vista.png"), M["mw"], M["mh"], [_gc_stf(p) for p in M["planos"]], M["arriba"])
+        hermanos = []
+        carpeta = os.path.dirname(ruta)
+        try:
+            for n in sorted(os.listdir(carpeta), key=lambda x: x.lower())[:400]:
+                r = os.path.join(carpeta, n)
+                if n.startswith(".") or r == ruta or not n.lower().endswith((".fit", ".fits", ".fts")) or not os.path.isfile(r):
+                    continue
+                try:
+                    h = gc_cab(r)[0]
+                    if int(h["NAXIS1"]) == M["W"] and int(h["NAXIS2"]) == M["H"]:
+                        hermanos.append(n)
+                except Exception:
+                    pass
+        except OSError:
+            pass
+        RC["n"] += 1
+        RC.update(ruta=ruta, src=src, M=M, dir=d, ultimo="")
+        return {"ruta": ruta, "nombre": os.path.basename(ruta), "w": M["W"], "h": M["H"], "canales": M["C"], "n": RC["n"],
+                "hermanos": hermanos[:60], "auto": _rc_auto(M), "siril": bool(buscar_siril()[0])}
+
+
+def _rc_cortar(src, salida, x, y, w, h):
+    """Recorte recto, exacto y sin tocar los datos: copia los bytes de la zona y ajusta la cabecera (tamaño y astrometría)."""
+    I = gc_info(src)
+    W, H, C = I["W"], I["H"], I["C"]
+    nb = _GC_TIPO[I["bp"]][1]
+    fy = y if I["arriba"] else H - (y + h)
+    cards = []
+    for c in I["cards"]:
+        k = c[:8].strip()
+        if k == "NAXIS1":
+            c = ("NAXIS1  = %20d" % w).ljust(80)
+        elif k == "NAXIS2":
+            c = ("NAXIS2  = %20d" % h).ljust(80)
+        elif k in ("CRPIX1", "CRPIX2") and c[8:10] == "= ":
+            try:
+                v = float(c[10:].split("/")[0].strip().replace("D", "E")) - (x if k == "CRPIX1" else fy)
+                c = ("%-8s= %20s" % (k, "%.8G" % v)).ljust(80)
+            except ValueError:
+                pass
+        cards.append(c)
+    cards.append(("HISTORY ASTRO: recorte x=%d y=%d ancho=%d alto=%d (de %d x %d)" % (x, y, w, h, W, H))[:80].ljust(80))
+    cab = ("".join(cards) + "END".ljust(80)).encode("latin-1", "replace")
+    cab += b" " * (-len(cab) % 2880)
+    tmp = salida + ".tmp"
+    with open(src, "rb") as f, open(tmp, "wb") as g:
+        g.write(cab)
+        for c in range(C):
+            for r in range(fy, fy + h):
+                f.seek(I["off"] + ((c * H + r) * W + x) * nb)
+                g.write(f.read(w * nb))
+        g.write(b"\0" * (-(w * h * C * nb) % 2880))
+    os.replace(tmp, salida)
+
+
+def _rc_siril(siril, src, salida, x, y, w, h, ang, d):
+    """Giro libre y recorte con Siril (que recalcula los píxeles y la astrometría)."""
+    tmp = os.path.join(d, "girada.fit")
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
+    guion = os.path.join(d, "girar.ssf")
+    with open(guion, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(["requires 1.2.0", "setext fit", "setcompress 0", "set32bits", "load " + q(src), "rotate %.4f -nocrop" % ang,
+                            "crop %d %d %d %d" % (x, y, w, h), "save " + q(os.path.join(d, "girada"))]) + "\n")
+    p = lanzar_siril(orden_siril(siril, guion, d), cwd=d)
+    cola = []
+    for linea in p.stdout:
+        linea = linea.rstrip()
+        if linea and not linea.startswith("progress:"):
+            cola = (cola + [re.sub(r"^log:\s*", "", linea)])[-4:]
+    p.wait()
+    if p.returncode != 0 or not os.path.isfile(tmp):
+        raise RuntimeError("Siril no ha podido girar la imagen. " + " ".join(cola[-2:]))
+    shutil.move(tmp, salida)
+
+
+def rc_recortar(d):
+    with _GC_LOCK:
+        M = RC["M"]
+        if not M:
+            raise RuntimeError("Elige primero una imagen.")
+        W, H = M["W"], M["H"]
+        ang = num(d.get("ang")) or 0.0
+        ang = ((ang + 180.0) % 360.0) - 180.0
+        if abs(ang) < 0.005:
+            ang = 0.0
+        rad = math.radians(ang)
+        BW = int(round(abs(W * math.cos(rad)) + abs(H * math.sin(rad)))) if ang else W
+        BH = int(round(abs(W * math.sin(rad)) + abs(H * math.cos(rad)))) if ang else H
+        try:
+            x, y, w, h = (int(round(float(d.get(k)))) for k in ("x", "y", "w", "h"))
+        except (TypeError, ValueError):
+            raise RuntimeError("El recorte no es válido.")
+        x, y = max(0, min(BW - 16, x)), max(0, min(BH - 16, y))
+        w, h = max(16, min(BW - x, w)), max(16, min(BH - y, h))
+        siril = buscar_siril()[0] if ang else None
+        if ang and not siril:
+            raise RuntimeError("Para girar hace falta Siril. Instálalo desde siril.org y vuelve a intentarlo.")
+        carpeta = os.path.dirname(RC["ruta"])
+        otros = [n for n in (d.get("otros") or []) if isinstance(n, str) and os.path.basename(n) == n and os.path.isfile(os.path.join(carpeta, n))]
+        hechos, fallos = [], []
+        for ruta, src in [(RC["ruta"], RC["src"])] + [(os.path.join(carpeta, n), os.path.join(carpeta, n)) for n in otros]:
+            base = os.path.splitext(ruta)[0]
+            salida, k = base + "_recorte.fit", 2
+            while os.path.exists(salida):
+                salida, k = "%s_recorte_%d.fit" % (base, k), k + 1
+            try:
+                if ang:
+                    _rc_siril(siril, src, salida, x, y, w, h, ang, RC["dir"])
+                else:
+                    _rc_cortar(src, salida, x, y, w, h)
+                hechos.append(os.path.basename(salida))
+                RC["ultimo"] = salida
+            except (OSError, ValueError, KeyError, RuntimeError) as e:
+                if ruta == RC["ruta"]:
+                    raise RuntimeError("No se ha podido guardar el recorte: %s" % e)
+                fallos.append(os.path.basename(ruta))
+        return {"archivos": hechos, "fallos": fallos, "w": w, "h": h, "ang": ang}
 
 
 GC = {"ruta": "", "src": "", "M": None, "R": None, "dir": "", "ultimo": "", "n": 0}
@@ -22609,6 +22909,12 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, json.dumps([{"id": e["id"], "nombre": e["nombre"]} for e in editores()], ensure_ascii=False))
         if p.path == "/api/proyecto/estado":
             return self._send(200, json.dumps({k: v for k, v in PROY.items() if k != "cancelar"}, ensure_ascii=False, default=str))
+        if p.path == "/api/rc/img":
+            ruta = os.path.join(RC.get("dir") or "", "vista.png")
+            if RC.get("dir") and os.path.isfile(ruta):
+                with open(ruta, "rb") as fh:
+                    return self._send(200, fh.read(), "image/png")
+            return self._send(404, "no hay vista", "text/plain; charset=utf-8")
         if p.path == "/api/gc/img":
             n = (urllib.parse.parse_qs(p.query).get("n") or [""])[0]
             ruta = os.path.join(GC.get("dir") or "", n + ".png") if n in ("antes", "despues", "modelo", "mascara") else ""
@@ -22791,6 +23097,21 @@ class H(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps(gc_guardar(_gc_params(d)), ensure_ascii=False))
                 except RuntimeError as e:
                     return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+            if p.path in ("/api/rc/abrir", "/api/rc/recortar"):
+                d = json.loads(self._body() or b"{}")
+                try:
+                    if p.path == "/api/rc/abrir":
+                        ruta, fallo = elegir_fits_gc() if d.get("elegir") else (str(d.get("ruta") or ""), False)
+                        if not ruta:
+                            return self._send(200, json.dumps({"ruta": "", "fallo": fallo}))
+                        return self._send(200, json.dumps(rc_abrir(ruta), ensure_ascii=False))
+                    return self._send(200, json.dumps(rc_recortar(d), ensure_ascii=False))
+                except RuntimeError as e:
+                    return self._send(400, tr_py(str(e)), "text/plain; charset=utf-8")
+            if p.path == "/api/rc/carpeta":
+                if RC.get("ultimo") and os.path.isfile(RC["ultimo"]):
+                    abrir_sistema(RC["ultimo"], True)
+                return self._send(200, '{"ok":true}')
             if p.path == "/api/dev/clave":
                 time.sleep(0.6)
                 return self._send(200, json.dumps({"ok": dev_clave_ok(json.loads(self._body() or b"{}").get("clave"))}))
